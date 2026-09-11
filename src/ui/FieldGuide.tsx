@@ -11,7 +11,7 @@ export default function FieldGuide({ onClose }: { onClose: () => void }) {
     <h3>Your route</h3>
     <ol><li>Arrival terrace: your starting point, 20 metres above the water.</li><li>Flooded boulevard: fly forward and descend to skim the water.</li><li>Broken viaduct: pass through the opening in the elevated road.</li><li>Upper skyline: rise to the tall tower on your right and find a flat roof.</li></ol>
     <h3>Move naturally</h3>
-    <p>On a phone, drag the lower-left area to move and the right side to look. Tap Lift, then steer toward where you want to go. Release movement to brake and hover. Surge toggles extra speed. Aim at a nearby flat surface until a landing ring appears, then tap Land.</p>
+    <p>On a phone, hold an open part of the scene with either thumb to lift and fly. Slide left or right to turn, up to climb, and down to descend. Drag farther from where you touched to accelerate; bring your thumb back for a gentle cruise. Hold near a screen edge to keep turning. Release to brake and hover. Aim at a nearby flat surface until a landing ring appears, release, then tap Land. A quick tap does not start flight. Pinch zoom remains available and stops movement.</p>
     <p>Keyboard: W/A/S/D move, arrow keys look, R/F rise and descend, Space lifts or lands, Shift toggles Surge. Click the world for mouse look. Escape pauses. E opens the terminal when nearby.</p>
     <p>For single-tap movement, enable “Show tap controls” in Flight settings. Each directional tap makes a short movement; Stop immediately holds your position. Separate buttons turn your view.</p>
     <h3>Explore through text</h3>

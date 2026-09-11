@@ -11,7 +11,7 @@ The local Playwright configuration uses system Chrome on macOS, never Chrome for
 ## Controls
 
 - Desktop: WASD move; mouse or arrow keys look; R/F rise/descend; Space lift/land; Shift toggle Surge; Escape pause; E read a nearby terminal.
-- Touch: lower-left move region, right look region, Lift/Land and Surge buttons. Release movement to brake. Aim toward a flat surface to reveal its landing ring. Movement cancels landing.
+- Touch: hold anywhere in the open scene with either thumb to lift and cruise. Slide to aim (left/right turn, up/down climb/descend); drag farther for smoothly increasing speed. Holding near an edge keeps turning. Release to hover. No separate Surge button. A quick tap does not start flight. Aim toward a flat surface to reveal its landing ring, release, then tap Land. New flight input cancels landing. Pinch zoom stops movement; game controls suppress text selection and long-press callouts, while the field guide remains selectable.
 - Field guide offers the same discovery as readable text. Settings include perspective, graphics, reduced camera motion, audio, reset, and a local timing-report download.
 - Optional tap controls provide short directional movements and separate view buttons without dragging. They are hidden by default to keep the scene clear.
 
@@ -23,7 +23,7 @@ City geometry is generated deterministically and combined into one colored mesh.
 
 ## Playtest status
 
-This is a playtest candidate, not a measured iPhone release. Physical iPhone Safari, VoiceOver and subjective enjoyment checks must be recorded by the tester. Desktop viewport emulation and headless Mac timing are separately identified. See `docs/verification.md` for evidence and remaining checks.
+This is a playtest candidate, not a measured iPhone release. Physical iPhone Chrome, VoiceOver and subjective enjoyment checks must be recorded by the tester. Desktop viewport emulation and headless Mac timing are separately identified. See `docs/verification.md` for evidence and remaining checks.
 
 Run `node scripts/profile.mjs` against a production preview for a five-minute desktop route sample. `PROFILE_OUTPUT` selects the report folder; `PROFILE_SECONDS` sets duration. A first frame after resume is excluded; reports retain the most recent 18,000 active frames. These reports stay on the device until downloaded.
 

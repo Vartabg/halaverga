@@ -2,7 +2,7 @@
 import dynamic from 'next/dynamic';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { hydrateGame, persistGame, useGame } from '@/game/store';
-import { runtime, toggleSurge } from '@/game/runtime';
+import { runtime } from '@/game/runtime';
 import { pause, resume, useInput } from './useInput';
 import { useAudio } from './useAudio';
 import Boundary from './Boundary';
@@ -32,7 +32,8 @@ export default function Experience() {
   }, [state.message]);
   return <>
     <a className="skip" href="#field-guide" onClick={() => { pause(); state.set({ journal: true }); }}>Skip to text field guide</a>
-    <main id="expedition" ref={main} className={styles.experience} tabIndex={-1} aria-label="Halaverga expedition">
+    <main id="expedition" ref={main} className={styles.experience} tabIndex={-1} aria-label="Halaverga expedition"
+      onContextMenu={e => { if (!(e.target as Element).closest('dialog')) e.preventDefault(); }}>
       <div className={styles.world}>
         {hydrated && !failed && <Boundary key={sceneKey} fallback={null} onError={failure}><Scene onLoss={failure} /></Boundary>}
       </div>
@@ -63,10 +64,9 @@ export default function Experience() {
           <Telemetry />
           <div className={styles.actions}>
             <button className={styles.action} onClick={() => { runtime.lift = true; }}><span aria-hidden="true">{state.flying ? '↓' : '↑'}</span>{state.landing ? 'Cancel landing' : state.flying ? 'Land' : 'Lift'}</button>
-            <button className={`${styles.action} ${state.surging ? styles.active : ''}`} aria-pressed={state.surging} onClick={toggleSurge}><span aria-hidden="true">»</span>Surge</button>
           </div>
           {state.nearTerminal && <button className={styles.discovery} onClick={() => { pause(); state.set({ discovered: true, journal: true }); persistGame(); }}>◇ Municipal record <span>Read ↗</span></button>}
-          <div className={styles.moveHint} aria-hidden="true">MOVE</div><div className={styles.lookHint} aria-hidden="true">LOOK</div>
+          {!state.flying && <div className={styles.touchHint} aria-hidden="true">HOLD TO FLY · SLIDE TO STEER</div>}
         </>}
         {state.paused && !state.panel && !state.journal && !failed && <section className={styles.pauseCard} aria-label="Expedition paused">
           <p className={styles.eyebrow}>SUIT HOLDING POSITION</p><h2>Take your time.</h2><p>Your expedition will be here.</p>

@@ -31,7 +31,7 @@ export default function Suit() {
     root.current.position.copy(runtime.position);
     root.current.rotation.y = runtime.yaw;
     root.current.rotation.x = MathUtils.damp(root.current.rotation.x, state.flying ? -Math.min(runtime.speed / 23, .95) : 0, 5, dt);
-    root.current.rotation.z = MathUtils.damp(root.current.rotation.z, -runtime.touch.strafe * .22, 5, dt);
+    root.current.rotation.z = MathUtils.damp(root.current.rotation.z, -runtime.thumb.bank * .22, 5, dt);
   });
   return <group ref={root}><mesh geometry={geometry} castShadow><meshToonMaterial vertexColors /></mesh>
     <pointLight position={[0, .2, .4]} color="#c2f9c8" intensity={.5} distance={2} />

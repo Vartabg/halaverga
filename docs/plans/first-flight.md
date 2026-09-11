@@ -7,3 +7,7 @@ Next.js, TypeScript, R3F/Three.js WebGL2, Rapier, CSS Modules and Zustand. Imple
 One local, clearly fictional terminal record and location identifier. Persist settings and safe checkpoint. HTML instructions, textual route/discovery alternative, keyboard access, reduced motion, loading/error/context-loss recovery. Pause when hidden; preserve position and clear touches on orientation change.
 
 Muse independently reviews movement; Gemini independently reviews rendering. Codex integrates, tests, commits and pushes through task-lifecycle. Dedicated Vercel playtest URL and QR, previous deployment URLs retained. Target 60 fps on iPhone 15-class Safari with stable 30 fps fallback; record actual device and p50/p95/stalls over five minutes. Validate collisions, landing cancellation, rotation, pause/resume, keyboard, VoiceOver, zoom, reduced motion and contrast. Physical iPhone performance and player enjoyment require the user's real-device playtest; never claim emulator results satisfy them.
+
+## User correction · 2026-09-11
+
+The user uses Chrome on their phone. Chrome on iPhone is now the primary mobile review target. The original split controls and Surge button above are superseded by [the one-thumb control revision](thumb-controls.md).
