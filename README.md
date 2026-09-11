@@ -19,13 +19,15 @@ The local Playwright configuration uses system Chrome on macOS, never Chrome for
 
 Next.js/React hosts a lazy-loaded R3F/Three.js WebGL2 scene. Rapier's kinematic capsule sweeps handle collisions. `game/Player.tsx` owns motion; `game/CameraRig.tsx` owns the camera; keyboard and touch share `runtime.ts` input. Preferences and safe checkpoints are stored locally. No account, database, or model request is needed to fly.
 
+The suit and camera share one interpolated physics anchor. Six articulated suit parts blend through acceleration, streamlined flight, turns and braking. Exterior building volumes, advance clearance sweeps and contact-corrected velocity prevent entry into unfinished interiors. The district perimeter brakes approaching flight; supported landings and saved checkpoints are checked against the actual geometry. The Field guide includes a route map. `docs/navigation-audit.json` records the finite route and high-speed regression evidence; it is not an exhaustive guarantee of every trajectory.
+
 City geometry is generated deterministically and combined into one colored mesh. The suit is an original Blender model: regenerate with `Blender --background --factory-startup --python scripts/build-suit.py`. The untextured GLB, procedural city, shaders, icon, and fictional record are project-original. No third-party art, recordings, or copyrighted game assets are included. Dependencies retain their respective licenses.
 
 ## Playtest status
 
-This is a playtest candidate, not a measured iPhone release. Physical iPhone Chrome, VoiceOver and subjective enjoyment checks must be recorded by the tester. Desktop viewport emulation and headless Mac timing are separately identified. See `docs/verification.md` for evidence and remaining checks.
+This is a playtest candidate, not a measured iPhone release. Physical iPhone Safari, VoiceOver and subjective enjoyment checks must be recorded by the tester. Desktop viewport emulation and headless Mac timing are separately identified. See `docs/verification.md` for evidence and remaining checks.
 
-Run `node scripts/profile.mjs` against a production preview for a five-minute desktop route sample. `PROFILE_OUTPUT` selects the report folder; `PROFILE_SECONDS` sets duration. A first frame after resume is excluded; reports retain the most recent 18,000 active frames. These reports stay on the device until downloaded.
+Run `node scripts/profile.mjs` against a production preview for a five-minute desktop route sample. `PROFILE_OUTPUT` selects the report folder; `PROFILE_SECONDS` sets duration; `PROFILE_SURGE=1` uses maximum-speed flight. A first frame after resume is excluded; reports retain the most recent 18,000 active frames. These reports stay on the device until downloaded.
 
 ## Deployment
 

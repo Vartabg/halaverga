@@ -4,14 +4,14 @@ export type CameraMode = 'third' | 'first';
 type GameState = {
   started: boolean; paused: boolean; ready: boolean; panel: boolean; journal: boolean;
   camera: CameraMode; quality: 'high' | 'low'; reduced: boolean; muted: boolean; tapControls: boolean;
-  flying: boolean; landing: boolean; canLand: boolean; nearTerminal: boolean; surging: boolean; inputEpoch: number;
+  flying: boolean; landing: boolean; canLand: boolean; nearTerminal: boolean; surging: boolean; boundaryNear: boolean; clearanceActive: boolean; inputEpoch: number;
   checkpoint: Vec; discovered: boolean; message: string;
   set: (patch: Partial<Omit<GameState, 'set'>>) => void;
 };
 export const useGame = create<GameState>((set) => ({
   started: false, paused: true, ready: false, panel: false, journal: false,
   camera: 'third', quality: 'high', reduced: false, muted: true, tapControls: false,
-  flying: false, landing: false, canLand: false, nearTerminal: false, surging: false, inputEpoch: 0,
+  flying: false, landing: false, canLand: false, nearTerminal: false, surging: false, boundaryNear: false, clearanceActive: false, inputEpoch: 0,
   checkpoint: START, discovered: false, message: '', set,
 }));
 const STORAGE = 'halaverga-flight-v1';

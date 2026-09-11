@@ -1,6 +1,6 @@
 # Halaverga
 
-Browser-first flight playtest. Approved setting: fictional modern hillside city destroyed in 2033, visited in 2113. Keep modern architecture visibly damaged. Prioritize satisfying assisted flight, iPhone Chrome in both orientations, stable cameras, minimal accessible interface, and source/fiction distinctions.
+Browser-first flight playtest. Approved setting: fictional modern hillside city destroyed in 2033, visited in 2113. Keep modern architecture visibly damaged. Prioritize satisfying assisted flight, iPhone Safari in both orientations, stable cameras, minimal accessible interface, and source/fiction distinctions.
 
 Use task-lifecycle linked worktrees. Keep modules under 200 lines. One authoritative camera writer; movement updates stay outside React state. Every Canvas needs an error boundary and context-loss handling. Never load credentials or commit secrets. Run type checks, movement tests, production build, browser and accessibility checks before task-lifecycle finish. Record physical-device checks honestly; emulation is not iPhone validation. Follow the approved plan in docs/plans/first-flight.md.
 

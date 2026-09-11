@@ -4,6 +4,8 @@ import { useGame } from './store';
 export const runtime = {
   position: new Vector3(START.x, START.y, START.z), velocity: new Vector3(),
   yaw: 0, pitch: -0.12, surge: false, lift: false, reset: false,
+  poseEpoch: 0, cameraDistance: 0,
+  clearance: { active: false, boundary: false, point: new Vector3(), normal: new Vector3(0, 1, 0) },
   thumb: { active: false, throttle: 0, edgeTurn: 0, edgePitch: 0, bank: 0 }, keys: new Set<string>(),
   tap: { forward: 0, strafe: 0, vertical: 0 },
   landTarget: null as Vector3 | null, landGoal: null as Vector3 | null,

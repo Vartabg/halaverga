@@ -26,6 +26,7 @@ export default function Experience() {
   const retry = () => { pause(); setFailed(false); setSceneKey(v => v + 1); state.set({ ready: false, flying: false, landing: false }); };
   const fallback = <div className={styles.recovery} role="alert"><h2>The world needs a moment.</h2><p>Your field guide remains available. Reload the scene to continue from your saved landing.</p><button className={styles.primary} onClick={retry}>Reload scene</button></div>;
   const playing = state.started && !state.paused;
+  const flightHint = state.message || (state.flying && state.canLand ? 'SURFACE IN REACH · LAND' : state.boundaryNear ? 'SURVEY LIMIT · TURN BACK' : state.clearanceActive ? 'CLEARANCE ASSIST · STEER AROUND' : '');
   useEffect(() => {
     if (!state.message) return;
     const id = setTimeout(() => useGame.setState({ message: '' }), 4000); return () => clearTimeout(id);
@@ -60,7 +61,7 @@ export default function Experience() {
         {playing && <>
           {state.tapControls && <TapControls key={state.inputEpoch} />}
           <div className={styles.reticle} aria-hidden="true"><span /></div>
-          {(state.message || state.flying && state.canLand) && <p className={styles.flightHint}>{state.message || 'SURFACE IN REACH · LAND'}</p>}
+          {flightHint && <p className={styles.flightHint}>{flightHint}</p>}
           <Telemetry />
           <div className={styles.actions}>
             <button className={styles.action} onClick={() => { runtime.lift = true; }}><span aria-hidden="true">{state.flying ? '↓' : '↑'}</span>{state.landing ? 'Cancel landing' : state.flying ? 'Land' : 'Lift'}</button>

@@ -1,8 +1,8 @@
 export type Vec = { x: number; y: number; z: number };
 export type Intent = { forward: number; strafe: number; vertical: number };
-export const FOOT = 1.02;
+export const FOOT = 1.06;
 export const START: Vec = { x: 0, y: 20 + FOOT, z: 65 };
-export const WORLD = { minX: -205, maxX: 205, minZ: -240, maxZ: 140, ceiling: 135 };
+export const WORLD = { minX: -205, maxX: 205, minZ: -188, maxZ: 108, ceiling: 105 };
 export const SPEED = { walk: 5, flight: 13, surge: 34 };
 export const moving = (i: Intent) => Math.hypot(i.forward, i.strafe, i.vertical) > 0.08;
 export const safeDelta = (dt: number) => Number.isFinite(dt) ? Math.min(Math.max(dt, 0), 1 / 30) : 0;
@@ -20,11 +20,22 @@ export function advanceVelocity(v: Vec, i: Intent, yaw: number, pitch: number,
   };
   const length = Math.max(1, Math.hypot(direction.x, direction.y, direction.z));
   const gain = 1 - Math.exp(-(active ? 4 : 9) * dt);
-  return {
+  const next = {
     x: v.x + (direction.x / length * speed - v.x) * gain,
     y: flying ? v.y + (direction.y / length * speed - v.y) * gain : Math.max(-20, v.y - 22 * dt),
     z: v.z + (direction.z / length * speed - v.z) * gain,
   };
+  if (flying) {
+    const change = Math.hypot(next.x - v.x, next.y - v.y, next.z - v.z);
+    const maximum = (active ? 42 : 110) * dt;
+    if (change > maximum) {
+      const ratio = maximum / change;
+      next.x = v.x + (next.x - v.x) * ratio;
+      next.y = v.y + (next.y - v.y) * ratio;
+      next.z = v.z + (next.z - v.z) * ratio;
+    }
+  }
+  return next;
 }
 
 export function boundMovement(position: Vec, movement: Vec, flying: boolean): Vec {

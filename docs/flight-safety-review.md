@@ -1,0 +1,9 @@
+# Independent review · flight safety
+
+Muse completed a read-only geometry/controller review with `muse-spark-1.3-contributor`. It identified retained inward velocity, enterable upper stories, rotated slab wedges, numeric-only checkpoints and bounds extending into backdrop geometry. Codex checked these against the actual model and added real Rapier regression cases. Its proposed smaller X bounds would cut off authored hillside buildings, and one suggested facade-test direction was reversed; neither was used. No reviewer-executed tests or reliable Muse token usage were available.
+
+Gemini completed supplied-code review with `gemini-3.8-flash-high` through Antigravity (72.45 seconds; 23,858 input and 22,730 output tokens reported). The bank-direction finding was confirmed and fixed. Codex also changed the braking blend to a continuous response and retained heading during near-vertical flight. The review was not accepted wholesale: Rapier 2.2.0 performs body interpolation inside the Physics step, its installed 0.19.2 shape-cast signature includes `targetDistance`, and the JS Ball descriptor has no `free()` method. Moving frame callbacks to positive priority or adding the suggested free call would introduce defects. Installed source/types and executed tests take precedence over those claims.
+
+Rendering order: Physics at -50, shared presentation at -30, suit articulation at -20, camera at -10, automatic rendering afterward. Camera and suit use the same interpolated rigid-body anchor. The camera alone owns the camera transform; its swept spherical boom contracts for obstacles. Original GLB pieces are regrouped into six articulated parts, with owned derived geometry and a shared material disposed on unmount.
+
+Finite geometry evidence is in navigation-audit.json. It is not a proof of every possible trajectory. Physical iPhone Safari comfort and native-device performance remain user review gates.

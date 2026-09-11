@@ -1,0 +1,124 @@
+{
+  "engine": "Rapier 0.19.2",
+  "generatedAt": "2026-09-11T20:37:07.759Z",
+  "maximumSpeed": 34,
+  "physicsStepSeconds": 0.016666666666666666,
+  "bounds": {
+    "minX": -205,
+    "maxX": 205,
+    "minZ": -188,
+    "maxZ": 108,
+    "ceiling": 105
+  },
+  "cityColliderCount": 92,
+  "exteriorBuildingVolumes": 40,
+  "flightProbeRadius": 1.05,
+  "routeAuditRadius": 1.15,
+  "route": [
+    {
+      "id": "arrival",
+      "label": "Arrival terrace",
+      "x": 0,
+      "y": 21.06,
+      "z": 65
+    },
+    {
+      "id": "lift",
+      "label": "Vertical departure",
+      "x": 0,
+      "y": 26,
+      "z": 65
+    },
+    {
+      "id": "launch",
+      "label": "Departure",
+      "x": 0,
+      "y": 26,
+      "z": 47
+    },
+    {
+      "id": "boulevard",
+      "label": "Water corridor",
+      "x": 0,
+      "y": 3.2,
+      "z": 22
+    },
+    {
+      "id": "viaduct",
+      "label": "Viaduct opening",
+      "x": -3,
+      "y": 3.2,
+      "z": -1
+    },
+    {
+      "id": "north",
+      "label": "North boulevard",
+      "x": 0,
+      "y": 8,
+      "z": -27
+    },
+    {
+      "id": "ascent",
+      "label": "Tower approach",
+      "x": 9,
+      "y": 69,
+      "z": -38
+    },
+    {
+      "id": "roof",
+      "label": "Marked tower roof",
+      "x": 30,
+      "y": 69,
+      "z": -38
+    }
+  ],
+  "routeResults": [
+    {
+      "from": "Arrival terrace",
+      "to": "Vertical departure",
+      "clear": true
+    },
+    {
+      "from": "Vertical departure",
+      "to": "Departure",
+      "clear": true
+    },
+    {
+      "from": "Departure",
+      "to": "Water corridor",
+      "clear": true
+    },
+    {
+      "from": "Water corridor",
+      "to": "Viaduct opening",
+      "clear": true
+    },
+    {
+      "from": "Viaduct opening",
+      "to": "North boulevard",
+      "clear": true
+    },
+    {
+      "from": "North boulevard",
+      "to": "Tower approach",
+      "clear": true
+    },
+    {
+      "from": "Tower approach",
+      "to": "Marked tower roof",
+      "clear": true
+    }
+  ],
+  "stressApproaches": 145,
+  "stressSteps": 8700,
+  "sourceHashes": {
+    "src/game/FlightSafety.ts": "2899fd005aecbe9777e7c1e9da856cb7ce13bafc3f8759d3ca824ae96279eeac",
+    "src/game/navigation.ts": "357f27dade5dd43b1c67a4844504daf32537fb36421b8555acd59f379eefd38c",
+    "src/game/motion.ts": "03cb00caf08aa0bdc2c30819b3d619265cc87ab79361a73f40808e236f5f4876",
+    "src/world/kit.ts": "a9e325d2076d55bc681e58e27f2ef78a9d7fc1a77165c7c57df421c5e7a0c426",
+    "src/world/cityData.ts": "04ed655de8a25e155f8b80ae72591b4d3b9685e1eb5c9e9d4579caf5762f609f",
+    "src/game/Player.tsx": "f2816b448d5689428b21b3616f42098596774ebc367c753af4e0544a829db591",
+    "src/world/DistrictBoundary.tsx": "4fc8474f59ffab362ca41264f9d6c882f6f1e68a1984ca03f2b2d87a7e54bcab"
+  },
+  "scope": "Finite seeded swept-body regression and declared route tubes in the actual city geometry. Not an exhaustive proof of every trajectory or physical-device validation."
+}

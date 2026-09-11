@@ -1,8 +1,21 @@
 # First-flight verification · 2026-09-11
 
+## Flight composition and navigation revision · 2026-09-11
+
+The user reported visible shaking during fast flight and getting trapped in geometry. The phone browser is Safari, correcting the earlier Chrome identification.
+
+- TypeScript and production build pass; 26 unit/integration cases and 13 system-Chrome browser cases pass locally.
+- The camera and suit share an interpolated Rapier anchor, with ordered frame callbacks. Banking follows velocity rather than pointer-event frequency. Tests cover 30/60/120 Hz pose convergence, signed banking, angle wrapping, reduced motion, and the rendered camera/suit relationship during fast flight and hover recovery.
+- Real Rapier tests sweep the planned route through the authored city, probe broken upper stories, check full-speed facade contact and immediate departure, preserve tangential sliding, reject unsupported/inside-building checkpoints, and enforce district limits. The seeded stress run covers 145 valid approaches and 8,700 physics steps without detected body overlap. `navigation-audit.json` records geometry counts, route coordinates, clearances and source hashes. These are finite regression cases, not a proof covering every trajectory.
+- Browser checks recover an old saved position inside a building, stop at the north perimeter and move away again. All prior keyboard, one-thumb, touch cancellation/rotation, landing, pause/resume, graphics recovery, selectable guide and automated AA checks remain passing.
+- Rendered inspection covers the streamlined pose, braking brace, settled hover and the Field guide map at a 393×852 viewport without horizontal overflow. Viewport checks do not replace physical Safari or VoiceOver testing.
+- Muse and Gemini supplied independent reviews. Accepted findings and verified corrections to their advice are documented in `flight-safety-review.md`.
+
+`performance/flight-safety-mac-chrome.json` records this revision's five-minute sample, source hashes and workload. On the physical Apple M2 Max, system Chrome 152 headless with ANGLE Metal, at 1440×1000/DPR 1/full detail/third person, the active sample retained 18,000 intervals over 300 seconds: median 16.7 ms, 95th percentile 17.2 ms, zero intervals over 50 ms and zero browser/shader errors. Surge was enabled after each reset (34 m/s maximum; clearance may reduce it). Observed main-render peaks: 12 draw calls, 81,526 triangles, 11 geometries and 3 textures. This is a Mac frame-loop sample, not GPU timings or physical iPhone evidence. No simultaneous test/build browser ran during the sample.
+
 ## Thumb-control revision · 2026-09-11
 
-User playtest feedback: the separate Surge action was awkward, steering required two thumbs, and held touches near buttons invoked selection in Chrome on the user’s phone.
+User playtest feedback: the separate Surge action was awkward, steering required two thumbs, and held touches near buttons invoked selection on the user’s phone. The browser was initially identified as Chrome and subsequently corrected to Safari.
 
 - TypeScript, production build, 13 unit/integration cases and 10 system-Chrome browser cases pass locally.
 - New real Chrome touch sequences cover left-thumb/third-person and right-thumb/first-person flight without pressing Lift, quick-tap rejection, steering in both axes, increasing speed with drag distance, continued edge turns, release braking, second-touch cancellation, and rotation during an active gesture.
@@ -33,6 +46,6 @@ This is the next playtest candidate. The original five-minute performance sample
 
 ## Required physical review
 
-Still open: iPhone Chrome performance and heat over five minutes, thumb comfort, real rotation, VoiceOver, native browser zoom, and whether the travel feels enjoyable. The owner should open the hosted test on the actual phone, fly the route, and download the measurement report from Flight settings. See `TECH_DEBT.md` for owners and release gates.
+Still open: iPhone Safari performance and heat over five minutes, thumb comfort, real rotation, VoiceOver, native browser zoom, and whether the travel feels enjoyable. The owner should open the hosted test on the actual phone, fly the route, and download the measurement report from Flight settings. See `TECH_DEBT.md` for owners and release gates.
 
 The deliverable is a playable candidate for that review. Do not present all device/accessibility gates as complete.

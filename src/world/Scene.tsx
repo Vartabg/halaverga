@@ -4,10 +4,12 @@ import { Canvas, useThree } from '@react-three/fiber';
 import { Physics } from '@react-three/rapier';
 import { ACESFilmicToneMapping } from 'three';
 import City from './City';
+import DistrictBoundary from './DistrictBoundary';
 import { Sky, Water } from './Atmosphere';
 import Suit from './Suit';
 import Player from '@/game/Player';
 import CameraRig from '@/game/CameraRig';
+import FlightPresentation from '@/game/FlightPresentation';
 import { useGame } from '@/game/store';
 import { clearInput } from '@/game/runtime';
 function GraphicsRecovery({ onLoss }: { onLoss: () => void }) {
@@ -35,8 +37,8 @@ export default function Scene({ onLoss }: { onLoss: () => void }) {
       shadow-camera-top={110} shadow-camera-bottom={-110} shadow-camera-far={320} shadow-bias={-.0002} shadow-normalBias={.08} />
     <Sky /><Water />
     <Suspense fallback={null}>
-      <Physics paused={paused} timeStep={1 / 60} gravity={[0, -22, 0]}>
-        <City /><Player /><Suit /><CameraRig />
+      <Physics paused={paused} timeStep={1 / 60} updatePriority={-50} gravity={[0, -22, 0]}>
+        <City /><DistrictBoundary /><Player /><FlightPresentation /><Suit /><CameraRig />
       </Physics>
     </Suspense>
   </Canvas>;

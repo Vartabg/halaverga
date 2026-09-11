@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { advanceVelocity, boundMovement, landingVelocity, moving, safeDelta, SPEED, START, validCheckpoint } from '../src/game/motion';
+import { advanceVelocity, boundMovement, landingVelocity, moving, safeDelta, SPEED, START, WORLD, validCheckpoint } from '../src/game/motion';
 const neutral = { forward: 0, strafe: 0, vertical: 0 };
 describe('assisted flight', () => {
   it('accelerates smoothly and limits diagonal speed', () => {
@@ -23,7 +23,7 @@ describe('assisted flight', () => {
     expect(v.y).toBeLessThan(0); expect(Math.abs(v.z)).toBeLessThan(SPEED.walk);
   });
   it('keeps skimming above water and within the district', () => {
-    const move = boundMovement({ x: 204, y: 2, z: -239 }, { x: 4, y: -5, z: -8 }, true);
+    const move = boundMovement({ x: WORLD.maxX - 1, y: 2, z: WORLD.minZ + 1 }, { x: 4, y: -5, z: -8 }, true);
     expect(move.x).toBe(1); expect(move.y).toBeCloseTo(-.3); expect(move.z).toBe(-1);
   });
   it('approaches a landing without overshoot and permits intent cancellation', () => {

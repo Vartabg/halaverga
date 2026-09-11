@@ -1,7 +1,7 @@
 import { BoxGeometry, Color, Float32BufferAttribute, Matrix4, Quaternion, Euler, Vector3, BufferGeometry } from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 export type Triple = [number, number, number];
-export type Solid = { position: Triple; size: Triple; rotation: Triple };
+export type Solid = { position: Triple; size: Triple; rotation: Triple; kind?: 'building' };
 export type Kit = ReturnType<typeof createKit>;
 export function createKit() {
   const pieces: BufferGeometry[] = [], solids: Solid[] = [];
@@ -22,22 +22,30 @@ export function createKit() {
     geometry.computeBoundingSphere();
     return { geometry, solids };
   }
-  return { box, finish, solids };
+  function block(x: number, y: number, z: number, w: number, h: number, d: number) {
+    solids.push({ position: [x, y, z], size: [w / 2, h / 2, d / 2], rotation: [0, 0, 0], kind: 'building' });
+  }
+  return { box, block, finish, solids };
 }
 export const colors = { concrete: '#bda995', edge: '#3b4148', glass: '#315967', warm: '#c3836b',
   light: '#e0c1a0', moss: '#426456', road: '#46505a', white: '#d3ccae', steel: '#4b4755' };
 export function building(k: Kit, x: number, base: number, z: number, w: number, d: number, floors: number, tint: string, seed: number) {
   const h = floors * 3.7;
+  // Exterior-only traversal: solid lower shell and a stepped cap matching the broken roof.
+  // Empty stories remain visible, but are not traversable interiors in this milestone.
+  const shoulder = (floors - 3) * 3.7 + .14;
+  k.block(x, base + shoulder / 2, z, w + .6, shoulder, d + .6);
+  k.block(x - w * .15, base + (shoulder + h + .14) / 2, z, w * .7, h + .14 - shoulder, d + .6);
   if (seed % 3 === 0) {
-    k.box(x - w * .125, base + h * .34, z, w * .75, h * .68, d, tint, true);
-    k.box(x + w * .375, base + h * .34, z - d * .25, w * .25, h * .68, d * .5, tint, true);
+    k.box(x - w * .125, base + h * .34, z, w * .75, h * .68, d, tint);
+    k.box(x + w * .375, base + h * .34, z - d * .25, w * .25, h * .68, d * .5, tint);
     k.box(x + w * .32, base + 4, z + d * .5 + 1, w * .4, .6, 8, colors.concrete, true, .18, -.5);
-  } else k.box(x, base + h * .34, z, w, h * .68, d, tint, true);
+  } else k.box(x, base + h * .34, z, w, h * .68, d, tint);
   // Broken upper floors expose slabs, structural columns and empty interiors.
   for (let f = 0; f <= floors; f++) {
     const broken = f > floors - 3 || (seed % 3 === 0 && f > 2 && f % 4 === 1);
     const floorW = broken ? w * .7 : w + .6;
-    k.box(x - (broken ? w * .15 : 0), base + f * 3.7, z, floorW, .28, d + .6, colors.concrete, true);
+    k.box(x - (broken ? w * .15 : 0), base + f * 3.7, z, floorW, .28, d + .6, colors.concrete);
     if (f === floors) continue;
     for (let c = 0; c < Math.floor(w / 3); c++) {
       const xx = x - w / 2 + 1.5 + c * 3;
