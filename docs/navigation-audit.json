@@ -1,6 +1,6 @@
 {
   "engine": "Rapier 0.19.2",
-  "generatedAt": "2026-09-11T20:37:07.759Z",
+  "generatedAt": "2026-09-11T21:11:52.295Z",
   "maximumSpeed": 34,
   "physicsStepSeconds": 0.016666666666666666,
   "bounds": {
@@ -117,7 +117,7 @@
     "src/game/motion.ts": "03cb00caf08aa0bdc2c30819b3d619265cc87ab79361a73f40808e236f5f4876",
     "src/world/kit.ts": "a9e325d2076d55bc681e58e27f2ef78a9d7fc1a77165c7c57df421c5e7a0c426",
     "src/world/cityData.ts": "04ed655de8a25e155f8b80ae72591b4d3b9685e1eb5c9e9d4579caf5762f609f",
-    "src/game/Player.tsx": "f2816b448d5689428b21b3616f42098596774ebc367c753af4e0544a829db591",
+    "src/game/Player.tsx": "ae0a6bb282cdd58764eb79aa3d84893f0460d6225d3906db5a1c3c297141fa2a",
     "src/world/DistrictBoundary.tsx": "4fc8474f59ffab362ca41264f9d6c882f6f1e68a1984ca03f2b2d87a7e54bcab"
   },
   "scope": "Finite seeded swept-body regression and declared route tubes in the actual city geometry. Not an exhaustive proof of every trajectory or physical-device validation."

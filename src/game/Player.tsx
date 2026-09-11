@@ -60,7 +60,7 @@ export default function Player() {
     runtime.pitch = Math.max(-1.3, Math.min(1.25, runtime.pitch + (Number(k.has('ArrowUp')) - Number(k.has('ArrowDown'))) * dt * 1.2));
     if (runtime.landGoal && moving(intent)) { runtime.landGoal = null; useGame.setState({ landing: false }); }
     let flying = state.flying;
-    if (runtime.lift || runtime.thumb.active && !flying) {
+    if (runtime.lift || runtime.thumb.active && moving(intent) && !flying) {
       runtime.lift = false;
       if (!flying) { flying = true; liftTime.current = .4; runtime.velocity.y = 6; useGame.setState({ flying: true }); }
       else if (runtime.landGoal) { runtime.landGoal = null; useGame.setState({ landing: false }); }

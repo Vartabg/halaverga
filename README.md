@@ -11,7 +11,9 @@ The local Playwright configuration uses system Chrome on macOS, never Chrome for
 ## Controls
 
 - Desktop: WASD move; mouse or arrow keys look; R/F rise/descend; Space lift/land; Shift toggle Surge; Escape pause; E read a nearby terminal.
-- Touch: hold anywhere in the open scene with either thumb to lift and cruise. Slide to aim (left/right turn, up/down climb/descend); drag farther for smoothly increasing speed. Holding near an edge keeps turning. Release to hover. No separate Surge button. A quick tap does not start flight. Aim toward a flat surface to reveal its landing ring, release, then tap Land. New flight input cancels landing. Pinch zoom stops movement; game controls suppress text selection and long-press callouts, while the field guide remains selectable.
+- One thumb: hold anywhere in the open scene to lift and cruise. Slide to aim (left/right turn, up/down climb/descend); drag farther for smoothly increasing speed. Holding near an edge keeps turning. Release to hover. A quick tap does not start flight.
+- Two thumbs: add a second scene contact to recenter into left movement/right view. Drag the left thumb forward/back/sideways; drag farther for more speed. The right thumb aims independently, including upward/downward flight while moving forward. Center the left thumb to hover. Roles remain fixed if fingers cross. Lift either thumb, then slide the remaining thumb to resume one-thumb flight. No mode switch or separate Surge button is needed.
+- Aim toward a flat surface to reveal its landing ring, release, then tap Land. New flight input cancels landing. The active flight surface owns touch gestures; pause or open the Field guide to use native pinch zoom. The page has no zoom-limit metadata. Game controls suppress selection and long-press callouts; the guide remains selectable.
 - Field guide offers the same discovery as readable text. Settings include perspective, graphics, reduced camera motion, audio, reset, and a local timing-report download.
 - Optional tap controls provide short directional movements and separate view buttons without dragging. They are hidden by default to keep the scene clear.
 

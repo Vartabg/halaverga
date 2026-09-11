@@ -1,5 +1,13 @@
 # First-flight verification · 2026-09-11
 
+## Adaptive thumb revision · 2026-09-11
+
+- TypeScript, production build and 32 unit/physics cases pass. The browser coverage now contains 19 cases, including automated AA checks and the previous flight, camera, landing, recovery and long-press regressions.
+- Six state-machine cases cover arrival/release order, recentered handoffs, fixed ownership across finger crossing, a neutral deadzone, bounded reverse/diagonal intent, extra-contact blocking and cancellation. Movement input is shared with the existing physics controller; camera ownership stays unchanged.
+- Native Chrome touch sequences cover all four first-thumb/released-thumb combinations in portrait and landscape, independent left movement/right view, hovering while looking, no launch from neutral dual contacts, resuming single-thumb control with the remaining contact, third-contact interruption, pause/resume and rotation. The initial browser-test failure was traced to the test listing the remaining contact in CDP `touchEnd`; Chrome interprets those points as the contacts to release. The corrected test confirms that no new pointer is introduced during handoff.
+- A real Chrome pinch-gesture test confirms the active surface keeps dual gestures in the game and the paused page permits native zoom. There is no viewport zoom limit. Pinch during active flight now requires pausing or opening the guide; this scoped change and the physical Safari/VoiceOver verification gap are recorded in `TECH_DEBT.md`.
+- The navigation audit was regenerated after the input-only takeoff guard changed. Geometry and navigation results are unchanged. Earlier five-minute performance reports below belong to their recorded source hashes; no new iPhone or sustained-performance claim is made for this input revision.
+
 ## Flight composition and navigation revision · 2026-09-11
 
 The user reported visible shaking during fast flight and getting trapped in geometry. The phone browser is Safari, correcting the earlier Chrome identification.

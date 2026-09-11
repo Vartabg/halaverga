@@ -20,11 +20,11 @@ describe('one-thumb flight', () => {
     }
   });
   it('feeds the shared controller and clears all thumb intent on release', () => {
-    runtime.thumb = { active: true, throttle: 1, edgeTurn: 1, edgePitch: .5, bank: 1 };
+    runtime.thumb = { active: true, throttle: 1, strafe: 0, edgeTurn: 1, edgePitch: .5, bank: 1 };
     expect(readIntent()).toEqual({ forward: 1, strafe: 0, vertical: 0 });
     releaseThumb();
     expect(readIntent()).toEqual({ forward: 0, strafe: 0, vertical: 0 });
-    expect(runtime.thumb).toEqual({ active: false, throttle: 0, edgeTurn: 0, edgePitch: 0, bank: 0 });
+    expect(runtime.thumb).toEqual({ active: false, throttle: 0, strafe: 0, edgeTurn: 0, edgePitch: 0, bank: 0 });
     let velocity = { x: 0, y: 0, z: -34 };
     for (let frame = 0; frame < 60; frame++) velocity = advanceVelocity(velocity, readIntent(), 0, 0, true, false, 1 / 60);
     expect(Math.abs(velocity.z)).toBeLessThan(.01);

@@ -64,12 +64,12 @@ test('long presses on controls and their surroundings do not select game text', 
   expect(await paragraph.evaluate(el => getComputedStyle(el).userSelect)).toBe('text');
   expect(await paragraph.evaluate(el => el.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true })))).toBe(true);
   expect(await page.getByRole('button', { name: 'Close dialog' }).evaluate(el => getComputedStyle(el).userSelect)).toBe('none');
-  // Zoom remains permitted on the game; normal text selection/scrolling in dialogs.
+  // The page remains zoomable; the active game alone owns its multi-touch gestures.
   expect(await page.locator('meta[name=viewport]').getAttribute('content')).not.toMatch(/user-scalable=no|maximum-scale=1/);
   await context.close();
 });
 
-test('rotation and a second touch clear a held flight gesture', async ({ browser }) => {
+test('rotation clears both thumbs without changing location or view', async ({ browser }) => {
   const context = await browser.newContext({ viewport: { width: 393, height: 852 }, isMobile: true, hasTouch: true });
   const page = await context.newPage(); await page.goto('/');
   await page.getByRole('button', { name: 'Begin expedition' }).tap();
@@ -77,9 +77,8 @@ test('rotation and a second touch clear a held flight gesture', async ({ browser
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: 90, y: 650, id: 1 }] });
   await page.waitForTimeout(850);
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: 90, y: 650, id: 1 }, { x: 280, y: 640, id: 2 }] });
-  await page.waitForTimeout(1000); expect(Number(await telemetry.getAttribute('data-speed'))).toBeLessThan(.5);
-  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
-  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: 90, y: 650, id: 3 }] });
+  await expect(page.getByTestId('flight-surface')).toHaveAttribute('data-control-mode', 'dual');
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: 100, y: 590, id: 1 }, { x: 300, y: 620, id: 2 }] });
   await page.waitForTimeout(650);
   await page.setViewportSize({ width: 852, height: 393 }); await page.waitForTimeout(400);
   const position = await telemetry.getAttribute('data-position'), heading = await telemetry.getAttribute('data-heading');
