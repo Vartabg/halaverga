@@ -3,10 +3,13 @@ import { look, releaseThumb, runtime } from '@/game/runtime';
 import { AdaptiveThumbs } from '@/game/adaptiveThumbs';
 import { useGame } from '@/game/store';
 import styles from './Experience.module.css';
+import { useTrackpad } from './useTrackpad';
 export default function TouchControls() {
   const controls = useRef(new AdaptiveThumbs()), timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const surface = useRef<HTMLDivElement>(null), markers = useRef<(HTMLDivElement | null)[]>([]);
+  const desktop = useTrackpad(surface);
   const paused = useGame(s => s.paused);
+  const trackpadFlying = useGame(s => s.trackpadFlying);
   const clearTimer = () => {
     if (timer.current) clearTimeout(timer.current);
     timer.current = null;
@@ -39,9 +42,10 @@ export default function TouchControls() {
   if (paused) return null;
   const start = (e: PointerEvent<HTMLDivElement>) => {
     if (e.pointerType === 'mouse') {
-      if (e.button === 0 && !document.pointerLockElement) document.querySelector('canvas')?.requestPointerLock?.();
+      if (!controls.current.contacts.size) desktop.start(e);
       return;
     }
+    desktop.leave();
     // A stale non-primary contact after cancellation/rotation cannot restart flight.
     if (!controls.current.contacts.size && !e.isPrimary) return;
     clearTimer();
@@ -50,23 +54,30 @@ export default function TouchControls() {
     if (controls.current.mode === 'single') timer.current = setTimeout(activate, 180);
   };
   const drag = (e: PointerEvent<HTMLDivElement>) => {
+    if (e.pointerType === 'mouse') { desktop.move(e); return; }
     const c = controls.current; if (!c.contacts.has(e.pointerId)) return;
     c.move(e.pointerId, e.clientX, e.clientY, window.innerWidth, window.innerHeight);
     if (c.active) clearTimer();
     look(c.output.lookX, c.output.lookY); sync();
   };
   const end = (e: PointerEvent<HTMLDivElement>) => {
+    if (e.pointerType === 'mouse') { desktop.end(e); return; }
     if (!controls.current.contacts.has(e.pointerId)) return;
     clearTimer(); controls.current.end(e.pointerId); sync();
     if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
   };
   const cancel = (e: PointerEvent<HTMLDivElement>) => {
+    if (e.pointerType === 'mouse') {
+      if (e.type === 'lostpointercapture') desktop.lostCapture(); else desktop.cancel();
+      return;
+    }
     if (!controls.current.contacts.has(e.pointerId)) return;
     clearTimer(); controls.current.cancel(); sync();
   };
   return <>
-    <div ref={surface} className={styles.flightSurface} aria-hidden="true" data-testid="flight-surface" data-control-mode="idle"
-      onPointerDown={start} onPointerMove={drag} onPointerUp={end} onPointerCancel={cancel} onLostPointerCapture={cancel} />
+    <div ref={surface} className={styles.flightSurface} aria-hidden="true" data-testid="flight-surface" data-control-mode="idle" data-trackpad-active={String(trackpadFlying)}
+      onPointerDown={start} onPointerMove={drag} onPointerUp={end} onPointerCancel={cancel} onLostPointerCapture={cancel}
+      onPointerLeave={e => { if (e.pointerType === 'mouse') desktop.leave(); }} />
     {[0, 1].map(i => <div key={i} ref={node => { markers.current[i] = node; }} hidden className={styles.stick} aria-hidden="true"><span /><small /></div>)}
   </>;
 }

@@ -51,23 +51,24 @@ export default function Player() {
     }
     const p = b.translation(), intent = readIntent();
     const k = runtime.keys;
-    if (runtime.thumb.active) {
-      runtime.yaw -= runtime.thumb.edgeTurn * dt * 1.5;
-      runtime.pitch = Math.max(-1.3, Math.min(1.25, runtime.pitch + runtime.thumb.edgePitch * dt));
-      runtime.thumb.bank += (runtime.thumb.edgeTurn - runtime.thumb.bank) * (1 - Math.exp(-6 * dt));
+    const pointerFlight = runtime.thumb.active || runtime.trackpad.active;
+    if (pointerFlight) {
+      const pointer = runtime.trackpad.active ? runtime.trackpad : runtime.thumb;
+      runtime.yaw -= pointer.edgeTurn * dt * 1.5;
+      runtime.pitch = Math.max(-1.3, Math.min(1.25, runtime.pitch + pointer.edgePitch * dt));
     }
     runtime.yaw += (Number(k.has('ArrowLeft')) - Number(k.has('ArrowRight'))) * dt * 1.5;
     runtime.pitch = Math.max(-1.3, Math.min(1.25, runtime.pitch + (Number(k.has('ArrowUp')) - Number(k.has('ArrowDown'))) * dt * 1.2));
     if (runtime.landGoal && moving(intent)) { runtime.landGoal = null; useGame.setState({ landing: false }); }
     let flying = state.flying;
-    if (runtime.lift || runtime.thumb.active && moving(intent) && !flying) {
+    if (runtime.lift || pointerFlight && moving(intent) && !flying) {
       runtime.lift = false;
       if (!flying) { flying = true; liftTime.current = .4; runtime.velocity.y = 6; useGame.setState({ flying: true }); }
       else if (runtime.landGoal) { runtime.landGoal = null; useGame.setState({ landing: false }); }
       else if (runtime.landTarget) { runtime.landGoal = runtime.landTarget.clone().add(new Vector3(0, FOOT, 0)); landingStall.current = 0; useGame.setState({ landing: true }); }
       else useGame.setState({ message: 'Aim at a nearby flat rooftop or terrace to land.' });
     }
-    let v = runtime.landGoal ? landingVelocity(p, runtime.landGoal) : advanceVelocity(runtime.velocity, intent, runtime.yaw, runtime.pitch, flying, runtime.surge || runtime.thumb.active, dt);
+    let v = runtime.landGoal ? landingVelocity(p, runtime.landGoal) : advanceVelocity(runtime.velocity, intent, runtime.yaw, runtime.pitch, flying, runtime.surge || pointerFlight, dt);
     if (liftTime.current > 0) { v.y = 6; liftTime.current -= dt; }
     runtime.clearance.active = false; runtime.clearance.boundary = boundaryDistance(p) < 12;
     if (flying && !runtime.landGoal) {

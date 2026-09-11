@@ -1,5 +1,7 @@
 # Flight study decisions
 
+- Desktop defaults to trackpad-only click-to-cruise with pointer steering and bounded vertical scroll speed (3–34 m/s, restarting at 8 m/s). Clicking again brakes; a held drag while hovering looks without launching. Mouse capture is an explicit saved alternative. Both feed the existing motion and camera controllers.
+- Trackpad cruise stops on scene exit, HUD entry, pause, resize, touch handover and zoom gestures. Control/Command wheel and Safari gesture events remain available to native browser zoom. Scroll handling is limited to the active scene; dialogs retain native scrolling.
 - One-thumb flight remains the primary touch input. Release brakes to hover; the separate Surge button stays removed.
 - A second scene contact selects left movement/right view automatically. Roles are assigned by horizontal position, then retained by pointer identity. Both anchors reset on handoff; releasing either thumb returns to neutral one-thumb control until the remaining contact slides. Ground takeoff requires movement, so looking with two neutral contacts does not launch the suit.
 - Only the active flight surface owns multi-touch browser gestures. Native page pinch zoom remains available after pausing and in the guide. Cancellation, a third scene contact, pause and rotation clear movement; a third-contact interruption requires all contacts to lift before restarting.

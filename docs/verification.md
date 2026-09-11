@@ -1,5 +1,13 @@
 # First-flight verification · 2026-09-11
 
+## Trackpad-only desktop revision · 2026-09-11
+
+- TypeScript, production build, 36 unit/physics cases and 25 system-Chrome browser cases pass locally. Automated AA scans cover entry, the selectable field guide, settings and the active UI, including the desktop control selector and hint. Existing one-/two-thumb, orientation, long-press, keyboard, camera, collision, pause and graphics recovery regressions remain included.
+- Six desktop cases cover click-to-cruise, pointer steering, scroll speed, click-to-hover and no pointer lock in both perspectives; a complete cursor-only takeoff/look/landing sequence; continued edge turns; HUD entry, resize, pause/resume and blur; touch handover; cancelled pointers; saved optional mouse capture; and rejection recovery. Four new unit cases cover bounded wheel deltas, shared intent, interruption and gentle restart speed.
+- Control-wheel and Safari gesture-start event contracts are checked for cruise cancellation; the Control-wheel event remains uncancelled. These synthetic checks do not establish native Safari pinch behavior. Existing native Chrome touch pinch checks still cover active/paused phone gesture ownership.
+- Rendered inspection covers the desktop cruise hint and settings at 1440×1000 plus a narrow 393×852 desktop viewport. The settings dialog has no horizontal overflow; the narrow hint was moved clear of the telemetry and rechecked. These are layout checks, not physical trackpad or mobile validation.
+- `trackpad-review.md` documents the browser input contract and three-pass source review. The navigation audit was regenerated for the input-only Player change, with unchanged geometry/results. No new sustained-performance or physical-device claim is made. Physical Mac trackpad feel, Safari, iPhone and VoiceOver checks remain open in `TECH_DEBT.md`.
+
 ## Adaptive thumb revision · 2026-09-11
 
 - TypeScript, production build and 32 unit/physics cases pass. The browser coverage now contains 19 cases, including automated AA checks and the previous flight, camera, landing, recovery and long-press regressions.

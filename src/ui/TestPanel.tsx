@@ -22,6 +22,8 @@ export default function TestPanel({ onClose }: { onClose: () => void }) {
       <button aria-pressed={state.camera === 'third'} onClick={() => save({ camera: 'third' })}>Third person</button>
       <button aria-pressed={state.camera === 'first'} onClick={() => save({ camera: 'first' })}>First person</button>
     </div></fieldset>
+    <label className={styles.setting}>Desktop controls<select value={state.desktopMode} onChange={e => save({ desktopMode: e.target.value as 'trackpad' | 'mouse' })}><option value="trackpad">Trackpad only</option><option value="mouse">Mouse + keyboard</option></select></label>
+    <p className={styles.muted}>{state.desktopMode === 'trackpad' ? 'Click the scene to fly, move the pointer to steer, and scroll up to accelerate or down to slow. Click again to hover. While hovering, click and drag to look around.' : 'Click the scene to capture the mouse. Use WASD to move, Space to lift or land, and Escape to pause.'}</p>
     <label className={styles.setting}>Graphics<select value={state.quality} onChange={e => save({ quality: e.target.value as 'high' | 'low' })}><option value="high">Full detail</option><option value="low">Lighter · lower resolution, no shadows</option></select></label>
     <label className={styles.check}><input type="checkbox" checked={state.reduced} onChange={e => save({ reduced: e.target.checked })} /> Reduced camera motion</label>
     <label className={styles.check}><input type="checkbox" checked={!state.muted} onChange={e => save({ muted: !e.target.checked })} /> Suit and wind audio</label>
