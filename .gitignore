@@ -1,0 +1,12 @@
+node_modules/
+.next/
+.vercel/
+.env*
+*.pem
+*.key
+*.tsbuildinfo
+test-results/
+playwright-report/
+.DS_Store
+.agent-task/
+.vercel
