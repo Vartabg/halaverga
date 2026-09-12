@@ -1,5 +1,6 @@
 # Flight study decisions
 
+- The reconnaissance suit is a fitted pressure layer with contoured ceramic panels, a continuous visor and an integrated power spine. Its six-part animation contract is unchanged; shoulder/hip pivots follow the slimmer anatomy. Explicit GLB articulation metadata replaces mesh-name guessing. Batching by part and material retains the authored finishes; generated assembly resources are disposed separately from the shared loader asset.
 - Desktop defaults to trackpad-only click-to-cruise with pointer steering and bounded vertical scroll speed (3–34 m/s, restarting at 8 m/s). Clicking again brakes; a held drag while hovering looks without launching. Mouse capture is an explicit saved alternative. Both feed the existing motion and camera controllers.
 - Trackpad cruise stops on scene exit, HUD entry, pause, resize, touch handover and zoom gestures. Control/Command wheel and Safari gesture events remain available to native browser zoom. Scroll handling is limited to the active scene; dialogs retain native scrolling.
 - One-thumb flight remains the primary touch input. Release brakes to hover; the separate Surge button stays removed.

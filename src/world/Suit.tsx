@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { useFrame, useLoader } from '@react-three/fiber';
-import { Group, MeshToonMaterial } from 'three';
+import { Group } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { presentation as pose } from '@/game/presentation';
 import { useGame } from '@/game/store';
@@ -8,9 +8,10 @@ import { buildSuitParts, pivots } from './suitGeometry';
 export default function Suit() {
   const root = useRef<Group>(null), parts = useRef<(Group | null)[]>([]);
   const asset = useLoader(GLTFLoader, '/models/suit.glb');
-  const geometry = useMemo(() => buildSuitParts(asset.scene), [asset]);
-  const material = useMemo(() => new MeshToonMaterial({ vertexColors: true }), []);
-  useEffect(() => () => { geometry.forEach(g => g.dispose()); material.dispose(); }, [geometry, material]);
+  const assembly = useMemo(() => buildSuitParts(asset.scene), [asset]);
+  useEffect(() => () => {
+    assembly.parts.flat().forEach(p => p.geometry.dispose()); assembly.materials.forEach(m => m.dispose());
+  }, [assembly]);
   useFrame(() => {
     if (!root.current) return;
     root.current.visible = useGame.getState().camera === 'third';
@@ -29,9 +30,9 @@ export default function Suit() {
       const leg = parts.current[i]; if (leg) leg.rotation.x = pose.flight * .14 + pose.brake * .28;
     }
   }, -20);
-  return <group ref={root}>
-    {geometry.map((g, i) => <group key={i} ref={node => { parts.current[i] = node; }} position={[...pivots[i]]}>
-      <mesh geometry={g} material={material} castShadow /></group>)}
-    <pointLight position={[0, .2, .4]} color="#c2f9c8" intensity={.5} distance={2} />
+  return <group ref={root} dispose={null}>
+    {assembly.parts.map((batches, i) => <group key={i} ref={node => { parts.current[i] = node; }} position={[...pivots[i]]}>
+      {batches.map(({ geometry, material }) => <mesh key={material.uuid} geometry={geometry} material={material} castShadow />)}
+    </group>)}
   </group>;
 }

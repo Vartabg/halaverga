@@ -28,6 +28,10 @@ City geometry is generated deterministically and combined into one colored mesh.
 
 ## Playtest status
 
+The reconnaissance suit uses a fitted graphite pressure layer, sculpted ceramic armor, a continuous visor and a flush power spine. Its six animated sections batch by material, preserving the authored roughness, metallic response and emission. The original GLB has no texture dependencies. The player collider and camera remain independent of the model.
+
+With the managed production preview running on port 3366, `node scripts/review-suit.mjs` renders a front/profile/rear study of the actual GLB using system Chrome. It writes `/tmp/halaverga-suit-study.png`; set `SUIT_REVIEW_OUTPUT` to choose another destination. This temporary review page is intercepted locally and is not a public game route. [Recorded material study](docs/images/suit-study.png).
+
 This is a playtest candidate, not a measured iPhone release. Physical iPhone Safari, VoiceOver and subjective enjoyment checks must be recorded by the tester. Desktop viewport emulation and headless Mac timing are separately identified. See `docs/verification.md` for evidence and remaining checks.
 
 Run `node scripts/profile.mjs` against a production preview for a five-minute desktop route sample. `PROFILE_OUTPUT` selects the report folder; `PROFILE_SECONDS` sets duration; `PROFILE_SURGE=1` uses maximum-speed flight. A first frame after resume is excluded; reports retain the most recent 18,000 active frames. These reports stay on the device until downloaded.

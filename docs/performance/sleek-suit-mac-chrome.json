@@ -1,0 +1,72 @@
+{
+  "seconds": 93,
+  "samples": 5561,
+  "p50Ms": 16.7,
+  "p95Ms": 17.4,
+  "stallsOver50Ms": 0,
+  "browser": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/152.0.0.0 Safari/537.36",
+  "viewport": [
+    1440,
+    1000
+  ],
+  "pixelRatio": 1,
+  "quality": "high",
+  "camera": "third",
+  "resources": {
+    "drawCalls": 31,
+    "triangles": 89928,
+    "geometries": 32,
+    "textures": 4
+  },
+  "peakResources": {
+    "drawCalls": 33,
+    "triangles": 90056,
+    "geometries": 32,
+    "textures": 4
+  },
+  "scope": "Latest 18,000 active frames; first resume frame excluded. Resource peaks cover the session.",
+  "hardware": "Apple M2 Max",
+  "gpu": "ANGLE (Apple, ANGLE Metal Renderer: Apple M2 Max, Unspecified Version)",
+  "os": "darwin 25.6.0",
+  "browserMode": "Headless system Chrome; physical Mac, not iPhone",
+  "speedMode": "Surge (34 m/s maximum; clearance may reduce speed)",
+  "workload": [
+    [
+      "KeyR",
+      3000
+    ],
+    [
+      "KeyW",
+      4000
+    ],
+    [
+      "ArrowRight",
+      1000
+    ],
+    [
+      "KeyW",
+      4000
+    ],
+    [
+      "KeyF",
+      2500
+    ],
+    [
+      "ArrowLeft",
+      1000
+    ]
+  ],
+  "route": "Repeat launch/canal/sideways/descent; reset to terrace each cycle to remain inside dense district.",
+  "errors": [],
+  "generatedAt": "2026-09-12T00:15:21.720305+00:00",
+  "sourceHashes": {
+    "public/models/suit.glb": "6685cc5af12a37f902c6b35bb3fe09e092ac585488f1ed952f380156009fb802",
+    "scripts/build-suit.py": "aabad01704c465e4042ca410eee43ce095de7dda8a317275c03a9f85223afee0",
+    "scripts/suit_mesh.py": "54daea3fa8a22539f1115608438cb9421f9b965e739c2f7a1e42b1659e8a8b1a",
+    "src/world/Suit.tsx": "ffedb1aada30570833e0d44dd68b5a4576faca27390b3e77d8e65e9fd38c8416",
+    "src/world/suitGeometry.ts": "e43b75a5458ecda874a3f69a5381179b2d812a3b7219d1b21c65b448e313ebe2",
+    "src/world/Scene.tsx": "ed80f9fe8d66523df0aba11380ecc64cf9d8b7772ebd36854c04b051de9b3efb",
+    "src/game/presentation.ts": "0c692aa3aad8b1fa49266b5ec152f3a374817f15b3aa4bb648259af7117ca9db"
+  },
+  "validationLimit": "93-second desktop spot check; not a five-minute physical iPhone measurement or a like-for-like comparison with earlier reports. No concurrent build or browser test ran during the sample."
+}

@@ -1,5 +1,14 @@
 # First-flight verification · 2026-09-11
 
+## Fitted suit revision · 2026-09-11
+
+- Replaced the playable model with a fitted pressure layer, smooth ceramic plates, a continuous visor, tapered limbs and an integrated power spine. Six animation sections remain; their pivots follow the new anatomy. The shared player/camera movement and collider are unchanged.
+- The final asset is 253,040 bytes, 11,770 triangles, six materials and 27 articulated material batches, with no texture files. `performance/suit-asset.json` records bounds and exact source hashes. The previous GLB was 232,676 bytes. Material differences and emission now survive runtime batching.
+- TypeScript, the production build and 38 unit/physics checks pass. Asset tests verify proportions and budgets, front armor visibility, articulation, repeated assembly and disposal, missing-part failure and preservation of shared source resources. Existing browser checks cover flight composition, both perspectives, landing, trackpad, thumbs, pause/rotation, graphics recovery and automated AA.
+- Close-up inspection uses the actual GLB from front, profile and rear. In-game views cover full-detail flight and a lighter-quality phone viewport in both orientations. `images/suit-study.png` is the model under studio lighting, not a concept rendering or an in-game lighting claim.
+- `performance/sleek-suit-mac-chrome.json` records a **93-second desktop spot check**: physical Apple M2 Max, system Chrome 152 headless/ANGLE Metal, 1440×1000, DPR 1, full detail, third person, repeated route with Surge enabled. Across 5,561 active intervals: median 16.7 ms, p95 17.4 ms, zero intervals over 50 ms and zero browser/shader errors. Observed main-render peaks: 33 draw calls, 90,056 triangles, 32 geometries and four renderer textures. No simultaneous build or browser test ran during the sample. This is not a five-minute iPhone test or a controlled comparison with earlier reports.
+- Source and visual review is recorded in `suit-review.md`. Physical iPhone performance, VoiceOver and subjective appearance/comfort remain open.
+
 ## Trackpad-only desktop revision · 2026-09-11
 
 - TypeScript, production build, 36 unit/physics cases and 25 system-Chrome browser cases pass locally. Automated AA scans cover entry, the selectable field guide, settings and the active UI, including the desktop control selector and hint. Existing one-/two-thumb, orientation, long-press, keyboard, camera, collision, pause and graphics recovery regressions remain included.
