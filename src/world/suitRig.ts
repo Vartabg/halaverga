@@ -1,7 +1,10 @@
-import { Group, Mesh, type Object3D } from 'three';
+import { Group, Mesh, SkinnedMesh, type Object3D } from 'three';
 import { buildSuitParts, pivots } from './suitGeometry';
+import { buildSkinnedSuit } from './skinnedSuit';
 export const parents = [-1, 0, 0, 0, 0, 0, 2, 3, 4, 5] as const;
 export function buildSuitRig(source: Object3D) {
+  let skinned = false; source.traverse(object => { if (object instanceof SkinnedMesh) skinned = true; });
+  if (skinned) return buildSkinnedSuit(source);
   const assembly = buildSuitParts(source), root = new Group();
   const joints = pivots.map(() => new Group());
   joints.forEach((joint, i) => {

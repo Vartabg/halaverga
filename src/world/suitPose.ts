@@ -1,9 +1,9 @@
-import { Group } from 'three';
+import type { Object3D } from 'three';
 import { settle, type Pose } from '../game/presentation';
 export type SuitMotion = { climb: number; hero: number; epoch: number };
 const clamp = (v: number) => Math.max(0, Math.min(1, v));
 /** Joint rotations only: the player/camera remain authoritative. */
-export function applySuitPose(joints: Group[], pose: Pose, motion: SuitMotion, reduced: boolean) {
+export function applySuitPose(joints: Object3D[], pose: Pose, motion: SuitMotion, reduced: boolean) {
   const flight = pose.flight, power = clamp((pose.speed - 3) / 25) * flight;
   const hero = motion.hero * (reduced ? .3 : 1), brake = pose.brake * hero;
   const turn = reduced ? 0 : Math.max(-1, Math.min(1, pose.bank / .3));

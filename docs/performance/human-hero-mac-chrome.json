@@ -1,0 +1,80 @@
+{
+  "seconds": 93,
+  "samples": 5569,
+  "p50Ms": 16.7,
+  "p95Ms": 18.1,
+  "stallsOver50Ms": 0,
+  "browser": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/152.0.0.0 Safari/537.36",
+  "viewport": [
+    1440,
+    1000
+  ],
+  "pixelRatio": 1,
+  "quality": "high",
+  "camera": "third",
+  "resources": {
+    "drawCalls": 12,
+    "triangles": 91536,
+    "geometries": 13,
+    "textures": 5
+  },
+  "peakResources": {
+    "drawCalls": 14,
+    "triangles": 91664,
+    "geometries": 13,
+    "textures": 5
+  },
+  "scope": "Latest 18,000 active frames; first resume frame excluded. Resource peaks cover the session.",
+  "hardware": "Apple M2 Max",
+  "gpu": "ANGLE (Apple, ANGLE Metal Renderer: Apple M2 Max, Unspecified Version)",
+  "os": "darwin 25.6.0",
+  "browserMode": "Headless system Chrome; physical Mac, not iPhone",
+  "speedMode": "Surge (34 m/s maximum; clearance may reduce speed)",
+  "workload": [
+    [
+      "KeyR",
+      3000
+    ],
+    [
+      "KeyW",
+      4000
+    ],
+    [
+      "ArrowRight",
+      1000
+    ],
+    [
+      "KeyW",
+      4000
+    ],
+    [
+      "KeyF",
+      2500
+    ],
+    [
+      "ArrowLeft",
+      1000
+    ]
+  ],
+  "route": "Repeat launch/canal/sideways/descent; reset to terrace each cycle to remain inside dense district.",
+  "errors": [],
+  "generatedAt": "2026-09-12T01:40:49.618166+00:00",
+  "sourceHashes": {
+    "public/models/suit.glb": "fffc2df9534142119347fcbe012b0ab334754689afb341c65bfb851246f60d22",
+    "scripts/build-suit.py": "871a259f06ad0446ccf6b2d70647f66d88d71da6fd5850dea81fccd5c2774bf8",
+    "scripts/hero_anatomy.py": "2d6fcd24d8c2c10beb951e168c421ab6c5fc37c6695496163d47137591c7b601",
+    "scripts/hero_skin.py": "f2493eb3fb90178ae40ec346de8b1c3d0c95f72798610e3e64bcd36db2f00f50",
+    "scripts/suit_mesh.py": "54daea3fa8a22539f1115608438cb9421f9b965e739c2f7a1e42b1659e8a8b1a",
+    "src/world/suitRig.ts": "86c4428fd1af44ae4f0acd2c981b871d8772aea15136e663f4ce6a53402e2d27",
+    "src/world/skinnedSuit.ts": "b621b59895ce343d1aebda4cbe4d0c8d26245056b8376fc1344bd10c4ddfb033",
+    "src/world/suitPose.ts": "d16d65df02398cf580ab124b171ef969bd12323d76f4995f6a09b361f7e7e2d8",
+    "src/world/Suit.tsx": "23ac38f579ea343170f8c330c28e7a140c4232a4ec58b9f68d92c960e6fc7a0b",
+    "src/world/suitGeometry.ts": "aec43be7f4fa1fe0c296e8a2245cf902f6aca096575bab82f7523b1bacadb8bd",
+    "src/game/presentation.ts": "f8b3d35796782e52f19890e6270370381661d3c81f802dd90c44a91d0720db96",
+    "scripts/profile.mjs": "43514f50f1816c3b7f5f674187bc481ba21d69846cfb8a83c98288091c0e6760",
+    "src/world/Scene.tsx": "ed80f9fe8d66523df0aba11380ecc64cf9d8b7772ebd36854c04b051de9b3efb",
+    "src/game/CameraRig.tsx": "8bcfbca0383986b5f9148901f8ff83700bf5a8940ff51f6744b4eb1d952e8457",
+    "src/game/Player.tsx": "5a596cb9861badb615640f10dc07108291c052563df81c7e875dfab506e1b103"
+  },
+  "validationLimit": "93-second desktop rendering spot check using scripted keyboard input, without concurrent builds or browser tests. Not a five-minute physical iPhone test, a physical trackpad ergonomic test, or a controlled comparison with historical samples."
+}

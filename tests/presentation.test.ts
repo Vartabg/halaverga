@@ -3,6 +3,15 @@ import { advanceFlightPose, angleDelta, type Pose } from '../src/game/presentati
 const fresh = (): Pose => ({ viewYaw: 0, viewPitch: 0, yaw: 0, lean: 0, bank: 0, speed: 0, flight: 0, brake: 0 });
 const cruise = { yaw: 0, pitch: 0, speed: 34, velocity: { x: 0, y: 0, z: -34 }, flying: true, reduced: false };
 describe('composed flight presentation', () => {
+  it('keeps the back toward the chase camera during sharp turns and reverse velocity', () => {
+    for (const hz of [30, 60, 120]) {
+      const p = fresh();
+      for (let i = 0; i < hz * 2; i++) {
+        advanceFlightPose(p, { ...cruise, yaw: Math.PI, velocity: { x: 0, y: 0, z: -34 } }, 1 / hz);
+        expect(Math.abs(angleDelta(p.viewYaw, p.yaw))).toBeLessThanOrEqual(.45);
+      }
+    }
+  });
   it('converges to the same streamlined pose at 30, 60 and 120 Hz', () => {
     const results = [30, 60, 120].map(hz => {
       const pose = fresh(); for (let i = 0; i < hz * 3; i++) advanceFlightPose(pose, cruise, 1 / hz); return pose;
@@ -20,7 +29,7 @@ describe('composed flight presentation', () => {
     }
   });
   it('takes the short turn across the angle wrap and returns smoothly to hover', () => {
-    const p = fresh(); p.yaw = Math.PI - .01;
+    const p = fresh(); p.yaw = Math.PI - .01; p.viewYaw = p.yaw;
     const target = -Math.PI + .01;
     advanceFlightPose(p, { ...cruise, yaw: target, velocity: { x: -Math.sin(target) * 34, y: 0, z: -Math.cos(target) * 34 } }, 1 / 60);
     expect(Math.abs(angleDelta(Math.PI - .01, p.yaw))).toBeLessThan(.01);

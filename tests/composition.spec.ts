@@ -21,3 +21,19 @@ test('streamlined flight shares a stable camera anchor and settles back to hover
   await page.getByRole('button', { name: 'Close dialog' }).click(); await page.waitForTimeout(800);
   expect(Number(await telemetry.getAttribute('data-camera-distance'))).toBeLessThan(.7);
 });
+
+test('rapid trackpad turns keep the human facing away from the chase camera', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('halaverga-flight-v1', JSON.stringify({ trackpadSteering: 'captured', cruiseSpeed: 8 })));
+  await page.goto('/'); await page.getByRole('button', { name: 'Begin expedition' }).click();
+  await page.mouse.click(720, 500);
+  await expect.poll(() => page.evaluate(() => !!document.pointerLockElement)).toBe(true);
+  const telemetry = page.getByTestId('flight-telemetry');
+  for (const x of [1400, 40, 1400, 40]) {
+    await page.mouse.move(x, 500, { steps: 3 }); await page.waitForTimeout(370);
+    const body = Number(await telemetry.getAttribute('data-suit-heading'));
+    const camera = Number(await telemetry.getAttribute('data-view-heading'));
+    expect(Math.abs(Math.atan2(Math.sin(body - camera), Math.cos(body - camera)))).toBeLessThan(.42);
+  }
+  await page.mouse.click(720, 500);
+  await expect.poll(() => page.evaluate(() => document.pointerLockElement)).toBeNull();
+});

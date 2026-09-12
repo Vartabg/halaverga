@@ -1,125 +1,58 @@
-"""Original Meridian reconnaissance suit. Run with Blender --background --python."""
+"""Original Halaverga human hero: continuous fitted surface, expressive anatomy."""
 import bpy
 import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
-from suit_mesh import material, loft, panel, seam, visor
+from suit_mesh import material, seam, MATERIALS
+from hero_anatomy import anatomy, volume
+from hero_skin import bind, smooth
 
 bpy.ops.object.select_all(action='SELECT')
 bpy.ops.object.delete(use_global=False)
-material('textile', (.024,.040,.049), .82)
-material('ceramic', (.52,.60,.60), .32)
-material('titanium', (.14,.20,.22), .38, .35)
-material('visor', (.012,.045,.058), .13, .48)
-material('copper', (.42,.23,.12), .3, .7)
-material('energy', (.025,.65,.49), .3, .1, 2.0)
-
-# Underlayer follows the body; plates only cover the load-bearing areas.
-loft('Pressure weave', [(-.27,.155,.085),(-.19,.188,.108),(-.09,.168,.10),
-    (.03,.145,.088),(.16,.165,.099),(.30,.217,.126),(.43,.246,.125),
-    (.52,.215,.103),(.575,.10,.081)], 'textile')
-loft('Collar seal',[(.535,.106,.09),(.585,.105,.09),(.62,.086,.076)],'titanium')
-loft('Helmet shell',[(.63,.067,.063),(.659,.105,.104),(.705,.13,.126),
-    (.78,.14,.143),(.851,.137,.141),(.916,.105,.115),(.953,.058,.067),
-    (.965,.008,.012)],'ceramic',1,segments=28)
-visor()
-panel('Helmet crown', [(-.027,-.133,.845),(-.021,-.082,.94),(.021,-.082,.94),
-    (.027,-.133,.845),(.029,-.146,.72),(-.029,-.146,.72)],'titanium',1)
-seam('Helmet rear status',[(0,-.145,.85),(0,-.156,.79),(0,-.145,.733)],'energy',1,.003)
-
-for side in [-1,1]:
-    def plate(name, coords, finish='ceramic', rig=0):
-        return panel(name, [(side*x,y,z) for x,y,z in coords], finish, rig)
-    # Separate chest and scapular panels taper into the waist; no external backpack.
-    plate('Pectoral shell',[(.017,.124,.48),(.155,.13,.49),(.232,.082,.405),
-        (.192,.113,.255),(.054,.126,.21),(.02,.14,.31)])
-    plate('Floating rib',[(.176,.10,.24),(.145,.104,.10),(.073,.106,.05),
-        (.052,.116,.17)],'titanium')
-    plate('Scapula shell',[(.033,-.122,.502),(.157,-.115,.504),(.23,-.085,.423),
-        (.185,-.119,.27),(.098,-.119,.195),(.035,-.137,.31)])
-    plate('Rear flank',[(.159,-.09,.20),(.137,-.1,.07),(.074,-.097,.015),
-        (.051,-.111,.145)],'titanium')
-    seam('Scapula inlay',[(side*.055,-.14,.452),(side*.10,-.143,.37),
-        (side*.16,-.125,.33)],'copper',radius=.004)
-    seam('Thorax signal',[(side*.047,.149,.43),(side*.082,.144,.32)],'energy',radius=.003)
-    plate('Iliac shell',[(.031,.102,-.081),(.142,.10,-.067),(.18,.087,-.15),
-        (.146,.093,-.231),(.053,.103,-.191)],'titanium')
-    plate('Rear hip shell',[(.034,-.106,-.08),(.144,-.10,-.066),(.176,-.09,-.15),
-        (.14,-.108,-.225),(.043,-.11,-.22)],'titanium')
-
-# Small segmented power spine sits almost flush with the body.
-for i in range(6):
-    z = .47-i*.071
-    depth = -.145 if i<4 else -.113
-    panel('Spine vertebra', [(-.028,depth,z+.027),(.028,depth,z+.027),
-        (.037,depth-.006,z),(.022,depth,z-.027),(-.022,depth,z-.027),
-        (-.037,depth-.006,z)],'titanium')
-    seam('Spine telemetry',[(0,depth-.009,z+.017),(0,depth-.009,z-.015)],'energy',radius=.004)
-loft('Waist coupling',[(-.065,.161,.103),(-.039,.157,.10)],'titanium')
-seam('Chest seam',[(0,.137,.49),(0,.144,.33),(0,.118,.18),(0,.099,.07)],'titanium',radius=.005)
-
+material('ceramic', (.36,.49,.52), .44, .2)
+material('textile', (.025,.074,.083), .57, .1)
+material('visor', (.009,.02,.027), .23, .1)
+material('energy', (.035,.63,.44), .3, .1, 1.3)
+material('copper', (.31,.18,.086), .33, .5)
+material('skin', (.36,.18,.105), .64)
+material('hair', (.019,.025,.026), .8)
+material('eyes', (.66,.71,.68), .38)
+body = anatomy()
+# A continuous finish lets anatomy define the silhouette instead of armor islands.
+body.data.materials.clear()
+body.data.materials.append(MATERIALS['ceramic'])
+body.data.materials.append(MATERIALS['skin'])
+body.data.materials.append(MATERIALS['hair'])
+for face in body.data.polygons:
+    x,y,z = face.center
+    hairline = .802 + .089*smooth(-.07,.09,y)
+    face.material_index = 2 if z > hairline else 1 if z > .666 else 0
 for s in [-1,1]:
-    arm = 2 if s<0 else 3
-    leg = 4 if s<0 else 5
-    forearm = 6 if s<0 else 7
-    shin = 8 if s<0 else 9
-    def limb(name, rings, finish, x, rig, y=0):
-        return loft(name,rings,finish,rig,s*x,y,segments=16)
-    def plate(name, coords, finish, rig):
-        return panel(name,[(s*x,y,z) for x,y,z in coords],finish,rig)
-    # Overlapping rounded seals keep elbow/knee articulation continuous when bent.
-    limb('Upper pressure sleeve',[(.041,.06,.068),(.06,.058,.06),(.19,.072,.075),
-        (.35,.08,.084),(.465,.056,.065)],'textile',.325,arm)
-    limb('Lower pressure sleeve',[(-.27,.044,.047),(-.15,.055,.062),(-.015,.064,.073),
-        (.041,.06,.068)],'textile',.325,forearm)
-    limb('Shoulder ceramic',[ (.36,.057,.076),(.43,.091,.105),(.493,.069,.084),
-        (.519,.03,.046)],'ceramic',.286,arm)
-    plate('Bicep front',[(.293,.079,.34),(.361,.071,.32),(.365,.066,.20),
-        (.322,.079,.13),(.29,.075,.20)],'ceramic',arm)
-    plate('Bicep rear',[(.29,-.082,.35),(.354,-.078,.32),(.366,-.066,.19),
-        (.326,-.082,.13),(.294,-.076,.21)],'titanium',arm)
-    limb('Elbow flexible cuff',[(-.031,.008,.008),(-.017,.042,.047),(.006,.059,.066),
-        (.041,.067,.074),(.076,.059,.066),(.099,.042,.047),(.113,.008,.008)],'titanium',.325,forearm)
-    plate('Forearm carapace',[(.28,.066,-.01),(.337,.08,.009),(.379,.045,-.05),
-        (.366,.039,-.225),(.304,.059,-.231),(.28,.065,-.12)],'ceramic',forearm)
-    plate('Forearm rear guard',[(.284,-.066,-.015),(.342,-.079,-.01),(.375,-.044,-.07),
-        (.361,-.045,-.22),(.303,-.058,-.221)],'titanium',forearm)
-    seam('Wrist channel',[(s*.34,.083,-.045),(s*.345,.064,-.19)],'energy',forearm,.003)
-    limb('Hand glove',[(-.378,.031,.046),(-.35,.044,.059),(-.277,.047,.055),
-        (-.253,.041,.044)],'textile',.33,forearm,y=.013)
-    plate('Hand dorsal shield',[(.306,-.04,-.278),(.356,-.04,-.282),(.356,-.045,-.336),
-        (.312,-.045,-.344)],'ceramic',forearm)
-    for dz in [.0,.018,.036]:
-        seam('Hand knuckle seam',[(s*.301,.062,-.313-dz),(s*.351,.062,-.313-dz)],'titanium',forearm,.002)
-    limb('Thigh pressure layer',[(-.615,.065,.065),(-.55,.074,.077),(-.38,.099,.103),
-        (-.255,.095,.093),(-.211,.077,.078)],'textile',.119,leg)
-    plate('Thigh front shell',[(.052,.087,-.264),(.147,.105,-.273),(.194,.079,-.332),
-        (.169,.074,-.509),(.109,.087,-.562),(.065,.078,-.48)],'ceramic',leg)
-    plate('Thigh rear tendon',[(.07,-.09,-.27),(.161,-.097,-.284),(.194,-.07,-.36),
-        (.162,-.074,-.523),(.104,-.079,-.56),(.065,-.078,-.43)],'titanium',leg)
-    seam('Thigh outer seam',[(s*.19,.055,-.31),(s*.197,.036,-.43),(s*.166,.042,-.52)],'copper',leg,.003)
-    limb('Knee seal',[(-.692,.008,.008),(-.675,.043,.05),(-.650,.063,.07),
-        (-.613,.071,.079),(-.576,.063,.07),(-.551,.043,.05),(-.534,.008,.008)],'textile',.119,shin)
-    plate('Patella shield',[(.075,.078,-.576),(.154,.078,-.576),(.179,.071,-.615),
-        (.138,.082,-.659),(.091,.084,-.64)],'ceramic',shin)
-    limb('Calf weave',[(-.945,.049,.049),(-.82,.059,.065),(-.72,.077,.081),
-        (-.648,.062,.067)],'textile',.119,shin)
-    plate('Shin contour',[(.069,.066,-.665),(.139,.079,-.656),(.176,.058,-.716),
-        (.156,.047,-.913),(.09,.052,-.942),(.07,.06,-.83)],'ceramic',shin)
-    plate('Calf propulsion blade',[(.08,-.069,-.663),(.149,-.069,-.663),(.179,-.082,-.729),
-        (.143,-.065,-.879),(.105,-.064,-.913),(.07,-.068,-.83)],'titanium',shin)
-    seam('Calf propulsion slit',[(s*.12,-.093,-.706),(s*.12,-.085,-.794),
-        (s*.12,-.068,-.861)],'energy',shin,.005)
-    limb('Boot sculpted sole',[(-1.015,.053,.111),(-.995,.068,.135),(-.969,.068,.131),
-        (-.925,.051,.075),(-.885,.048,.049)],'textile',.119,shin,y=.04)
-    plate('Boot instep',[(.075,.083,-.916),(.164,.083,-.916),(.166,.159,-.974),
-        (.139,.177,-.985),(.087,.167,-.977)],'titanium',shin)
-
-# Curves become ordinary triangles; the runtime needs no procedural authoring code.
+    volume('Human eye', (s*.043,.122,.821), (.024,.009,.008), finish='eyes')
+    volume('Iris glint', (s*.043,.131,.821), (.008,.003,.006), finish='visor')
+    volume('Ear inset', (s*.115,.006,.805), (.005,.009,.018), finish='textile')
+    seam('Brow edge', [(s*.02,.126,.837),(s*.043,.132,.843),(s*.065,.117,.838)], 'textile',1,.002)
+    seam('Glove fingers', [(s*.305,.065,-.34),(s*.355,.065,-.34)], 'textile',7 if s>0 else 6,.0015)
+    # A quiet shoulder-to-spine seam distinguishes the back in the actual camera.
+    seam('Back contour', [(s*.20,-.102,.50),(s*.14,-.143,.435),(s*.07,-.15,.41)], 'copper',radius=.0025)
+    seam('Calf channel', [(s*.12,-.101,-.69),(s*.12,-.094,-.78)], 'energy',9 if s>0 else 8,.002)
+seam('Mouth', [(-.028,.124,.752),(0,.132,.75),(.028,.124,.752)], 'textile',1,.0018)
+seam('Spine light', [(0,-.124,.50),(0,-.146,.37),(0,-.128,.24)], 'energy',radius=.0025)
+# Small original sternum symbol, inset into the suit, rather than a superhero logo.
+seam('Sternum signal', [(-.018,.154,.439),(0,.17,.46),(.018,.154,.439),(0,.17,.415),(-.018,.154,.439)],'energy',radius=.002)
 bpy.ops.object.select_all(action='SELECT')
-bpy.context.view_layer.objects.active = next(iter(bpy.context.scene.objects))
+bpy.context.view_layer.objects.active = body
 bpy.ops.object.convert(target='MESH')
+objects = [obj for obj in bpy.context.scene.objects if obj.type=='MESH']
+# Export material primitives within an eight-batch budget.
+for obj in objects: obj.select_set(True)
+bpy.context.view_layer.objects.active = body
+bpy.ops.object.join()
+body = bpy.context.object
+body.data.validate(verbose=True)
+body.data.update()
+bind([body])
 destination = Path(__file__).resolve().parents[1] / 'public/models/suit.glb'
 bpy.ops.export_scene.gltf(filepath=str(destination), export_format='GLB', export_yup=True,
     export_extras=True, export_texcoords=False, export_normals=True, export_animations=False)
-print('Exported fitted suit:', destination, destination.stat().st_size, 'bytes')
+print('[Human suit] Export →', destination.stat().st_size, 'bytes')

@@ -25,6 +25,9 @@ export function advanceFlightPose(pose: Pose, input: PoseInput, elapsed: number)
   const travelYaw = input.flying && horizontalSpeed > 1 ? Math.atan2(-input.velocity.x, -input.velocity.z) : input.flying && pose.speed > 2 ? pose.yaw : input.yaw;
   const turn = Math.max(-.3, Math.min(.3, angleDelta(pose.yaw, travelYaw) * .55));
   pose.yaw = settleAngle(pose.yaw, travelYaw, 7, dt);
+  // The player reads the back in chase view, even while velocity catches a sharp turn.
+  const facingLag = angleDelta(pose.viewYaw, pose.yaw);
+  if (Math.abs(facingLag) > .4) pose.yaw = pose.viewYaw + Math.sign(facingLag) * .4;
   pose.bank = settle(pose.bank, input.reduced ? 0 : turn, 5, dt);
   pose.flight = settle(pose.flight, input.flying ? 1 : 0, 5, dt);
   const streamline = Math.min(1, Math.max(0, (pose.speed - 3) / 25));

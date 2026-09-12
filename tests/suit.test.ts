@@ -1,40 +1,43 @@
 import { readFileSync } from 'node:fs';
 import { expect, test } from 'vitest';
-import { Box3, BoxGeometry, Group, Mesh, MeshStandardMaterial, Raycaster, Vector3 } from 'three';
+import { Box3, BoxGeometry, Group, Mesh, MeshStandardMaterial, SkinnedMesh, Vector3 } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { buildSuitRig } from '../src/world/suitRig';
 import { buildSuitParts, pivots } from '../src/world/suitGeometry';
-test('authored suit preserves ten articulated parts, fitted proportions and distinct finishes within the asset budget', async () => {
+test('human suit preserves weighted articulation, fitted proportions and the browser budget', async () => {
   const bytes = readFileSync(new URL('../public/models/suit.glb', import.meta.url));
   expect(bytes.length).toBeLessThan(600_000);
   const source = await new GLTFLoader().parseAsync(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength), '');
-  source.scene.updateMatrixWorld(true);
-  for (const [x, y] of [[.10,.36], [.119,-.40], [.119,-.75], [.325,-.14]]) {
-    const ray = new Raycaster(new Vector3(x,y,-2), new Vector3(0,0,1));
-    const hit = ray.intersectObject(source.scene, true)[0];
-    expect(((hit.object as Mesh).material as MeshStandardMaterial).name).toBe('ceramic');
-  }
-  const result = buildSuitParts(source.scene);
-  expect(result.parts).toHaveLength(10);
-  const bounds = new Box3(), materialNames = result.materials.map(m => m.name);
-  expect(materialNames).toEqual(expect.arrayContaining(['ceramic', 'textile', 'visor', 'energy']));
-  expect(result.materials.find(m => m.name === 'energy')!.emissiveIntensity).toBeGreaterThan(0);
-  let triangles = 0, batches = 0;
-  result.parts.forEach((part, i) => {
-    expect(part.length).toBeGreaterThan(0);
-    part.forEach(({ geometry, material }) => {
-      geometry.computeBoundingBox();
-      bounds.union(geometry.boundingBox!.clone().translate(new Vector3(...pivots[i])));
-      expect(material.isMeshStandardMaterial).toBe(true);
-      const positions = geometry.getAttribute('position').array;
-      expect(Array.from(positions).every(Number.isFinite)).toBe(true);
-      triangles += geometry.getAttribute('position').count / 3; batches++;
+  const rig = buildSuitRig(source.scene);
+  try {
+    rig.root.updateMatrixWorld(true);
+    const size = new Box3().setFromObject(rig.root, true).getSize(new Vector3());
+    expect(rig.joints).toHaveLength(10);
+    expect(size.y).toBeGreaterThan(1.9); expect(size.y).toBeLessThan(2.1);
+    expect(size.x).toBeLessThan(.95); expect(size.z).toBeLessThan(.48);
+    let triangles = 0, batches = 0, blendedVertices = 0;
+    const finishes = new Set<string>(), usedJoints = new Set<number>();
+    rig.root.traverse(object => {
+      if (!(object instanceof SkinnedMesh)) return;
+      batches++; const geometry = object.geometry;
+      triangles += (geometry.index?.count ?? geometry.attributes.position.count) / 3;
+      finishes.add((object.material as MeshStandardMaterial).name);
+      const weights = geometry.getAttribute('skinWeight'), indices = geometry.getAttribute('skinIndex');
+      expect(Array.from(geometry.attributes.position.array).every(Number.isFinite)).toBe(true);
+      for (let i = 0; i < weights.count; i++) {
+        let sum = 0, influences = 0;
+        for (let n = 0; n < 4; n++) {
+          const w = weights.getComponent(i, n), joint = indices.getComponent(i, n);
+          expect(w).toBeGreaterThanOrEqual(0); expect(joint).toBeLessThan(10);
+          sum += w; if (w > .01) { influences++; usedJoints.add(joint); }
+        }
+        expect(sum).toBeCloseTo(1, 5); if (influences > 1) blendedVertices++;
+      }
     });
-  });
-  const size = bounds.getSize(new Vector3());
-  expect(size.y).toBeGreaterThan(1.9); expect(size.y).toBeLessThan(2.1);
-  expect(size.x).toBeLessThan(.95); expect(size.z).toBeLessThan(.48);
-  expect(triangles).toBeLessThan(20_000); expect(batches).toBeLessThanOrEqual(40);
-  result.parts.flat().forEach(p => p.geometry.dispose()); result.materials.forEach(m => m.dispose());
+    expect(blendedVertices).toBeGreaterThan(100); expect(usedJoints.size).toBe(10);
+    expect(triangles).toBeLessThan(20_000); expect(batches).toBeLessThanOrEqual(8);
+    expect(finishes).toEqual(new Set(['ceramic', 'textile', 'visor', 'energy', 'copper', 'skin', 'hair', 'eyes']));
+  } finally { rig.dispose(); }
 });
 test('assembly rejects missing parts and never disposes or mutates shared loader assets', () => {
   const scene = new Group(), geometry = new BoxGeometry(), material = new MeshStandardMaterial();

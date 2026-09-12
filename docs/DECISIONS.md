@@ -1,6 +1,8 @@
 # Flight study decisions
 
-- The reconnaissance suit is a fitted pressure layer with contoured ceramic panels, a continuous visor and an integrated power spine. Its six-part animation contract is unchanged; shoulder/hip pivots follow the slimmer anatomy. Explicit GLB articulation metadata replaces mesh-name guessing. Batching by part and material retains the authored finishes; generated assembly resources are disposed separately from the shared loader asset.
+- The human-hero correction replaces the rigid panel assembly with a continuous weighted surface because disconnected rigid sections cannot provide natural shoulder/elbow/knee deformation. It preserves the ten pose controls, original source ownership and the -Z forward convention. Back anatomy must read differently from the face/chest. Body yaw is bounded relative to the shared camera heading to keep sharp turns from presenting the face to the chase camera.
+
+- The earlier rigid reconnaissance prototype used contoured ceramic panels, a continuous visor and an integrated power spine. Explicit GLB articulation metadata and batching by part/material supported that version; the weighted human surface supersedes its visual design.
 - Desktop defaults to trackpad-only click-to-cruise with pointer steering and bounded vertical scroll speed (3–34 m/s, restarting at 8 m/s). Clicking again brakes; a held drag while hovering looks without launching. Mouse capture is an explicit saved alternative. Both feed the existing motion and camera controllers.
 - Trackpad cruise stops on scene exit, HUD entry, pause, resize, touch handover and zoom gestures. Control/Command wheel and Safari gesture events remain available to native browser zoom. Scroll handling is limited to the active scene; dialogs retain native scrolling.
 - One-thumb flight remains the primary touch input. Release brakes to hover; the separate Surge button stays removed.
