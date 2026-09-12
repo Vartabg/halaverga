@@ -68,7 +68,7 @@ export default function Experience() {
           </div>
           {state.nearTerminal && <button className={styles.discovery} onClick={() => { pause(); state.set({ discovered: true, journal: true }); persistGame(); }}>◇ Municipal record <span>Read ↗</span></button>}
           {!state.flying && <div className={styles.touchHint} aria-hidden="true">ONE THUMB TO FLY · TWO TO MOVE + LOOK</div>}
-          {state.desktopMode === 'trackpad' && <div className={styles.trackpadHint}>{state.trackpadFlying ? 'MOVE TO STEER · SCROLL FOR SPEED · CLICK TO HOVER' : 'CLICK TO FLY · DRAG TO LOOK'}</div>}
+          {state.desktopMode === 'trackpad' && <div className={styles.trackpadHint}>{state.trackpadFlying ? `MOVE TO STEER · SCROLL FOR SPEED · CLICK TO ${state.trackpadSteering === 'captured' ? 'HOVER + RELEASE' : 'HOVER'}` : 'CLICK TO FLY · DRAG TO LOOK'}</div>}
         </>}
         {state.paused && !state.panel && !state.journal && !failed && <section className={styles.pauseCard} aria-label="Expedition paused">
           <p className={styles.eyebrow}>SUIT HOLDING POSITION</p><h2>Take your time.</h2><p>Your expedition will be here.</p>

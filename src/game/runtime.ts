@@ -7,7 +7,7 @@ export const runtime = {
   poseEpoch: 0, cameraDistance: 0,
   clearance: { active: false, boundary: false, point: new Vector3(), normal: new Vector3(0, 1, 0) },
   thumb: { active: false, throttle: 0, strafe: 0, edgeTurn: 0, edgePitch: 0, bank: 0 }, keys: new Set<string>(),
-  trackpad: { active: false, throttle: 8 / SPEED.surge, edgeTurn: 0, edgePitch: 0 },
+  trackpad: { active: false, throttle: 8 / SPEED.surge, edgeTurn: 0, edgePitch: 0, edgeAge: 0, unlocking: false },
   tap: { forward: 0, strafe: 0, vertical: 0 },
   landTarget: null as Vector3 | null, landGoal: null as Vector3 | null,
   speed: 0, altitude: START.y, frames: [] as number[], elapsed: 0, location: 'Arrival terrace',
@@ -39,7 +39,7 @@ export function releaseThumb() {
 }
 export function startTrackpad() {
   releaseThumb();
-  Object.assign(runtime.trackpad, { active: true, throttle: 8 / SPEED.surge, edgeTurn: 0, edgePitch: 0 });
+  Object.assign(runtime.trackpad, { active: true, throttle: useGame.getState().cruiseSpeed / SPEED.surge, edgeTurn: 0, edgePitch: 0, edgeAge: 0 });
   useGame.setState({ trackpadFlying: true });
 }
 export function stopTrackpad() {

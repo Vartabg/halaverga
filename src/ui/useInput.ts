@@ -2,7 +2,9 @@ import { useEffect } from 'react';
 import { clearInput, look, runtime, toggleSurge, readIntent } from '@/game/runtime';
 import { moving } from '@/game/motion';
 import { useGame } from '@/game/store';
+import { recordGesture } from '@/game/gestureLog';
 export function pause() {
+  recordGesture('pause');
   clearInput(true); useGame.setState({ paused: true, landing: false });
   if (document.pointerLockElement) document.exitPointerLock();
 }
@@ -27,10 +29,21 @@ export function useInput() {
       runtime.keys.delete(e.code);
       if (controls.includes(e.code) && !moving(readIntent())) { runtime.surge = false; useGame.setState({ surging: false }); }
     };
-    const mouse = (e: MouseEvent) => { if (document.pointerLockElement && !useGame.getState().paused) look(e.movementX, e.movementY); };
+    const mouse = (e: MouseEvent) => {
+      if (document.pointerLockElement && !useGame.getState().paused) {
+        look(e.movementX, e.movementY); recordGesture('captured-steer', { deltaX: e.movementX, deltaY: e.movementY });
+      }
+    };
     const hidden = () => { if (document.hidden) pause(); };
-    const resized = () => { clearInput(true); useGame.setState(s => ({ landing: false, inputEpoch: s.inputEpoch + 1 })); };
-    const lock = () => { if (!document.pointerLockElement && useGame.getState().started && !useGame.getState().paused) pause(); };
+    const resized = () => { clearInput(true); if (document.pointerLockElement) document.exitPointerLock(); useGame.setState(s => ({ landing: false, inputEpoch: s.inputEpoch + 1 })); };
+    const lock = () => {
+      if (!document.pointerLockElement) {
+        const expected = runtime.trackpad.unlocking; runtime.trackpad.unlocking = false;
+        if (useGame.getState().started && !useGame.getState().paused) {
+          if (useGame.getState().desktopMode === 'trackpad' && expected) clearInput(); else pause();
+        }
+      }
+    };
     window.addEventListener('keydown', keydown); window.addEventListener('keyup', keyup);
     window.addEventListener('mousemove', mouse); window.addEventListener('blur', pause); window.addEventListener('resize', resized);
     document.addEventListener('visibilitychange', hidden); document.addEventListener('pointerlockchange', lock);

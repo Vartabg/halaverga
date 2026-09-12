@@ -93,6 +93,7 @@ test('optional mouse capture persists and failure offers trackpad recovery', asy
 });
 test('edge steering continues at rest; touch handover and cancelled drag stay neutral', async ({ browser }) => {
   const context = await browser.newContext({ viewport: { width: 1440, height: 1000 }, hasTouch: true });
+  await context.addInitScript(() => localStorage.setItem('halaverga-flight-v1', JSON.stringify({ sustainedEdges: true })));
   const page = await context.newPage(); await begin(page); await page.mouse.click(720, 500);
   await page.mouse.move(1430, 500, { steps: 10 }); await page.waitForTimeout(450);
   const before = await heading(page); await page.waitForTimeout(450);

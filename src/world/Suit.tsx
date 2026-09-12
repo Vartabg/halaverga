@@ -1,38 +1,25 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { useFrame, useLoader } from '@react-three/fiber';
-import { Group } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { presentation as pose } from '@/game/presentation';
 import { useGame } from '@/game/store';
-import { buildSuitParts, pivots } from './suitGeometry';
+import { buildSuitRig } from './suitRig';
+import { advanceSuitMotion, applySuitPose } from './suitPose';
+import { runtime } from '@/game/runtime';
 export default function Suit() {
-  const root = useRef<Group>(null), parts = useRef<(Group | null)[]>([]);
+  const motion = useRef({ climb: 0, hero: 1, epoch: -1 });
   const asset = useLoader(GLTFLoader, '/models/suit.glb');
-  const assembly = useMemo(() => buildSuitParts(asset.scene), [asset]);
-  useEffect(() => () => {
-    assembly.parts.flat().forEach(p => p.geometry.dispose()); assembly.materials.forEach(m => m.dispose());
-  }, [assembly]);
-  useFrame(() => {
-    if (!root.current) return;
-    root.current.visible = useGame.getState().camera === 'third';
-    root.current.position.copy(pose.position);
-    root.current.rotation.set(pose.lean, pose.yaw, pose.bank, 'YXZ');
-    const head = parts.current[1];
-    if (head) head.rotation.x = -pose.lean * .72;
-    const streamline = Math.max(0, Math.min(1, (pose.speed - 3) / 25));
-    for (let i = 2; i <= 3; i++) {
-      const arm = parts.current[i], side = i === 2 ? -1 : 1;
-      if (!arm) continue;
-      arm.rotation.x = pose.flight * .18 - pose.brake * .25;
-      arm.rotation.z = side * (pose.flight * (.2 - streamline * .3) + pose.brake * .35);
-    }
-    for (let i = 4; i <= 5; i++) {
-      const leg = parts.current[i]; if (leg) leg.rotation.x = pose.flight * .14 + pose.brake * .28;
-    }
+  const rig = useMemo(() => buildSuitRig(asset.scene), [asset]);
+  useEffect(() => () => rig.dispose(), [rig]);
+  useFrame((_, dt) => {
+    const state = useGame.getState(), m = motion.current;
+    if (m.epoch !== pose.epoch) Object.assign(m, { epoch: pose.epoch, climb: 0, hero: state.heroPoses ? 1 : 0 });
+    if (!state.paused) advanceSuitMotion(m, runtime.speed > 2 ? Math.atan2(runtime.velocity.y, Math.hypot(runtime.velocity.x, runtime.velocity.z)) : 0, state.heroPoses, dt);
+    rig.root.visible = state.camera === 'third';
+    rig.root.position.copy(pose.position);
+    const climb = m.climb * Math.min(1, pose.speed / 13) * m.hero * (state.reduced ? .25 : .65);
+    rig.root.rotation.set(pose.lean + climb, pose.yaw, pose.bank * (1 + m.hero * .7), 'YXZ');
+    applySuitPose(rig.joints, pose, m, state.reduced);
   }, -20);
-  return <group ref={root} dispose={null}>
-    {assembly.parts.map((batches, i) => <group key={i} ref={node => { parts.current[i] = node; }} position={[...pivots[i]]}>
-      {batches.map(({ geometry, material }) => <mesh key={material.uuid} geometry={geometry} material={material} castShadow />)}
-    </group>)}
-  </group>;
+  return <primitive object={rig.root} dispose={null} />;
 }

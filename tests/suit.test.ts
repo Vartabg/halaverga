@@ -3,7 +3,7 @@ import { expect, test } from 'vitest';
 import { Box3, BoxGeometry, Group, Mesh, MeshStandardMaterial, Raycaster, Vector3 } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { buildSuitParts, pivots } from '../src/world/suitGeometry';
-test('authored suit preserves six pivots, fitted proportions and distinct finishes within the asset budget', async () => {
+test('authored suit preserves ten articulated parts, fitted proportions and distinct finishes within the asset budget', async () => {
   const bytes = readFileSync(new URL('../public/models/suit.glb', import.meta.url));
   expect(bytes.length).toBeLessThan(600_000);
   const source = await new GLTFLoader().parseAsync(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength), '');
@@ -14,7 +14,7 @@ test('authored suit preserves six pivots, fitted proportions and distinct finish
     expect(((hit.object as Mesh).material as MeshStandardMaterial).name).toBe('ceramic');
   }
   const result = buildSuitParts(source.scene);
-  expect(result.parts).toHaveLength(6);
+  expect(result.parts).toHaveLength(10);
   const bounds = new Box3(), materialNames = result.materials.map(m => m.name);
   expect(materialNames).toEqual(expect.arrayContaining(['ceramic', 'textile', 'visor', 'energy']));
   expect(result.materials.find(m => m.name === 'energy')!.emissiveIntensity).toBeGreaterThan(0);
@@ -33,7 +33,7 @@ test('authored suit preserves six pivots, fitted proportions and distinct finish
   const size = bounds.getSize(new Vector3());
   expect(size.y).toBeGreaterThan(1.9); expect(size.y).toBeLessThan(2.1);
   expect(size.x).toBeLessThan(.95); expect(size.z).toBeLessThan(.48);
-  expect(triangles).toBeLessThan(20_000); expect(batches).toBeLessThanOrEqual(30);
+  expect(triangles).toBeLessThan(20_000); expect(batches).toBeLessThanOrEqual(40);
   result.parts.flat().forEach(p => p.geometry.dispose()); result.materials.forEach(m => m.dispose());
 });
 test('assembly rejects missing parts and never disposes or mutates shared loader assets', () => {
@@ -41,7 +41,7 @@ test('assembly rejects missing parts and never disposes or mutates shared loader
   let sourceDisposals = 0;
   geometry.addEventListener('dispose', () => sourceDisposals++);
   material.addEventListener('dispose', () => sourceDisposals++);
-  for (let i = 0; i < 6; i++) {
+  for (let i = 0; i < pivots.length; i++) {
     const part = new Mesh(geometry, material); part.userData.suitPart = i;
     const p = pivots[i]; part.position.set(p[0], p[1], p[2]); scene.add(part);
   }

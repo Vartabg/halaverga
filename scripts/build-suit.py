@@ -61,31 +61,36 @@ seam('Chest seam',[(0,.137,.49),(0,.144,.33),(0,.118,.18),(0,.099,.07)],'titaniu
 for s in [-1,1]:
     arm = 2 if s<0 else 3
     leg = 4 if s<0 else 5
+    forearm = 6 if s<0 else 7
+    shin = 8 if s<0 else 9
     def limb(name, rings, finish, x, rig, y=0):
         return loft(name,rings,finish,rig,s*x,y,segments=16)
     def plate(name, coords, finish, rig):
         return panel(name,[(s*x,y,z) for x,y,z in coords],finish,rig)
-    # Compact shoulder cap and continuous tapered sleeves replace the block joints.
-    limb('Arm pressure sleeve',[(-.27,.044,.047),(-.15,.055,.062),(-.015,.064,.073),
-        (.06,.058,.06),(.19,.072,.075),(.35,.08,.084),(.465,.056,.065)],'textile',.325,arm)
+    # Overlapping rounded seals keep elbow/knee articulation continuous when bent.
+    limb('Upper pressure sleeve',[(.041,.06,.068),(.06,.058,.06),(.19,.072,.075),
+        (.35,.08,.084),(.465,.056,.065)],'textile',.325,arm)
+    limb('Lower pressure sleeve',[(-.27,.044,.047),(-.15,.055,.062),(-.015,.064,.073),
+        (.041,.06,.068)],'textile',.325,forearm)
     limb('Shoulder ceramic',[ (.36,.057,.076),(.43,.091,.105),(.493,.069,.084),
         (.519,.03,.046)],'ceramic',.286,arm)
     plate('Bicep front',[(.293,.079,.34),(.361,.071,.32),(.365,.066,.20),
         (.322,.079,.13),(.29,.075,.20)],'ceramic',arm)
     plate('Bicep rear',[(.29,-.082,.35),(.354,-.078,.32),(.366,-.066,.19),
         (.326,-.082,.13),(.294,-.076,.21)],'titanium',arm)
-    limb('Elbow flexible cuff',[(.01,.063,.071),(.041,.067,.073),(.071,.063,.069)],'titanium',.325,arm)
+    limb('Elbow flexible cuff',[(-.031,.008,.008),(-.017,.042,.047),(.006,.059,.066),
+        (.041,.067,.074),(.076,.059,.066),(.099,.042,.047),(.113,.008,.008)],'titanium',.325,forearm)
     plate('Forearm carapace',[(.28,.066,-.01),(.337,.08,.009),(.379,.045,-.05),
-        (.366,.039,-.225),(.304,.059,-.231),(.28,.065,-.12)],'ceramic',arm)
+        (.366,.039,-.225),(.304,.059,-.231),(.28,.065,-.12)],'ceramic',forearm)
     plate('Forearm rear guard',[(.284,-.066,-.015),(.342,-.079,-.01),(.375,-.044,-.07),
-        (.361,-.045,-.22),(.303,-.058,-.221)],'titanium',arm)
-    seam('Wrist channel',[(s*.34,.083,-.045),(s*.345,.064,-.19)],'energy',arm,.003)
+        (.361,-.045,-.22),(.303,-.058,-.221)],'titanium',forearm)
+    seam('Wrist channel',[(s*.34,.083,-.045),(s*.345,.064,-.19)],'energy',forearm,.003)
     limb('Hand glove',[(-.378,.031,.046),(-.35,.044,.059),(-.277,.047,.055),
-        (-.253,.041,.044)],'textile',.33,arm,y=.013)
+        (-.253,.041,.044)],'textile',.33,forearm,y=.013)
     plate('Hand dorsal shield',[(.306,-.04,-.278),(.356,-.04,-.282),(.356,-.045,-.336),
-        (.312,-.045,-.344)],'ceramic',arm)
+        (.312,-.045,-.344)],'ceramic',forearm)
     for dz in [.0,.018,.036]:
-        seam('Hand knuckle seam',[(s*.301,.062,-.313-dz),(s*.351,.062,-.313-dz)],'titanium',arm,.002)
+        seam('Hand knuckle seam',[(s*.301,.062,-.313-dz),(s*.351,.062,-.313-dz)],'titanium',forearm,.002)
     limb('Thigh pressure layer',[(-.615,.065,.065),(-.55,.074,.077),(-.38,.099,.103),
         (-.255,.095,.093),(-.211,.077,.078)],'textile',.119,leg)
     plate('Thigh front shell',[(.052,.087,-.264),(.147,.105,-.273),(.194,.079,-.332),
@@ -93,21 +98,22 @@ for s in [-1,1]:
     plate('Thigh rear tendon',[(.07,-.09,-.27),(.161,-.097,-.284),(.194,-.07,-.36),
         (.162,-.074,-.523),(.104,-.079,-.56),(.065,-.078,-.43)],'titanium',leg)
     seam('Thigh outer seam',[(s*.19,.055,-.31),(s*.197,.036,-.43),(s*.166,.042,-.52)],'copper',leg,.003)
-    limb('Knee seal',[(-.643,.06,.069),(-.613,.071,.079),(-.573,.062,.068)],'textile',.119,leg)
+    limb('Knee seal',[(-.692,.008,.008),(-.675,.043,.05),(-.650,.063,.07),
+        (-.613,.071,.079),(-.576,.063,.07),(-.551,.043,.05),(-.534,.008,.008)],'textile',.119,shin)
     plate('Patella shield',[(.075,.078,-.576),(.154,.078,-.576),(.179,.071,-.615),
-        (.138,.082,-.659),(.091,.084,-.64)],'ceramic',leg)
+        (.138,.082,-.659),(.091,.084,-.64)],'ceramic',shin)
     limb('Calf weave',[(-.945,.049,.049),(-.82,.059,.065),(-.72,.077,.081),
-        (-.648,.062,.067)],'textile',.119,leg)
+        (-.648,.062,.067)],'textile',.119,shin)
     plate('Shin contour',[(.069,.066,-.665),(.139,.079,-.656),(.176,.058,-.716),
-        (.156,.047,-.913),(.09,.052,-.942),(.07,.06,-.83)],'ceramic',leg)
+        (.156,.047,-.913),(.09,.052,-.942),(.07,.06,-.83)],'ceramic',shin)
     plate('Calf propulsion blade',[(.08,-.069,-.663),(.149,-.069,-.663),(.179,-.082,-.729),
-        (.143,-.065,-.879),(.105,-.064,-.913),(.07,-.068,-.83)],'titanium',leg)
+        (.143,-.065,-.879),(.105,-.064,-.913),(.07,-.068,-.83)],'titanium',shin)
     seam('Calf propulsion slit',[(s*.12,-.093,-.706),(s*.12,-.085,-.794),
-        (s*.12,-.068,-.861)],'energy',leg,.005)
+        (s*.12,-.068,-.861)],'energy',shin,.005)
     limb('Boot sculpted sole',[(-1.015,.053,.111),(-.995,.068,.135),(-.969,.068,.131),
-        (-.925,.051,.075),(-.885,.048,.049)],'textile',.119,leg,y=.04)
+        (-.925,.051,.075),(-.885,.048,.049)],'textile',.119,shin,y=.04)
     plate('Boot instep',[(.075,.083,-.916),(.164,.083,-.916),(.166,.159,-.974),
-        (.139,.177,-.985),(.087,.167,-.977)],'titanium',leg)
+        (.139,.177,-.985),(.087,.167,-.977)],'titanium',shin)
 
 # Curves become ordinary triangles; the runtime needs no procedural authoring code.
 bpy.ops.object.select_all(action='SELECT')

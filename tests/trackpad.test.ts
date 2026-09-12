@@ -14,7 +14,7 @@ describe('trackpad cruise', () => {
   it('normalizes line/page units and limits extreme scroll events and speed', () => {
     expect(cruiseThrottle(.4, -2, 1, 1000)).toBe(cruiseThrottle(.4, -32, 0, 1000));
     expect(cruiseThrottle(.4, -.03, 2, 1000)).toBe(cruiseThrottle(.4, -30, 0, 1000));
-    expect(cruiseThrottle(.4, -9999, 0, 1000) - .4).toBeLessThanOrEqual(.15);
+    expect(cruiseThrottle(.4, -9999, 0, 1000) - .4).toBeCloseTo(.2);
     expect(cruiseThrottle(1, -9999, 0, 1000)).toBe(1);
     expect(cruiseThrottle(0, 9999, 0, 1000)).toBe(3 / SPEED.surge);
     expect(cruiseThrottle(.4, NaN, 0, 1000)).toBe(.4);

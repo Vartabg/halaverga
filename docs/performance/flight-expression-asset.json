@@ -1,0 +1,37 @@
+{
+  "bytes": 262772,
+  "triangles": 12402,
+  "batches": 39,
+  "articulatedParts": 10,
+  "materials": [
+    "textile",
+    "titanium",
+    "ceramic",
+    "visor",
+    "energy",
+    "copper"
+  ],
+  "bounds": {
+    "min": [
+      -0.4050000011920929,
+      -1.0149999856948853,
+      -0.19281741976737976
+    ],
+    "max": [
+      0.4050000011920929,
+      0.9649999737739563,
+      0.17161263525485992
+    ]
+  },
+  "sourceHashes": {
+    "public/models/suit.glb": "c94dac5ba86532b270e1aeafec5799e50007305fcf3a795fd42008b73ac9eef0",
+    "scripts/build-suit.py": "9d237db74d5b0d95e0364b99ed5e92d6eb7945ccb00b1d472aac43dd6953460d",
+    "scripts/suit_mesh.py": "54daea3fa8a22539f1115608438cb9421f9b965e739c2f7a1e42b1659e8a8b1a",
+    "src/world/Suit.tsx": "23ac38f579ea343170f8c330c28e7a140c4232a4ec58b9f68d92c960e6fc7a0b",
+    "src/world/suitGeometry.ts": "aec43be7f4fa1fe0c296e8a2245cf902f6aca096575bab82f7523b1bacadb8bd",
+    "src/world/suitRig.ts": "8dca9638f871eeea1990581ae10894225cc1e935c4c3fa1f26b427d362dd3060",
+    "src/world/suitPose.ts": "42b42951930f3df006eece6796d55581aca4600af7606a019abd83e441383d22",
+    "src/game/FlightPresentation.tsx": "3d3c336599f58ac8d43ff07adf52959a3dc5fa89d17b14d72ea9bc05f9451c0f",
+    "src/game/presentation.ts": "0c692aa3aad8b1fa49266b5ec152f3a374817f15b3aa4bb648259af7117ca9db"
+  }
+}

@@ -6,6 +6,7 @@ import { useGame, persistGame } from './store';
 import { runtime, readIntent, clearInput } from './runtime';
 import { advanceVelocity, boundMovement, landingVelocity, moving, START, FOOT } from './motion';
 import { presentation } from './presentation';
+import { edgeFreshness } from './trackpadFlight';
 import { FlightSafety } from './FlightSafety';
 import { boundaryDistance, CLEARANCE, removeInward, softenBounds } from './navigation';
 const direction = new Vector3();
@@ -54,8 +55,10 @@ export default function Player() {
     const pointerFlight = runtime.thumb.active || runtime.trackpad.active;
     if (pointerFlight) {
       const pointer = runtime.trackpad.active ? runtime.trackpad : runtime.thumb;
-      runtime.yaw -= pointer.edgeTurn * dt * 1.5;
-      runtime.pitch = Math.max(-1.3, Math.min(1.25, runtime.pitch + pointer.edgePitch * dt));
+      runtime.trackpad.edgeAge += dt;
+      const gain = runtime.trackpad.active && !state.sustainedEdges ? edgeFreshness(runtime.trackpad.edgeAge) : 1;
+      runtime.yaw -= pointer.edgeTurn * dt * 1.5 * gain;
+      runtime.pitch = Math.max(-1.3, Math.min(1.25, runtime.pitch + pointer.edgePitch * dt * gain));
     }
     runtime.yaw += (Number(k.has('ArrowLeft')) - Number(k.has('ArrowRight'))) * dt * 1.5;
     runtime.pitch = Math.max(-1.3, Math.min(1.25, runtime.pitch + (Number(k.has('ArrowUp')) - Number(k.has('ArrowDown'))) * dt * 1.2));

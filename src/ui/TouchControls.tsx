@@ -45,7 +45,7 @@ export default function TouchControls() {
       if (!controls.current.contacts.size) desktop.start(e);
       return;
     }
-    desktop.leave();
+    desktop.cancel();
     // A stale non-primary contact after cancellation/rotation cannot restart flight.
     if (!controls.current.contacts.size && !e.isPrimary) return;
     clearTimer();

@@ -4,6 +4,7 @@ import { runtime } from './runtime';
 import { presentation as pose, advanceFlightPose, type PoseInput } from './presentation';
 import { useGame } from './store';
 export default function FlightPresentation() {
+  const wasPaused = useRef(true);
   const input = useRef<PoseInput>({ yaw: 0, pitch: 0, speed: 0, velocity: runtime.velocity, flying: false, reduced: false });
   useFrame((_, elapsed) => {
     const state = useGame.getState(), dt = Math.min(elapsed, .05);
@@ -17,7 +18,11 @@ export default function FlightPresentation() {
       if (pose.position.distanceTo(runtime.position) > .1) pose.position.copy(runtime.position);
       else pose.alignAfterReset = false;
     }
-    if (state.paused) return;
+    if (state.paused) { wasPaused.current = true; return; }
+    if (wasPaused.current) {
+      Object.assign(pose, { speed: runtime.velocity.length(), brake: 0, lean: 0, bank: 0, flight: state.flying ? 1 : 0 });
+      wasPaused.current = false;
+    }
     const target = input.current;
     target.yaw = runtime.yaw; target.pitch = runtime.pitch; target.speed = runtime.speed;
     target.flying = state.flying; target.reduced = state.reduced;
