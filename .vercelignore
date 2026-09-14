@@ -6,4 +6,5 @@ playwright-report/
 docs/
 tests/
 scripts/
+art/
 .agent-task/

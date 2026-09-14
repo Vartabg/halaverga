@@ -1,13 +1,21 @@
 import { readFileSync } from 'node:fs';
 import { expect, test } from 'vitest';
 import { Box3, BoxGeometry, Group, Mesh, MeshStandardMaterial, SkinnedMesh, Vector3 } from 'three';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { loadSuit } from './load-suit';
 import { buildSuitRig } from '../src/world/suitRig';
 import { buildSuitParts, pivots } from '../src/world/suitGeometry';
 test('human suit preserves weighted articulation, fitted proportions and the browser budget', async () => {
   const bytes = readFileSync(new URL('../public/models/suit.glb', import.meta.url));
-  expect(bytes.length).toBeLessThan(600_000);
-  const source = await new GLTFLoader().parseAsync(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength), '');
+  // Two compact embedded atlases replace the old untextured mannequin finish.
+  expect(bytes.length).toBeLessThan(850_000);
+  const json = JSON.parse(bytes.toString('utf8', 20, 20 + bytes.readUInt32LE(12)));
+  expect(json.images).toHaveLength(2);
+  for (const image of json.images) {
+    expect(image.uri).toBeUndefined();
+    expect(image.mimeType).toBe('image/png');
+    expect(json.bufferViews[image.bufferView].byteLength).toBeLessThan(150_000);
+  }
+  const source = await loadSuit();
   const rig = buildSuitRig(source.scene);
   try {
     rig.root.updateMatrixWorld(true);

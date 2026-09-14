@@ -1,7 +1,7 @@
 import { Mesh, MeshStandardMaterial, type Object3D, type BufferGeometry } from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-export const pivots = [[0, 0, 0], [0, .61, 0], [-.286, .47, 0], [.286, .47, 0], [-.119, -.22, 0], [.119, -.22, 0],
-  [-.325, .041, 0], [.325, .041, 0], [-.119, -.613, 0], [.119, -.613, 0]] as const;
+export const pivots = [[0, 0, 0], [0, .675, 0], [-.245, .55, 0], [.245, .55, 0], [-.10, 0, 0], [.10, 0, 0],
+  [-.302, .215, 0], [.302, .215, 0], [-.119, -.51, 0], [.119, -.51, 0]] as const;
 type Batch = { geometry: BufferGeometry; material: MeshStandardMaterial };
 export function buildSuitParts(scene: Object3D) {
   const buckets = pivots.map(() => new Map<MeshStandardMaterial, BufferGeometry[]>());

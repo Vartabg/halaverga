@@ -2,9 +2,9 @@
 import bpy
 from mathutils import Vector
 
-PIVOTS = [(0,0,0),(0,0,.61),(-.286,0,.47),(.286,0,.47),
-          (-.119,0,-.22),(.119,0,-.22),(-.325,0,.041),(.325,0,.041),
-          (-.119,0,-.613),(.119,0,-.613)]
+PIVOTS = [(0,0,0),(0,0,.675),(-.245,0,.55),(.245,0,.55),
+          (-.10,0,0),(.10,0,0),(-.302,0,.215),(.302,0,.215),
+          (-.119,0,-.51),(.119,0,-.51)]
 PARENTS = [-1,0,0,0,0,0,2,3,4,5]
 
 
@@ -16,12 +16,12 @@ def smooth(a, b, value):
 def weights(point):
     x, _, z = point
     side = 0 if x < 0 else 1
-    head = smooth(.555,.695,z)
-    arm = smooth(.205,.295,abs(x)) * (1-smooth(.48,.59,z))
+    head = smooth(.67,.735,z)
+    arm = smooth(.195,.28,abs(x)) * (1-smooth(.54,.64,z))
     # At hip height hands remain outside the legs' weighting region.
-    leg = (1-smooth(-.29,-.135,z)) * (1-smooth(.22,.28,abs(x)))
-    elbow = 1-smooth(-.03,.105,z)
-    knee = 1-smooth(-.68,-.545,z)
+    leg = (1-smooth(-.085,.07,z)) * (1-smooth(.21,.26,abs(x)))
+    elbow = 1-smooth(.16,.27,z)
+    knee = 1-smooth(-.575,-.45,z)
     arm *= 1-head
     leg *= 1-head-arm
     result = {0:1-head-arm-leg, 1:head, 2+side:arm*(1-elbow),

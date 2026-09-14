@@ -8,6 +8,7 @@ const files = { 'three.module.js': 'build/three.module.js', 'three.core.js': 'bu
 const html = `<!doctype html><html><head><meta charset="utf-8"><style>body{margin:0;background:#12262c;color:#d7e9e3;font-family:Arial}header{height:70px;padding:26px 30px 0;box-sizing:border-box;letter-spacing:3px}main{display:grid;grid-template-columns:repeat(3,1fr)}section{height:460px;position:relative}canvas{display:block}span{position:absolute;bottom:14px;left:30px;font-size:12px;letter-spacing:2px}</style><script type="importmap">{"imports":{"three":"/pose-study/three.module.js","three/addons/":"/pose-study/"}}</script></head><body><header>HALAVERGA / HERO MOTION · ACTUAL PLAYABLE RIG</header><main></main><script type="module">
 import * as T from 'three';import{GLTFLoader}from'three/addons/loaders/GLTFLoader.js';import{buildSuitRig}from'/pose-study/world/suitRig';import{applySuitPose}from'/pose-study/world/suitPose';
 const asset=await new GLTFLoader().loadAsync('/models/suit.glb');
+const atlases=[];asset.scene.traverse(o=>{if(o.isMesh&&['skin','hair'].includes(o.material.name)){const image=o.material.map?.image;if(!image||image.width<128)throw new Error('Explorer atlas did not decode');atlases.push(o.material.name)}});if(atlases.length!==2)throw new Error('Missing explorer atlas');
 const cases=[['FRONT / HUMAN ANATOMY',0,0,0,0,0,[1,1,-5]],['PROFILE',0,0,0,0,0,[5,.5,0]],['BACK',0,0,0,0,0,[0,.6,5]],['CHASE / HOVER',0,0,0,0,0,[.85,1.4,5.3]],['CHASE / POWER FLIGHT',34,-1.35,0,0,0,[.85,1.4,5.3]],['CHASE / BANK',24,-1.15,-.3,0,0,[.85,1.4,5.3]]];
 for(const [name,speed,lean,bank,climb,brake,view]of cases){
  const element=document.createElement('section');element.innerHTML='<span>'+name+'</span>';document.querySelector('main').append(element);
@@ -29,7 +30,7 @@ try {
   const source=await readFile(root+'/src/'+relative+'.ts','utf8');
   return route.fulfill({contentType:'text/javascript',body:ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2020}}).outputText});
  });
- await page.goto('http://127.0.0.1:3366/pose-study/index.html');await page.waitForFunction(()=>window.rendered);
+ await page.goto((process.env.PLAYTEST_URL||'http://127.0.0.1:3366')+'/pose-study/index.html');await page.waitForFunction(()=>window.rendered);
  if(errors.length)throw new Error(errors.join('\n'));
  await page.screenshot({path:process.env.SUIT_REVIEW_OUTPUT||'/tmp/halaverga-flight-poses.png'});
 } finally { await browser.close(); }

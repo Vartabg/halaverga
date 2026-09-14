@@ -1,5 +1,7 @@
 # Flight study decisions
 
+- The reference-hero rebuild corrects the long torso, short legs and exaggerated features using generated character and facial references. The authoring file retains editable pieces and both packed references. Matched Blender/runtime pivots preserve the ten-joint motion contract. Skin/hair now use two small embedded atlases; the 850 KB export ceiling explicitly includes their decoding/storage cost. Geometry remains below 20,000 triangles and eight material batches. Concept art and renders of the exported playable model are labeled separately.
+
 - The human-hero correction replaces the rigid panel assembly with a continuous weighted surface because disconnected rigid sections cannot provide natural shoulder/elbow/knee deformation. It preserves the ten pose controls, original source ownership and the -Z forward convention. Back anatomy must read differently from the face/chest. Body yaw is bounded relative to the shared camera heading to keep sharp turns from presenting the face to the chase camera.
 
 - The earlier rigid reconnaissance prototype used contoured ceramic panels, a continuous visor and an integrated power spine. Explicit GLB articulation metadata and batching by part/material supported that version; the weighted human surface supersedes its visual design.

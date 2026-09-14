@@ -1,7 +1,6 @@
-import { readFileSync } from 'node:fs';
 import { expect, test } from 'vitest';
 import { Group, Vector3 } from 'three';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { loadSuit } from './load-suit';
 import { applySuitPose, advanceSuitMotion } from '../src/world/suitPose';
 import { buildSuitRig } from '../src/world/suitRig';
 import type { Pose } from '../src/game/presentation';
@@ -40,8 +39,7 @@ test('extreme flight states keep finite bounded joints; reduced motion removes t
   expect(rig[0].rotation.y).toBe(0); expect(rig[1].rotation.y).toBe(0);
 });
 test('actual forearm and shin joints stay connected when their parent limbs move', async () => {
-  const bytes = readFileSync(new URL('../public/models/suit.glb', import.meta.url));
-  const asset = await new GLTFLoader().parseAsync(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength), '');
+  const asset = await loadSuit();
   const rig = buildSuitRig(asset.scene);
   try {
     for (const [child, parent] of [[6, 2], [7, 3], [8, 4], [9, 5]]) {
