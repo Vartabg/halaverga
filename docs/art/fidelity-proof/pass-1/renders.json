@@ -1,0 +1,110 @@
+{
+  "front": {
+    "geometry_hash": "cc1c1adafdeeedbc25e7072db96ed11ef4deb4b5bc860b328ba2a36c54338c3c",
+    "size": [
+      456,
+      975
+    ],
+    "camera": [
+      0.0,
+      -8,
+      0.9816017316017316
+    ],
+    "target": [
+      0.0,
+      0,
+      0.9816017316017316
+    ],
+    "ortho_scale": 2.1103896103896105
+  },
+  "profile": {
+    "geometry_hash": "cc1c1adafdeeedbc25e7072db96ed11ef4deb4b5bc860b328ba2a36c54338c3c",
+    "size": [
+      250,
+      975
+    ],
+    "camera": [
+      8,
+      -0.030303030303030304,
+      0.9816017316017316
+    ],
+    "target": [
+      0,
+      -0.030303030303030304,
+      0.9816017316017316
+    ],
+    "ortho_scale": 2.1103896103896105
+  },
+  "back": {
+    "geometry_hash": "cc1c1adafdeeedbc25e7072db96ed11ef4deb4b5bc860b328ba2a36c54338c3c",
+    "size": [
+      420,
+      975
+    ],
+    "camera": [
+      -0.0,
+      8,
+      0.9816017316017316
+    ],
+    "target": [
+      -0.0,
+      0,
+      0.9816017316017316
+    ],
+    "ortho_scale": 2.1103896103896105
+  },
+  "bust-front": {
+    "geometry_hash": "cc1c1adafdeeedbc25e7072db96ed11ef4deb4b5bc860b328ba2a36c54338c3c",
+    "size": [
+      1000,
+      1100
+    ],
+    "camera": [
+      0,
+      -5,
+      1.627
+    ],
+    "target": [
+      0,
+      0,
+      1.627
+    ],
+    "ortho_scale": 0.87
+  },
+  "bust-profile": {
+    "geometry_hash": "cc1c1adafdeeedbc25e7072db96ed11ef4deb4b5bc860b328ba2a36c54338c3c",
+    "size": [
+      1000,
+      1100
+    ],
+    "camera": [
+      5,
+      0,
+      1.627
+    ],
+    "target": [
+      0,
+      0,
+      1.627
+    ],
+    "ortho_scale": 0.87
+  },
+  "bust-three-quarter": {
+    "geometry_hash": "cc1c1adafdeeedbc25e7072db96ed11ef4deb4b5bc860b328ba2a36c54338c3c",
+    "size": [
+      1000,
+      1100
+    ],
+    "camera": [
+      3,
+      -5,
+      1.627
+    ],
+    "target": [
+      0,
+      0,
+      1.627
+    ],
+    "ortho_scale": 0.87
+  }
+}

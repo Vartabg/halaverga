@@ -1,0 +1,18 @@
+{
+  "blender_reopened": true,
+  "blender_version": "4.0.2",
+  "revision": 2,
+  "blend_sha256": "a97773474be17241d3955ecd2836227cb446938fa95cfc2a3c1d21d953033d95",
+  "packed_reference": true,
+  "body_topology_preserved": true,
+  "source_topology_sha256": "ec1c87e87cca262ec228135b17e1439ac2ae49758d173fafe0ddf87d16e01d18",
+  "no_image_materials": true,
+  "references_excluded_from_renders": true,
+  "no_rig": true,
+  "same_geometry_across_views": true,
+  "runtime_hashes": {
+    "public/models/suit.glb": "8e764a9ef4456226556f3f258b63e1f383eaa1b6b58a78ae5b5c04971223f837",
+    "src/world/suitGeometry.ts": "61712ac58f36841755a171e6a4d8edb3b2b60f74762730e4c8313fb4665521d7"
+  },
+  "visual_approval": "pending owner review"
+}
