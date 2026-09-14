@@ -16,7 +16,9 @@ assert hashlib.sha256(proof.read_bytes()).hexdigest()==audit['blend_sha256'], 'S
 document = ROOT/'docs/art/fidelity-proof'
 reference = json.loads((document/'reference.json').read_text())
 assert hashlib.sha256((ROOT/reference['image']).read_bytes()).hexdigest()==reference['sha256']
-output = document/('pass-'+str(audit['revision']))
+stage=audit.get('output_directory','pass-'+str(audit['revision']))
+assert stage in {'pass-0','pass-1','pass-2','groin-fix'}
+output = document/stage
 manifest = json.loads((output/'renders.json').read_text())
 assert len(manifest)==6 and len({v['geometry_hash'] for v in manifest.values()})==1
 for view in manifest: assert (output/(view+'.png')).is_file()

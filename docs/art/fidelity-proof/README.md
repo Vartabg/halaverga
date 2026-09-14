@@ -1,5 +1,40 @@
 # Fidelity proof — stopped after two correction passes
 
+## Latest local correction: groin contour
+
+On the owner's subsequent request, the unintended groin indentation was fixed
+without another broad character pass. The current `character.blend` includes
+the reversible **Groin - smooth fitted contour** shape key. Only 57 front-pelvis
+vertices move in depth; the anatomical topology and every other mesh are
+unchanged. The original fit had clamped the center to about 0.065 m depth while
+the adjacent front surface was near 0.12 m, producing the visible hollow.
+
+`groin-fix/groin-front-before-after.png` and
+`groin-fix/groin-oblique-before-after.png` show **before on the left, after on
+the right**, at identical scale, camera and lighting. The depressed area below
+the abdomen is replaced with a smooth, slightly convex transition. Updated
+full-body comparisons, bust views and overlays are in `groin-fix/`; historical
+`pass-0/` through `pass-2/` remain untouched. This correction does not resolve
+the other likeness and armor issues recorded below. The game is unchanged.
+
+Follow-up checks: the saved-file regression test failed before the correction
+and passes afterward, with 57 changed vertices. The proof audit, typecheck,
+54 unit tests, production build and three flight/accessibility browser checks
+passed. Front and oblique before/after renders were visually inspected. No
+physical-device test or game deployment was performed.
+
+To reproduce this local follow-up after building the original proof, run:
+
+```sh
+/Applications/Blender.app/Contents/MacOS/Blender --background --factory-startup art/fidelity-proof/character.blend --python-exit-code 1 --python scripts/fidelity_proof/groin.py
+/Applications/Blender.app/Contents/MacOS/Blender --background --factory-startup art/fidelity-proof/character.blend --python-exit-code 1 --python scripts/fidelity_proof/render.py
+/Applications/Blender.app/Contents/MacOS/Blender --background --factory-startup --python-exit-code 1 --python scripts/fidelity_proof/compare.py -- --revision 2 --stage groin-fix
+/Applications/Blender.app/Contents/MacOS/Blender --background --factory-startup art/fidelity-proof/character.blend --python-exit-code 1 --python scripts/fidelity_proof/test_groin.py
+python3 scripts/fidelity_proof/verify.py
+```
+
+## Original bounded proof assessment
+
 **Author assessment: the required visual quality has not been demonstrated.**
 This is an editable, inspected experiment, not an approved or finished character.
 The owner makes the visual acceptance decision. No game replacement follows

@@ -14,7 +14,9 @@ scene = bpy.context.scene
 for obj in list(scene.objects):
     if obj.type in {'CAMERA','LIGHT'}: bpy.data.objects.remove(obj,do_unlink=True)
 revision = int(scene['proof_revision'])
-output = DOC/('pass-'+str(revision)); output.mkdir(parents=True,exist_ok=True)
+stage=scene.get('proof_stage','pass-'+str(revision))
+assert stage in {'pass-0','pass-1','pass-2','groin-fix'}
+output = DOC/stage; output.mkdir(parents=True,exist_ok=True)
 scene.render.engine = 'CYCLES'; scene.cycles.samples = 24
 scene.cycles.use_denoising = True
 scene.render.film_transparent = True
@@ -73,6 +75,7 @@ if revision==2:
 body=bpy.data.objects['Studio anatomy - reference fit']
 proof_materials={m for o in scene.objects if o.get('proof_geometry') for m in o.data.materials if m}
 audit={'blender_reopened':True,'blender_version':bpy.app.version_string,'revision':revision,
+       'output_directory':stage,
        'blend_sha256':hashlib.sha256(Path(bpy.data.filepath).read_bytes()).hexdigest(),
        'packed_reference':any(i.packed_file and i.name=='explorer-reference.png' for i in bpy.data.images),
        'body_topology_preserved':len(body.data.vertices)==10582 and len(body.data.polygons)==10590 and topology_hash(body.data)==scene.get('source_topology_sha256'),

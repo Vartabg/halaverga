@@ -8,8 +8,9 @@ sys.path.insert(0,str(Path(__file__).parent))
 from common import ROOT, DOC, REF
 
 parser=argparse.ArgumentParser(); parser.add_argument('--revision',type=int,required=True)
+parser.add_argument('--stage',choices=['groin-fix'])
 args=parser.parse_args(sys.argv[sys.argv.index('--')+1:])
-output=DOC/('pass-'+str(args.revision))
+output=DOC/(args.stage or 'pass-'+str(args.revision))
 
 
 def read(path):
