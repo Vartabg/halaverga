@@ -27,7 +27,6 @@ export default function Experience() {
   const closePanel = () => { state.set({ panel: false }); if (state.started && state.ready && !failed) enter(); };
   const closeGuide = () => { state.set({ journal: false }); if (state.started && state.ready && !failed) enter(); };
   // A rejected suit-asset load stays cached under its URL, so a bare remount would rethrow the same failure.
-  // A rejected suit-asset load stays cached under its URL, so a bare remount would rethrow the same failure.
   const retry = () => { pause(); useLoader.clear(GLTFLoader, SUIT_URL); setFailed(false); setSceneKey(v => v + 1); state.set({ ready: false, flying: false, landing: false }); };
   const fallback = <div className={styles.recovery} role="alert"><h2>The world needs a moment.</h2><p>Your field guide remains available. Reload the scene to continue from your saved landing.</p><button className={styles.primary} onClick={retry}>Reload scene</button></div>;
   const playing = state.started && !state.paused;

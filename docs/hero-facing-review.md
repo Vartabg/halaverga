@@ -28,8 +28,8 @@ Movement, collision, camera behavior, controls, the model and its textures are u
 
 ## Verification
 
-- `pnpm verify`: TypeScript, all 60 unit/physics/model tests and the production build passed. Eight of the sixty tests are new or rewritten for this change.
-- `pnpm test:browser` against a managed production preview on port 3366: all 33 browser and accessibility checks passed in system Chrome 153 on Apple M2 Max, including the new steep-climb facing check, the existing rapid-turn facing check, both cameras, touch, trackpad, recovery, orientation and automated AA scans.
+- `pnpm verify`: TypeScript, all 61 unit/physics/model tests and the production build passed. Eight tests are new or rewritten for this change; one unit test and one browser check come from a separate review-fix commit made by another session on the same branch (loader-cache clear on scene retry, uv retention in the rigid assembly path, a shared joint parents table, removal of a write-only store flag and an unused dev dependency).
+- `pnpm test:browser` against a managed production preview on port 3366: all 34 browser and accessibility checks passed in system Chrome 153 on Apple M2 Max, including the new steep-climb facing check, the existing rapid-turn facing check, both cameras, touch, trackpad, recovery, orientation and automated AA scans.
 - Live in-app-browser checks on the production build covered hero poses, classic poses (hero flourishes off) and reduced motion: cruise, climb, dive, left and right turns, braking, hover, and looking up and down while hovering. These are desktop viewport checks, not physical iPhone validation.
 - Before the fix, eight independent verifier agents each tried to refute one of the three diagnosis claims with their own Node measurements of the GLB and the runtime formulas. None refuted any claim; their verdicts are recorded verbatim in [hero-facing-verification.json](hero-facing-verification.json).
 
