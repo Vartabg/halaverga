@@ -6,12 +6,12 @@ import { useGame } from './store';
 export default function FlightPresentation() {
   const wasPaused = useRef(true);
   const input = useRef<PoseInput>({ yaw: 0, pitch: 0, speed: 0, velocity: runtime.velocity, flying: false, reduced: false });
-  useFrame((_, elapsed) => {
-    const state = useGame.getState(), dt = Math.min(elapsed, .05);
+  useFrame((_, delta) => {
+    const state = useGame.getState(), dt = Math.min(delta, .05);
     if (pose.anchor) pose.anchor.getWorldPosition(pose.position);
     else pose.position.copy(runtime.position);
     if (pose.epoch !== runtime.poseEpoch) {
-      Object.assign(pose, { viewYaw: runtime.yaw, viewPitch: runtime.pitch, yaw: runtime.yaw, lean: 0, bank: 0, speed: 0, flight: 0, brake: 0, epoch: runtime.poseEpoch, alignAfterReset: true });
+      Object.assign(pose, { viewYaw: runtime.yaw, viewPitch: runtime.pitch, yaw: runtime.yaw, pitch: runtime.pitch, lean: 0, bank: 0, speed: 0, flight: 0, brake: 0, epoch: runtime.poseEpoch, alignAfterReset: true });
     }
     if (pose.alignAfterReset) {
       // Do not interpolate across a checkpoint teleport while Rapier replaces its previous step.

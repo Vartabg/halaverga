@@ -41,3 +41,15 @@ test('touch release and orientation cancel movement without changing location', 
   expect(Math.hypot(...after.map((v: number, i: number) => v - before[i]))).toBeLessThan(.4);
   await context.close();
 });
+test('suit asset failure recovers through Reload scene', async ({ page }) => {
+  let failSuit = true;
+  await page.route('**/models/suit.glb', route => failSuit ? route.abort() : route.continue());
+  await page.goto('/');
+  await expect(page.getByRole('heading', { name: 'The world needs a moment.' })).toBeVisible();
+  failSuit = false;
+  await page.getByRole('button', { name: 'Reload scene' }).click();
+  await expect(page.getByRole('button', { name: 'Begin expedition' })).toBeVisible();
+  await page.getByRole('button', { name: 'Begin expedition' }).click();
+  await page.keyboard.press('Space');
+  await expect(page.getByTestId('flight-telemetry')).toHaveAttribute('data-flying', 'true');
+});

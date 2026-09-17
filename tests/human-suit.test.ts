@@ -2,7 +2,7 @@ import { expect, test } from 'vitest';
 import { Box3, Mesh, MeshStandardMaterial, SkinnedMesh, Vector3 } from 'three';
 import { loadSuit } from './load-suit';
 import { buildSuitRig } from '../src/world/suitRig';
-import { applySuitPose } from '../src/world/suitPose';
+import { applySuitPose, orientSuit } from '../src/world/suitPose';
 const asset = async () => (await loadSuit()).scene;
 test('anatomical joints give the explorer balanced legs and arms', async () => {
   const rig = buildSuitRig(await asset());
@@ -113,7 +113,7 @@ test('weighted poses remain finite and disposing a rig leaves the loaded source 
   for (let n = 0; n < 3; n++) {
     const rig = buildSuitRig(source);
     for (const brake of [0, .5, 1]) {
-      applySuitPose(rig.joints, { viewYaw: 0, viewPitch: 0, yaw: 0, lean: -1.35, bank: .3, speed: 34, flight: 1, brake }, { hero: 1, climb: .8, epoch: 0 }, false);
+      applySuitPose(rig.joints, { viewYaw: 0, viewPitch: 0, yaw: 0, pitch: .8, lean: -1.35, bank: .3, speed: 34, flight: 1, brake }, { hero: 1, epoch: 0 }, false);
       rig.root.updateMatrixWorld(true);
       const bounds = new Box3().setFromObject(rig.root, true), size = bounds.getSize(new Vector3());
       expect([size.x, size.y, size.z].every(v => Number.isFinite(v) && v < 3)).toBe(true);
@@ -121,4 +121,24 @@ test('weighted poses remain finite and disposing a rig leaves the loaded source 
     rig.dispose();
   }
   expect(sourceDisposals).toBe(0);
+});
+test('hovering hands hang in front of the elbows and a braking heel tucks behind its knee', async () => {
+  const rig = buildSuitRig(await asset()), motion = { hero: 1, epoch: 0 };
+  try {
+    const hover = { viewYaw: 0, viewPitch: 0, yaw: 0, pitch: 0, lean: 0, bank: 0, speed: 0, flight: 1, brake: 0 };
+    orientSuit(rig.root, hover, motion); applySuitPose(rig.joints, hover, motion, false); rig.root.updateMatrixWorld(true);
+    for (const elbow of [6, 7]) {
+      const hand = rig.joints[elbow].localToWorld(new Vector3(0, -.29, 0)), joint = rig.joints[elbow].getWorldPosition(new Vector3());
+      expect(hand.z).toBeLessThan(joint.z - .05);
+    }
+    for (const knee of [8, 9]) {
+      const heel = rig.joints[knee].localToWorld(new Vector3(0, -.45, 0)), joint = rig.joints[knee].getWorldPosition(new Vector3());
+      expect(heel.z).toBeGreaterThanOrEqual(joint.z);
+    }
+    const brake = { ...hover, speed: 10, lean: -.2, brake: 1 };
+    orientSuit(rig.root, brake, motion); applySuitPose(rig.joints, brake, motion, false); rig.root.updateMatrixWorld(true);
+    const heel = rig.joints[8].localToWorld(new Vector3(0, -.45, 0)), knee = rig.joints[8].getWorldPosition(new Vector3());
+    expect(heel.z).toBeGreaterThan(knee.z + .1);
+    expect(rig.joints[8].getWorldPosition(new Vector3()).y).toBeGreaterThan(rig.joints[9].getWorldPosition(new Vector3()).y);
+  } finally { rig.dispose(); }
 });

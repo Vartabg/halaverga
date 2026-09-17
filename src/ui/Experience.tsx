@@ -1,7 +1,10 @@
 'use client';
 import dynamic from 'next/dynamic';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useLoader } from '@react-three/fiber';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { hydrateGame, persistGame, useGame } from '@/game/store';
+import { SUIT_URL } from '@/world/Suit';
 import { runtime } from '@/game/runtime';
 import { pause, resume, useInput } from './useInput';
 import { useAudio } from './useAudio';
@@ -23,7 +26,9 @@ export default function Experience() {
   const enter = () => { resume(); main.current?.focus(); };
   const closePanel = () => { state.set({ panel: false }); if (state.started && state.ready && !failed) enter(); };
   const closeGuide = () => { state.set({ journal: false }); if (state.started && state.ready && !failed) enter(); };
-  const retry = () => { pause(); setFailed(false); setSceneKey(v => v + 1); state.set({ ready: false, flying: false, landing: false }); };
+  // A rejected suit-asset load stays cached under its URL, so a bare remount would rethrow the same failure.
+  // A rejected suit-asset load stays cached under its URL, so a bare remount would rethrow the same failure.
+  const retry = () => { pause(); useLoader.clear(GLTFLoader, SUIT_URL); setFailed(false); setSceneKey(v => v + 1); state.set({ ready: false, flying: false, landing: false }); };
   const fallback = <div className={styles.recovery} role="alert"><h2>The world needs a moment.</h2><p>Your field guide remains available. Reload the scene to continue from your saved landing.</p><button className={styles.primary} onClick={retry}>Reload scene</button></div>;
   const playing = state.started && !state.paused;
   const flightHint = state.message || (state.flying && state.canLand ? 'SURFACE IN REACH · LAND' : state.boundaryNear ? 'SURVEY LIMIT · TURN BACK' : state.clearanceActive ? 'CLEARANCE ASSIST · STEER AROUND' : '');

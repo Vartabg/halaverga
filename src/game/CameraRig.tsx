@@ -3,7 +3,7 @@ import { useFrame } from '@react-three/fiber';
 import { useRapier } from '@react-three/rapier';
 import { Euler, Vector3, Quaternion, MathUtils, type Mesh } from 'three';
 import { runtime } from './runtime';
-import { presentation as pose } from './presentation';
+import { presentation as pose, CHASE_BOOM } from './presentation';
 import { useGame } from './store';
 const rotation = new Euler(0, 0, 0, 'YXZ'), q = new Quaternion(), desired = new Vector3(), dir = new Vector3(), head = new Vector3();
 const statKeys = ['drawCalls', 'triangles', 'geometries', 'textures'] as const;
@@ -19,7 +19,7 @@ export default function CameraRig() {
     const elapsed = Math.min(dt, .05);
     rotation.set(pose.viewPitch, pose.viewYaw, 0); q.setFromEuler(rotation);
     head.copy(pose.position); head.y += .65;
-    desired.set(state.camera === 'third' ? .85 : 0, state.camera === 'third' ? .7 : 0, state.camera === 'third' ? 5.3 : 0).applyQuaternion(q);
+    (state.camera === 'third' ? desired.copy(CHASE_BOOM) : desired.set(0, 0, 0)).applyQuaternion(q);
     const snap = state.reduced || !initialized.current || epoch.current !== runtime.poseEpoch;
     boom.current.lerp(desired, snap ? 1 : 1 - Math.exp(-12 * elapsed));
     const length = boom.current.length();

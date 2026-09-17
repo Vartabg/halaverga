@@ -27,7 +27,7 @@ export function useInput() {
     };
     const keyup = (e: KeyboardEvent) => {
       runtime.keys.delete(e.code);
-      if (controls.includes(e.code) && !moving(readIntent())) { runtime.surge = false; useGame.setState({ surging: false }); }
+      if (controls.includes(e.code) && !moving(readIntent())) runtime.surge = false;
     };
     const mouse = (e: MouseEvent) => {
       if (document.pointerLockElement && !useGame.getState().paused) {

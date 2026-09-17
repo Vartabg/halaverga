@@ -37,3 +37,18 @@ test('rapid trackpad turns keep the human facing away from the chase camera', as
   await page.mouse.click(720, 500);
   await expect.poll(() => page.evaluate(() => document.pointerLockElement)).toBeNull();
 });
+
+test('a steep climb keeps the suit pitched with the view so the chase camera still sees its back', async ({ page }) => {
+  await page.goto('/'); await page.getByRole('button', { name: 'Begin expedition' }).click();
+  await page.keyboard.press('Space'); await page.keyboard.down('KeyR'); await page.waitForTimeout(1200); await page.keyboard.up('KeyR');
+  await page.keyboard.down('KeyW'); await page.keyboard.press('Shift'); await page.waitForTimeout(1500);
+  await page.keyboard.down('ArrowUp');
+  const telemetry = page.getByTestId('flight-telemetry');
+  for (let i = 0; i < 6; i++) {
+    await page.waitForTimeout(300);
+    const suit = Number(await telemetry.getAttribute('data-suit-pitch')), view = Number(await telemetry.getAttribute('data-view-pitch'));
+    expect(suit).toBeGreaterThan(view - .25); expect(suit).toBeLessThan(view + .5);
+  }
+  expect(Number(await telemetry.getAttribute('data-view-pitch'))).toBeGreaterThan(1);
+  await page.keyboard.up('ArrowUp'); await page.keyboard.up('KeyW');
+});

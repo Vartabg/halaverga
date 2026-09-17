@@ -26,10 +26,10 @@ export function clearInput(stop = false) {
   runtime.keys.clear(); releaseThumb(); stopTrackpad();
   runtime.tap = { forward: 0, strafe: 0, vertical: 0 };
   runtime.surge = false; runtime.lift = false; runtime.landGoal = null;
-  useGame.setState({ surging: false, landing: false });
+  useGame.setState({ landing: false });
   if (stop) runtime.velocity.set(0, 0, 0);
 }
-export function toggleSurge() { runtime.surge = !runtime.surge; useGame.setState({ surging: runtime.surge }); }
+export function toggleSurge() { runtime.surge = !runtime.surge; }
 export function look(dx: number, dy: number) {
   runtime.yaw -= dx * 0.003;
   runtime.pitch = Math.max(-1.3, Math.min(1.25, runtime.pitch - dy * 0.003));

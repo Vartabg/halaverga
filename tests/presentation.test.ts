@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { advanceFlightPose, angleDelta, type Pose } from '../src/game/presentation';
-const fresh = (): Pose => ({ viewYaw: 0, viewPitch: 0, yaw: 0, lean: 0, bank: 0, speed: 0, flight: 0, brake: 0 });
+import { advanceFlightPose, angleDelta, FACING, type Pose } from '../src/game/presentation';
+const fresh = (): Pose => ({ viewYaw: 0, viewPitch: 0, yaw: 0, pitch: 0, lean: 0, bank: 0, speed: 0, flight: 0, brake: 0 });
 const cruise = { yaw: 0, pitch: 0, speed: 34, velocity: { x: 0, y: 0, z: -34 }, flying: true, reduced: false };
 describe('composed flight presentation', () => {
   it('keeps the back toward the chase camera during sharp turns and reverse velocity', () => {
@@ -8,9 +8,28 @@ describe('composed flight presentation', () => {
       const p = fresh();
       for (let i = 0; i < hz * 2; i++) {
         advanceFlightPose(p, { ...cruise, yaw: Math.PI, velocity: { x: 0, y: 0, z: -34 } }, 1 / hz);
-        expect(Math.abs(angleDelta(p.viewYaw, p.yaw))).toBeLessThanOrEqual(.45);
+        expect(Math.abs(angleDelta(p.viewYaw, p.yaw))).toBeLessThanOrEqual(FACING.yaw + .01);
       }
     }
+  });
+  it('holds the body pitch within reach of the view while looking up before the climb catches up', () => {
+    for (const hz of [30, 60, 120]) {
+      const p = fresh(); p.speed = 34; p.flight = 1;
+      for (let i = 0; i < hz * 2; i++) {
+        advanceFlightPose(p, { ...cruise, pitch: i < hz ? 1.25 : -1.3 }, 1 / hz);
+        expect(p.pitch).toBeGreaterThanOrEqual(p.viewPitch - FACING.pitchDown - 1e-9);
+        expect(p.pitch).toBeLessThanOrEqual(p.viewPitch + FACING.pitchUp + 1e-9);
+      }
+    }
+  });
+  it('points the body along a climbing or diving velocity', () => {
+    for (const vy of [24, -24]) {
+      const p = fresh(), pitch = Math.atan2(vy, 24);
+      for (let i = 0; i < 180; i++) advanceFlightPose(p, { ...cruise, pitch, velocity: { x: 0, y: vy, z: -24 } }, 1 / 60);
+      expect(p.pitch).toBeCloseTo(pitch, 2);
+    }
+    const p = fresh(); for (let i = 0; i < 180; i++) advanceFlightPose(p, { ...cruise, speed: 0, velocity: { x: 0, y: 0, z: 0 }, pitch: .7 }, 1 / 60);
+    expect(p.pitch).toBeCloseTo(.7, 2);
   });
   it('converges to the same streamlined pose at 30, 60 and 120 Hz', () => {
     const results = [30, 60, 120].map(hz => {

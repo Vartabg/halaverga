@@ -3,7 +3,7 @@ import { expect, test } from 'vitest';
 import { Box3, BoxGeometry, Group, Mesh, MeshStandardMaterial, SkinnedMesh, Vector3 } from 'three';
 import { loadSuit } from './load-suit';
 import { buildSuitRig } from '../src/world/suitRig';
-import { buildSuitParts, pivots } from '../src/world/suitGeometry';
+import { buildSuitParts, parents, pivots } from '../src/world/suitGeometry';
 test('human suit preserves weighted articulation, fitted proportions and the browser budget', async () => {
   const bytes = readFileSync(new URL('../public/models/suit.glb', import.meta.url));
   // Two compact embedded atlases replace the old untextured mannequin finish.
@@ -66,4 +66,38 @@ test('assembly rejects missing parts and never disposes or mutates shared loader
   expect(sourceDisposals).toBe(0);
   expect(Array.from(geometry.attributes.position.array)).toEqual(originalPosition);
   geometry.dispose(); material.dispose();
+});
+test('assembly keeps texture coordinates when textured and stays mergeable when mixed', () => {
+  expect(parents).toHaveLength(pivots.length);
+  parents.forEach((parent, i) => {
+    expect(parent).toBeLessThan(i);
+    if (parent >= 0) expect(parent).toBeLessThan(pivots.length);
+  });
+  const riggedScene = (mixedBatch: boolean) => {
+    const scene = new Group(), material = new MeshStandardMaterial();
+    const addPart = (i: number, withUv: boolean) => {
+      const geometry = new BoxGeometry();
+      if (!withUv) geometry.deleteAttribute('uv');
+      const part = new Mesh(geometry, material); part.userData.suitPart = i;
+      const p = pivots[i]; part.position.set(p[0], p[1], p[2]); scene.add(part);
+    };
+    for (let i = 0; i < pivots.length; i++) addPart(i, true);
+    // A second piece in batch 0 without coordinates forces that batch back to untextured.
+    if (mixedBatch) addPart(0, false);
+    return scene;
+  };
+  const textured = buildSuitParts(riggedScene(false));
+  try {
+    expect(textured.parts.flat().length).toBeGreaterThan(0);
+    textured.parts.flat().forEach(p => expect(p.geometry.getAttribute('uv')).toBeDefined());
+  } finally {
+    textured.parts.flat().forEach(p => p.geometry.dispose()); textured.materials.forEach(m => m.dispose());
+  }
+  const mixed = buildSuitParts(riggedScene(true));
+  try {
+    mixed.parts[0].forEach(p => expect(p.geometry.getAttribute('uv')).toBeUndefined());
+    mixed.parts.slice(1).flat().forEach(p => expect(p.geometry.getAttribute('uv')).toBeDefined());
+  } finally {
+    mixed.parts.flat().forEach(p => p.geometry.dispose()); mixed.materials.forEach(m => m.dispose());
+  }
 });

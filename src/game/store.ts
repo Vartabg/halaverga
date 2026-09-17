@@ -6,7 +6,7 @@ type GameState = {
   camera: CameraMode; quality: 'high' | 'low'; reduced: boolean; muted: boolean; tapControls: boolean;
   desktopMode: 'trackpad' | 'mouse'; trackpadFlying: boolean;
   trackpadSteering: 'free' | 'captured'; sustainedEdges: boolean; reverseScroll: boolean; cruiseSpeed: number; heroPoses: boolean;
-  flying: boolean; landing: boolean; canLand: boolean; nearTerminal: boolean; surging: boolean; boundaryNear: boolean; clearanceActive: boolean; inputEpoch: number;
+  flying: boolean; landing: boolean; canLand: boolean; nearTerminal: boolean; boundaryNear: boolean; clearanceActive: boolean; inputEpoch: number;
   checkpoint: Vec; discovered: boolean; message: string;
   set: (patch: Partial<Omit<GameState, 'set'>>) => void;
 };
@@ -15,7 +15,7 @@ export const useGame = create<GameState>((set) => ({
   camera: 'third', quality: 'high', reduced: false, muted: true, tapControls: false,
   desktopMode: 'trackpad', trackpadFlying: false,
   trackpadSteering: 'free', sustainedEdges: false, reverseScroll: false, cruiseSpeed: 8, heroPoses: true,
-  flying: false, landing: false, canLand: false, nearTerminal: false, surging: false, boundaryNear: false, clearanceActive: false, inputEpoch: 0,
+  flying: false, landing: false, canLand: false, nearTerminal: false, boundaryNear: false, clearanceActive: false, inputEpoch: 0,
   checkpoint: START, discovered: false, message: '', set,
 }));
 const STORAGE = 'halaverga-flight-v1';

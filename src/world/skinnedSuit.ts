@@ -1,6 +1,5 @@
 import { Bone, Group, MeshStandardMaterial, Skeleton, SkinnedMesh, Sphere, Vector3, type Object3D } from 'three';
-import { pivots } from './suitGeometry';
-const parents = [-1, 0, 0, 0, 0, 0, 2, 3, 4, 5] as const;
+import { parents, pivots } from './suitGeometry';
 
 /** Bake the authored rest transform, then bind skin weights to neutral game axes. */
 export function buildSkinnedSuit(source: Object3D) {
