@@ -1,0 +1,8 @@
+{
+  "changed_vertices": 57,
+  "other_meshes_unchanged": true,
+  "other_meshes_sha256": "1157b8004f0858f328b9a00b2cb0db7329169beee7c5011e2bae288de915645f",
+  "shape_key": "Groin - smooth fitted contour",
+  "comparison_order": "before left, after right; same geometry except corrective key",
+  "scope": "front pelvis depth only; no topology, limb, head, armor or runtime changes"
+}

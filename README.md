@@ -1,0 +1,41 @@
+# Halaverga · Return to Earth
+
+A browser flight study through Meridian, a fictional modern hillside city damaged in 2033 and visited in 2113. Assisted free flight, water skimming, cancellable landing, first/third person, touch and keyboard controls, and one clearly fictional municipal record.
+
+## Run and verify
+
+Use Node 22 and pnpm 10.32.1. Run `pnpm install`, then `pnpm verify`. Use the local managed-preview tool to start `pnpm exec next dev --hostname 127.0.0.1 --port 3366`. Production browser checks require `pnpm build` and a managed `next start` preview on port 3366, followed by `pnpm test:browser`. CI runs `pnpm verify` — TypeScript, unit/physics tests and the production build — on ubuntu; the browser and accessibility checks stay Mac-recorded because their frame-timing thresholds need a real GPU (see `docs/verification.md`).
+
+The local Playwright configuration uses system Chrome on macOS, never Chrome for Testing. `pnpm test:a11y` fails on automated AA violations. Test results, traces and reports are excluded from Git.
+
+## Controls
+
+- Trackpad only (desktop default): click the open scene to lift and cruise; move the pointer to steer. Hold near an edge to keep turning. Two-finger scroll up accelerates and down slows. Click again to brake and hover. While hovering, click and drag to look around; aim at a nearby flat surface and click Land. Moving onto a button or outside the scene stops cruise. No held click, pointer capture mode, or keyboard is required.
+- Keyboard: WASD move; arrow keys look; R/F rise/descend; Space lift/land; Shift toggle Surge; Escape pause; E read a nearby terminal. For captured mouse look, choose “Mouse + keyboard” in Flight settings and click the scene. Trackpad mode remains available if mouse capture is unavailable.
+- One thumb: hold anywhere in the open scene to lift and cruise. Slide to aim (left/right turn, up/down climb/descend); drag farther for smoothly increasing speed. Holding near an edge keeps turning. Release to hover. A quick tap does not start flight.
+- Two thumbs: add a second scene contact to recenter into left movement/right view. Drag the left thumb forward/back/sideways; drag farther for more speed. The right thumb aims independently, including upward/downward flight while moving forward. Center the left thumb to hover. Roles remain fixed if fingers cross. Lift either thumb, then slide the remaining thumb to resume one-thumb flight. No mode switch or separate Surge button is needed.
+- Aim toward a flat surface to reveal its landing ring, release, then tap Land. New flight input cancels landing. The active flight surface owns touch gestures; pause or open the Field guide to use native pinch zoom. The page has no zoom-limit metadata. Game controls suppress selection and long-press callouts; the guide remains selectable.
+- Field guide offers the same discovery as readable text. Settings include perspective, graphics, reduced camera motion, audio, reset, and a local timing-report download.
+- Optional tap controls provide short directional movements and separate view buttons without dragging. They are hidden by default to keep the scene clear.
+
+## Architecture and original assets
+
+Next.js/React hosts a lazy-loaded R3F/Three.js WebGL2 scene. Rapier's kinematic capsule sweeps handle collisions. `game/Player.tsx` owns motion; `game/CameraRig.tsx` owns the camera; keyboard, trackpad and touch share `runtime.ts` input. Preferences and safe checkpoints are stored locally. No account, database, or model request is needed to fly.
+
+The suit and camera share one interpolated physics anchor. Ten skeletal joints blend through acceleration, streamlined flight, turns and braking. The body points along its travel direction with yaw and pitch bounded near the view, so the chase camera keeps its back in view; banking is a roll about the travel axis. See [hero-facing-review.md](docs/hero-facing-review.md). Exterior building volumes, advance clearance sweeps and contact-corrected velocity prevent entry into unfinished interiors. The district perimeter brakes approaching flight; supported landings and saved checkpoints are checked against the actual geometry. The Field guide includes a route map. `docs/navigation-audit.json` records the finite route and high-speed regression evidence; it is not an exhaustive guarantee of every trajectory.
+
+City geometry is generated deterministically and combined into one colored mesh. The suit is an original Blender model based on generated character references: regenerate with `Blender --background --factory-startup --python scripts/build-suit.py`. The editable source is [art/halaverga-explorer.blend](art/halaverga-explorer.blend), including separate armor pieces, a weighted rig and packed references. [Character concept and exact prompt](docs/art/explorer-reference-prompt.md); [facial reference and exact prompt](docs/art/explorer-face-prompt.md). The GLB embeds two compact generated-reference texture atlases. No third-party character models, recordings, or game assets are included. Dependencies retain their respective licenses.
+
+## Playtest status
+
+The explorer uses a fitted graphite pressure layer, silver armor, restrained copper seams, green power insets and an exposed face. Its approximately 7.66-head-tall anatomy has balanced upper/lower limbs, modest hands and boots, and a distinct back. The ten-joint weighted GLB is 748,840 bytes, with 19,514 triangles and eight material batches. Skin and hair use embedded 256×256 and 128×128 PNG atlases; they add decoding but no separate HTTP requests. The player collider and camera remain independent of the model.
+
+With a managed production preview running, `PLAYTEST_URL=http://127.0.0.1:3366 node scripts/review-flight-poses.mjs` renders front/profile/back and six chase views (hover, power flight, bank, climb, dive, brake) using the game's chase boom and view direction at a narrower field of view, with the actual playable rig in system Chrome, and checks both texture atlases decode. Set `SUIT_REVIEW_OUTPUT` to choose the screenshot destination. This temporary review page is intercepted locally, not a public game route. `Blender --background --factory-startup --python scripts/render-explorer.py` renders the exported GLB in Blender. [Actual model study](docs/images/reference-hero-blender.png); [verification and limitations](docs/reference-hero-review.md).
+
+This is a playtest candidate, not a measured iPhone release. Physical iPhone Safari, VoiceOver and subjective enjoyment checks must be recorded by the tester. Desktop viewport emulation and headless Mac timing are separately identified. See `docs/verification.md` for evidence and remaining checks.
+
+Run `node scripts/profile.mjs` against a production preview for a five-minute desktop route sample. `PROFILE_OUTPUT` selects the report folder; `PROFILE_SECONDS` sets duration; `PROFILE_SURGE=1` uses maximum-speed flight. A first frame after resume is excluded; reports retain the most recent 18,000 active frames. These reports stay on the device until downloaded.
+
+## Deployment
+
+The dedicated Vercel project is `halaverga-flight` in `garo-vartabedians-projects`. Link explicitly before deploying from a new worktree. Use its generated test domain and retain immutable deployment URLs for comparisons. This project does not require environment variables. The purchased Halaverga domain is a later launch decision.

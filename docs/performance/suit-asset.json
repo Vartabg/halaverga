@@ -1,0 +1,34 @@
+{
+  "bytes": 253040,
+  "triangles": 11770,
+  "batches": 27,
+  "materials": [
+    "textile",
+    "titanium",
+    "ceramic",
+    "visor",
+    "energy",
+    "copper"
+  ],
+  "bounds": {
+    "min": [
+      -0.40500000274181364,
+      -1.0149999570846557,
+      -0.19281741976737976
+    ],
+    "max": [
+      0.40500000274181364,
+      0.9649999594688415,
+      0.17161263525485992
+    ]
+  },
+  "sourceHashes": {
+    "public/models/suit.glb": "6685cc5af12a37f902c6b35bb3fe09e092ac585488f1ed952f380156009fb802",
+    "scripts/build-suit.py": "aabad01704c465e4042ca410eee43ce095de7dda8a317275c03a9f85223afee0",
+    "scripts/suit_mesh.py": "54daea3fa8a22539f1115608438cb9421f9b965e739c2f7a1e42b1659e8a8b1a",
+    "src/world/Suit.tsx": "ffedb1aada30570833e0d44dd68b5a4576faca27390b3e77d8e65e9fd38c8416",
+    "src/world/suitGeometry.ts": "e43b75a5458ecda874a3f69a5381179b2d812a3b7219d1b21c65b448e313ebe2",
+    "src/world/Scene.tsx": "ed80f9fe8d66523df0aba11380ecc64cf9d8b7772ebd36854c04b051de9b3efb",
+    "src/game/presentation.ts": "0c692aa3aad8b1fa49266b5ec152f3a374817f15b3aa4bb648259af7117ca9db"
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "image": "docs/art/explorer-reference.png",
+  "sha256": "ba71e0666e45b2d265a240970eb8df59e4a314d67fae8ec9810c9515c9e2d336",
+  "coordinate_convention": "Original image pixels, origin top-left; Blender metres, Z up, -Y front",
+  "scale": {"sole_y": 941, "hair_crown_y": 17, "height_m": 2},
+  "views": {
+    "front": {"crop": [5,0,461,975], "axis_x": 233},
+    "profile": {"crop": [480,0,730,975], "axis_x": 619},
+    "back": {"crop": [741,0,1161,975], "axis_x": 951}
+  },
+  "front_landmarks": {
+    "hair_crown": [233,17], "skull_crown_estimate": [233,30], "chin": [233,136],
+    "eye_left": [211,80], "eye_right": [251,80],
+    "shoulder_left": [126,190], "shoulder_right": [340,190],
+    "elbow_left": [82,336], "elbow_right": [384,336],
+    "wrist_left": [49,446], "wrist_right": [417,446],
+    "hip_left": [180,434], "hip_right": [286,434],
+    "knee_left": [151,665], "knee_right": [315,665],
+    "ankle_left": [130,854], "ankle_right": [329,854]
+  },
+  "notes": [
+    "Landmarks are manually interpreted from artwork, not anatomical ground truth; joint positions under armor are estimates.",
+    "The front and back use a slightly different stance; the profile arm is bent and overlaps the torso. Do not distort one mesh merely to fit every visible arm contour.",
+    "The head close-up uses perspective and is not an orthographic fourth view. Use it for facial planes and hair flow, not exact full-body dimensions.",
+    "Front establishes proportions and panel borders; profile establishes depth; back establishes rear layout. These views are not guaranteed to be a physically consistent scan."
+  ]
+}

@@ -1,0 +1,7 @@
+{
+  "src/game/CameraRig.tsx": "83b7c6d4e1fadf6966611dc99323f757c0f07de130a56b87c6c590131acc0482",
+  "src/game/motion.ts": "c461fc5557304e240f5beeeb0b80a724a0b9a5bd1f22809b87034d0d7fd26408",
+  "src/game/runtime.ts": "66006a6226b7a4d57f820cc362bef1d9da519f7bf2b7f1583b2345afaa2e7f07",
+  "src/game/Player.tsx": "626bda97d0ebbe9bd705cd652ba8b3f8c08f37bf97d26a7747e1f0f882d9950a",
+  "src/game/store.ts": "a1e2127a77a583633a5a8cfff8fef34e6a5d9b4c376097d94b8c480ee1c3ac76"
+}

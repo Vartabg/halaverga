@@ -1,0 +1,99 @@
+{
+  "bytes": 748840,
+  "triangles": 19514,
+  "batches": 8,
+  "materials": [
+    "textile",
+    "skin",
+    "eyes",
+    "hair",
+    "ceramic",
+    "visor",
+    "copper",
+    "energy"
+  ],
+  "joints": {
+    "suit_joint_0": [
+      0,
+      0,
+      0
+    ],
+    "suit_joint_1": [
+      0,
+      0.675000011920929,
+      0
+    ],
+    "suit_joint_2": [
+      -0.24500000476837158,
+      0.550000011920929,
+      0
+    ],
+    "suit_joint_6": [
+      -0.3019999861717224,
+      0.2150000035762787,
+      0
+    ],
+    "suit_joint_3": [
+      0.24500000476837158,
+      0.550000011920929,
+      0
+    ],
+    "suit_joint_7": [
+      0.3019999861717224,
+      0.2150000035762787,
+      0
+    ],
+    "suit_joint_4": [
+      -0.10000000149011612,
+      0,
+      0
+    ],
+    "suit_joint_8": [
+      -0.11900000274181366,
+      -0.5099999904632568,
+      0
+    ],
+    "suit_joint_5": [
+      0.10000000149011612,
+      0,
+      0
+    ],
+    "suit_joint_9": [
+      0.11900000274181366,
+      -0.5099999904632568,
+      0
+    ]
+  },
+  "bounds": {
+    "min": [
+      -0.3661634922027588,
+      -1.0013293027877808,
+      -0.20582035183906555
+    ],
+    "max": [
+      0.36596783995628357,
+      0.9810000061988831,
+      0.16286669671535492
+    ],
+    "size": [
+      0.7321313321590424,
+      1.9823293089866638,
+      0.36868704855442047
+    ]
+  },
+  "headCount": 7.65716615040183,
+  "sourceHashes": {
+    "public/models/suit.glb": "8e764a9ef4456226556f3f258b63e1f383eaa1b6b58a78ae5b5c04971223f837",
+    "art/halaverga-explorer.blend": "1627f7cc47bae68fb316af88222067fb4f6249992fe59092f07e6757734aa856",
+    "scripts/build-suit.py": "90aaa6e6d14b0e4dbe06aea18d93b6ba21740f49b96b91cb21088bd5605d7b3a",
+    "scripts/hero_anatomy.py": "1f0b4410862e8a2cebb275e760f99ebfcb83673ab66174942696bf17e1b4b40d",
+    "scripts/hero_face.py": "2ef87bec94c4ea0b73de84b795ef796fdc1c7d47659f037124c702a2f5eeb79a",
+    "scripts/hero_armor.py": "fc433b19543c347bcc8978d8bcdc0244aa3753c8f35e12e91fc8bfbb082abaf6",
+    "scripts/hero_skin.py": "08af95d6b226d051e65cf4bcb3cb8ea8dfa0197ea00965c6d4f3885b5462a3df",
+    "scripts/hero_color.py": "ae13dec1098f718216eed50620a26b6bd111d44cd85214130002bfea281d59b0",
+    "scripts/suit_mesh.py": "54daea3fa8a22539f1115608438cb9421f9b965e739c2f7a1e42b1659e8a8b1a",
+    "src/world/suitGeometry.ts": "61712ac58f36841755a171e6a4d8edb3b2b60f74762730e4c8313fb4665521d7",
+    "docs/art/explorer-reference.png": "ba71e0666e45b2d265a240970eb8df59e4a314d67fae8ec9810c9515c9e2d336",
+    "docs/art/explorer-face-reference.png": "e7ba80d350870b0c095d8dc00990b68165dff910c2872857945e08805176451f"
+  }
+}

@@ -1,0 +1,103 @@
+{
+  "seconds": 300,
+  "samples": 18000,
+  "p50Ms": 16.7,
+  "p95Ms": 17.2,
+  "stallsOver50Ms": 0,
+  "browser": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/152.0.0.0 Safari/537.36",
+  "viewport": [
+    1440,
+    1000
+  ],
+  "pixelRatio": 1,
+  "quality": "high",
+  "camera": "third",
+  "resources": {
+    "drawCalls": 10,
+    "triangles": 81398,
+    "geometries": 11,
+    "textures": 3
+  },
+  "peakResources": {
+    "drawCalls": 12,
+    "triangles": 81526,
+    "geometries": 11,
+    "textures": 3
+  },
+  "scope": "Latest 18,000 active frames; first resume frame excluded. Resource peaks cover the session.",
+  "hardware": "Apple M2 Max",
+  "gpu": "ANGLE (Apple, ANGLE Metal Renderer: Apple M2 Max, Unspecified Version)",
+  "os": "darwin 25.6.0",
+  "browserMode": "Headless system Chrome; physical Mac, not iPhone",
+  "speedMode": "Surge (34 m/s maximum; clearance may reduce speed)",
+  "workload": [
+    [
+      "KeyR",
+      3000
+    ],
+    [
+      "KeyW",
+      4000
+    ],
+    [
+      "ArrowRight",
+      1000
+    ],
+    [
+      "KeyW",
+      4000
+    ],
+    [
+      "KeyF",
+      2500
+    ],
+    [
+      "ArrowLeft",
+      1000
+    ]
+  ],
+  "route": "Repeat launch/canal/sideways/descent; reset to terrace each cycle to remain inside dense district.",
+  "errors": [],
+  "recordedAt": "2026-09-11T20:52:31.456Z",
+  "revision": "Flight composition and navigation revision",
+  "sourceHashes": {
+    "package.json": "392a73619b5e3beac77415af188bcb740feb0cff635fb2ab648b2f5ac68709c0",
+    "pnpm-lock.yaml": "667f6abbde54d24999d906f5abb4d1f8c0ba4d1505b7cdae4bb3b257d9a5fdc0",
+    "public/models/suit.glb": "27d5776e5f553c9f88cdebb1172f7d7399f763147fb0f8ea3c94250035ec6740",
+    "scripts/profile.mjs": "43514f50f1816c3b7f5f674187bc481ba21d69846cfb8a83c98288091c0e6760",
+    "src/app/globals.css": "e1640676621f8c540bd793d105c98ea4cb3f5fb6788e12e20fc94053128b303d",
+    "src/app/icon.svg": "6963f424ab7e37c3765cbbd5e6818e3231a723e29d3d47775cfe91f7a52d89d3",
+    "src/app/layout.tsx": "bbef906a947fc94f85275350a2a983171e32f2aa4d6a5ec6677d3f7d404f4968",
+    "src/app/page.tsx": "59a3eb4b3bf3839a05ed222bd4cebfa7155870957a49d2acdfae1938b9917458",
+    "src/content/arrival.json": "4c494fc6a1848e28669333013c50800689bf62bac1f2bc39e145ff01013afba2",
+    "src/game/CameraRig.tsx": "8bcfbca0383986b5f9148901f8ff83700bf5a8940ff51f6744b4eb1d952e8457",
+    "src/game/FlightPresentation.tsx": "65985909d0a7bddd1f269c42a2445455b150d3ad4596ceb09cf933963fd1f3fa",
+    "src/game/FlightSafety.ts": "2899fd005aecbe9777e7c1e9da856cb7ce13bafc3f8759d3ca824ae96279eeac",
+    "src/game/Player.tsx": "f2816b448d5689428b21b3616f42098596774ebc367c753af4e0544a829db591",
+    "src/game/motion.ts": "03cb00caf08aa0bdc2c30819b3d619265cc87ab79361a73f40808e236f5f4876",
+    "src/game/navigation.ts": "357f27dade5dd43b1c67a4844504daf32537fb36421b8555acd59f379eefd38c",
+    "src/game/presentation.ts": "0c692aa3aad8b1fa49266b5ec152f3a374817f15b3aa4bb648259af7117ca9db",
+    "src/game/runtime.ts": "fcfa2849f21bf072a0596e9439a8de7dba9ea7cbf29b95311c89c547485997b5",
+    "src/game/store.ts": "e73549b54ba8c862c75f9f7f6444b4666fbaf0d3f97caf3df34dde3fd7e3c954",
+    "src/game/thumbFlight.ts": "1460760e058e2acbbfb92d5c69cbedac3051bbbc487e1e328d9d1d3039057e34",
+    "src/ui/Boundary.tsx": "f68b70b43466afc7d780919300517d0ab41a26dc401a3bb18c14cca1f3376777",
+    "src/ui/Experience.module.css": "df890e25bb374d513c835d0ca8fe0477669b9088278a011ceebb2ebdd005b1cf",
+    "src/ui/Experience.tsx": "0405b746d223526a3586e63872d064b2f660937ddcb06ebcf159bf6ffafa928d",
+    "src/ui/FieldGuide.tsx": "77d63d17fa36759143274ce077247899d64481efeab867e7a77dfc99b7b025ef",
+    "src/ui/Modal.tsx": "e72c7e18c141c8de9b6dc926f9212ad625971d8d1d8720d2db8d4e05ba51d67a",
+    "src/ui/TapControls.tsx": "c225fc9b98b36f82bac8bee362c4948b1fdab058135bc360f060d4f19a8a9887",
+    "src/ui/Telemetry.tsx": "8f658db2445a20f0a5838c42f24424e6143261b18529d72f6b08f2762316add6",
+    "src/ui/TestPanel.tsx": "c87b9cd09d8ed7aaaa7fa0f5432dc72739e43ce26d52f1d3a44878bae4a59b71",
+    "src/ui/TouchControls.tsx": "13df8e73497ad14aa8e5ec6628d6f89cfd09f042cf18f659864bf9c51f49e6b6",
+    "src/ui/useAudio.ts": "555bb696cfaa08aebc1b37209b2471af260e72c411f4c246156edda4ea9ea729",
+    "src/ui/useInput.ts": "c957da23cfe6bd3176ec96dd29f62ea6d5a969bbf0fd521896df3d15d59bedc6",
+    "src/world/Atmosphere.tsx": "dcff6b2296ac22a252847e1cb93405c69dd18ff1e16275fd1b2657d66cf9c082",
+    "src/world/City.tsx": "a5e050966455234fd7cb8e21e3c2220e2dd76746711663a5f0cc973d4d824d59",
+    "src/world/DistrictBoundary.tsx": "4fc8474f59ffab362ca41264f9d6c882f6f1e68a1984ca03f2b2d87a7e54bcab",
+    "src/world/Scene.tsx": "ed80f9fe8d66523df0aba11380ecc64cf9d8b7772ebd36854c04b051de9b3efb",
+    "src/world/Suit.tsx": "5fa3f75ce6877a18ada5676db0a22df13bf9b5ea1cad13679f285102d0f5981a",
+    "src/world/cityData.ts": "04ed655de8a25e155f8b80ae72591b4d3b9685e1eb5c9e9d4579caf5762f609f",
+    "src/world/kit.ts": "a9e325d2076d55bc681e58e27f2ef78a9d7fc1a77165c7c57df421c5e7a0c426",
+    "src/world/suitGeometry.ts": "e62b001e6a14fe3025d534dce4aa9d2f0d709352ae27f83309b7318289921c74"
+  }
+}

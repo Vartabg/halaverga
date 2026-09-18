@@ -1,0 +1,21 @@
+name: Verify flight
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # CI gate: typecheck, unit/physics tests and the production build.
+      # The 34 browser and accessibility checks are calibrated to real-GPU
+      # frame timing and run on the developer Mac in system Chrome; ubuntu
+      # software GL advances the simulation too slowly for their thresholds.
+      # Recorded evidence: docs/verification.md.
+      - run: pnpm verify

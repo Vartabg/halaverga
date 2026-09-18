@@ -1,0 +1,10 @@
+.git/
+.env*
+node_modules/
+test-results/
+playwright-report/
+docs/
+tests/
+scripts/
+art/
+.agent-task/
