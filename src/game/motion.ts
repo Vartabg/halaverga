@@ -6,6 +6,7 @@ export const WORLD = { minX: -205, maxX: 205, minZ: -188, maxZ: 108, ceiling: 10
 export const SPEED = { walk: 5, flight: 13, surge: 34 };
 export const moving = (i: Intent) => Math.hypot(i.forward, i.strafe, i.vertical) > 0.08;
 export const safeDelta = (dt: number) => Number.isFinite(dt) ? Math.min(Math.max(dt, 0), 1 / 30) : 0;
+export const setVec = (v: Vec, x: number, y: number, z: number) => { v.x = x; v.y = y; v.z = z; };
 
 export function advanceVelocity(v: Vec, i: Intent, yaw: number, pitch: number,
   flying: boolean, surge: boolean, elapsed: number): Vec {

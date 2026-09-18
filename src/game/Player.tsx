@@ -4,7 +4,7 @@ import { useThree } from '@react-three/fiber';
 import { Vector3 } from 'three';
 import { useGame, persistGame } from './store';
 import { runtime, readIntent, clearInput } from './runtime';
-import { advanceVelocity, boundMovement, landingVelocity, moving, START, FOOT } from './motion';
+import { advanceVelocity, boundMovement, landingVelocity, moving, setVec, START, FOOT } from './motion';
 import { presentation } from './presentation';
 import { edgeFreshness } from './trackpadFlight';
 import { FlightSafety } from './FlightSafety';
@@ -23,7 +23,7 @@ export default function Player() {
     const c = world.createCharacterController(CLEARANCE.margin); c.setSlideEnabled(true);
     c.enableAutostep(.35, .2, true); c.enableSnapToGround(.3);
     controller.current = c;
-    runtime.position.set(spawn.current.x, spawn.current.y, spawn.current.z);
+    setVec(runtime.position, spawn.current.x, spawn.current.y, spawn.current.z);
     runtime.poseEpoch++;
     useGame.setState({ ready: true });
     return () => { controller.current = null; world.removeCharacterController(c); };
@@ -40,13 +40,13 @@ export default function Player() {
     if ((warmup.current === 2 && !safe.canLand({ ...current, y: current.y - FOOT })) || !safe.isClear(current)) {
       const checkpoint = safe.checkpoint(state.checkpoint);
       b.setTranslation(checkpoint, true); b.setNextKinematicTranslation(checkpoint);
-      runtime.position.set(checkpoint.x, checkpoint.y, checkpoint.z); runtime.poseEpoch++;
+      setVec(runtime.position, checkpoint.x, checkpoint.y, checkpoint.z); runtime.poseEpoch++;
       clearInput(true); liftTime.current = 0;
       useGame.setState({ flying: false, landing: false, checkpoint, message: 'Suit restored to a clear landing.' });
       return;
     }
     if (runtime.reset) {
-      b.setTranslation(START, true); b.setNextKinematicTranslation(START); runtime.position.set(START.x, START.y, START.z);
+      b.setTranslation(START, true); b.setNextKinematicTranslation(START); setVec(runtime.position, START.x, START.y, START.z);
       clearInput(true); runtime.reset = false; runtime.yaw = 0; runtime.pitch = -.12; runtime.poseEpoch++; liftTime.current = 0;
       useGame.setState({ flying: false, landing: false, checkpoint: START }); persistGame(); return;
     }
@@ -79,11 +79,11 @@ export default function Player() {
       const anticipated = safe.anticipate(p, v); v = anticipated.velocity;
       if (anticipated.contact) {
         runtime.clearance.active = true;
-        runtime.clearance.point.copy(anticipated.contact.witness1);
-        runtime.clearance.normal.copy(anticipated.contact.normal1).normalize();
+        const w = anticipated.contact.witness1, n = new Vector3().copy(anticipated.contact.normal1).normalize();
+        setVec(runtime.clearance.point, w.x, w.y, w.z); setVec(runtime.clearance.normal, n.x, n.y, n.z);
       }
     }
-    runtime.velocity.set(v.x, v.y, v.z);
+    setVec(runtime.velocity, v.x, v.y, v.z);
     if (flying) { c.disableSnapToGround(); c.disableAutostep(); c.setMaxSlopeClimbAngle(Math.PI / 2); c.setMinSlopeSlideAngle(0); }
     else { c.enableSnapToGround(.3); c.enableAutostep(.35, .2, true); c.setMaxSlopeClimbAngle(Math.PI / 4); c.setMinSlopeSlideAngle(Math.PI / 6); }
     const movement = boundMovement(p, { x: v.x * dt, y: v.y * dt, z: v.z * dt }, flying);
@@ -91,20 +91,20 @@ export default function Player() {
     const actual = c.computedMovement();
     for (let i = 0; i < c.numComputedCollisions(); i++) {
       const hit = c.computedCollision(i);
-      if (hit) { const corrected = removeInward(runtime.velocity, hit.normal1); runtime.velocity.set(corrected.x, corrected.y, corrected.z); }
+      if (hit) { const corrected = removeInward(runtime.velocity, hit.normal1); setVec(runtime.velocity, corrected.x, corrected.y, corrected.z); }
     }
     if (!flying && c.computedGrounded() && runtime.velocity.y < 0) runtime.velocity.y = 0;
     const next = { x: p.x + actual.x, y: p.y + actual.y, z: p.z + actual.z };
-    b.setNextKinematicTranslation(next); runtime.position.set(next.x, next.y, next.z);
+    b.setNextKinematicTranslation(next); setVec(runtime.position, next.x, next.y, next.z);
     if (runtime.landGoal) {
       landingStall.current = Math.hypot(actual.x, actual.y, actual.z) < .002 ? landingStall.current + dt : 0;
       if (landingStall.current > .6) {
-        runtime.landGoal = null; runtime.velocity.set(0, 0, 0);
+        runtime.landGoal = null; setVec(runtime.velocity, 0, 0, 0);
         useGame.setState({ landing: false, message: 'Approach blocked. Hovering clear of the surface.' });
       }
     }
-    if (runtime.landGoal && runtime.position.distanceTo(runtime.landGoal) < .06) {
-      runtime.landGoal = null; runtime.velocity.set(0, 0, 0); flying = false;
+    if (runtime.landGoal && runtime.landGoal.distanceTo(runtime.position) < .06) {
+      runtime.landGoal = null; setVec(runtime.velocity, 0, 0, 0); flying = false;
       useGame.setState({ flying: false, landing: false, checkpoint: next, message: 'Landed. Take a moment. Look around.' }); persistGame();
     }
     // Falling off an edge deploys the suit automatically, including over water.
@@ -130,7 +130,7 @@ export default function Player() {
         const goal = target.clone(); goal.y += FOOT;
         if (target.y > 1 && target.distanceTo(runtime.position) < 30 && safe.canLand(target) && safe.pathClear(runtime.position, goal)) runtime.landTarget = target;
       }
-      const nearTerminal = runtime.position.distanceTo(new Vector3(-7, 21, 58)) < 5;
+      const nearTerminal = new Vector3(-7, 21, 58).distanceTo(runtime.position) < 5;
       runtime.location = nearTerminal ? 'Municipal terminal' : next.y > 50 ? 'Upper skyline' : next.y < 6 ? 'Flooded boulevard' : next.z < 15 ? 'Broken viaduct' : 'Arrival terrace';
       useGame.setState({ canLand: !!runtime.landTarget, nearTerminal, boundaryNear: runtime.clearance.boundary, clearanceActive: runtime.clearance.active });
     }
