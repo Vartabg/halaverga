@@ -1,5 +1,12 @@
 # First-flight verification · 2026-09-11
 
+## Living motion · 2026-09-18
+
+- A time-based layer in `src/world/suitAnimation.ts` animates the ten-joint rig on top of the pose targets. It adds a distance-driven gait along the body-frame travel direction (run, walk, backpedal, strafe) with the lower sole planted through the real joint chain, breathing and weight shift at rest, and a hover bob that settles during landing approaches. It also adds a takeoff push-off, a landing absorb and spring follow-through on changes of speed and direction. It moves only the model; the anchor shared by physics and camera, the controls and the collider are unchanged. Reduced motion keeps the gait and softens the rest.
+- Gates: `pnpm verify` green — TypeScript, 77 unit tests (69 plus eight new motion tests) and the production build. Mac browser suite in system Chrome: 34 of 34 checks pass against `next start` on 127.0.0.1:3366, whose HTML carried the current `BUILD_ID`.
+- Visual review: `scripts/review-suit-motion.mjs` frame strips of the actual rig with and without the layer, plus live chase-camera captures of the same keyboard route on the deployed site (before) and the task build (after): [living-motion-game.png](images/living-motion-game.png). The stills were inspected for stride and knee direction, planted soles, and push-off and landing timing.
+- Not validated: physical iPhone. Touch and trackpad input lift straight into flight, so the gait shows mainly with the keyboard and tap controls.
+
 ## Playtest enablers · 2026-09-18
 
 - `v0.1-playtest` is deployed at https://halaverga-flight.vercel.app (Vercel production via CLI; the project is not Git-connected, so deploys are explicit). Every build now carries a stamp — build date plus commit — computed in `next.config.ts` and shown in the Field guide footer and in every `halaverga-playtest.json` download, so a report can be traced to the exact code. This gate build's stamp: `2026-09-18 · af74249`.
