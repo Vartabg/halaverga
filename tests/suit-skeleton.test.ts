@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { Vector3 } from 'three';
+import { Matrix4, SkinnedMesh, Vector3 } from 'three';
 import { loadSuit } from './load-suit';
 import { buildSuitRig } from '../src/world/suitRig';
 import { parents, pivots } from '../src/world/suitGeometry';
@@ -47,5 +47,40 @@ test('the playable rig rests at identity with every joint at its authored head',
       expect(joint.quaternion.toArray()).toEqual([0, 0, 0, 1]);
       expect(joint.getWorldPosition(new Vector3()).distanceTo(new Vector3(...BONE_HEADS[i]))).toBeLessThan(1e-12);
     });
+  } finally { rig.dispose(); }
+});
+// The legacy joint each added bone's skin weight was carved from (OWNER in scripts/hero_skin.py).
+const CARVED_FROM = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 0, 0, 0, 0, 6, 7, 8, 9, 8, 9];
+test('with the added bones at rest, the skin deforms exactly as its weights collapsed onto the ten legacy joints', async () => {
+  const rig = buildSuitRig((await loadSuit()).scene);
+  try {
+    // Every added bone descends from the joint it was carved from through added bones only.
+    BONE_NAMES.forEach((_, i) => {
+      let ancestor = i;
+      while (ancestor >= LEGACY_COUNT) ancestor = BONE_PARENTS[ancestor];
+      expect(ancestor).toBe(CARVED_FROM[i]);
+    });
+    const angles = [[.3, -.2, .1], [1.1, .4, -.3], [-.6, .2, .5], [2.4, -.1, .2], [.2, .3, -.4], [-.3, .1, .2], [1.2, 0, 0], [.9, 0, 0], [-1.3, 0, 0], [-.7, 0, 0]];
+    rig.joints.forEach((joint, i) => { if (i < LEGACY_COUNT) joint.rotation.set(angles[i][0], angles[i][1], angles[i][2]); });
+    rig.root.updateMatrixWorld(true);
+    let worst = 0, checked = 0;
+    const skin = new Matrix4(), part = new Matrix4(), v = new Vector3(), expected = new Vector3();
+    rig.root.traverse(object => {
+      if (!(object instanceof SkinnedMesh)) return;
+      const { bones, boneInverses } = object.skeleton, position = object.geometry.attributes.position;
+      const indices = object.geometry.attributes.skinIndex, weights = object.geometry.attributes.skinWeight;
+      for (let i = 0; i < position.count; i++) {
+        skin.set(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+        for (let n = 0; n < 4; n++) {
+          const owner = CARVED_FROM[indices.getComponent(i, n)], weight = weights.getComponent(i, n);
+          part.multiplyMatrices(bones[owner].matrixWorld, boneInverses[owner]);
+          for (let e = 0; e < 16; e++) skin.elements[e] += part.elements[e] * weight;
+        }
+        expected.fromBufferAttribute(position, i).applyMatrix4(object.bindMatrix).applyMatrix4(skin).applyMatrix4(object.bindMatrixInverse);
+        worst = Math.max(worst, object.getVertexPosition(i, v).distanceTo(expected)); checked++;
+      }
+    });
+    expect(checked).toBeGreaterThan(10_000);
+    expect(worst).toBeLessThan(1e-6);
   } finally { rig.dispose(); }
 });

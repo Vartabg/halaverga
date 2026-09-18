@@ -13,14 +13,14 @@ Design, chosen by a three-way design review with independent judges:
 
 ## 1. Skeleton, no visual change
 
-- [ ] `src/world/suitSkeleton.ts`: bone names, parents and heads. The legacy rows are the `pivots` values themselves. `boneIndex` accepts legacy and semantic names.
-- [ ] `src/world/skinnedSuit.ts` builds 21 bones and maps skin indices by name. The rigid fallback stays at ten joints.
-- [ ] `scripts/hero_skin.py` weights the new bones by splitting today's weights. A build assert proves that each legacy joint's share is unchanged and that no vertex has more than four influences.
-- [ ] One Blender rebuild of `public/models/suit.glb` and `art/halaverga-explorer.blend`. Gates:
+- [x] `src/world/suitSkeleton.ts`: bone names, parents and heads. The legacy rows are the `pivots` values themselves. `boneIndex` accepts legacy and semantic names.
+- [x] `src/world/skinnedSuit.ts` builds 21 bones and maps skin indices by name. The rigid fallback stays at ten joints.
+- [x] `scripts/hero_skin.py` weights the new bones by splitting today's weights: smoothly on the undersuit, and one added bone per legacy joint for each plate, seam and the head, so armor stays rigid. A build assert proves that each legacy joint's share is unchanged and that no vertex has more than four influences.
+- [x] One Blender rebuild of `public/models/suit.glb` and `art/halaverga-explorer.blend`. Gates:
   - Only skin data and bone nodes change.
-  - Posed vertices match the previous GLB within 1 mm across legacy poses.
-  - The baseline review strips look unchanged.
-- [ ] Tests: skeleton structure, the 21-joint budget, no animations in the GLB, and identity rest.
+  - Posed vertices match the previous GLB within 1 mm across legacy poses (measured 0.0035 mm). This numeric check replaces a visual strip comparison.
+  - Armor plates stay rigid when an added bone turns, apart from pieces whose legacy weights already span the torso and an arm.
+- [x] Tests: skeleton structure, the 21-joint budget, no animations in the GLB, and identity rest.
 
 ## 2. Authored flight clips
 
