@@ -11,7 +11,7 @@ export default function FlightPresentation() {
     if (pose.anchor) pose.anchor.getWorldPosition(pose.position);
     else pose.position.copy(runtime.position);
     if (pose.epoch !== runtime.poseEpoch) {
-      Object.assign(pose, { viewYaw: runtime.yaw, viewPitch: runtime.pitch, yaw: runtime.yaw, pitch: runtime.pitch, lean: 0, bank: 0, speed: 0, flight: 0, brake: 0, epoch: runtime.poseEpoch, alignAfterReset: true });
+      Object.assign(pose, { viewYaw: runtime.yaw, viewPitch: runtime.pitch, yaw: runtime.yaw, pitch: runtime.pitch, lean: 0, bank: 0, speed: 0, flight: 0, power: 0, brake: 0, epoch: runtime.poseEpoch, alignAfterReset: true });
     }
     if (pose.alignAfterReset) {
       // Do not interpolate across a checkpoint teleport while Rapier replaces its previous step.
@@ -20,7 +20,7 @@ export default function FlightPresentation() {
     }
     if (state.paused) { wasPaused.current = true; return; }
     if (wasPaused.current) {
-      Object.assign(pose, { speed: runtime.velocity.length(), brake: 0, lean: 0, bank: 0, flight: state.flying ? 1 : 0 });
+      Object.assign(pose, { speed: runtime.velocity.length(), brake: 0, lean: 0, power: 0, bank: 0, flight: state.flying ? 1 : 0 });
       wasPaused.current = false;
     }
     const target = input.current;
