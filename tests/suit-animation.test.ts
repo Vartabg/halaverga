@@ -1,7 +1,8 @@
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import type { AnimatedPose } from '../src/world/suitAnimation';
-import { hovering, lift, approach, pose, posed, rig, rotations, simulate, walking, type Drive } from './suit-motion-harness';
-describe('living suit motion: gait and ground contact', () => {
+import { hovering, lift, approach, pose, posed, rig, rotations, simulate, walking, useClips, MODES, type Drive } from './suit-motion-harness';
+describe.each(MODES)('living suit motion: gait and ground contact (%o)', mode => {
+  beforeEach(() => useClips(mode));
   it('advances the stride with distance travelled at 10, 15, 30, 60 and 120 Hz', () => {
     const rates = [10, 15, 30, 60, 120].map(hz => simulate(2, hz, walking(0, -5)));
     for (const a of rates) expect(a.stride).toBeCloseTo((5 * 2 / 3.3) % 1, 9);

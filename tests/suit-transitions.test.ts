@@ -1,12 +1,13 @@
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { createSuitAnimation, type SuitAnimation } from '../src/world/suitAnimation';
-import { approach, hovering, lift, pose, posed, quiet, rotations, simulate, walking, type Drive } from './suit-motion-harness';
+import { approach, hovering, lift, pose, posed, quiet, rotations, simulate, walking, useClips, MODES, type Drive } from './suit-motion-harness';
 const flying = pose({ flight: 1 });
 /** Arm swing from the follow-through springs alone: the posed arm minus the same state with the springs at rest. */
 const armSwing = (a: SuitAnimation, reduced = false) =>
   posed(a, flying, { reduced }).joints[3].rotation.x - posed(quiet(a), flying, { reduced }).joints[3].rotation.x;
 const stop = (from: number): Drive => t => ({ flying: true, velocity: { x: 0, y: 0, z: t < 1 ? -from : 0 } });
-describe('living suit motion: transitions', () => {
+describe.each(MODES)('living suit motion: transitions (%o)', mode => {
+  beforeEach(() => useClips(mode));
   it('pushes off from a crouch on a lift, and a caught fall never pops the model, whatever the stride phase', () => {
     expect(posed(simulate(1.1, 60, lift())).joints[8].rotation.x).toBeLessThan(-.8);
     let running = 0;

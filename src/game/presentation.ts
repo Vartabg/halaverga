@@ -5,6 +5,8 @@ export const presentation = {
   anchor: null as Object3D | null, position: { x: 0, y: 0, z: 0 },
   viewYaw: 0, viewPitch: -.12, yaw: 0, pitch: -.12, lean: 0, bank: 0, speed: 0, flight: 0, power: 0, brake: 0,
   epoch: -1, alignAfterReset: false,
+  /** The flight clip on show (a plain label for telemetry and tests), written by the suit each frame. */
+  suitClip: 'ground',
 };
 /** Third-person boom in the view frame: right, up and behind the head. */
 export const CHASE_BOOM: Vec = { x: .85, y: .7, z: 5.3 };
