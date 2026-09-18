@@ -1,14 +1,17 @@
 import { Euler, Quaternion, Vector3, type Object3D } from 'three';
 import { settle, type Pose } from '../game/presentation';
 export type SuitMotion = { hero: number; epoch: number };
+const clamp = (v: number) => Math.max(0, Math.min(1, v));
 const euler = new Euler(0, 0, 0, 'YXZ'), roll = new Quaternion(), LONG_AXIS = new Vector3(0, 1, 0);
+/** 0 while walking or hovering, 1 in full power flight. */
+export const streamline = (pose: Pose) => clamp((pose.speed - 3) / 25) * pose.flight;
 /**
  * Root orientation. The model faces -Z and the chase camera hangs at +Z of the view frame, so the back stays toward
  * the camera: yaw and pitch follow the travel direction (bounded near the view in presentation.ts), the lean tips the
  * head into that direction, and banking rolls around the body's long axis instead of swinging the torso sideways.
  */
 export function orientSuit(root: Object3D, pose: Pose, motion: SuitMotion) {
-  const power = pose.power;
+  const power = streamline(pose);
   euler.set(pose.lean + pose.pitch * power, pose.yaw, pose.bank * (1 - power) * (1 + motion.hero * .7));
   // A modest roll reads on a horizontal travel axis; near-vertical flight would turn it into a heading swing, and a
   // larger roll combined with yaw lag in a climbing left turn would show the chest to the right-shoulder camera.
@@ -20,7 +23,7 @@ export function orientSuit(root: Object3D, pose: Pose, motion: SuitMotion) {
  * toward the chase camera.
  */
 export function applySuitPose(joints: Object3D[], pose: Pose, motion: SuitMotion, reduced: boolean) {
-  const flight = pose.flight, power = pose.power;
+  const flight = pose.flight, power = streamline(pose);
   const hero = motion.hero * (reduced ? .3 : 1), brake = pose.brake * hero;
   const turn = reduced ? 0 : Math.max(-1, Math.min(1, pose.bank / .3));
   const hover = flight * (1 - power);

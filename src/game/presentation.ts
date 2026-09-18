@@ -2,7 +2,7 @@ import { Vector3, type Object3D } from 'three';
 import type { Vec } from './motion';
 export const presentation = {
   anchor: null as Object3D | null, position: new Vector3(),
-  viewYaw: 0, viewPitch: -.12, yaw: 0, pitch: -.12, lean: 0, bank: 0, speed: 0, flight: 0, power: 0, brake: 0,
+  viewYaw: 0, viewPitch: -.12, yaw: 0, pitch: -.12, lean: 0, bank: 0, speed: 0, flight: 0, brake: 0,
   epoch: -1, alignAfterReset: false,
 };
 /** Third-person boom in the view frame: right, up and behind the head. */
@@ -17,7 +17,7 @@ export function settleAngle(value: number, target: number, rate: number, dt: num
   return value + angleDelta(value, target) * (1 - Math.exp(-rate * Math.min(dt, .05)));
 }
 
-export type Pose = Pick<typeof presentation, 'viewYaw' | 'viewPitch' | 'yaw' | 'pitch' | 'lean' | 'bank' | 'speed' | 'flight' | 'power' | 'brake'>;
+export type Pose = Pick<typeof presentation, 'viewYaw' | 'viewPitch' | 'yaw' | 'pitch' | 'lean' | 'bank' | 'speed' | 'flight' | 'brake'>;
 export type PoseInput = { yaw: number; pitch: number; speed: number; velocity: Vec; flying: boolean; reduced: boolean };
 export function advanceFlightPose(pose: Pose, input: PoseInput, elapsed: number) {
   const dt = Math.min(elapsed, .05);
@@ -37,11 +37,9 @@ export function advanceFlightPose(pose: Pose, input: PoseInput, elapsed: number)
   pose.pitch = Math.max(pose.viewPitch - FACING.pitchDown, Math.min(pose.viewPitch + FACING.pitchUp, settle(pose.pitch, travelPitch, 7, dt)));
   pose.bank = settle(pose.bank, input.reduced ? 0 : turn, 5, dt);
   pose.flight = settle(pose.flight, input.flying ? 1 : 0, 5, dt);
+  const streamline = Math.min(1, Math.max(0, (pose.speed - 3) / 25));
   const deceleration = dt > 0 ? (oldSpeed - pose.speed) / dt : 0;
   const brace = input.flying ? Math.max(0, Math.min(1, (deceleration - 2) / 18)) : 0;
   pose.brake = settle(pose.brake, brace, 5, dt);
-  pose.power = settle(pose.power, Math.min(1, Math.max(0, (pose.speed - 3) / 25)) * pose.flight, 5, dt);
-  // The lean and the body pitch that offsets it both scale with this one settled value. Fading them at
-  // separate rates turned the body edge-on while braking hard out of a climb with the camera below it.
-  pose.lean = -pose.power * 1.35 + pose.brake * .12;
+  pose.lean = settle(pose.lean, -pose.flight * streamline * 1.35 + pose.brake * .12, 5, dt);
 }
