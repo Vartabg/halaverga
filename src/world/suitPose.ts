@@ -24,7 +24,8 @@ export function applySuitPose(joints: Object3D[], pose: Pose, motion: SuitMotion
   const hero = motion.hero * (reduced ? .3 : 1), brake = pose.brake * hero;
   const turn = reduced ? 0 : Math.max(-1, Math.min(1, pose.bank / .3));
   const hover = flight * (1 - power);
-  joints[0].rotation.y = turn * .12 * hero;
+  // Every rotation component is written each frame, so the animation layer can add to it without accumulating.
+  joints[0].rotation.set(0, turn * .12 * hero, 0);
   // The head keeps looking along the travel direction while the body leans into it.
   joints[1].rotation.set(-pose.lean * .72, turn * .22 * hero, 0);
   for (let i = 2; i <= 3; i++) {
@@ -37,14 +38,14 @@ export function applySuitPose(joints: Object3D[], pose: Pose, motion: SuitMotion
     const targetZ = side * (hover * .2 + power * (lead ? .05 : .12) + brake * .55 + Math.abs(turn) * .28);
     joints[i].rotation.set(classic + (targetX - classic) * hero, -side * Math.abs(turn) * .12 * hero,
       side * sweep + (targetZ - side * sweep) * hero);
-    joints[i + 4].rotation.x = hero * (hover * .5 + power * (lead ? .12 : .35) * (1 - brake) + brake * .9);
+    joints[i + 4].rotation.set(hero * (hover * .5 + power * (lead ? .12 : .35) * (1 - brake) + brake * .9), 0, 0);
   }
   for (let i = 4; i <= 5; i++) {
     const side = i === 4 ? -1 : 1, raised = i === 4 ? 1 : .25;
     // Legs trail straight in power flight; braking lifts the left knee forward with the heel tucked behind.
     joints[i].rotation.set(flight * .08 * (1 - power) + pose.brake * .1 + hero * (hover * raised * .12 + brake * raised * .8),
       0, side * hero * (hover * .04 + brake * .12));
-    joints[i + 4].rotation.x = -hero * (hover * (i === 4 ? .25 : .12) + power * .12 + brake * raised * 1.1);
+    joints[i + 4].rotation.set(-hero * (hover * (i === 4 ? .25 : .12) + power * .12 + brake * raised * 1.1), 0, 0);
   }
 }
 export function advanceSuitMotion(motion: SuitMotion, hero: boolean, dt: number) {
