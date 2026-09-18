@@ -4,6 +4,7 @@ import { runtime } from '@/game/runtime';
 import Modal from './Modal';
 import styles from './Experience.module.css';
 import TrackpadSettings from './TrackpadSettings';
+import { BUILD_STAMP, DEPLOYMENT_URL } from './buildInfo';
 function measurements() {
   const frames = [...runtime.frames].sort((a, b) => a - b);
   const percentile = (p: number) => frames.length ? Math.round(frames[Math.floor((frames.length - 1) * p)] * 10) / 10 : 0;
@@ -11,6 +12,7 @@ function measurements() {
     stallsOver50Ms: frames.filter(v => v > 50).length, browser: navigator.userAgent,
     viewport: [innerWidth, innerHeight], pixelRatio: devicePixelRatio, quality: useGame.getState().quality,
     camera: useGame.getState().camera, resources: runtime.resources, peakResources: runtime.peakResources,
+    build: BUILD_STAMP, deployment: DEPLOYMENT_URL,
     scope: 'Latest 18,000 active frames; first resume frame excluded. Resource peaks cover the session.' };
 }
 export default function TestPanel({ onClose }: { onClose: () => void }) {

@@ -8,7 +8,7 @@ import { advanceVelocity, boundMovement, landingVelocity, moving, START, FOOT } 
 import { presentation } from './presentation';
 import { edgeFreshness } from './trackpadFlight';
 import { FlightSafety } from './FlightSafety';
-import { boundaryDistance, CLEARANCE, removeInward, softenBounds } from './navigation';
+import { boundaryDistance, CLEARANCE, nearestTerminal, removeInward, softenBounds } from './navigation';
 const direction = new Vector3();
 export default function Player() {
   const body = useRef<RapierRigidBody>(null), collider = useRef<RapierCollider>(null);
@@ -130,8 +130,9 @@ export default function Player() {
         const goal = target.clone(); goal.y += FOOT;
         if (target.y > 1 && target.distanceTo(runtime.position) < 30 && safe.canLand(target) && safe.pathClear(runtime.position, goal)) runtime.landTarget = target;
       }
-      const nearTerminal = runtime.position.distanceTo(new Vector3(-7, 21, 58)) < 5;
-      runtime.location = nearTerminal ? 'Municipal terminal' : next.y > 50 ? 'Upper skyline' : next.y < 6 ? 'Flooded boulevard' : next.z < 15 ? 'Broken viaduct' : 'Arrival terrace';
+      const terminal = nearestTerminal(runtime.position);
+      const nearTerminal = terminal !== null;
+      runtime.location = terminal ? terminal.location : next.y > 50 ? 'Upper skyline' : next.y < 6 ? 'Flooded boulevard' : next.z < 15 ? 'Broken viaduct' : 'Arrival terrace';
       useGame.setState({ canLand: !!runtime.landTarget, nearTerminal, boundaryNear: runtime.clearance.boundary, clearanceActive: runtime.clearance.active });
     }
   });

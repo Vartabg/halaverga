@@ -34,3 +34,4 @@
 @media(forced-colors:active){.vignette{display:none}.header,.intro,.introFooter,.telemetry{background:Canvas;color:CanvasText}.primary,.action,.secondary,.headerActions button{background:ButtonFace!important;color:ButtonText!important}.reticle{border-color:CanvasText}}
 
 .districtMap{display:block;width:100%;height:auto;margin:18px 0;border:1px solid var(--line);border-radius:6px}
+.qrHandoff{display:block;width:150px;height:150px;margin:18px 0 6px;border:1px solid var(--line);border-radius:6px;background:#fff}

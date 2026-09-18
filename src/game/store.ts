@@ -19,6 +19,11 @@ export const useGame = create<GameState>((set) => ({
   checkpoint: START, discovered: false, message: '', set,
 }));
 const STORAGE = 'halaverga-flight-v1';
+// The single authoritative list of fields saved between sessions. persistGame
+// writes exactly these keys; tests/persistence.test.ts pins hydrateGame to
+// restore every entry and to ignore runtime-only state.
+export const PERSISTED_KEYS = ['checkpoint', 'camera', 'quality', 'reduced', 'muted', 'discovered', 'tapControls', 'desktopMode', 'trackpadSteering', 'sustainedEdges', 'reverseScroll', 'cruiseSpeed', 'heroPoses'] as const;
+export type PersistedKey = typeof PERSISTED_KEYS[number];
 export function hydrateGame() {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE) || '{}');
@@ -38,7 +43,11 @@ export function hydrateGame() {
   } catch { useGame.setState({ reduced: matchMedia('(prefers-reduced-motion: reduce)').matches }); }
 }
 export function persistGame() {
-  const { checkpoint, camera, quality, reduced, muted, discovered, tapControls, desktopMode, trackpadSteering, sustainedEdges, reverseScroll, cruiseSpeed, heroPoses } = useGame.getState();
-  try { localStorage.setItem(STORAGE, JSON.stringify({ checkpoint, camera, quality, reduced, muted, discovered, tapControls, desktopMode, trackpadSteering, sustainedEdges, reverseScroll, cruiseSpeed, heroPoses })); }
+  try {
+    const state = useGame.getState();
+    const saved: Record<string, unknown> = {};
+    for (const key of PERSISTED_KEYS) saved[key] = state[key];
+    localStorage.setItem(STORAGE, JSON.stringify(saved));
+  }
   catch { /* Private browsing may prohibit storage; play remains available. */ }
 }

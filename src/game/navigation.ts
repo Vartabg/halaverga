@@ -1,4 +1,5 @@
 import { WORLD, FOOT, type Vec } from './motion';
+import arrival from '../content/arrival.json';
 export const CLEARANCE = { margin: .04, brake: 65, lookAhead: .25, buffer: .45 };
 export const BUILDING_ROUTE = [
   { id: 'arrival', label: 'Arrival terrace', x: 0, y: 20 + FOOT, z: 65 },
@@ -10,6 +11,20 @@ export const BUILDING_ROUTE = [
   { id: 'ascent', label: 'Tower approach', x: 9, y: 69, z: -38 },
   { id: 'roof', label: 'Marked tower roof', x: 30, y: 69, z: -38 },
 ] as const;
+// Discoverable story terminals: physical spots paired with the record a
+// player recovers there. Adding a terminal is a content change — Player.tsx
+// reads this table without flight-loop edits.
+export interface Terminal { id: string; position: Vec; radius: number; location: string; record: typeof arrival }
+export const TERMINALS: Terminal[] = [
+  { id: 'municipal-memory-07', position: { x: -7, y: 21, z: 58 }, radius: 5, location: 'Municipal terminal', record: arrival },
+];
+export function nearestTerminal(position: Vec): Terminal | null {
+  for (const terminal of TERMINALS) {
+    const { x, y, z } = terminal.position;
+    if (Math.hypot(position.x - x, position.y - y, position.z - z) < terminal.radius) return terminal;
+  }
+  return null;
+}
 export function boundaryDistance(p: Vec) {
   return Math.min(p.x - WORLD.minX, WORLD.maxX - p.x, p.z - WORLD.minZ, WORLD.maxZ - p.z, WORLD.ceiling - p.y);
 }

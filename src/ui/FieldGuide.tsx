@@ -3,6 +3,7 @@ import { persistGame, useGame } from '@/game/store';
 import { runtime } from '@/game/runtime';
 import Modal from './Modal';
 import styles from './Experience.module.css';
+import { BUILD_STAMP, DEPLOYMENT_URL } from './buildInfo';
 export default function FieldGuide({ onClose }: { onClose: () => void }) {
   const discovered = useGame(s => s.discovered);
   return <Modal title="Field guide" onClose={onClose}>
@@ -25,5 +26,9 @@ export default function FieldGuide({ onClose }: { onClose: () => void }) {
     <button className={styles.secondary} onClick={() => { useGame.setState({ discovered: true }); persistGame(); }}>
       {discovered ? 'Record recovered' : 'Recover municipal record'}</button>
     {discovered && <article><p className={styles.eyebrow}>{record.kind}</p><h3>{record.title}</h3><p>{record.body}</p><p className={styles.muted}>{record.note}</p></article>}
+    <h3>Playtest this build</h3>
+    <p>Scan with a phone to open the deployed game there. The build stamp identifies this exact code; Flight settings downloads measurements carrying the same stamp.</p>
+    <img className={styles.qrHandoff} src="/qr-deployment.svg" width="150" height="150" alt={`QR code that opens ${DEPLOYMENT_URL}`} />
+    <p className={styles.muted}>Build {BUILD_STAMP} · <a href={DEPLOYMENT_URL}>{DEPLOYMENT_URL}</a></p>
   </Modal>;
 }
