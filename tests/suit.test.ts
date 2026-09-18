@@ -4,6 +4,7 @@ import { Box3, BoxGeometry, Group, Mesh, MeshStandardMaterial, SkinnedMesh, Vect
 import { loadSuit } from './load-suit';
 import { buildSuitRig } from '../src/world/suitRig';
 import { buildSuitParts, parents, pivots } from '../src/world/suitGeometry';
+import { BONE_COUNT } from '../src/world/suitSkeleton';
 test('human suit preserves weighted articulation, fitted proportions and the browser budget', async () => {
   const bytes = readFileSync(new URL('../public/models/suit.glb', import.meta.url));
   // Two compact embedded atlases replace the old untextured mannequin finish.
@@ -20,7 +21,7 @@ test('human suit preserves weighted articulation, fitted proportions and the bro
   try {
     rig.root.updateMatrixWorld(true);
     const size = new Box3().setFromObject(rig.root, true).getSize(new Vector3());
-    expect(rig.joints).toHaveLength(10);
+    expect(rig.joints).toHaveLength(BONE_COUNT);
     expect(size.y).toBeGreaterThan(1.9); expect(size.y).toBeLessThan(2.1);
     expect(size.x).toBeLessThan(.95); expect(size.z).toBeLessThan(.48);
     let triangles = 0, batches = 0, blendedVertices = 0;
@@ -36,7 +37,7 @@ test('human suit preserves weighted articulation, fitted proportions and the bro
         let sum = 0, influences = 0;
         for (let n = 0; n < 4; n++) {
           const w = weights.getComponent(i, n), joint = indices.getComponent(i, n);
-          expect(w).toBeGreaterThanOrEqual(0); expect(joint).toBeLessThan(10);
+          expect(w).toBeGreaterThanOrEqual(0); expect(joint).toBeLessThan(BONE_COUNT);
           sum += w; if (w > .01) { influences++; usedJoints.add(joint); }
         }
         expect(sum).toBeCloseTo(1, 5); if (influences > 1) blendedVertices++;

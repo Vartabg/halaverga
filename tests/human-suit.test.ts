@@ -2,6 +2,7 @@ import { expect, test } from 'vitest';
 import { Box3, Mesh, MeshStandardMaterial, SkinnedMesh, Vector3 } from 'three';
 import { loadSuit } from './load-suit';
 import { buildSuitRig } from '../src/world/suitRig';
+import { boneIndex } from '../src/world/suitSkeleton';
 import { applySuitPose, orientSuit } from '../src/world/suitPose';
 const asset = async () => (await loadSuit()).scene;
 test('anatomical joints give the explorer balanced legs and arms', async () => {
@@ -46,7 +47,7 @@ test('head and boots retain credible scale in the exported geometry', async () =
     source.traverse(object => {
       if (!(object instanceof SkinnedMesh)) return;
       for (const bone of object.skeleton.bones) {
-        const index = Number(bone.name.split('_').at(-1));
+        const index = boneIndex(bone.name);
         expect(bone.getWorldPosition(new Vector3()).distanceTo(rig.joints[index].getWorldPosition(new Vector3()))).toBeLessThan(.00001);
       }
     });

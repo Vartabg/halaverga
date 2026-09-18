@@ -1,8 +1,8 @@
 import { Group, Vector3 } from 'three';
-import { parents, pivots } from '../src/world/suitGeometry';
+import { BONE_HEADS, BONE_PARENTS } from '../src/world/suitSkeleton';
 import { applySuitPose, orientSuit } from '../src/world/suitPose';
 import { advanceSuitAnimation, applySuitAnimation, createSuitAnimation, type AnimatedPose, type AnimationInput, type SuitAnimation } from '../src/world/suitAnimation';
-/** Shared harness for the living-motion tests: plain rigs at the exported pivots, posed the way Suit.tsx poses them. */
+/** Shared harness for the living-motion tests: plain 21-bone rigs at the exported heads, posed the way Suit.tsx poses them. */
 export type Drive = (t: number) => AnimationInput;
 export const pose = (patch: Partial<AnimatedPose> = {}): AnimatedPose => ({ viewYaw: 0, viewPitch: 0, yaw: 0, pitch: 0, lean: 0, bank: 0,
   speed: 0, flight: 0, power: 0, brake: 0, epoch: 0, position: { x: 0, y: 0, z: 0 }, ...patch });
@@ -11,9 +11,9 @@ export const hovering: Drive = () => ({ flying: true, velocity: { x: 0, y: 0, z:
 export const lift = (at = 1): Drive => t => ({ flying: t >= at, velocity: { x: 0, y: t >= at ? 6 : 0, z: 0 } });
 export const approach: Drive = t => ({ flying: t < 1, landing: t < 1, velocity: { x: 0, y: t < 1 ? -1.5 : 0, z: 0 } });
 export function rig() {
-  const root = new Group(), joints = pivots.map(() => new Group());
+  const root = new Group(), joints = BONE_HEADS.map(() => new Group());
   joints.forEach((joint, i) => {
-    const parent: number = parents[i], p = pivots[i], o = parent < 0 ? [0, 0, 0] : pivots[parent];
+    const parent = BONE_PARENTS[i], p = BONE_HEADS[i], o = parent < 0 ? [0, 0, 0] : BONE_HEADS[parent];
     joint.position.set(p[0] - o[0], p[1] - o[1], p[2] - o[2]); (parent < 0 ? root : joints[parent]).add(joint);
   });
   return { root, joints };
