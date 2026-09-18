@@ -4,7 +4,7 @@ A browser flight study through Meridian, a fictional modern hillside city damage
 
 ## Run and verify
 
-Use Node 22 and pnpm 10.32.1. Run `pnpm install`, then `pnpm verify`. Use the local managed-preview tool to start `pnpm exec next dev --hostname 127.0.0.1 --port 3366`. Production browser checks require `pnpm build` and a managed `next start` preview on port 3366, followed by `pnpm test:browser`. CI manages its own server and tests after a production build.
+Use Node 22 and pnpm 10.32.1. Run `pnpm install`, then `pnpm verify`. Use the local managed-preview tool to start `pnpm exec next dev --hostname 127.0.0.1 --port 3366`. Production browser checks require `pnpm build` and a managed `next start` preview on port 3366, followed by `pnpm test:browser`. CI runs `pnpm verify` — TypeScript, unit/physics tests and the production build — on ubuntu; the browser and accessibility checks stay Mac-recorded because their frame-timing thresholds need a real GPU (see `docs/verification.md`).
 
 The local Playwright configuration uses system Chrome on macOS, never Chrome for Testing. `pnpm test:a11y` fails on automated AA violations. Test results, traces and reports are excluded from Git.
 

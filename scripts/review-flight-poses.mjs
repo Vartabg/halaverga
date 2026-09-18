@@ -10,10 +10,10 @@ import * as T from 'three';import{GLTFLoader}from'three/addons/loaders/GLTFLoade
 const asset=await new GLTFLoader().loadAsync('/models/suit.glb');
 const atlases=[];asset.scene.traverse(o=>{if(o.isMesh&&['skin','hair'].includes(o.material.name)){const image=o.material.map?.image;if(!image||image.width<128)throw new Error('Explorer atlas did not decode');atlases.push(o.material.name)}});if(atlases.length!==2)throw new Error('Missing explorer atlas');
 const cases=[['FRONT / HUMAN ANATOMY',{},[1,1,-5]],['PROFILE',{},[5,.5,0]],['BACK',{},[0,.6,5]],
- ['CHASE / HOVER',{}],['CHASE / POWER FLIGHT',{speed:34,lean:-1.35}],['CHASE / BANK',{speed:24,lean:-1.15,bank:.3}],
- ['CHASE / CLIMB',{speed:34,lean:-1.35,pitch:1.1,viewPitch:1.25}],['CHASE / DIVE',{speed:34,lean:-1.35,pitch:-1.1,viewPitch:-1.25}],['CHASE / BRAKE',{speed:10,lean:-.2,brake:1}]];
+ ['CHASE / HOVER',{}],['CHASE / POWER FLIGHT',{speed:34,power:1,lean:-1.35}],['CHASE / BANK',{speed:24,power:.84,lean:-1.134,bank:.3}],
+ ['CHASE / CLIMB',{speed:34,power:1,lean:-1.35,pitch:1.1,viewPitch:1.25}],['CHASE / DIVE',{speed:34,power:1,lean:-1.35,pitch:-1.1,viewPitch:-1.25}],['CHASE / BRAKE',{speed:10,power:.28,lean:-.258,brake:1}]];
 for(const [name,patch,view]of cases){
- const pose={viewYaw:0,viewPitch:0,yaw:0,pitch:0,lean:0,bank:0,speed:0,flight:1,brake:0,...patch},motion={hero:1,epoch:0};
+ const pose={viewYaw:0,viewPitch:0,yaw:0,pitch:0,lean:0,bank:0,speed:0,flight:1,power:0,brake:0,...patch},motion={hero:1,epoch:0};
  const element=document.createElement('section');element.innerHTML='<span>'+name+'</span>';document.querySelector('main').append(element);
  const renderer=new T.WebGLRenderer({antialias:true});renderer.setSize(440,460);renderer.setPixelRatio(1.5);renderer.setClearColor('#12262c');renderer.toneMapping=T.ACESFilmicToneMapping;element.prepend(renderer.domElement);
  const scene=new T.Scene(),rig=buildSuitRig(asset.scene);scene.add(rig.root);orientSuit(rig.root,pose,motion);applySuitPose(rig.joints,pose,motion,false);

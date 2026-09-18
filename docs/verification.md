@@ -1,5 +1,11 @@
 # First-flight verification · 2026-09-11
 
+## CI split gates and landing audit · 2026-09-18
+
+- The chain landing on `main` (PR #1) exposed that GitHub Actions had never actually run: every earlier push failed within seconds on an account billing/spending-limit block before any step started. The repository was made public with owner approval after a tracked-file secret scan; Actions then ran the full workflow for the first time.
+- First ubuntu run: `pnpm verify` passed completely — TypeScript, all 61 unit/physics/model tests and the production build. 28 of 34 browser checks also passed, including the pause/drift recovery case. Six failed only because ubuntu has no GPU and renders WebGL through SwiftShader: at software frame rates the simulation advances too few steps per wall-clock second for thresholds calibrated to real-GPU timing. `data-lean` reached −0.44 against < −1 after 2.1 s of surge; steep-climb view pitch reached 0.97 against > 1; pinch zoom and two captured-trackpad steering predicates timed out after 5 s; cursor-only takeoff missed its settling bound. All six pass on the physical Apple M2 Max in system Chrome.
+- Decision, with owner approval: CI keeps `pnpm verify` as the ubuntu merge gate, and the 34 browser and accessibility checks remain developer-Mac evidence recorded in this file, because their thresholds are calibrated to real-GPU frame timing. No assertion was loosened. A GPU-hosted CI runner remains a possible later hardening experiment.
+- A same-day Mac rerun surfaced the mirror case: the `flight.spec.ts` pause-drift guard failed deterministically (5.43 m against the 3 m budget) in system Chrome 153.0.8010.47 after previously passing in Chrome 153. First-second warmup work delays the registered release of held keys by roughly 0.4 s, so the suit cruises past the budget before the brake settles; a timeline probe verified the pause path itself is clean, and the same check passes on ubuntu. Assertions are unchanged; hardening this guard against warmup jitter is follow-up work, not a flight regression.
 ## Fitted suit revision · 2026-09-11
 
 - Replaced the playable model with a fitted pressure layer, smooth ceramic plates, a continuous visor, tapered limbs and an integrated power spine. Six animation sections remain; their pivots follow the new anatomy. The shared player/camera movement and collider are unchanged.
