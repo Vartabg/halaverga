@@ -4,12 +4,27 @@ import { Box3, BoxGeometry, Group, Mesh, MeshStandardMaterial, SkinnedMesh, Vect
 import { loadSuit } from './load-suit';
 import { buildSuitRig } from '../src/world/suitRig';
 import { buildSuitParts, parents, pivots } from '../src/world/suitGeometry';
+import { BONE_COUNT, BONE_NAMES, BONE_PARENTS, boneIndex } from '../src/world/suitSkeleton';
 test('human suit preserves weighted articulation, fitted proportions and the browser budget', async () => {
   const bytes = readFileSync(new URL('../public/models/suit.glb', import.meta.url));
   // Two compact embedded atlases replace the old untextured mannequin finish.
   expect(bytes.length).toBeLessThan(850_000);
   const json = JSON.parse(bytes.toString('utf8', 20, 20 + bytes.readUInt32LE(12)));
   expect(json.images).toHaveLength(2);
+  // Motion is authored in code, so the asset carries none. Every bone rests at identity, and one set of four weights skins each vertex.
+  expect(json.animations).toBeUndefined();
+  expect(json.skins).toHaveLength(1); expect(json.skins[0].joints).toHaveLength(BONE_COUNT);
+  for (const joint of json.skins[0].joints) { expect(json.nodes[joint].rotation).toBeUndefined(); expect(json.nodes[joint].scale).toBeUndefined(); }
+  // The runtime rebuilds the hierarchy from BONE_PARENTS, so it must match the exported one bone for bone.
+  const parentOf = new Map<number, number>();
+  json.nodes.forEach((node: { children?: number[] }, i: number) => node.children?.forEach(child => parentOf.set(child, i)));
+  const exported = json.skins[0].joints.map((joint: number) => {
+    const parent = parentOf.get(joint);
+    return [json.nodes[joint].name, parent !== undefined && json.skins[0].joints.includes(parent) ? json.nodes[parent].name : null];
+  });
+  expect(new Map(exported)).toEqual(new Map(BONE_NAMES.map((name, i) => [name, BONE_PARENTS[i] < 0 ? null : BONE_NAMES[BONE_PARENTS[i]]])));
+  expect(json.skins[0].joints.map((joint: number) => boneIndex(json.nodes[joint].name)).sort((a: number, b: number) => a - b)).toEqual(BONE_NAMES.map((_, i) => i));
+  for (const mesh of json.meshes) for (const primitive of mesh.primitives) expect(primitive.attributes.JOINTS_1).toBeUndefined();
   for (const image of json.images) {
     expect(image.uri).toBeUndefined();
     expect(image.mimeType).toBe('image/png');
@@ -20,7 +35,7 @@ test('human suit preserves weighted articulation, fitted proportions and the bro
   try {
     rig.root.updateMatrixWorld(true);
     const size = new Box3().setFromObject(rig.root, true).getSize(new Vector3());
-    expect(rig.joints).toHaveLength(10);
+    expect(rig.joints).toHaveLength(BONE_COUNT);
     expect(size.y).toBeGreaterThan(1.9); expect(size.y).toBeLessThan(2.1);
     expect(size.x).toBeLessThan(.95); expect(size.z).toBeLessThan(.48);
     let triangles = 0, batches = 0, blendedVertices = 0;
@@ -36,13 +51,13 @@ test('human suit preserves weighted articulation, fitted proportions and the bro
         let sum = 0, influences = 0;
         for (let n = 0; n < 4; n++) {
           const w = weights.getComponent(i, n), joint = indices.getComponent(i, n);
-          expect(w).toBeGreaterThanOrEqual(0); expect(joint).toBeLessThan(10);
+          expect(w).toBeGreaterThanOrEqual(0); expect(joint).toBeLessThan(BONE_COUNT);
           sum += w; if (w > .01) { influences++; usedJoints.add(joint); }
         }
         expect(sum).toBeCloseTo(1, 5); if (influences > 1) blendedVertices++;
       }
     });
-    expect(blendedVertices).toBeGreaterThan(100); expect(usedJoints.size).toBe(10);
+    expect(blendedVertices).toBeGreaterThan(100); expect(usedJoints.size).toBe(BONE_COUNT);
     expect(triangles).toBeLessThan(20_000); expect(batches).toBeLessThanOrEqual(8);
     expect(finishes).toEqual(new Set(['ceramic', 'textile', 'visor', 'energy', 'copper', 'skin', 'hair', 'eyes']));
   } finally { rig.dispose(); }

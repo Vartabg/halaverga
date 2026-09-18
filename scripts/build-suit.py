@@ -1,5 +1,6 @@
 """Build the generated-reference explorer and retain an editable Blender source."""
 import bpy
+import os
 import sys
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).parent))
@@ -35,7 +36,7 @@ for obj in objects:
     bpy.ops.object.select_all(action='DESELECT'); obj.select_set(True)
     bpy.ops.object.transform_apply(location=True,rotation=True,scale=True)
 bake_reference(objects,root/'docs/art/explorer-face-reference.png')
-rig = bind(objects)
+rig = bind(objects, body)
 rig['reference'] = 'docs/art/explorer-reference.png'
 rig['proportions'] = '1.98m tall; hip .00; knee -.51; shoulder .55; elbow .215'
 # Keep the individual plates editable; embed the actual generated reference.
@@ -57,8 +58,10 @@ for screen in bpy.data.screens:
             area.spaces.active.region_3d.view_distance = 3.4
             area.spaces.active.region_3d.view_location = (0,0,0)
             area.spaces.active.shading.type = 'MATERIAL'
-bpy.ops.wm.save_as_mainfile(filepath=str(root/'art/halaverga-explorer.blend'),compress=True)
-# Runtime: merge by material. Eight primitives, one shared ten-joint skeleton.
+# SUIT_SKIP_BLEND=1 and SUIT_OUT=<path> make a trial build that leaves the committed files untouched.
+if os.environ.get('SUIT_SKIP_BLEND') != '1':
+    bpy.ops.wm.save_as_mainfile(filepath=str(root/'art/halaverga-explorer.blend'),compress=True)
+# Runtime: merge by material. Eight primitives, one shared 21-bone skeleton.
 for obj in objects: obj.select_set(True)
 bpy.context.view_layer.objects.active = body
 bpy.ops.object.join()
@@ -66,7 +69,7 @@ body = bpy.context.object
 body.data.validate(verbose=True); body.data.update()
 bpy.ops.object.select_all(action='DESELECT')
 body.select_set(True); rig.select_set(True)
-destination = root/'public/models/suit.glb'
+destination = Path(os.environ.get('SUIT_OUT') or root/'public/models/suit.glb')
 bpy.ops.export_scene.gltf(filepath=str(destination),export_format='GLB',
     use_selection=True,export_yup=True,export_extras=True,export_texcoords=True,
     export_normals=True,export_colors=False,export_animations=False)

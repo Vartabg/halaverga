@@ -1,5 +1,44 @@
 # First-flight verification · 2026-09-11
 
+## 21-bone skeleton · 2026-09-18
+
+- The explorer is built on 21 bones. The ten legacy joints keep their indices and exact pivots. A spine, chest, neck, clavicles, hands, feet and toes are added at identity rest. The runtime maps skin indices by bone name and still binds the old `suit_joint_N` names.
+- `scripts/hero_skin.py` carves each added bone's weights from the legacy joint it grew out of. The build fails unless every vertex keeps its legacy shares within 5e-5 and has at most four influences.
+  - The undersuit bends smoothly across the added bones.
+  - Every other piece (plates, seams, the collar, the face and hair) rides the single added bone that covers most of it at its centre, so it stays rigid.
+  - `SUIT_SKIP_BLEND=1 SUIT_OUT=<path>` makes a trial build that leaves the committed files untouched.
+- Rebuild gates, measured on the committed GLB against the previous one (`f9a82a4`):
+  - Positions, normals, UVs, materials, non-bone nodes and both atlases are byte-identical. The armor's weight values are unchanged; only their bone indices differ.
+  - Triangle sets and winding match; one primitive only reorders its triangles.
+  - The GLB has no animations, and no bone has a rotation or scale.
+  - Posed skinned vertices differ by at most 0.0035 mm across 24 pose and hero states: rest, hover, cruise, power, both banks, brake, climb, walk, run, strafe and takeoff.
+- Rigid armor under the added bones. Each added bone was turned on its own and the largest change in distance between two points of any of the 62 plates and seams was measured (per-vertex bands → final weights):
+
+  | Move | Per-vertex bands | Final weights |
+  |---|---|---|
+  | Neck yaw 30° | 28.4 mm | 0 mm |
+  | Neck pitch −30° | 15.9 mm | 0 mm |
+  | Spine pitch 25° | 30.4 mm | 0 mm |
+  | Chest pitch 20° | 35.0 mm | 4.5 mm |
+  | Chest side bend 12° | 41.6 mm | 8.4 mm |
+  | Clavicle shrug 20° | 42.9 mm | 15.2 mm |
+  | Clavicle protraction 20° | 37.2 mm | 11.0 mm |
+  | Foot point 40° | 26.8 mm | 0 mm |
+  | Toe flex 30° | 21.2 mm | 0 mm |
+  | Wrist flex 45° | 7.7 mm | 0 mm |
+
+  What still bends is the oblique side plates, the elbow ribs and the outer pectoral corner. Their legacy weights already span the torso and an arm, so they flex under today's arm poses too. Changing that would change the current look, which is out of scope.
+- The GLB is 751,448 bytes (+2,000), with 19,514 triangles and eight material batches.
+- Tests:
+  - The GLB's bone hierarchy must equal the runtime table, bone for bone.
+  - Every added bone must descend from the legacy joint it was carved from.
+  - With only legacy joints posed, every skinned vertex must match its weights collapsed onto the ten legacy joints within 1e-6 m.
+  - Five single-digit parent mutations each fail at least one of these tests.
+- `pnpm verify`: TypeScript, 89 unit tests (5 new skeleton tests) and the production build.
+- Browser suite: 34/34 passed against `next start` on 127.0.0.1:3368, whose HTML carried `BUILD_ID 3qvvWOPHkUAznCA-vw3_t` and whose `suit.glb` matched the worktree (`79b8313a…`).
+- Review scripts: `review-flight-poses.mjs` (against that server) and `review-suit-motion.mjs` render the rig normally.
+- No visual change is intended. Not validated on a physical iPhone.
+
 ## Living motion · 2026-09-18
 
 - A time-based layer in `src/world/suitAnimation.ts` animates the ten-joint rig on top of the pose targets. It adds a distance-driven gait along the body-frame travel direction: run, walk, backpedal, and a sideways step that opens and closes without crossing. The gait follows a smoothed velocity, so walls and cleared input never snap the legs.

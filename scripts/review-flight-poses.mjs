@@ -35,7 +35,7 @@ try {
   const name=path.split('/').at(-1), file=files[name];
   if(file)return route.fulfill({contentType:'text/javascript',body:await readFile(root+'/node_modules/three/'+file)});
   const relative=path.replace('/pose-study/','');
-  if(!['world/suitRig','world/skinnedSuit','world/suitGeometry','world/suitPose','game/presentation'].includes(relative))return route.abort();
+  if(!['world/suitRig','world/skinnedSuit','world/suitSkeleton','world/suitGeometry','world/suitPose','game/presentation'].includes(relative))return route.abort();
   const source=await readFile(root+'/src/'+relative+'.ts','utf8');
   return route.fulfill({contentType:'text/javascript',body:ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2020}}).outputText});
  });

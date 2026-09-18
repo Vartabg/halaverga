@@ -1,12 +1,12 @@
 import { Bone, Group, MeshStandardMaterial, Skeleton, SkinnedMesh, Sphere, Vector3, type Object3D } from 'three';
-import { parents, pivots } from './suitGeometry';
+import { BONE_HEADS, BONE_NAMES, BONE_PARENTS, boneIndex } from './suitSkeleton';
 
 /** Bake the authored rest transform, then bind skin weights to neutral game axes. */
 export function buildSkinnedSuit(source: Object3D) {
-  const root = new Group(), joints = pivots.map(() => new Bone());
+  const root = new Group(), joints = BONE_HEADS.map(() => new Bone());
   joints.forEach((joint, i) => {
-    const parent: number = parents[i], p = pivots[i], origin = parent < 0 ? [0, 0, 0] : pivots[parent];
-    joint.name = `suit_joint_${i}`;
+    const parent = BONE_PARENTS[i], p = BONE_HEADS[i], origin = parent < 0 ? [0, 0, 0] : BONE_HEADS[parent];
+    joint.name = BONE_NAMES[i];
     joint.position.set(p[0] - origin[0], p[1] - origin[1], p[2] - origin[2]);
     (parent < 0 ? root : joints[parent]).add(joint);
   });
@@ -24,11 +24,7 @@ export function buildSkinnedSuit(source: Object3D) {
       if (!(object.material instanceof MeshStandardMaterial)) throw new Error('Human suit has unsupported materials.');
       const indices = object.geometry.getAttribute('skinIndex'), weights = object.geometry.getAttribute('skinWeight');
       if (!indices || !weights) throw new Error('Human suit is missing joint weights.');
-      const mapping = object.skeleton.bones.map(bone => {
-        const match = /^suit_joint_([0-9])$/.exec(bone.name);
-        if (!match) throw new Error('Human suit has unknown joints.');
-        return Number(match[1]);
-      });
+      const mapping = object.skeleton.bones.map(bone => boneIndex(bone.name));
       if (!materials.has(object.material)) materials.set(object.material, object.material.clone());
       const geometry = object.geometry.clone();
       const mesh = new SkinnedMesh(geometry, materials.get(object.material)!); meshes.push(mesh);
