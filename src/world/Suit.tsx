@@ -8,6 +8,7 @@ import { buildSuitRig } from './suitRig';
 import { advanceSuitMotion, applySuitPose, orientSuit } from './suitPose';
 import { advanceSuitAnimation, applySuitAnimation, createSuitAnimation } from './suitAnimation';
 export const SUIT_URL = '/models/suit.glb';
+const input = { flying: false, landing: false, paused: true, velocity: runtime.velocity };
 export default function Suit() {
   const motion = useRef({ hero: 1, epoch: -1 }), animation = useRef(createSuitAnimation());
   const asset = useLoader(GLTFLoader, SUIT_URL);
@@ -16,16 +17,15 @@ export default function Suit() {
   useFrame((_, dt) => {
     const state = useGame.getState(), m = motion.current, life = animation.current;
     if (m.epoch !== pose.epoch) Object.assign(m, { epoch: pose.epoch, hero: state.heroPoses ? 1 : 0 });
-    if (!state.paused) {
-      advanceSuitMotion(m, state.heroPoses, dt);
-      advanceSuitAnimation(life, pose, { flying: state.flying, landing: state.landing, velocity: runtime.velocity }, dt);
-    }
+    if (!state.paused) advanceSuitMotion(m, state.heroPoses, dt);
+    input.flying = state.flying; input.landing = state.landing; input.paused = state.paused;
+    advanceSuitAnimation(life, pose, input, dt);
     rig.root.visible = state.camera === 'third';
     rig.root.position.copy(pose.position);
     orientSuit(rig.root, pose, m);
     applySuitPose(rig.joints, pose, m, state.reduced);
     // Visual only: the lift lowers or bobs the model, never the anchor the camera and physics share.
-    rig.root.position.y += applySuitAnimation(rig.joints, life, pose, state.reduced);
+    rig.root.position.y += applySuitAnimation(rig.joints, life, pose, state.reduced, m.hero);
   }, -20);
   return <primitive object={rig.root} dispose={null} />;
 }

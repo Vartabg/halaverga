@@ -1,110 +1,88 @@
 import { describe, expect, it } from 'vitest';
-import { Group, Vector3 } from 'three';
-import type { Pose } from '../src/game/presentation';
-import { parents, pivots } from '../src/world/suitGeometry';
-import { applySuitPose } from '../src/world/suitPose';
-import { advanceSuitAnimation, applySuitAnimation, createSuitAnimation, type AnimationInput, type SuitAnimation } from '../src/world/suitAnimation';
-type Drive = (t: number) => AnimationInput;
-const pose = (patch: Partial<Pose & { epoch: number }> = {}) =>
-  ({ viewYaw: 0, viewPitch: 0, yaw: 0, pitch: 0, lean: 0, bank: 0, speed: 0, flight: 0, power: 0, brake: 0, epoch: 0, ...patch });
-const walking = (x: number, z: number): Drive => () => ({ flying: false, velocity: { x, y: 0, z } });
-const hovering: Drive = () => ({ flying: true, velocity: { x: 0, y: 0, z: 0 } });
-/** Plain groups at the exported pivots, so sole heights can be measured without loading the model. */
-function rig() {
-  const root = new Group(), joints = pivots.map(() => new Group());
-  joints.forEach((joint, i) => {
-    const parent: number = parents[i], p = pivots[i], o = parent < 0 ? [0, 0, 0] : pivots[parent];
-    joint.position.set(p[0] - o[0], p[1] - o[1], p[2] - o[2]); (parent < 0 ? root : joints[parent]).add(joint);
-  });
-  return { root, joints };
-}
-function simulate(seconds: number, hz: number, drive: Drive, p = pose(), a = createSuitAnimation(), each?: (a: SuitAnimation, t: number) => void) {
-  // Inputs are sampled at the start of each step, so every refresh rate sees a change at the same instant.
-  for (let i = 1; i <= Math.round(seconds * hz); i++) { advanceSuitAnimation(a, p, drive((i - 1) / hz), 1 / hz); each?.(a, i / hz); }
-  return a;
-}
-function posed(a: SuitAnimation, p = pose(), reduced = false) {
-  const r = rig(); applySuitPose(r.joints, p, { hero: 1, epoch: 0 }, reduced);
-  const lift = applySuitAnimation(r.joints, a, p, reduced);
-  r.root.position.y = lift; r.root.updateMatrixWorld(true);
-  const soles = [8, 9].map(i => r.joints[i].localToWorld(new Vector3(0, -.49, 0)).y);
-  return { joints: r.joints, lift, soles };
-}
-describe('living suit motion', () => {
-  it('advances the stride with distance travelled, identically at 30, 60 and 120 Hz', () => {
-    const [a30, a60, a120] = [30, 60, 120].map(hz => simulate(2, hz, walking(0, -5)));
-    expect(a30.stride).toBeCloseTo(a120.stride, 9); expect(a60.stride).toBeCloseTo((5 * 2 / 3.3) % 1, 9);
-    expect(posed(a30).joints[8].rotation.x).toBeCloseTo(posed(a120).joints[8].rotation.x, 3);
+import type { AnimatedPose } from '../src/world/suitAnimation';
+import { hovering, lift, approach, pose, posed, rig, rotations, simulate, walking, type Drive } from './suit-motion-harness';
+describe('living suit motion: gait and ground contact', () => {
+  it('advances the stride with distance travelled at 10, 15, 30, 60 and 120 Hz', () => {
+    const rates = [10, 15, 30, 60, 120].map(hz => simulate(2, hz, walking(0, -5)));
+    for (const a of rates) expect(a.stride).toBeCloseTo((5 * 2 / 3.3) % 1, 9);
+    expect(posed(rates[2]).joints[8].rotation.x).toBeCloseTo(posed(rates[4]).joints[8].rotation.x, 6);
   });
   it('swings the legs along the direction of travel with the knee folded on the way through', () => {
-    const range = (drive: Drive) => {
-      let x = 0, z = 0; const through: number[] = [];
+    const through = (drive: Drive) => {
+      let reach = 0; const signs: number[] = [];
       simulate(2, 120, drive, pose(), undefined, (a, t) => {
         if (t < 1) return;
-        const now = posed(a), before = posed({ ...a, stride: (a.stride + .99) % 1 });
-        x = Math.max(x, Math.abs(now.joints[4].rotation.x)); z = Math.max(z, Math.abs(now.joints[4].rotation.z));
-        if (now.joints[8].rotation.x < -.8) through.push(Math.sign(now.joints[4].rotation.x - before.joints[4].rotation.x));
+        const now = posed(a).joints, before = posed({ ...a, stride: (a.stride + .99) % 1 }).joints;
+        reach = Math.max(reach, Math.abs(now[4].rotation.x));
+        if (now[8].rotation.x < -.8) signs.push(Math.sign(now[4].rotation.x - before[4].rotation.x));
       });
-      return { x, z, through };
+      return { reach, signs };
     };
-    const ahead = range(walking(0, -5)), back = range(walking(0, 5)), right = range(walking(5, 0));
-    expect(ahead.x).toBeGreaterThan(.4); expect(ahead.z).toBeLessThan(.05); expect(ahead.through.every(s => s > 0)).toBe(true);
-    expect(back.through.length).toBeGreaterThan(0); expect(back.through.every(s => s < 0)).toBe(true);
-    expect(right.z).toBeGreaterThan(.2); expect(right.x).toBeLessThan(.05);
+    const ahead = through(walking(0, -5)), back = through(walking(0, 5));
+    expect(ahead.reach).toBeGreaterThan(.4); expect(ahead.signs.length).toBeGreaterThan(10); expect(ahead.signs.every(s => s > 0)).toBe(true);
+    expect(back.signs.length).toBeGreaterThan(10); expect(back.signs.every(s => s < 0)).toBe(true);
   });
-  it('keeps the lower sole on the ground while walking, idling, pushing off and landing', () => {
-    const drives: Drive[] = [walking(0, -5), walking(0, 5), walking(5, 0), walking(0, -1.5), walking(0, 0),
-      t => ({ flying: t > 1, velocity: { x: 0, y: t > 1 ? 6 : 0, z: 0 } }), t => ({ flying: t < 1, landing: t < 1, velocity: { x: 0, y: t < 1 ? -1.5 : 0, z: 0 } })];
-    for (const drive of drives) simulate(1.6, 60, drive, pose(), undefined, (a, t) => {
-      if (a.flying && a.takeoff > .1) return;
-      const low = Math.min(...posed(a).soles);
-      expect(Math.abs(low + 1), `sole at ${t.toFixed(2)} s`).toBeLessThan(.012);
+  it('steps sideways without crossing the legs, with the lifted foot moving toward the travel, in both directions', () => {
+    for (const x of [5, -5]) {
+      let narrow = Infinity, wide = 0; const signs: number[] = [];
+      simulate(2, 120, walking(x, 0), pose(), undefined, (a, t) => {
+        if (t < 1) return;
+        const { soles, joints } = posed(a), gap = soles[1].x - soles[0].x, before = posed({ ...a, stride: (a.stride + .99) % 1 }).joints;
+        narrow = Math.min(narrow, gap); wide = Math.max(wide, gap);
+        expect(joints[4].rotation.z).toBeLessThanOrEqual(1e-9); expect(joints[5].rotation.z).toBeGreaterThanOrEqual(-1e-9);
+        if (joints[8].rotation.x < -.8) signs.push(Math.sign(joints[4].rotation.z - before[4].rotation.z));
+      });
+      expect(narrow).toBeGreaterThan(.15); expect(wide).toBeGreaterThan(.5);
+      expect(signs.length).toBeGreaterThan(10); expect(signs.every(s => s === Math.sign(x))).toBe(true);
+    }
+  });
+  it('keeps the lower sole at ground height while walking, turning, idling and landing', () => {
+    const cases: [Drive, Partial<AnimatedPose>][] = [[walking(0, -5), {}], [walking(0, 5), {}], [walking(5, 0), {}], [walking(0, -1.5), {}],
+      [walking(0, 0), {}], [walking(0, -5), { bank: .3 }], [walking(0, 0), { bank: -.2, lean: .05 }], [approach, {}]];
+    for (const [drive, patch] of cases) simulate(1.6, 60, drive, pose(patch), undefined, (a, t) => {
+      if (a.flying) return;
+      // Only while a touchdown's height change is being blended out may the sole sit off the ground: by what is left of that
+      // change, which must be small and gone after .15 s.
+      const low = Math.min(...posed(a, pose(patch)).soles.map(s => s.y)), u = Math.min(1, a.switched / .15);
+      const remainder = Math.abs(a.blend) * (1 - u * u * (3 - 2 * u));
+      expect(remainder).toBeLessThan(.06);
+      expect(Math.abs(low + 1), `sole at ${t.toFixed(2)} s`).toBeLessThan(.005 + remainder);
     });
   });
-  it('keeps elbows flexing forward, knees backward and every joint bounded in each state', () => {
-    const states: [Drive, Partial<Pose>][] = [[walking(0, -5), {}], [walking(0, 5), {}], [walking(-5, 0), {}], [walking(0, 0), {}],
+  it('holds the takeoff height through the crouch although physics has already raised the anchor, at 60 and 30 Hz', () => {
+    for (const hz of [60, 30]) {
+      const p = pose();
+      simulate(1.3, hz, lift(), p, undefined, a => {
+        if (a.takeoff > .1) return;
+        expect(Math.abs(Math.min(...posed(a, p).soles.map(s => s.y)) + 1)).toBeLessThan(.005);
+      }, t => { p.position.y = Math.max(0, 6 * (t - 1)); });
+    }
+  });
+  it('keeps the feet under the body through the push-off crouch and the landing absorb', () => {
+    const at = (drive: Drive, seconds: number) => Math.max(...posed(simulate(seconds, 60, drive)).soles.map(s => Math.abs(s.z)));
+    expect(at(lift(), 1.1)).toBeLessThan(.06);
+    expect(at(t => ({ flying: t < 1, velocity: { x: 0, y: 0, z: 0 } }), 1.1)).toBeLessThan(.06);
+  });
+  it('keeps every joint bounded, with the elbows flexed forward while running and the hinge guards holding', () => {
+    const states: [Drive, Partial<AnimatedPose>][] = [[walking(0, -5), {}], [walking(0, 5), {}], [walking(-5, 0), {}], [walking(0, 0), {}],
+      [t => ({ flying: false, velocity: { x: 0, y: 0, z: t < .5 ? 0 : -5 } }), {}],
       [hovering, { flight: 1 }], [() => ({ flying: true, velocity: { x: 0, y: 0, z: -34 } }), { flight: 1, power: 1, speed: 34, lean: -1.35 }],
-      [t => ({ flying: t > .5, velocity: { x: 0, y: t > .5 ? 6 : 0, z: 0 } }), {}], [t => ({ flying: t < .5, velocity: { x: 0, y: 0, z: 0 } }), {}],
+      [lift(.5), {}], [t => ({ flying: t < .5, velocity: { x: 0, y: 0, z: 0 } }), {}],
       [t => ({ flying: true, velocity: { x: 0, y: 0, z: t < .5 ? -34 : 0 } }), { flight: 1, brake: 1 }]];
-    for (const reduced of [false, true]) for (const [drive, patch] of states) simulate(12, 30, drive, pose(patch), undefined, a => {
-      const { joints, lift } = posed(a, pose(patch), reduced);
+    for (const [reduced, hero] of [[false, 1], [true, 1], [false, 0]] as const) for (const [drive, patch] of states) simulate(12, 30, drive, pose(patch), undefined, a => {
+      const { joints, lift: up } = posed(a, pose(patch), { reduced, hero });
       for (const elbow of [6, 7]) expect(joints[elbow].rotation.x).toBeGreaterThanOrEqual(0);
       for (const knee of [8, 9]) expect(joints[knee].rotation.x).toBeLessThanOrEqual(0);
-      expect(joints.every(j => [j.rotation.x, j.rotation.y, j.rotation.z].every(v => Number.isFinite(v) && Math.abs(v) <= Math.PI))).toBe(true);
-      expect(Math.abs(lift)).toBeLessThan(.4);
+      expect(rotations(joints).every(v => Number.isFinite(v) && Math.abs(v) <= Math.PI)).toBe(true);
+      expect(Math.abs(up)).toBeLessThan(.8);
     });
+    const running = posed(simulate(1.5, 60, walking(0, -5))).joints;
+    expect(Math.min(running[6].rotation.x, running[7].rotation.x)).toBeGreaterThan(.9);
   });
-  it('pushes off from a crouch on a lift but not when the suit catches a fall', () => {
-    const lift = simulate(1.1, 60, t => ({ flying: t > 1, velocity: { x: 0, y: t > 1 ? 6 : 0, z: 0 } }));
-    const caught = simulate(1.1, 60, t => ({ flying: t > 1, velocity: { x: 0, y: 0, z: 0 } }));
-    expect(posed(lift).joints[8].rotation.x).toBeLessThan(-.8); expect(posed(lift).lift).toBeLessThan(-.08);
-    expect(posed(caught).joints[8].rotation.x).toBeGreaterThan(-.2);
-  });
-  it('absorbs a touchdown through the knees but not a teleport to the ground', () => {
-    const landing = (teleport: boolean) => {
-      const p = pose(), a = simulate(1, 60, hovering, p);
-      if (teleport) p.epoch = 1;
-      return posed(simulate(.1, 60, walking(0, 0), p, a));
-    };
-    expect(landing(false).joints[8].rotation.x).toBeLessThan(-.8); expect(landing(false).lift).toBeLessThan(-.08);
-    expect(landing(true).joints[8].rotation.x).toBeGreaterThan(-.2);
-  });
-  it('swings the limbs forward on a hard stop, overshoots and settles alike at 30, 60 and 120 Hz', () => {
-    const lag = [30, 60, 120].map(hz => {
-      const trace: number[] = []; simulate(3, hz, t => ({ flying: true, velocity: { x: 0, y: 0, z: t < 1 ? -13 : 0 } }), pose(), undefined,
-        (a, t) => { if (Math.abs(t * 10 - Math.round(t * 10)) < 1e-6) trace.push(a.lagForward.x); });
-      return trace;
+  it('rewrites every joint each frame, so posing the same rig again never accumulates', () => {
+    const kept = rig();
+    simulate(2, 60, t => ({ flying: t > 1.2, velocity: { x: 3, y: t > 1.2 ? 6 : 0, z: -4 } }), pose(), undefined, a => {
+      expect(rotations(posed({ ...a }, pose(), { r: kept }).joints)).toEqual(rotations(posed({ ...a }).joints));
     });
-    const after = lag[1].slice(10);
-    expect(Math.max(...after)).toBeGreaterThan(.5); expect(Math.min(...after)).toBeLessThan(-.05);
-    expect(Math.abs(after.at(-1)!)).toBeLessThan(.02);
-    lag[0].forEach((v, i) => { expect(v).toBeCloseTo(lag[1][i], 2); expect(v).toBeCloseTo(lag[2][i], 2); });
-  });
-  it('keeps the gait under reduced motion but softens the extras and adds no twist', () => {
-    const a = simulate(1.5, 60, walking(0, -5)), full = posed(a), soft = posed(a, pose(), true);
-    expect(soft.joints[4].rotation.x).toBeCloseTo(full.joints[4].rotation.x, 6);
-    expect(soft.joints[0].rotation.y).toBe(0); expect(soft.joints[1].rotation.y).toBe(0);
-    const bob = (reduced: boolean) => { const lifts: number[] = []; simulate(3, 60, hovering, pose({ flight: 1 }), undefined, h => lifts.push(posed(h, pose({ flight: 1 }), reduced).lift)); return Math.max(...lifts) - Math.min(...lifts); };
-    expect(bob(true)).toBeLessThan(bob(false) * .4); expect(bob(false)).toBeGreaterThan(.08);
   });
 });

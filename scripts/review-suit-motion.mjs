@@ -6,7 +6,9 @@ import { fileURLToPath } from 'node:url';
 import { readFile } from 'node:fs/promises';
 import ts from 'typescript';
 const root = fileURLToPath(new URL('..', import.meta.url)), W = 150, H = 200, COLS = 8;
-const baseline = process.env.SUIT_MOTION_BASELINE === '1', rows = process.env.SUIT_MOTION_ROWS?.split(',').map(Number) ?? null;
+const baseline = process.env.SUIT_MOTION_BASELINE === '1', picked = process.env.SUIT_MOTION_ROWS?.split(',').map(s => s.trim());
+if (picked && (picked.some(s => !/^[0-9]$/.test(s)) || new Set(picked).size !== picked.length)) throw new Error('SUIT_MOTION_ROWS must list distinct row numbers 0-9.');
+const rows = picked?.map(Number) ?? null;
 const page = `<!doctype html><html><head><meta charset="utf-8"><style>body{margin:0;background:#12262c;color:#d7e9e3;font:12px Arial}
 #wrap{display:flex}#labels{width:190px}#labels div{height:${H}px;box-sizing:border-box;padding:14px 12px;border-bottom:1px solid #1d3a41;letter-spacing:1px}
 #labels small{display:block;color:#8fb3ad;margin-top:6px;line-height:1.4}canvas{display:block}</style>
@@ -32,7 +34,7 @@ const all = [
   ['Takeoff', 'side · lift pressed at 0 s', 'side', .5, [-.05, .03, .06, .1, .15, .2, .3, .5], sim => {
     const t = sim.t; sim.flying = t >= 0; sim.velocity = { x: 0, y: t < 0 ? 0 : t < .4 ? 6 : 6 * Math.exp(-9 * (t - .4)), z: 0 }; }],
   ['Landing', 'side · touchdown at 0 s', 'side', 1.2, [-.1, .02, .05, .08, .12, .2, .35, .6], sim => {
-    sim.flying = sim.landing = sim.t < 0; sim.velocity = { x: 0, y: sim.t < 0 ? -1.5 : 0, z: 0 }; sim.anchorY = Math.max(0, -1.5 * sim.t); }],
+    sim.flying = sim.landing = sim.t < 0; sim.velocity = { x: 0, y: sim.t < 0 ? -1.5 : 0, z: 0 }; sim.pinned = true; sim.anchorY = Math.max(0, -1.5 * sim.t); }],
   ['Hover', 'chase camera · one bob', 'chase', 1.5, spread(1 / .42), sim => { sim.flying = true; sim.velocity = { x: 0, y: 0, z: 0 }; }],
   ['Brake', 'side · stop from 13 m/s at 0 s', 'side', 1.5, [-.1, .05, .1, .2, .3, .45, .7, 1], sim => {
     sim.flying = true; sim.velocity = { x: 0, y: 0, z: -(sim.t < 0 ? 13 : 13 * Math.exp(-9 * sim.t)) }; }],
@@ -52,9 +54,10 @@ all.forEach(([, , view, warmup, samples, drive], row) => {
   drive(sim); pose.flight = sim.flying ? 1 : 0;
   for (let next = 0, dt = 1 / 60; next < samples.length;) {
     drive(sim); const v = sim.velocity;
+    // The camera follows the anchor, as in the game; the anchor height also feeds the takeoff hold.
+    sim.anchorX += v.x * dt; sim.anchorZ += v.z * dt; if (!sim.pinned) sim.anchorY += v.y * dt; pose.position.y = sim.anchorY;
     advanceFlightPose(pose, { yaw: 0, pitch: -.12, speed: Math.hypot(v.x, v.y, v.z), velocity: v, flying: sim.flying, reduced: false }, dt);
-    advanceSuitAnimation(anim, pose, { flying: sim.flying, landing: sim.landing, velocity: v }, dt);
-    sim.anchorX += v.x * dt; sim.anchorY += v.y * dt; sim.anchorZ += v.z * dt; sim.t += dt;
+    advanceSuitAnimation(anim, pose, { flying: sim.flying, landing: sim.landing, velocity: v }, dt); sim.t += dt;
     if (sim.t < samples[next] - 1e-9) continue;
     rig.root.position.set(0, 0, 0); orientSuit(rig.root, pose, motion); applySuitPose(rig.joints, pose, motion, false);
     rig.root.position.y = BASELINE ? 0 : applySuitAnimation(rig.joints, anim, pose, false);
@@ -75,8 +78,11 @@ window.rendered = true;
 const three = { 'three.module.js': 'build/three.module.js', 'three.core.js': 'build/three.core.js' };
 const browser = await chromium.launch({ executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', args: ['--use-gl=angle', '--use-angle=metal'] });
 try {
-  const tab = await browser.newPage({ viewport: { width: 190 + W * COLS, height: H * (rows?.length ?? 10) } }), errors = [];
-  tab.on('pageerror', e => errors.push(e.message));
+  const tab = await browser.newPage({ viewport: { width: 190 + W * COLS, height: H * (rows?.length ?? 10) } });
+  // Fail on the first page or module error instead of waiting out the render timeout.
+  let fail; const failed = new Promise((_, reject) => { fail = reject; }); failed.catch(() => {});
+  tab.on('pageerror', e => fail(e)); tab.on('console', m => { if (m.type() === 'error') fail(new Error(m.text())); });
+  tab.on('requestfailed', r => fail(new Error(`Request failed: ${r.url()}`)));
   await tab.route('http://suit-motion.test/**', async route => {
     const path = new URL(route.request().url()).pathname;
     if (path === '/') return route.fulfill({ contentType: 'text/html', body: page });
@@ -87,7 +93,7 @@ try {
     const source = await readFile(root + path.slice(1) + '.ts', 'utf8');
     return route.fulfill({ contentType: 'text/javascript', body: ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText });
   });
-  await tab.goto('http://suit-motion.test/'); await tab.waitForFunction(() => window.rendered, null, { timeout: 60000 });
-  if (errors.length) throw new Error(errors.join('\n'));
+  await tab.goto('http://suit-motion.test/');
+  await Promise.race([tab.waitForFunction(() => window.rendered, null, { timeout: 60000 }), failed]);
   await tab.screenshot({ path: process.env.SUIT_MOTION_OUTPUT || '/tmp/halaverga-suit-motion.png', fullPage: true });
 } finally { await browser.close(); }
