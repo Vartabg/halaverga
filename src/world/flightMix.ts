@@ -28,8 +28,8 @@ export function createFlightMix(): FlightMix {
 export function advanceFlightMix(mix: FlightMix, pose: Pose & { epoch: number }, input: MixInput, elapsed: number) {
   const real = Number.isFinite(elapsed) ? clamp(elapsed, 0, .25) : 0, dt = Math.min(real, .05), v = input.velocity;
   const sin = Math.sin(pose.yaw), cos = Math.cos(pose.yaw), forward = -v.x * sin - v.z * cos, side = v.x * cos - v.z * sin;
-  const slope = clamp(v.y / Math.max(4, Math.hypot(v.x, v.y, v.z)), -1, 1) || 0;
-  const horizontal = Math.hypot(v.x, v.z), travel = horizontal > 2 ? Math.atan2(-v.x, -v.z) : mix.travel;
+  const slope = clamp(v.y / Math.max(4, Math.sqrt(v.x * v.x + v.y * v.y + v.z * v.z)), -1, 1) || 0;
+  const horizontal = Math.sqrt(v.x * v.x + v.z * v.z), travel = horizontal > 2 ? Math.atan2(-v.x, -v.z) : mix.travel;
   // Flying backward reads as pushing against the air.
   const brake = clamp(Math.max(pose.brake, clamp(-forward / 8, 0, 1) * pose.flight), 0, 1) || 0;
   mix.fistOn = input.flying && (pose.speed >= FIST.up || (mix.fistOn && pose.speed > FIST.down));

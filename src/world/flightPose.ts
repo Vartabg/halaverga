@@ -1,6 +1,6 @@
 import type { Object3D } from 'three';
 import type { Pose } from '../game/presentation';
-import { addPose, createPose, limitPose, mixPose, pitchOf, preRotateX, restPose, rotateX, rotateZ, sampleClip, type Clip, type PoseBuffer } from './clipSampler';
+import { addPose, createPose, limitPose, mixPose, preRotateX, restPose, rotateX, rotateZ, sampleClip, sumPitch, type Clip, type PoseBuffer } from './clipSampler';
 import { ACCENTS } from './flightAccents';
 import { FLIGHT, HOVER_LOOP } from './flightClips';
 import type { FlightMix } from './flightMix';
@@ -10,7 +10,8 @@ const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v
 const smooth = (a: number, b: number, v: number) => { const t = clamp((v - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
 const group = (name: string) => name.replace(/_[lr]$/, '');
 const idx = (name: string) => BONE_NAMES.indexOf(name as never);
-const UPPERARM_R = idx('upperarm_r'), SPINE = idx('spine'), CHEST = idx('chest'), NECK = idx('neck'), HEAD = idx('head');
+const UPPERARM_R = idx('upperarm_r'), CHEST = idx('chest'), NECK = idx('neck'), HEAD = idx('head');
+const LOOK = new Int8Array(['spine', 'chest', 'neck', 'head'].map(idx)), spent = new Float64Array(1);
 /** The hero fist chain: while the fist is up, the bank and slope accents leave it alone. */
 const LEAD = BONE_NAMES.map(n => ['clavicle_r', 'upperarm_r', 'forearm_r', 'hand_r'].includes(n) ? 1 : 0);
 const FEET = BONE_NAMES.map(n => ['foot', 'toe'].includes(group(n)));
@@ -68,7 +69,7 @@ export function applyFlightClips(joints: Object3D[], mix: FlightMix, pose: Pose,
   if (approach > 1e-3) { restPose(work); sampleClip(ACCENTS.flare, 0, work); mixPose(out, work, approach, FLARE_MASK); }
   // Look budget: the neck and head make up whatever the torso has not already spent of the look along the travel (down on a flare).
   const look = clamp(-pose.lean * .72, -.25, 1) * (1 - approach) - .2 * approach;
-  const rest = clamp(look - pitchOf(out, SPINE) - pitchOf(out, CHEST) - pitchOf(out, NECK) - pitchOf(out, HEAD), -.4, 1);
+  sumPitch(out, LOOK, spent); const rest = clamp(look - spent[0], -.4, 1);
   rotateX(out, NECK, rest * .5); rotateX(out, HEAD, rest * .5);
   mix.clamped = limitPose(out);
   // Handover: the feet leave the plant only once the takeoff releases it and go flat on touchdown; the legs hand back over .15 s.

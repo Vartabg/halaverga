@@ -89,7 +89,7 @@ export function sampleClip(clip: Clip, time: number, out: PoseBuffer) {
 }
 function copy(out: Float32Array, o: number, q: Float32Array, k: number) { for (let i = 0; i < 4; i++) out[o + i] = q[k + i]; }
 function normalize(p: Float32Array, o: number) {
-  const l = Math.hypot(p[o], p[o + 1], p[o + 2], p[o + 3]);
+  const l = Math.sqrt(p[o] * p[o] + p[o + 1] * p[o + 1] + p[o + 2] * p[o + 2] + p[o + 3] * p[o + 3]);
   if (!(l > 1e-6) || !Number.isFinite(l)) { p[o] = p[o + 1] = p[o + 2] = 0; p[o + 3] = 1; return; }
   for (let i = 0; i < 4; i++) p[o + i] /= l;
 }
@@ -109,7 +109,7 @@ export function addPose(pose: PoseBuffer, offset: PoseBuffer, w: number, mask?: 
     const u = Math.min(1, Math.max(0, w * (mask ? mask[b] : 1)));
     if (u === 0) continue;
     const s = offset[o + 3] < 0 ? -u : u;
-    const x = offset[o] * s, y = offset[o + 1] * s, z = offset[o + 2] * s, ww = 1 - u + offset[o + 3] * s, l = Math.hypot(x, y, z, ww);
+    const x = offset[o] * s, y = offset[o + 1] * s, z = offset[o + 2] * s, ww = 1 - u + offset[o + 3] * s, l = Math.sqrt(x * x + y * y + z * z + ww * ww);
     const bx = x / l, by = y / l, bz = z / l, bw = ww / l, ax = pose[o], ay = pose[o + 1], az = pose[o + 2], aw = pose[o + 3];
     pose[o] = ax * bw + aw * bx + ay * bz - az * by; pose[o + 1] = ay * bw + aw * by + az * bx - ax * bz;
     pose[o + 2] = az * bw + aw * bz + ax * by - ay * bx; pose[o + 3] = aw * bw - ax * bx - ay * by - az * bz;
@@ -117,6 +117,10 @@ export function addPose(pose: PoseBuffer, offset: PoseBuffer, w: number, mask?: 
 }
 /** The bone's XYZ Euler x (its forward or backward bend), read from a pose buffer. */
 export const pitchOf = (pose: PoseBuffer, bone: number) => euler.setFromQuaternion(quat.fromArray(pose, bone * 4)).x;
+/** Writes the summed pitch of `bones` to into[0]: a typed-array result, so the per-frame caller boxes no numbers. */
+export function sumPitch(pose: PoseBuffer, bones: ArrayLike<number>, into: Float64Array) {
+  into[0] = 0; for (let i = 0; i < bones.length; i++) into[0] += euler.setFromQuaternion(quat.fromArray(pose, bones[i] * 4)).x;
+}
 /** Bone, x, y, z of each clamp in the last limitPose call, for diagnostics. */
 export const lastClamped: number[] = [];
 /** Clamps each bone to its Euler range (hinges to pure x) in place; returns how many bones were clamped. */
