@@ -1,12 +1,12 @@
 // Frame strips of the living motion on the actual rig: the real pose and animation modules simulated at 60 Hz in system Chrome.
 // `node scripts/review-suit-motion.mjs` needs no server. SUIT_MOTION_BASELINE=1 renders the same strips without the layer;
-// SUIT_MOTION_OUTPUT sets the PNG path; SUIT_MOTION_ROWS=0,6 picks rows.
+// SUIT_MOTION_CLIPS=0 leaves out the authored flight clips (the baseline has neither); SUIT_MOTION_OUTPUT sets the PNG path; SUIT_MOTION_ROWS=0,6 picks rows.
 import { chromium } from '@playwright/test';
 import { fileURLToPath } from 'node:url';
 import { readFile } from 'node:fs/promises';
 import ts from 'typescript';
 const root = fileURLToPath(new URL('..', import.meta.url)), W = 150, H = 200, COLS = 8;
-const baseline = process.env.SUIT_MOTION_BASELINE === '1', picked = process.env.SUIT_MOTION_ROWS?.split(',').map(s => s.trim());
+const baseline = process.env.SUIT_MOTION_BASELINE === '1', clips = process.env.SUIT_MOTION_CLIPS !== '0', picked = process.env.SUIT_MOTION_ROWS?.split(',').map(s => s.trim());
 if (picked && (picked.some(s => !/^[0-9]$/.test(s)) || new Set(picked).size !== picked.length)) throw new Error('SUIT_MOTION_ROWS must list distinct row numbers 0-9.');
 const rows = picked?.map(Number) ?? null;
 const page = `<!doctype html><html><head><meta charset="utf-8"><style>body{margin:0;background:#12262c;color:#d7e9e3;font:12px Arial}
@@ -20,7 +20,9 @@ import { buildSuitRig } from '/src/world/suitRig';
 import { applySuitPose, orientSuit } from '/src/world/suitPose';
 import { advanceFlightPose, CHASE_BOOM } from '/src/game/presentation';
 import { advanceSuitAnimation, applySuitAnimation, createSuitAnimation } from '/src/world/suitAnimation';
-const W = ${W}, H = ${H}, COLS = ${COLS}, BASELINE = ${baseline}, PICK = ${JSON.stringify(rows)};
+import { advanceFlightMix, createFlightMix } from '/src/world/flightMix';
+import { applyFlightClips } from '/src/world/flightPose';
+const W = ${W}, H = ${H}, COLS = ${COLS}, BASELINE = ${baseline}, CLIPS = ${clips}, PICK = ${JSON.stringify(rows)};
 const cycle = speed => Math.min(3.4, Math.max(1, .8 + .5 * speed)) / speed;
 const spread = period => Array.from({ length: COLS }, (_, i) => i * period / COLS);
 const on = (x, z) => sim => { sim.velocity = { x, y: 0, z }; };
@@ -39,7 +41,7 @@ const all = [
   ['Brake', 'side · stop from 13 m/s at 0 s', 'side', 1.5, [-.1, .05, .1, .2, .3, .45, .7, 1], sim => {
     sim.flying = true; sim.velocity = { x: 0, y: 0, z: -(sim.t < 0 ? 13 : 13 * Math.exp(-9 * sim.t)) }; }],
 ].filter((_, i) => !PICK || PICK.includes(i));
-for (const [name, note] of all) document.getElementById('labels').insertAdjacentHTML('beforeend', '<div>' + name.toUpperCase() + '<small>' + note + (BASELINE ? ' · without layer' : '') + '</small></div>');
+for (const [name, note] of all) document.getElementById('labels').insertAdjacentHTML('beforeend', '<div>' + name.toUpperCase() + '<small>' + note + (BASELINE ? ' · without layer' : '') + (CLIPS ? '' : ' · without clips') + '</small></div>');
 const asset = await new GLTFLoader().loadAsync('/models/suit.glb');
 const renderer = new T.WebGLRenderer({ antialias: true }); renderer.setPixelRatio(1.5); renderer.setSize(W * COLS, H * all.length);
 renderer.setScissorTest(true); renderer.toneMapping = T.ACESFilmicToneMapping; renderer.setClearColor('#12262c');
@@ -50,17 +52,19 @@ for (const [color, intensity, pos] of [['#fff0d0', 3, [-3, 5, -3]], ['#92d5dd', 
 const camera = new T.PerspectiveCamera(30, W / H, .05, 60), motion = { hero: 1, epoch: 0 };
 all.forEach(([, , view, warmup, samples, drive], row) => {
   const pose = { viewYaw: 0, viewPitch: -.12, yaw: 0, pitch: -.12, lean: 0, bank: 0, speed: 0, flight: 0, power: 0, brake: 0, epoch: 0, position: { x: 0, y: 0, z: 0 } };
-  const anim = createSuitAnimation(), sim = { t: -warmup, flying: false, landing: false, velocity: { x: 0, y: 0, z: 0 }, anchorX: 0, anchorY: 0, anchorZ: 0 };
+  const anim = createSuitAnimation(), mix = createFlightMix(), sim = { t: -warmup, flying: false, landing: false, velocity: { x: 0, y: 0, z: 0 }, anchorX: 0, anchorY: 0, anchorZ: 0 };
   drive(sim); pose.flight = sim.flying ? 1 : 0;
   for (let next = 0, dt = 1 / 60; next < samples.length;) {
     drive(sim); const v = sim.velocity;
     // The camera follows the anchor, as in the game; the anchor height also feeds the takeoff hold.
     sim.anchorX += v.x * dt; sim.anchorZ += v.z * dt; if (!sim.pinned) sim.anchorY += v.y * dt; pose.position.y = sim.anchorY;
     advanceFlightPose(pose, { yaw: 0, pitch: -.12, speed: Math.hypot(v.x, v.y, v.z), velocity: v, flying: sim.flying, reduced: false }, dt);
-    advanceSuitAnimation(anim, pose, { flying: sim.flying, landing: sim.landing, velocity: v }, dt); sim.t += dt;
+    advanceSuitAnimation(anim, pose, { flying: sim.flying, landing: sim.landing, velocity: v }, dt);
+    advanceFlightMix(mix, pose, { paused: false, reduced: false, flying: sim.flying, velocity: v }, dt); sim.t += dt;
     if (sim.t < samples[next] - 1e-9) continue;
     rig.root.position.set(0, 0, 0); orientSuit(rig.root, pose, motion); applySuitPose(rig.joints, pose, motion, false);
-    rig.root.position.y = BASELINE ? 0 : applySuitAnimation(rig.joints, anim, pose, false);
+    const authored = CLIPS && !BASELINE ? applyFlightClips(rig.joints, mix, pose, anim, motion.hero, false) : 0;
+    rig.root.position.y = BASELINE ? 0 : applySuitAnimation(rig.joints, anim, pose, false, motion.hero, authored);
     grid.position.set(-(sim.anchorX % .5), -1.04 - sim.anchorY, -(sim.anchorZ % .5));
     if (view === 'chase') {
       const q = new T.Quaternion().setFromEuler(new T.Euler(pose.viewPitch, 0, 0, 'YXZ'));

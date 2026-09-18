@@ -24,9 +24,9 @@ Design, chosen by a three-way design review with independent judges:
 
 ## 2. Authored flight clips
 
-- [ ] Clip sampler, flight clips and accents, flight mix and flight pose modules.
-- [ ] Facing, hinge, frame-rate, pause and ground-exactness tests.
-- [ ] Review strips, a browser label spec and a first-load check.
+- [x] Clip sampler, flight clips and accents, flight mix and flight pose modules.
+- [x] Facing, hinge, frame-rate, pause and ground-exactness tests.
+- [x] Review strips, a browser label spec and a first-load check. (The browser spec is written; its run against a server is pending.)
 
 ## 3. Whole-body turn roll
 

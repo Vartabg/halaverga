@@ -1,5 +1,34 @@
 # First-flight verification · 2026-09-11
 
+## Authored flight clips · 2026-09-18
+
+- In flight the explorer plays original hand-authored clips on the 21-bone skeleton: hover, cruise, power (classic and hero), the hero fist, brake, bank, climb, dive, sink, a takeoff snap and a landing flare. `src/world/clipSampler.ts` compiles and samples them; `flightMix.ts` advances the blend weights; `flightPose.ts` blends them over the pose targets. The telemetry element carries the clip on show as `data-suit-clip`.
+- Measured in unit tests (Node, the real modules on the 21-bone rig):
+
+  | Invariant | Floor in the test | Measured |
+  |---|---|---|
+  | Chest back toward the chase camera, static grid (7 view pitches × 3 body offsets × 3 banks × 5 speeds × 3 yaws × style × brake × 4 phases × reduced) | > .05 (> .1 with bank = yaw = 0) | .065 (.112) |
+  | Same, hard stops and turns through the full stack (5 view pitches × 3 drags × 3 turns × style × 2 speeds × reduced) | > .1 | .109 |
+  | Face direction · camera | < 0 | ≤ −.056 static, ≤ −.099 dynamic |
+  | Pelvis + spine + chest yaw | ≤ .1 | .075 |
+  | Joint-limit clamps in normal play | 0 | 0 |
+  | Ground output with the flight weight at zero | bit-identical | bit-identical; within 1.250 s of an unassisted touchdown |
+  | Toe tip against the legacy foot while planted | ≥ −.005 m (hold, after), ≥ −.02 m (.15 s blend) | +.0003 m, −.0001 m, −.0133 m |
+  | 30 or 60 Hz against 120 Hz | < 5e-3 rad at the end of a 6 s route; layer trace < 2.5e-3 per component every .5 s | 8.4e-4 / 4.8e-4 rad; 1.2e-3 / 4.1e-4 |
+  | Hero fist, 16–34 m/s at pitch 0 and ±.3 | 2–12° above travel, .12–.30 m right of the head | 5.2–6.4°, .188–.220 m |
+  | Head look below the travel axis at fist speeds | 0–25° | 3.0–21.7° |
+  | Keyboard turn, chest carve weight at 13 / 34 m/s | > .8 | .933 / 1.0 |
+  | Fist steer leads the carve (crossing .5) | ≥ .1 s | .233 s / .133 s |
+
+- `applyFlightClips` takes 12–16 µs per call in Node on an Apple M2 Max. Its buffers are preallocated; after replacing `Math.hypot` and number-returning helpers, what remains is a few bytes per call of V8 number boxing (0–40 B across runs), against about 160 B before.
+- The living-motion tests (`suit-animation`, `suit-transitions`) run three times: clips off, clips on, and clips on with the flight weight settling as in the game. All pass.
+- Mutation checks: each mechanism was broken on purpose and the named test failed. Brake arch instead of hunch, no look budget, pelvis keeping its legacy yaw, bank yaw past the limits, a backward elbow, a fist past the joint limit, no blend pivot, no flight-weight threshold, feet without the plant release, legs without the touchdown hand-back, blending from a stale pose, a per-frame clock, per-frame settling, per-frame lateral acceleration, no pause hold, no resume reset, no NaN guard, no fist hysteresis, a speed-proportional fist, no fist re-aim, carve from `pose.bank`, steer from the travel, equal settle rates, reduced motion damping poses, reduced motion not damping loops, reduced motion keeping the carve, undamped hover drift, the brake label from `pose.brake`, no side-slip lean, no backward-flight brace and slope from the view pitch. Loosening the joint limits alone and removing the hinge or limit guards change nothing, because no authored pose reaches them.
+- Landing first load (`scripts/check-first-load.mjs`, now part of `pnpm verify`): 8 scripts, 601.5 KB, no three.js or clip markers. With a clip table imported into the landing telemetry on purpose, the check failed on five markers. The clip modules sit in the lazy scene chunks.
+- `suit.glb` is unchanged by this slice.
+- Review strips, rendered without a server: `scripts/review-flight-motion.mjs` (ten rows; chase rows are crops of the 1440 × 1000 frame at the game's field of view) with `SUIT_FLIGHT_CLIPS=0` as the baseline, plus reduced/classic and phone variants; `review-suit-motion.mjs` and `review-flight-poses.mjs` now apply the flight layer. Inspected for limbs through the body, arms passing behind the head, feet below the ground plane and the chest toward the chase camera: none seen. The carve in turns is subtle from the chase camera, and at phone size the power-flight silhouette is small.
+- `pnpm verify` green: TypeScript, 153 unit tests in 21 files, the production build and the first-load check.
+- Pending: the browser suite, including the new `tests/suit-clips.spec.ts`, against a fresh `next start`; the owner review of the strips and a live capture; a physical iPhone check.
+
 ## 21-bone skeleton · 2026-09-18
 
 - The explorer is built on 21 bones. The ten legacy joints keep their indices and exact pivots. A spine, chest, neck, clavicles, hands, feet and toes are added at identity rest. The runtime maps skin indices by bone name and still binds the old `suit_joint_N` names.
