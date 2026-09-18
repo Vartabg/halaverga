@@ -11,7 +11,8 @@
     "test": "vitest run",
     "test:browser": "playwright test",
     "test:a11y": "playwright test tests/accessibility.spec.ts",
-    "verify": "pnpm typecheck && pnpm test && pnpm build"
+    "verify": "pnpm typecheck && pnpm test && pnpm build",
+    "make:qr": "pnpm dlx qrcode -t svg -w 300 -o public/qr-deployment.svg https://halaverga-flight.vercel.app"
   },
   "dependencies": {
     "@react-three/fiber": "9.7.0",
