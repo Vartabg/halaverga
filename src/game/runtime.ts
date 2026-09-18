@@ -1,11 +1,12 @@
-import { Vector3 } from 'three';
-import { SPEED, START, type Intent } from './motion';
+import type { Vector3 } from 'three';
+import { SPEED, START, setVec, type Intent } from './motion';
 import { useGame } from './store';
+// The landing page imports this module, so vectors stay plain objects and three.js is imported for types only; a value import would load the 3D bundle with the page.
 export const runtime = {
-  position: new Vector3(START.x, START.y, START.z), velocity: new Vector3(),
+  position: { ...START }, velocity: { x: 0, y: 0, z: 0 },
   yaw: 0, pitch: -0.12, surge: false, lift: false, reset: false,
   poseEpoch: 0, cameraDistance: 0,
-  clearance: { active: false, boundary: false, point: new Vector3(), normal: new Vector3(0, 1, 0) },
+  clearance: { active: false, boundary: false, point: { x: 0, y: 0, z: 0 }, normal: { x: 0, y: 1, z: 0 } },
   thumb: { active: false, throttle: 0, strafe: 0, edgeTurn: 0, edgePitch: 0, bank: 0 }, keys: new Set<string>(),
   trackpad: { active: false, throttle: 8 / SPEED.surge, edgeTurn: 0, edgePitch: 0, edgeAge: 0, unlocking: false },
   tap: { forward: 0, strafe: 0, vertical: 0 },
@@ -27,7 +28,7 @@ export function clearInput(stop = false) {
   runtime.tap = { forward: 0, strafe: 0, vertical: 0 };
   runtime.surge = false; runtime.lift = false; runtime.landGoal = null;
   useGame.setState({ landing: false });
-  if (stop) runtime.velocity.set(0, 0, 0);
+  if (stop) setVec(runtime.velocity, 0, 0, 0);
 }
 export function toggleSurge() { runtime.surge = !runtime.surge; }
 export function look(dx: number, dy: number) {

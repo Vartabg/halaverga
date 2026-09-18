@@ -1,12 +1,13 @@
-import { Vector3, type Object3D } from 'three';
+import type { Object3D } from 'three';
 import type { Vec } from './motion';
+// Telemetry reads this on the landing page, so vectors stay plain objects and three.js is imported for types only.
 export const presentation = {
-  anchor: null as Object3D | null, position: new Vector3(),
+  anchor: null as Object3D | null, position: { x: 0, y: 0, z: 0 },
   viewYaw: 0, viewPitch: -.12, yaw: 0, pitch: -.12, lean: 0, bank: 0, speed: 0, flight: 0, power: 0, brake: 0,
   epoch: -1, alignAfterReset: false,
 };
 /** Third-person boom in the view frame: right, up and behind the head. */
-export const CHASE_BOOM = new Vector3(.85, .7, 5.3);
+export const CHASE_BOOM: Vec = { x: .85, y: .7, z: 5.3 };
 /** The body may trail the travel direction, but never far enough to turn its chest toward the chase camera. */
 export const FACING = { yaw: .3, pitchUp: .4, pitchDown: .15 } as const;
 export const angleDelta = (from: number, to: number) => Math.atan2(Math.sin(to - from), Math.cos(to - from));
