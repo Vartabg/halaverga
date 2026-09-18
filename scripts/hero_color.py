@@ -34,7 +34,8 @@ def bake_reference(objects,path):
             for col in range(size):
                 angle = col/(size-1)*2*pi-pi
                 x = interpolate(RADII,z)*cos(angle)
-                sampled = sample(.501+x*3.22,interpolate(LANDMARKS,z))
+                # The head faces +Y, so +X is the explorer's right: image-left in a front portrait.
+                sampled = sample(.501-x*3.22,interpolate(LANDMARKS,z))
                 amount = smooth(.4,.8,sin(angle))
                 base = skin if name == 'skin' else [.09,.075,.065]
                 rgb = [base[n]*(1-amount)+sampled[n]*amount for n in range(3)]

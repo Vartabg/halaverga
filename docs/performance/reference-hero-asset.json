@@ -1,5 +1,5 @@
 {
-  "bytes": 748840,
+  "bytes": 749448,
   "triangles": 19514,
   "batches": 8,
   "materials": [
@@ -83,16 +83,16 @@
   },
   "headCount": 7.65716615040183,
   "sourceHashes": {
-    "public/models/suit.glb": "8e764a9ef4456226556f3f258b63e1f383eaa1b6b58a78ae5b5c04971223f837",
-    "art/halaverga-explorer.blend": "1627f7cc47bae68fb316af88222067fb4f6249992fe59092f07e6757734aa856",
+    "public/models/suit.glb": "c1abadc9508e707233651cc53491b69e3f31c2f1f09910ae2fa76e219cca2c29",
+    "art/halaverga-explorer.blend": "93db2ca579a752fcd4899c6fd3a3c90229297fc5f10d36ba1344d308a218aae0",
     "scripts/build-suit.py": "90aaa6e6d14b0e4dbe06aea18d93b6ba21740f49b96b91cb21088bd5605d7b3a",
     "scripts/hero_anatomy.py": "1f0b4410862e8a2cebb275e760f99ebfcb83673ab66174942696bf17e1b4b40d",
     "scripts/hero_face.py": "2ef87bec94c4ea0b73de84b795ef796fdc1c7d47659f037124c702a2f5eeb79a",
     "scripts/hero_armor.py": "fc433b19543c347bcc8978d8bcdc0244aa3753c8f35e12e91fc8bfbb082abaf6",
     "scripts/hero_skin.py": "08af95d6b226d051e65cf4bcb3cb8ea8dfa0197ea00965c6d4f3885b5462a3df",
-    "scripts/hero_color.py": "ae13dec1098f718216eed50620a26b6bd111d44cd85214130002bfea281d59b0",
+    "scripts/hero_color.py": "bc8807d3172228b6a179dc19946547bb65bd41775901edae164a0d376a17b01c",
     "scripts/suit_mesh.py": "54daea3fa8a22539f1115608438cb9421f9b965e739c2f7a1e42b1659e8a8b1a",
-    "src/world/suitGeometry.ts": "61712ac58f36841755a171e6a4d8edb3b2b60f74762730e4c8313fb4665521d7",
+    "src/world/suitGeometry.ts": "41c7880344e46855aff196f3ce0e2f01902b7dea244aa1fc4d3a0f327bb0179e",
     "docs/art/explorer-reference.png": "ba71e0666e45b2d265a240970eb8df59e4a314d67fae8ec9810c9515c9e2d336",
     "docs/art/explorer-face-reference.png": "e7ba80d350870b0c095d8dc00990b68165dff910c2872857945e08805176451f"
   }
