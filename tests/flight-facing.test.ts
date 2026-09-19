@@ -51,4 +51,13 @@ describe('flight clips keep the back toward the chase camera', () => {
     expect(worst.chest, worst.at).toBeGreaterThan(.1); expect(worst.face).toBeLessThan(0); expect(worst.yaw).toBeLessThanOrEqual(.1);
     expect(worst.clamped).toBe(0); expect(worst.hinges).toBe(true); expect(worst.finite).toBe(true);
   });
+  it('keeps the takeoff launch inside the joint limits over the hover tread, climbing or not', () => {
+    let clamped = 0, at = '';
+    for (const hero of [0, 1]) for (const reduced of [false, true]) for (const slope of [0, 1]) for (let k = 0; k <= 100; k++) for (const time of [0, .6, 1.2, 1.8, 2.4, 3, 3.6, 4.2]) {
+      const p = flightPose({ speed: 6 * slope }), mix = settledMix(p, { x: 0, y: 6 * slope, z: 0 }, reduced), life = cruising(time);
+      mix.slope = slope; life.takeoff = k / 100; frame(rig(), p, mix, life, hero, reduced);
+      if (mix.clamped > clamped) { clamped = mix.clamped; at = JSON.stringify({ hero, reduced, slope, takeoff: k / 100, time }); }
+    }
+    expect(clamped, at).toBe(0);
+  });
 });

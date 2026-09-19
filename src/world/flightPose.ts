@@ -1,6 +1,6 @@
 import type { Object3D } from 'three';
 import type { Pose } from '../game/presentation';
-import { addPose, createPose, limitPose, mixPose, preRotateX, restPose, rotateX, rotateZ, sampleClip, sumPitch, type Clip, type PoseBuffer } from './clipSampler';
+import { addPose, createPose, limitPose, mixPose, pitchOf, preRotateX, restPose, rotateX, rotateZ, sampleClip, sumPitch, type Clip, type PoseBuffer } from './clipSampler';
 import { ACCENTS } from './flightAccents';
 import { FLIGHT, HOVER_LOOP } from './flightClips';
 import type { FlightMix } from './flightMix';
@@ -10,11 +10,12 @@ const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v
 const smooth = (a: number, b: number, v: number) => { const t = clamp((v - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
 const group = (name: string) => name.replace(/_[lr]$/, '');
 const idx = (name: string) => BONE_NAMES.indexOf(name as never);
-const UPPERARM_R = idx('upperarm_r'), CHEST = idx('chest'), NECK = idx('neck'), HEAD = idx('head');
+const UPPERARM_R = idx('upperarm_r'), CHEST = idx('chest'), NECK = idx('neck'), HEAD = idx('head'), FOOT_R = idx('foot_r');
 const LOOK = new Int8Array(['spine', 'chest', 'neck', 'head'].map(idx)), spent = new Float64Array(1);
 /** The hero fist chain: while the fist is up, the bank and slope accents leave it alone. */
 const LEAD = BONE_NAMES.map(n => ['clavicle_r', 'upperarm_r', 'forearm_r', 'hand_r'].includes(n) ? 1 : 0);
-const FEET = BONE_NAMES.map(n => ['foot', 'toe'].includes(group(n)));
+const FEET = BONE_NAMES.map(n => ['foot', 'toe'].includes(group(n))), SOLES = BONE_NAMES.map(n => group(n) === 'foot' ? 1 : 0);
+const UNSOLED = SOLES.map(s => 1 - s);
 const LEGS = BONE_NAMES.map((_, b) => b === 4 || b === 5 || b === 8 || b === 9);
 const FLARE: Record<string, number> = { thigh: 1, shin: 1, foot: 1, toe: 1, upperarm: .7, forearm: .7, hand: .7, clavicle: .5, spine: .5, chest: .5 };
 const FLARE_MASK = BONE_NAMES.map(n => FLARE[group(n)] ?? 0);
@@ -64,8 +65,12 @@ export function applyFlightClips(joints: Object3D[], mix: FlightMix, pose: Pose,
   accent(ACCENTS.bankLeft, 0, 1, bankLeft); accent(ACCENTS.bankRight, 0, 1, bankRight);
   const up = Math.max(0, mix.slope), down = Math.max(0, -mix.slope);
   accent(ACCENTS.climb, 0, up, keep); accent(ACCENTS.dive, 0, down * P, keep); accent(ACCENTS.sink, 0, down * (1 - P));
-  if (life.takeoff < 1) accent(ACCENTS.launch, life.takeoff, amp);
-  const approach = life.flying ? life.approach : 0;
+  if (life.takeoff < 1) {
+    // The launch snaps the feet toward an absolute reach by the keyed weight, so they point further without passing the limit.
+    accent(ACCENTS.launch, life.takeoff, amp, UNSOLED); const reach = -pitchOf(work, FOOT_R) * amp;
+    restPose(work); sampleClip(ACCENTS.reach, 0, work); mixPose(out, work, reach, SOLES);
+  }
+  const approach = mix.flare;
   if (approach > 1e-3) { restPose(work); sampleClip(ACCENTS.flare, 0, work); mixPose(out, work, approach, FLARE_MASK); }
   // Look budget: the neck and head make up whatever the torso has not already spent of the look along the travel (down on a flare).
   const look = clamp(-pose.lean * .72, -.25, 1) * (1 - approach) - .2 * approach;

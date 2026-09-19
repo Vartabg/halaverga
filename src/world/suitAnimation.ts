@@ -75,10 +75,10 @@ export function advanceSuitAnimation(a: SuitAnimation, pose: AnimatedPose, input
 /**
  * Adds the motion to the joint rotations written by applySuitPose this frame and returns the visual root lift in metres, which it
  * also records for the plant blend. `hero` is the settled expressive-pose weight: it adds the fist-led launch. `authored` is the flight
- * clip authority from applyFlightClips: the authored hover tread replaces the procedural hover drift by that much.
+ * clip authority from applyFlightClips: the authored pose replaces the procedural hover drift and the grounded idle by that much.
  */
 export function applySuitAnimation(joints: Object3D[], a: SuitAnimation, pose: AnimatedPose, reduced: boolean, hero = 1, authored = 0) {
-  const soft = reduced ? .3 : 1, gait = a.gait, idle = a.ground * (1 - gait) * soft;
+  const soft = reduced ? .3 : 1, gait = a.gait, idle = a.ground * (1 - gait) * soft * (1 - authored);
   const hover = (1 - a.ground) * (1 - pose.power) * soft, wind = pose.flight * pose.power * Math.min(1, pose.speed / 34) * soft;
   const drifting = hover * (1 - authored), h = a.speed, ahead = h > 1e-3 ? a.forward / h : 0, across = h > 1e-3 ? a.side / h : 0;
   const hold = 1 - takeoffRelease(a), crouch = smooth(0, .1, a.takeoff) * (1 - smooth(.1, .26, a.takeoff)) * soft;
