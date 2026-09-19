@@ -10,6 +10,8 @@ export type FlightMix = {
   travel: number; tracking: boolean; view: number; lateral: number; command: number; bank: Float32Array; brake: Float32Array; label: string; clamped: number;
   /** Landing flare weight; from touchdown it eases out from `hold` as `landed` counts the seconds since (Infinity in flight). */
   flare: number; hold: number; landed: number;
+  /** Recent top speed (m/s): the speed, or less than a second's decay from a higher one, so a brake remembers what it sheds. */
+  pace: number;
 };
 export type MixInput = { paused: boolean; reduced: boolean; flying: boolean; landing?: boolean; velocity: Vec };
 /** Seconds over which the landing flare eases out after touchdown, starting and ending at rest (no velocity step). */
@@ -24,7 +26,7 @@ const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v
 export function createFlightMix(): FlightMix {
   return { epoch: Number.NaN, held: false, clock: 0, slope: 0, fistOn: false, raise: 0, fist: 0, steer: 0, braking: 0, travel: 0, tracking: false, view: 0, lateral: 0,
     command: 0, bank: new Float32Array(BONE_COUNT), brake: new Float32Array(BONE_COUNT), label: 'ground', clamped: 0,
-    flare: 0, hold: 0, landed: Infinity };
+    flare: 0, hold: 0, landed: Infinity, pace: 0 };
 }
 /**
  * Reads speed, travel, turn and slope from the presentation pose and the physics velocity (plain numbers, no allocation). Turns carve
@@ -42,7 +44,7 @@ export function advanceFlightMix(mix: FlightMix, pose: Pose & { epoch: number },
     // A teleport, reset or resume restarts the weights at their targets instead of animating across the gap.
     mix.epoch = pose.epoch; mix.held = false; mix.slope = slope; mix.fist = mix.raise = mix.fistOn ? 1 : 0; mix.travel = travel; mix.tracking = moving; mix.view = pose.viewYaw;
     mix.lateral = mix.command = mix.steer = 0; mix.braking = brake; mix.bank.fill(0); mix.brake.fill(brake);
-    mix.flare = mix.hold = 0; mix.landed = Infinity;
+    mix.flare = mix.hold = 0; mix.landed = Infinity; mix.pace = pose.speed;
   }
   if (input.paused) { mix.held = true; return; }
   // The travel heading goes stale below 2 m/s: setting off again re-seeds it instead of carving the whole change in one frame.
@@ -56,6 +58,7 @@ export function advanceFlightMix(mix: FlightMix, pose: Pose & { epoch: number },
   mix.steer = input.reduced ? 0 : mix.steer + (Math.tanh(mix.command / 20) - mix.steer) * (1 - Math.exp(-30 * dt));
   // Every shared loop divides 4 s; the clock runs a little faster with speed.
   mix.clock = (mix.clock + real * (.85 + .3 * clamp(pose.speed / 34, 0, 1))) % 4 || 0;
+  mix.pace = Math.max(pose.speed, mix.pace * Math.exp(-real)) || 0;
   ease(mix, input, real, dt); mix.slope = settle(mix.slope, slope, 6, dt); mix.braking = brake;
   for (let b = 0; b < BONE_COUNT; b++) { mix.bank[b] = settle(mix.bank[b], bank, LAG[b], dt); mix.brake[b] = settle(mix.brake[b], brake, LAG[b], dt); }
 }

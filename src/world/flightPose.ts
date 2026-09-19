@@ -5,7 +5,7 @@ import { ACCENTS } from './flightAccents';
 import { FLIGHT, HOVER_LOOP } from './flightClips';
 import type { FlightMix } from './flightMix';
 import { BONE_COUNT, BONE_NAMES, LEGACY_COUNT } from './suitSkeleton';
-import { takeoffRelease, type SuitAnimation } from './suitAnimation';
+import { armAuthority, takeoffRelease, type SuitAnimation } from './suitAnimation';
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 const smooth = (a: number, b: number, v: number) => { const t = clamp((v - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
 const group = (name: string) => name.replace(/_[lr]$/, '');
@@ -28,7 +28,7 @@ const FLARE_MASK = BONE_NAMES.map(n => FLARE[group(n)] ?? 0);
 // Preallocated buffers: posing allocates nothing per frame.
 const out = createPose(), work = createPose(), hero = createPose(), still = createPose(), final = createPose();
 const bankLeft = new Float32Array(BONE_COUNT), bankRight = new Float32Array(BONE_COUNT), keep = new Float32Array(BONE_COUNT), authority = new Float32Array(BONE_COUNT);
-const limbs = new Float32Array(BONE_COUNT), tuck = new Float32Array(BONE_COUNT), sweep = new Float32Array(BONE_COUNT);
+const limbs = new Float32Array(BONE_COUNT), tuck = new Float32Array(BONE_COUNT), sweep = new Float32Array(BONE_COUNT), stop = new Float32Array(BONE_COUNT);
 /** Samples a clip (or a classic/hero pair mixed by `style`) into `into`; amplitude below 1 pulls the loop toward its t = 0 key. */
 function styled(into: PoseBuffer, classic: Clip, heroic: Clip, t: number, style: number, amplitude: number) {
   const pair = heroic !== classic && style > 0;
@@ -67,7 +67,9 @@ export function applyFlightClips(joints: Object3D[], mix: FlightMix, pose: Pose,
   for (let b = 0; b < BONE_COUNT; b++) {
     keep[b] = 1 - LEAD[b] * fist; limbs[b] = LIMB[b] * keep[b]; tuck[b] = TUCK[b] * keep[b];
     // In a left turn the trailing arm is the inside arm and stays along the body; in a right turn it takes the outside arm's pull in.
-    bankLeft[b] = Math.max(0, mix.bank[b]) * keep[b] * (1 - TRAIL[b] * fist); bankRight[b] = Math.max(0, -mix.bank[b]) * keep[b];
+    // At power speed the legs hold the straight-flight line through a turn (the whole-body roll carries it).
+    const legs = LEGS[b] ? 1 - w : 1;
+    bankLeft[b] = Math.max(0, mix.bank[b]) * keep[b] * (1 - TRAIL[b] * fist) * legs; bankRight[b] = Math.max(0, -mix.bank[b]) * keep[b] * legs;
   }
   // The slope clips replace the limbs (and for the dive the back), full by a slope of .7 (about 44 degrees); the feet-first sink
   // belongs to a hover descent and is gone by P = .25; the dive tuck is full from P = .4 (keyboard speed).
@@ -77,7 +79,11 @@ export function applyFlightClips(joints: Object3D[], mix: FlightMix, pose: Pose,
   if (diving > 0) { styled(work, FLIGHT.dive, FLIGHT.dive, t, 0, amp); mixPose(out, work, diving, tuck); }
   let braking = false;
   for (let b = 0; b < BONE_COUNT; b++) braking ||= mix.brake[b] > 1e-3;
-  if (braking) { styled(work, FLIGHT.brake[0], FLIGHT.brake[1], t, h, amp); mixPose(out, work, 1, mix.brake); }
+  // The arms' forward reach flares against the airflow of the speed being shed: a brake out of a drift under about 8 m/s keeps the
+  // hover arms, where a partial reach would hold the outside arm straight out to the side.
+  const air = smooth(2, 8, mix.pace);
+  for (let b = 0; b < BONE_COUNT; b++) stop[b] = mix.brake[b] * (ARM[b] ? air : 1);
+  if (braking) { styled(work, FLIGHT.brake[0], FLIGHT.brake[1], t, h, amp); mixPose(out, work, 1, stop); }
   accent(ACCENTS.bankLeft, 0, 1, bankLeft); accent(ACCENTS.bankRight, 0, 1, bankRight);
   accent(ACCENTS.sink, 0, Math.max(0, -mix.slope) * hovering * hovering);
   if (life.takeoff < 1) {
@@ -94,11 +100,12 @@ export function applyFlightClips(joints: Object3D[], mix: FlightMix, pose: Pose,
   mix.clamped = limitPose(out);
   // Handover: the feet leave the plant only once the takeoff releases it and go flat on touchdown; the legs hand back over .15 s.
   const release = life.flying ? takeoffRelease(life) : 0, legs = life.flying ? release : 1 - smooth(0, .15, life.switched);
+  const arms = armAuthority(life, A);
   for (let b = 0, o = 0; b < BONE_COUNT; b++, o += 4) {
     const q = joints[b].quaternion;
     if (b < LEGACY_COUNT) { final[o] = q.x; final[o + 1] = q.y; final[o + 2] = q.z; final[o + 3] = q.w; }
     else { final[o] = final[o + 1] = final[o + 2] = 0; final[o + 3] = 1; }
-    authority[b] = FEET[b] ? A * release : LEGS[b] ? A * legs : A;
+    authority[b] = FEET[b] ? A * release : LEGS[b] ? A * legs : ARM[b] ? arms : A;
   }
   mixPose(final, out, 1, authority);
   // While the legs hand back after touchdown the feet are already flat to the shins; a knee still folded back from flight would tip

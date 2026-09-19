@@ -25,6 +25,12 @@ const clamp = (v: number, low: number, high: number) => Math.min(high, Math.max(
 const smooth = (from: number, to: number, t: number) => { const u = clamp((t - from) / (to - from), 0, 1); return u * u * (3 - 2 * u); };
 /** 0 through the push-off crouch, 1 once the feet may leave the ground plant (and for a caught fall). */
 export const takeoffRelease = (a: SuitAnimation) => smooth(.1, .22, a.takeoff);
+/**
+ * The flight clips' authority over the arms: the clip authority in flight, then held up and eased out over .45 s from touchdown, so
+ * a landing out of the cruise sweep eases the arms to the grounded pose instead of flinging them. 0 whenever the clips are off.
+ */
+export const armAuthority = (a: SuitAnimation, authored: number) =>
+  a.flying || !(authored > 0) ? authored : authored + (1 - authored) * (1 - smooth(0, .45, a.switched));
 export function createSuitAnimation(): SuitAnimation {
   return { epoch: Number.NaN, time: 0, flying: false, held: false, ground: 1, gait: 0, stride: 0, speed: 0, forward: 0, side: 0, groundY: 0,
     takeoff: Infinity, takeoffY: 0, landing: Infinity, approach: 0, switched: Infinity, pending: false, blend: 0, lastLift: 0,
@@ -75,19 +81,20 @@ export function advanceSuitAnimation(a: SuitAnimation, pose: AnimatedPose, input
 /**
  * Adds the motion to the joint rotations written by applySuitPose this frame and returns the visual root lift in metres, which it
  * also records for the plant blend. `hero` is the settled expressive-pose weight: it adds the fist-led launch. `authored` is the flight
- * clip authority from applyFlightClips: the authored pose replaces the procedural hover drift and the idle arms by that much.
+ * clip authority from applyFlightClips: the authored pose replaces the procedural hover drift by that much, and the idle arms and the
+ * impact reaction by the arm authority (`armAuthority`).
  */
 export function applySuitAnimation(joints: Object3D[], a: SuitAnimation, pose: AnimatedPose, reduced: boolean, hero = 1, authored = 0) {
-  const soft = reduced ? .3 : 1, gait = a.gait, idle = a.ground * (1 - gait) * soft;
-  // The relaxed arms of the grounded idle give way to the authored pose (the landing flare) as the drift does.
-  const rest = idle * (1 - authored), hover = (1 - a.ground) * (1 - pose.power) * soft;
+  const soft = reduced ? .3 : 1, gait = a.gait, idle = a.ground * (1 - gait) * soft, arms = armAuthority(a, authored);
+  // The relaxed arms of the grounded idle give way to the authored arms (the landing flare, or the flight pose easing out).
+  const rest = idle * (1 - arms), hover = (1 - a.ground) * (1 - pose.power) * soft;
   const wind = pose.flight * pose.power * Math.min(1, pose.speed / 34) * soft;
   const drifting = hover * (1 - authored), h = a.speed, ahead = h > 1e-3 ? a.forward / h : 0, across = h > 1e-3 ? a.side / h : 0;
   const hold = 1 - takeoffRelease(a), crouch = smooth(0, .1, a.takeoff) * (1 - smooth(.1, .26, a.takeoff)) * soft;
   const extend = smooth(.1, .2, a.takeoff) * (1 - smooth(.3, .55, a.takeoff)) * soft;
   const absorb = .8 * smooth(0, .07, a.landing) * (1 - smooth(.12, .6, a.landing)) * soft;
   // The authored landing flare already holds the arms out for balance: the impact reaction gives way to it, so the two never stack.
-  const brace = absorb * (1 - authored);
+  const brace = absorb * (1 - arms);
   const lagForward = reduced ? 0 : clamp(a.lagForward.x, -1, 1), lagSide = reduced ? 0 : clamp(a.lagSide.x, -1, 1);
   const breath = Math.sin(a.time * TAU * .25), sway = Math.sin(a.time * TAU * .09), bob = Math.sin(a.time * TAU * .42);
   const swingAmp = Math.min(.5, .12 + .16 * h), kneeAmp = Math.min(1.3, .35 + .2 * h);
