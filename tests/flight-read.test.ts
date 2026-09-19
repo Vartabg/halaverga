@@ -79,7 +79,7 @@ describe('flight states read apart in the chase image', () => {
     expect(d.step).toBeLessThanOrEqual(4); expect(Math.max(...d.on)).toBeLessThan(Math.max(...d.off));
   });
   it('keeps the arms off a sideways signal when stopping out of a slow drift under a camera above: widest arm at most 55 degrees', () => {
-    // The hover arms read about 45-50 degrees from above; a partial brake reach blended in held the outside arm out at about 76.
+    // The hover arms read about 45-50 degrees from above; a partial brake reach blended in held the outside arm out at about 78.
     expect(Math.max(...arms(drift(), 3, 4.6).on)).toBeLessThanOrEqual(55);
   });
 });

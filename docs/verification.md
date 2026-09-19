@@ -1,5 +1,43 @@
 # First-flight verification · 2026-09-11
 
+## Flight states read apart in the chase image · round 3 · 2026-09-19
+
+- A third visual review found the legs breaking the flight line in turns (at 34 m/s the outside thigh kicked back with the knee folded and the inside knee folded too, reading as kneeling; at 13 m/s the toes split to .39 m instead of swinging together); the hero trailing arm held about 28° off the body; cruise and climb with nearly the same silhouette from the chase camera; the brake's right arm out near horizontal; a stop out of a slow drift under a camera above holding the outside arm straight out; and the arms flung from the cruise sweep to about 50° within .13 s of an unassisted touchdown.
+- Data and mechanism changes:
+  - Turns (`flightAccents.ts`): both thighs swing together to the outside of the turn (z .18 each); the thigh back-kick, the inside knee fold and the foot accents are gone. In `flightPose.ts` the bank accent's legs fade out by the power weight, so at 34 m/s the legs keep the straight-flight line and the whole-body roll of the next change carries the turn.
+  - Hero power: the trailing arm lies along the body (clavicle z .06, upper arm x −.28 to −.3 and z .11–.12, forearm .04–.07).
+  - Cruise: a narrow delta, the hands a hand's width out from the hips (upper arm z .07–.11, hand z .1); the thighs trail back (x −.16 to −.3) with softer knees (shin −.3 to −.6).
+  - Climb: shoulders drawn back (clavicle y −.2), the arms straight behind with the hands brought in together behind the hips (upper arm x −.42 to −.44, z −.17 to −.19, hand z −.3).
+  - Brake: the right hand reaches forward at chest height (upper arm x 1.26–1.43, z −.07 to −.03; forearm .9–1.06); the left elbow bends further (forearm .85–.95) with the upper arm less wide (z −.34 to −.4). The arms' reach is weighted by `smooth(2, 8, pace)`, where `pace` (new in `flightMix.ts`) is the speed or a decay of a higher recent speed at 1/s, so a brake from 34 m/s holds its reach as the explorer comes to rest and a stop out of a 4 m/s drift keeps the hover arms.
+  - Touchdown: `armAuthority` (`suitAnimation.ts`) keeps the clips' authority over the arms after touchdown and eases it out over .45 s; `flightPose.ts` uses it for the arm bones and the living layer scales the idle arms and the impact reaction by it. It is 0 whenever the clips are off.
+- Reads (clips on, clips off):
+
+  | State | Arms R/L (°) | Toes across (m) |
+  |---|---|---|
+  | hover | 40/32 (26/17) | .274 (.302) |
+  | cruise 8 | 4/12 (33/15) | .199 (.285) |
+  | cruise 13 | 5/12 (45/14) | .145 (.269) |
+  | power hero 34 | 168/6 (162/25) | .145 (.220) |
+  | power classic 34 | 3/8 (11/−1) | .175 (.220) |
+  | left / right turn 13 | −3/17, 15/7 | .146, .145 |
+  | left / right turn 34 hero | −171/−1, 148/−5 | .145, .145 |
+  | left / right turn 34 classic | 0/2, 9/9 | .175, .175 |
+  | climb 13 | −32/−20 (34/16) | .142 (.269) |
+  | dive 13 | 43/2 (95/15) | .267 (.269) |
+  | brake from 34 (peak) | 72/35 (85/69) | .294 (.477) |
+  | landing flare (last flying frame) | 37/−9 (29/22) | .220 (.310) |
+
+  Toe spread in turns was .391–.451 m. Unassisted touchdown from cruise at 8 m/s: widest arm step 3.73° a frame, peak 37.0° (clips off 112.0°); held to at most 4° a frame and under clips off. Stop out of a 4 m/s drift, turning, view pitched down .5: widest arm 49.0° (was about 78°; clips off 173.6°); held to at most 55°. Assisted landings, widest arm around touchdown: 38.2, 38.4 and 39.4°. Hero fist in a left turn at 34 m/s: at least 2.14 head radii from the head centre (floor 2).
+- Silhouette against clips off (m, hands/feet): hover .161/.153, cruise 8 .419/.197, cruise 13 .474/.178, power hero .336/.280, power classic .203/.178, left turn 13 .640/.183, right turn 13 .508/.186, left turn 34 .404/.264, right turn 34 .420/.282, classic left turn 34 .244/.200, classic right turn 34 .263/.153, brake .386/.239, dive .545/.186, climb .639/.151, flare .347/.081. No floor was lowered.
+- Distinctness, max tip distance (mean of four) in m: hover/cruise 13 .461 (.280), cruise 13/climb 13 .331 (.318), cruise 13/dive 13 .529 (.420), hover/flare .400 (.289), classic/hero power .652 (.260). The floor is now .3 m (was .2).
+- New tests in `tests/flight-read.test.ts`: the hero trailing arm within 10° of the body, the toe spread of all six turn states within .22 m, the unassisted touchdown arm step and the slow-drift stop above.
+- Interpenetration: torso .213, thigh .127, crown .551, knees .203 m (floors .15, .10, .30, .11).
+- Frame-rate trace: 1.685e-3 between 30 and 120 Hz and 5.80e-4 between 60 and 120 Hz, against the 2.5e-3 bound.
+- Clamps: 0 on every grid, including the wider grid's 4–6 m/s corner with full brake, full bank and descent.
+- Limits of this pass: braking out of a hero turn at 34 m/s, the stowing fist passes the right arm through about 90–100° in the image for about .1 s; from a camera above, the hover arms read about 45–50° out, so a slow stop there still shows both arms wide (symmetric, not one-sided); the hero bent knee still foreshortens the left lower leg from the chase camera in straight flight and turns; cruise still reads close to upright at 8 m/s, where the lean is small.
+- Review strips: chase, side and phone strips with clips and the clips-off baseline, plus a custom chase sheet of the straight states, power, turns at 13 and 34 m/s, both brakes, the slow drift stop and the unassisted touchdown, were inspected for the reads above and for limbs through the body: none seen.
+- `pnpm verify` green: TypeScript, 200 unit tests in 25 files, the production build and the first-load check (601.5 KB).
+
 ## Flight states read apart in the chase image · round 2 · 2026-09-19
 
 - A second visual review found cruise 8 and 13 still reading as standing with the arms at the sides (the arm sweep ran along the sight line; legs .381 m apart across the toes); the dive and climb looking like cruise because they were accents capped at .35 rad; the outside arm in turns at 34 m/s swinging out 53–60° in the image; the arms flapping out to near-horizontal within about 50 ms of touchdown (the living layer's impact reaction stacked on the flare); the hero fist touching the head outline in a left turn; the hover a stiff mirrored A-pose as wide as cruise 8; the flare arms reading elbows-out; the classic brake close to the hover arms; the classic power hands beside the hips.
