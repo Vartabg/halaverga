@@ -1,0 +1,63 @@
+{
+  "seconds": 300,
+  "samples": 18000,
+  "p50Ms": 16.7,
+  "p95Ms": 17.4,
+  "stallsOver50Ms": 0,
+  "browser": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/153.0.0.0 Safari/537.36",
+  "viewport": [
+    1440,
+    1000
+  ],
+  "pixelRatio": 1,
+  "quality": "high",
+  "camera": "third",
+  "resources": {
+    "drawCalls": 15,
+    "triangles": 575774,
+    "geometries": 11,
+    "textures": 14
+  },
+  "peakResources": {
+    "drawCalls": 15,
+    "triangles": 575774,
+    "geometries": 11,
+    "textures": 14
+  },
+  "build": "2026-09-19 · c9ab444",
+  "deployment": "https://halaverga-flight.vercel.app",
+  "scope": "Latest 18,000 active frames; first resume frame excluded. Resource peaks cover the session.",
+  "hardware": "Apple M2 Max",
+  "gpu": "ANGLE (Apple, ANGLE Metal Renderer: Apple M2 Max, Unspecified Version)",
+  "os": "darwin 25.6.0",
+  "browserMode": "Headless system Chrome; physical Mac, not iPhone",
+  "speedMode": "Cruise (13 m/s maximum)",
+  "workload": [
+    [
+      "KeyR",
+      3000
+    ],
+    [
+      "KeyW",
+      4000
+    ],
+    [
+      "ArrowRight",
+      1000
+    ],
+    [
+      "KeyW",
+      4000
+    ],
+    [
+      "KeyF",
+      2500
+    ],
+    [
+      "ArrowLeft",
+      1000
+    ]
+  ],
+  "route": "Repeat launch/canal/sideways/descent; reset to terrace each cycle to remain inside dense district.",
+  "errors": []
+}

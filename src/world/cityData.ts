@@ -1,4 +1,6 @@
 import { createKit, building, car, colors } from './kit';
+import { trees } from './reclamationData';
+import { heroRuins } from './heroRuins';
 export function makeCity() {
   const k = createKit();
   // A hillside on either side of the submerged transport corridor.
@@ -51,7 +53,7 @@ export function makeCity() {
     for (const z of [-5, 3]) k.box(side * 34, 16.2, z, 35, .55, .3, colors.concrete);
     for (let i = 0; i < 5; i++) k.box(side * 8, 14.9, -3 + i, 7, .09, .09, '#44434d');
   }
-  k.box(5, 9, -1, 12, 1.2, 8, colors.concrete, true, .05, -.55);
+  k.box(7, 7.5, -1, 17, 1.2, 8, colors.concrete, true, .05, 1.17);
   // A marked roof offers another safe destination.
   k.box(30, 61.39, -38, 8, .05, 8, '#b5bb94', true);
   k.box(30, 61.43, -38, .25, .02, 4, colors.white);
@@ -64,11 +66,11 @@ export function makeCity() {
   for (let i = 0; i < 40; i++) {
     const side = i % 2 ? -1 : 1, z = 54 - i * 5.5, x = side * (29 + i * 7 % 70);
     k.box(x, 2.55, z, 1.4 + i % 3, .8, 1.8, '#a99b88', false, i * .6, i % 3 * .09);
-    if (i % 3 === 0) {
-      k.box(x, 5, z, .5, 6, .5, '#6b6759');
-      k.box(x, 7.7, z, 4.4, 3, 3.8, colors.moss, false, .4);
-      k.box(x + 1.4, 6.8, z + 1, 3, 2.4, 4, '#557461');
-    }
   }
+  for (const tree of trees) if (tree.position[1] < 3) {
+    const [x, y, z] = tree.position, s = tree.scale[1];
+    k.solids.push({ position: [x, y + s, z], size: [.24 * s, s, .24 * s], rotation: [0, 0, 0] });
+  }
+  heroRuins(k);
   return k.finish();
 }

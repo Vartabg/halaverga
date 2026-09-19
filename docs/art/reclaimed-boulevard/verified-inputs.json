@@ -1,0 +1,347 @@
+{
+  "baseRevision": "c9ab4443a706fd19c34fd8550aee6615c2165fa0",
+  "productionBuildId": "TXRGblZsD848w4ono5ZSJ",
+  "files": [
+    {
+      "path": "pnpm-lock.yaml",
+      "bytes": 61135,
+      "sha256": "bbb0ef1f91be5edb3400e4a7df0c857295b43c67a449bbee1c25f5e354f268b8"
+    },
+    {
+      "path": "public/models/environment/island_tree_01.glb",
+      "bytes": 2376396,
+      "sha256": "f1c2d32be4b89bd7cbf3aff2caffe631d4b3c0e2c46a26e9aba2e981b6cbeea0"
+    },
+    {
+      "path": "public/models/suit.glb",
+      "bytes": 1458360,
+      "sha256": "c1fc253bcb2e57a6c92a4f7dcfd7a92c6e622a0f1a1e961f5d6d055c25a6e831"
+    },
+    {
+      "path": "public/textures/environment/concrete_floor_02_diff_1k.jpg",
+      "bytes": 401615,
+      "sha256": "90255961893ccf075cea2c52498af7540dcd8d920e8348c27676e481d3d46c30"
+    },
+    {
+      "path": "public/textures/environment/concrete_floor_02_nor_gl_1k.jpg",
+      "bytes": 171103,
+      "sha256": "e657d60227a0a6ae8f1e4ef4c0bd7c932574bda7e2df9a2539f2f2de9cc1c222"
+    },
+    {
+      "path": "public/textures/environment/concrete_floor_02_rough_1k.jpg",
+      "bytes": 134953,
+      "sha256": "fcf2b773e11cbc4b93d8f23551256220134cacd53db09774c168780134236e72"
+    },
+    {
+      "path": "public/textures/environment/concrete_moss_diff_1k.jpg",
+      "bytes": 131759,
+      "sha256": "a3fb819f9ab65456ae189366d48fc801fd9419dde91f104533d8568c40fd87bc"
+    },
+    {
+      "path": "public/textures/environment/concrete_moss_nor_gl_1k.jpg",
+      "bytes": 176110,
+      "sha256": "f943d045e3df730245224e4788310d18b467e623eaa27bfecf3c07de2ee45e15"
+    },
+    {
+      "path": "public/textures/environment/ivy-card.png",
+      "bytes": 201247,
+      "sha256": "8e6d7b87168b2125a5e4269c8cd1844270828627320f33b85509aa02f98bb207"
+    },
+    {
+      "path": "src/app/globals.css",
+      "bytes": 1095,
+      "sha256": "e1640676621f8c540bd793d105c98ea4cb3f5fb6788e12e20fc94053128b303d"
+    },
+    {
+      "path": "src/app/icon.svg",
+      "bytes": 185,
+      "sha256": "6963f424ab7e37c3765cbbd5e6818e3231a723e29d3d47775cfe91f7a52d89d3"
+    },
+    {
+      "path": "src/app/layout.tsx",
+      "bytes": 554,
+      "sha256": "bbef906a947fc94f85275350a2a983171e32f2aa4d6a5ec6677d3f7d404f4968"
+    },
+    {
+      "path": "src/app/page.tsx",
+      "bytes": 100,
+      "sha256": "59a3eb4b3bf3839a05ed222bd4cebfa7155870957a49d2acdfae1938b9917458"
+    },
+    {
+      "path": "src/content/arrival.json",
+      "bytes": 754,
+      "sha256": "4c494fc6a1848e28669333013c50800689bf62bac1f2bc39e145ff01013afba2"
+    },
+    {
+      "path": "src/game/CameraRig.tsx",
+      "bytes": 3394,
+      "sha256": "bdc529ac0ff46d1f9fe9f1a0eaf784a7160c63d862690a0df3e5731c2e854fa6"
+    },
+    {
+      "path": "src/game/FlightPresentation.tsx",
+      "bytes": 1920,
+      "sha256": "1043c5f67803ae279567499bfe4658dd98955de7a400cd7445a4535b85ca7754"
+    },
+    {
+      "path": "src/game/FlightSafety.ts",
+      "bytes": 2794,
+      "sha256": "2899fd005aecbe9777e7c1e9da856cb7ce13bafc3f8759d3ca824ae96279eeac"
+    },
+    {
+      "path": "src/game/Player.tsx",
+      "bytes": 9574,
+      "sha256": "267babb287daa92f5b8029843e82d920702c7e7849667b0117d60f268bda6edb"
+    },
+    {
+      "path": "src/game/adaptiveThumbs.ts",
+      "bytes": 3237,
+      "sha256": "dba6290b830ff1eb8a77d18c8b5850a133ef38041c3c88637536b770da1aceff"
+    },
+    {
+      "path": "src/game/gestureLog.ts",
+      "bytes": 1629,
+      "sha256": "e3ab28c8e70fe814372d4c76149aeaab33fc6a1b5da159ebb4c845cc4a059b47"
+    },
+    {
+      "path": "src/game/motion.ts",
+      "bytes": 3097,
+      "sha256": "f471af5dc2207c0dbf176d1ab82d694000097ffea6285e9976c347d557220804"
+    },
+    {
+      "path": "src/game/navigation.ts",
+      "bytes": 2876,
+      "sha256": "720665ebcadf77a8f7dfe7c978d1b001e6825dcb43e84394dcb9548aca9f542b"
+    },
+    {
+      "path": "src/game/presentation.ts",
+      "bytes": 3944,
+      "sha256": "1a5dc3473accdec48831de3443920c17b6a5a53a9732cf9b513ce93d928cd487"
+    },
+    {
+      "path": "src/game/runtime.ts",
+      "bytes": 2894,
+      "sha256": "f82a4fdc629ea419f959c1cd03615931fb230bfa1f1a5192a474de950feca825"
+    },
+    {
+      "path": "src/game/store.ts",
+      "bytes": 3366,
+      "sha256": "9fe79a9089c6a41d39e8a90787def2e78bdedc077dad485824fb955980d6645b"
+    },
+    {
+      "path": "src/game/thumbFlight.ts",
+      "bytes": 636,
+      "sha256": "1460760e058e2acbbfb92d5c69cbedac3051bbbc487e1e328d9d1d3039057e34"
+    },
+    {
+      "path": "src/game/trackpadFlight.ts",
+      "bytes": 1772,
+      "sha256": "19f6d2d1bd77fe9897bbf92c9703e776b61cca46910b2936bc2008ba1aad0efb"
+    },
+    {
+      "path": "src/game/turnSweep.ts",
+      "bytes": 2503,
+      "sha256": "7964d35ee3fa4a195704c26caad0482bfb347cccae22bf2e6b971319b81f624f"
+    },
+    {
+      "path": "src/ui/Boundary.tsx",
+      "bytes": 432,
+      "sha256": "f68b70b43466afc7d780919300517d0ab41a26dc401a3bb18c14cca1f3376777"
+    },
+    {
+      "path": "src/ui/Experience.module.css",
+      "bytes": 11681,
+      "sha256": "d287f38638fda6962d905223b45d1302442835862c67e2c446c5f487f36aa263"
+    },
+    {
+      "path": "src/ui/Experience.tsx",
+      "bytes": 7161,
+      "sha256": "9742edad685a88f26242654aaeaba88805659b41d5e4c62df79cda332d81a596"
+    },
+    {
+      "path": "src/ui/FieldGuide.tsx",
+      "bytes": 4994,
+      "sha256": "7f78811afbcbd01a8210a306539dcf63690b0a4be89db14cb737235c23f30562"
+    },
+    {
+      "path": "src/ui/Modal.tsx",
+      "bytes": 779,
+      "sha256": "e72c7e18c141c8de9b6dc926f9212ad625971d8d1d8720d2db8d4e05ba51d67a"
+    },
+    {
+      "path": "src/ui/TapControls.tsx",
+      "bytes": 1532,
+      "sha256": "c225fc9b98b36f82bac8bee362c4948b1fdab058135bc360f060d4f19a8a9887"
+    },
+    {
+      "path": "src/ui/Telemetry.tsx",
+      "bytes": 2253,
+      "sha256": "ad2b5c5a7b113bdbd40491c9cb3dfbc9e7fba79cdb993699a9a042710784da68"
+    },
+    {
+      "path": "src/ui/TestPanel.tsx",
+      "bytes": 4484,
+      "sha256": "d218c7c27415a2609cc226072381c0fdd815a35febee6cd7bbe510a9dc7e0ef3"
+    },
+    {
+      "path": "src/ui/TouchControls.tsx",
+      "bytes": 4218,
+      "sha256": "dc67a2aed6743654fae8778e8f8309cd09021c621b2b5cee96f9b4f18b93665f"
+    },
+    {
+      "path": "src/ui/TrackpadSettings.tsx",
+      "bytes": 3090,
+      "sha256": "2e86ce5b82fbaa6d19e3e6bc7d66ab7569ca06587c50e70e05e40b95d3252aa2"
+    },
+    {
+      "path": "src/ui/buildInfo.ts",
+      "bytes": 314,
+      "sha256": "95a2e569a89235f284d11e56d7677f55aa50af8f67f17811290b0cf8aac5dfb3"
+    },
+    {
+      "path": "src/ui/useAudio.ts",
+      "bytes": 1292,
+      "sha256": "555bb696cfaa08aebc1b37209b2471af260e72c411f4c246156edda4ea9ea729"
+    },
+    {
+      "path": "src/ui/useCruiseCapture.ts",
+      "bytes": 2816,
+      "sha256": "d98d63b3cc6aecbf135332664951953ce8b4ab4884cdef481e23c36d5107fdbd"
+    },
+    {
+      "path": "src/ui/useInput.ts",
+      "bytes": 3471,
+      "sha256": "64b6cf49100072fbe92e9b1dca87ee0bf733d28c1d8235c65daf90d55a86e5fd"
+    },
+    {
+      "path": "src/ui/useTrackpad.ts",
+      "bytes": 5175,
+      "sha256": "3df3683c84c439611df88932a91d24caaa4c654ee71f8f033f5ac5e242ce233a"
+    },
+    {
+      "path": "src/world/Atmosphere.tsx",
+      "bytes": 3684,
+      "sha256": "799d9cd2fd6685e6e94d4be6d15c2d3f8a4b00743655dad320548cba467cf32f"
+    },
+    {
+      "path": "src/world/City.tsx",
+      "bytes": 770,
+      "sha256": "e12cf8bb01be80a25ab2f4834cf86b277af9edabc500285f3a57d6d8f8736165"
+    },
+    {
+      "path": "src/world/DistrictBoundary.tsx",
+      "bytes": 2473,
+      "sha256": "4fc8474f59ffab362ca41264f9d6c882f6f1e68a1984ca03f2b2d87a7e54bcab"
+    },
+    {
+      "path": "src/world/EnvironmentLight.tsx",
+      "bytes": 1710,
+      "sha256": "12645482e4f0758feb955be7e153118deb8a62ffe198025940fca0893893b054"
+    },
+    {
+      "path": "src/world/IvyCards.tsx",
+      "bytes": 2474,
+      "sha256": "c1d1e77cecc6ea3eddd4fb24725446862a7230febdcb34bed4f7ed97a37dea1b"
+    },
+    {
+      "path": "src/world/Reclamation.tsx",
+      "bytes": 2307,
+      "sha256": "032324a97e6f14ec8eff0248a971e7e72ed1f7b5f4db93e673b25eb05f9ca5c3"
+    },
+    {
+      "path": "src/world/Scene.tsx",
+      "bytes": 2570,
+      "sha256": "a5c5658021dbf7444965cc6c5673d8dbb8cd0bcc9561527988c7906d634d7734"
+    },
+    {
+      "path": "src/world/Suit.tsx",
+      "bytes": 2782,
+      "sha256": "36b6b57051be0629c4819fe488b53ec5a879d390ce1c88b16955539c32a5c11f"
+    },
+    {
+      "path": "src/world/cityData.ts",
+      "bytes": 3965,
+      "sha256": "dca51ac3a1564bb19d8bd9eedef9bfd0eb387c178c0bfc77db5a6ef2caef9a27"
+    },
+    {
+      "path": "src/world/cityMaterials.ts",
+      "bytes": 2239,
+      "sha256": "2f586dfa7a9fc1014a104caadd1e44d7f45ce601066204cec5d3799e15306653"
+    },
+    {
+      "path": "src/world/clipSampler.ts",
+      "bytes": 10915,
+      "sha256": "aa49dae19c91036003c1253e33c371e4cca6d5e6a2c326814d1bbb068314deaa"
+    },
+    {
+      "path": "src/world/flightAccents.ts",
+      "bytes": 3267,
+      "sha256": "917aa753b716a9f1e7fcdffaca65ddd270779ef042d11c4bf708716669d82300"
+    },
+    {
+      "path": "src/world/flightClips.ts",
+      "bytes": 8927,
+      "sha256": "3f4cd54a72a0c482f229dc99b9d2b73e0da922e3335abdeb45a963ad257bc707"
+    },
+    {
+      "path": "src/world/flightMix.ts",
+      "bytes": 6445,
+      "sha256": "41385f98725f720739ed6e3085828f589c6e6801cd69a53f39fcc047d4fb8e13"
+    },
+    {
+      "path": "src/world/flightPose.ts",
+      "bytes": 10555,
+      "sha256": "46f4b5e5494c12f3dce84c1f0209b040f1377fc7c41142750c00f1720a865d70"
+    },
+    {
+      "path": "src/world/heroRuins.ts",
+      "bytes": 2157,
+      "sha256": "75c1cebc2db56b8cc491cfbf4dfe4bf3b01b52653d57d9d2cbe405fe7742076b"
+    },
+    {
+      "path": "src/world/kit.ts",
+      "bytes": 6317,
+      "sha256": "b450c4feccef05a6d40b2104eaf0f21272f1d96ad47db781a20e30e28a1b6844"
+    },
+    {
+      "path": "src/world/reclamationData.ts",
+      "bytes": 1554,
+      "sha256": "0a34cabbde436abebac432257696067a9f5f70b89e6c814169069a8cf04c1587"
+    },
+    {
+      "path": "src/world/skinnedSuit.ts",
+      "bytes": 3508,
+      "sha256": "85bf39b80c8481bc07067484fbf3073c893a890e651f3b4df3708c22fd3eafd2"
+    },
+    {
+      "path": "src/world/suitAnimation.ts",
+      "bytes": 11979,
+      "sha256": "88f747a5f991c81c6b6684af9611a02f4b16694cefab9c9b5f09510d459d0645"
+    },
+    {
+      "path": "src/world/suitGeometry.ts",
+      "bytes": 2949,
+      "sha256": "41c7880344e46855aff196f3ce0e2f01902b7dea244aa1fc4d3a0f327bb0179e"
+    },
+    {
+      "path": "src/world/suitPose.ts",
+      "bytes": 4483,
+      "sha256": "993f6eed62a4a4ab362306fd4cf89d8eed1cf5b289097f3e5c0f8e1a1cb78ede"
+    },
+    {
+      "path": "src/world/suitRig.ts",
+      "bytes": 1112,
+      "sha256": "e10d4e9ca3de4fea88683ccc591ea707724a78534ab59e3c0990aa7f660c9960"
+    },
+    {
+      "path": "src/world/suitRoll.ts",
+      "bytes": 3985,
+      "sha256": "183dbaaf1d49da5c8efe560ecb11517f11daf1ebf2e5b926833c16e4792345e7"
+    },
+    {
+      "path": "src/world/suitSkeleton.ts",
+      "bytes": 3495,
+      "sha256": "fa77ee5d9063c256542fcf2279e13d4a68039d08323d52e5c0df5b51026869f8"
+    }
+  ],
+  "addedRuntimeAssetBytes": 3593183
+}
