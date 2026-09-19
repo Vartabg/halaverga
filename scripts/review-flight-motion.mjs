@@ -54,8 +54,10 @@ const all = [
     else { sim.anchorY = Math.max(0, sim.anchorY - 1.5 * dt); sim.flying = sim.anchorY > 0; sim.velocity = { x: 0, y: sim.flying ? -1.5 : 0, z: 0 }; } },
     [-.1, .02, .12, .35], (sim) => sim.t > 1.2 && !sim.flying],
 ].filter((_, i) => !PICK || PICK.includes(i));
-const tag = [O.clips ? '' : 'without clips', O.hero ? '' : 'classic', O.reduced ? 'reduced' : ''].filter(Boolean).join(' · ');
-for (const [name, note] of all) document.getElementById('labels').insertAdjacentHTML('beforeend', '<div>' + name.toUpperCase() + '<small>' + note + (tag ? ' · ' + tag : '') + '</small></div>');
+// Each row's tag names the hero value that row actually renders with.
+const tag = hero => [O.clips ? '' : 'without clips', hero ? '' : 'classic', O.reduced ? 'reduced' : ''].filter(Boolean).join(' · ');
+for (const [name, note, , , , , , , heroOverride] of all) { const t = tag(heroOverride ?? O.hero);
+  document.getElementById('labels').insertAdjacentHTML('beforeend', '<div>' + name.toUpperCase() + '<small>' + note + (t ? ' · ' + t : '') + '</small></div>'); }
 const asset = await new GLTFLoader().loadAsync('/models/suit.glb');
 const renderer = new T.WebGLRenderer({ antialias: true }); renderer.setPixelRatio(${phone ? 2 : 1.5}); renderer.setSize(W * COLS, H * all.length);
 renderer.setScissorTest(true); renderer.toneMapping = T.ACESFilmicToneMapping; renderer.setClearColor('#12262c');
@@ -65,41 +67,46 @@ scene.add(new T.HemisphereLight('#c0d7eb', '#475b5e', 2.2));
 for (const [color, intensity, pos] of [['#fff0d0', 3, [-3, 5, -3]], ['#92d5dd', 2, [4, 2, 3]]]) { const l = new T.DirectionalLight(color, intensity); l.position.set(...pos); scene.add(l); }
 const camera = new T.PerspectiveCamera(30, W / H, .05, 80);
 all.forEach(([, , view, warmup, times, drive, eventTimes, event, heroOverride], row) => {
-  const hero = heroOverride ?? O.hero, motion = { hero, epoch: 0 };
-  const pose = { viewYaw: 0, viewPitch: 0, yaw: 0, pitch: 0, lean: 0, bank: 0, speed: 0, flight: 0, power: 0, brake: 0, epoch: 0, position: { x: 0, y: 0, z: 0 } };
-  const anim = createSuitAnimation(), mix = createFlightMix(), dt = 1 / 60;
-  const sim = { t: -warmup, yaw: 0, pitch: 0, flying: false, landing: false, velocity: { x: 0, y: 0, z: 0 }, anchorX: 0, anchorY: 0, anchorZ: 0, mark: null };
-  const shots = [...pickCols(times).map(t => ({ t, rel: false })), ...(eventTimes ? pickCols(eventTimes) : []).map(t => ({ t, rel: true }))];
-  drive(sim, 0); pose.flight = sim.flying ? 1 : 0;
-  for (let next = 0, guard = 0; next < shots.length && guard < 60 * 30; guard++) {
-    drive(sim, dt); const v = sim.velocity;
-    sim.anchorX += v.x * dt; sim.anchorZ += v.z * dt; if (!sim.pinned) sim.anchorY += v.y * dt; pose.position.y = sim.anchorY;
-    const input = { flying: sim.flying, landing: sim.landing, paused: false, reduced: O.reduced, velocity: v };
-    advanceFlightPose(pose, { yaw: sim.yaw, pitch: sim.pitch, speed: Math.hypot(v.x, v.y, v.z), velocity: v, flying: sim.flying, reduced: O.reduced }, dt);
-    advanceSuitMotion(motion, hero > .5, dt); advanceSuitAnimation(anim, pose, input, dt); advanceFlightMix(mix, pose, input, dt); sim.t += dt;
-    if (event && sim.mark === null && event(sim, pose)) sim.mark = sim.t;
-    const shot = shots[next], at = shot.rel ? (sim.mark === null ? -Infinity : sim.t - sim.mark) : sim.t;
-    if (at < shot.t - 1e-9) continue;
-    rig.root.position.set(0, 0, 0); orientSuit(rig.root, pose, motion); applySuitPose(rig.joints, pose, motion, O.reduced);
-    const authored = O.clips ? applyFlightClips(rig.joints, mix, pose, anim, motion.hero, O.reduced) : 0;
-    rig.root.position.y = applySuitAnimation(rig.joints, anim, pose, O.reduced, motion.hero, authored);
-    grid.position.set(-(sim.anchorX % .5), -1.04 - sim.anchorY, -(sim.anchorZ % .5));
-    camera.clearViewOffset();
-    if (view === 'chase') {
-      // The game's chase framing: boom in the view frame from the head, looking along the view, at the game's field of view. On a
-      // desktop the tile is a crop of the 1440 x 1000 test viewport around the chest, so the perspective is exactly the game's.
-      const q = new T.Quaternion().setFromEuler(new T.Euler(pose.viewPitch, pose.viewYaw, 0, 'YXZ'));
-      camera.fov = O.reduced ? 65 : 65 + Math.min(pose.speed / 17, 2); camera.aspect = FRAME[0] / FRAME[1];
-      camera.position.copy(CHASE_BOOM).applyQuaternion(q).add(new T.Vector3(0, .65, 0)); camera.quaternion.copy(q); camera.updateProjectionMatrix();
-      if (!PHONE) {
-        rig.root.updateMatrixWorld(true); camera.updateMatrixWorld(); const c = rig.joints[11].getWorldPosition(new T.Vector3()).project(camera);
-        const x = (c.x + 1) / 2 * FRAME[0], y = (1 - c.y) / 2 * FRAME[1];
-        camera.setViewOffset(FRAME[0], FRAME[1], x - W, y - H * .9, W * 2, H * 2);
-      }
-    } else { camera.fov = 30; camera.aspect = W / H; camera.position.set(4.6, .1, 0); camera.lookAt(0, -.05, 0); }
-    camera.updateProjectionMatrix();
-    const y = (all.length - 1 - row) * H; renderer.setViewport(next * W, y, W, H); renderer.setScissor(next * W, y, W, H);
-    renderer.render(scene, camera); next++;
+  const hero = heroOverride ?? O.hero, shots = [...pickCols(times).map(t => ({ t, rel: false })), ...(eventTimes ? pickCols(eventTimes) : []).map(t => ({ t, rel: true }))];
+  // Two passes: the first finds the event time, so a column before the event (the approach before touchdown) renders before it.
+  let mark = null;
+  for (const render of event ? [false, true] : [true]) {
+    const motion = { hero, epoch: 0 }, anim = createSuitAnimation(), mix = createFlightMix(), dt = 1 / 60;
+    const pose = { viewYaw: 0, viewPitch: 0, yaw: 0, pitch: 0, lean: 0, bank: 0, speed: 0, flight: 0, power: 0, brake: 0, epoch: 0, position: { x: 0, y: 0, z: 0 } };
+    const sim = { t: -warmup, yaw: 0, pitch: 0, flying: false, landing: false, velocity: { x: 0, y: 0, z: 0 }, anchorX: 0, anchorY: 0, anchorZ: 0 };
+    drive(sim, 0); pose.flight = sim.flying ? 1 : 0;
+    for (let next = 0, guard = 0; (render ? next < shots.length : mark === null) && guard < 60 * 30; guard++) {
+      drive(sim, dt); const v = sim.velocity;
+      sim.anchorX += v.x * dt; sim.anchorZ += v.z * dt; if (!sim.pinned) sim.anchorY += v.y * dt; pose.position.y = sim.anchorY;
+      const input = { flying: sim.flying, landing: sim.landing, paused: false, reduced: O.reduced, velocity: v };
+      advanceFlightPose(pose, { yaw: sim.yaw, pitch: sim.pitch, speed: Math.hypot(v.x, v.y, v.z), velocity: v, flying: sim.flying, reduced: O.reduced }, dt);
+      advanceSuitMotion(motion, hero > .5, dt); advanceSuitAnimation(anim, pose, input, dt); advanceFlightMix(mix, pose, input, dt); sim.t += dt;
+      if (!render) { if (event(sim, pose)) mark = sim.t; continue; }
+      const shot = shots[next], at = shot.rel ? (mark === null ? -Infinity : sim.t - mark) : sim.t;
+      if (at < shot.t - 1e-9) continue;
+      // Every column shows the instant its label names, to within a frame.
+      if (at - shot.t > dt + 1e-9) throw new Error('row ' + row + ' column ' + next + ': ' + (shot.rel ? 'event ' : 'time ') + shot.t + ' rendered at ' + at.toFixed(3));
+      rig.root.position.set(0, 0, 0); orientSuit(rig.root, pose, motion); applySuitPose(rig.joints, pose, motion, O.reduced);
+      const authored = O.clips ? applyFlightClips(rig.joints, mix, pose, anim, motion.hero, O.reduced) : 0;
+      rig.root.position.y = applySuitAnimation(rig.joints, anim, pose, O.reduced, motion.hero, authored);
+      grid.position.set(-(sim.anchorX % .5), -1.04 - sim.anchorY, -(sim.anchorZ % .5));
+      camera.clearViewOffset();
+      if (view === 'chase') {
+        // The game's chase framing: boom in the view frame from the head, looking along the view, at the game's field of view. On a
+        // desktop the tile is a crop of the 1440 x 1000 test viewport around the chest, so the perspective is exactly the game's.
+        const q = new T.Quaternion().setFromEuler(new T.Euler(pose.viewPitch, pose.viewYaw, 0, 'YXZ'));
+        camera.fov = O.reduced ? 65 : 65 + Math.min(pose.speed / 17, 2); camera.aspect = FRAME[0] / FRAME[1];
+        camera.position.copy(CHASE_BOOM).applyQuaternion(q).add(new T.Vector3(0, .65, 0)); camera.quaternion.copy(q); camera.updateProjectionMatrix();
+        if (!PHONE) {
+          rig.root.updateMatrixWorld(true); camera.updateMatrixWorld(); const c = rig.joints[11].getWorldPosition(new T.Vector3()).project(camera);
+          const x = (c.x + 1) / 2 * FRAME[0], y = (1 - c.y) / 2 * FRAME[1];
+          camera.setViewOffset(FRAME[0], FRAME[1], x - W, y - H * .9, W * 2, H * 2);
+        }
+      } else { camera.fov = 30; camera.aspect = W / H; camera.position.set(4.6, .1, 0); camera.lookAt(0, -.05, 0); }
+      camera.updateProjectionMatrix();
+      const y = (all.length - 1 - row) * H; renderer.setViewport(next * W, y, W, H); renderer.setScissor(next * W, y, W, H);
+      renderer.render(scene, camera); next++;
+    }
   }
 });
 window.rendered = true;
