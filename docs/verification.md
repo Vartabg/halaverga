@@ -1,5 +1,48 @@
 # First-flight verification · 2026-09-11
 
+## Flight states told apart from the chase camera · 2026-09-19
+
+- A visual review of the first enlargement found that most states had met the silhouette floor by spreading arms and legs sideways, so hover, cruise 8 and 13, dive, climb and the landing approach read as one A-arms, wide-legs figure; classic power lifted the arms about 22° above the back; the climb splayed the legs with T-arms and crumpled the right shoulder (upper arm x about −.69); the flare stance put the toes .63 m apart and they closed to .26 m within about .12 s of touchdown; in a hero left turn the fist sat against the side of the head.
+- Data changes (`flightClips.ts`, `flightAccents.ts`): hover hangs the arms down and out (upper arm z .36–.45, elbows soft) with a gentle antiphase tread; cruise sweeps the arms back close to the sides and trails the legs nearly together with a 1 Hz flutter; classic power is an arrow, arms along the body, legs together, toes pointed; the hero trailing arm lies along the body; the dive folds the arms back behind the hips and brings the trailing legs into line; the climb holds the legs together and the arms low and back; the brake reaches the right arm forward and up and the left arm wider and lower, both elbows bent, the right knee driven higher than the left and the thighs under the hips; the landing flare brings the legs forward at hip width with the feet flat and the arms forward and out with the elbows bent. Turns keep the torso side-bend and the leg swing; the inside arm tucks toward the chest and the outside arm eases out, leaving the read to the whole-body roll of the next change. The fist sits .09 rad further right and steers in by .1 rad (was .25) in `flightPose.ts`.
+- Silhouette against the clips-off pose (m at the explorer's depth, max over the two tips):
+
+  | State | Hands | Feet |
+  |---|---|---|
+  | hover | 0.180 | 0.169 |
+  | cruise 8 | 0.334 | 0.181 |
+  | cruise 13 | 0.483 | 0.154 |
+  | power hero 34 | 0.157 | 0.280 |
+  | power classic 34 | 0.227 | 0.178 |
+  | left turn 13 | 0.298 | 0.230 |
+  | right turn 13 | 0.553 | 0.347 |
+  | left turn 34 | 0.464 | 0.393 |
+  | right turn 34 | 0.292 | 0.398 |
+  | brake from 34 (peak) | 0.396 | 0.223 |
+  | dive 13 | 0.887 | 0.165 |
+  | climb 13 | 0.389 | 0.161 |
+  | landing flare (last flying frame) | 0.426 | 0.081 |
+
+  One floor changed: the landing-flare feet floor is .075 m (was .15). The flare now keeps the grounded stance so touchdown does not scissor the toes, and clips off the approach already stands that way; the read of the flare is the arms and the head looking down.
+- Distinctness (`apart` in `tests/flight-silhouette.ts`): per tip, the image-plane distance between two states' clip-on poses, each pose seen under both states' root and chase camera and the two averaged, so it measures the pose and not the change of lean or camera. The test holds the largest tip distance of five pairs to at least .1 m, about a hand's width (about 14 px at the chase frame's 140 px/m).
+
+  | Pair | Max (m) | Mean of four tips (m) |
+  |---|---|---|
+  | hover / cruise 13 | 0.348 | 0.175 |
+  | cruise 13 / climb 13 | 0.133 | 0.090 |
+  | cruise 13 / dive 13 | 0.109 | 0.066 |
+  | hover / landing flare | 0.476 | 0.343 |
+  | power classic 34 / power hero 34 | 0.612 | 0.229 |
+
+  Climb and dive are held accents on cruise, capped at .35 rad a component, and the thigh clearance and the shoulder limit hold them back further, so they differ from cruise by about a hand's width. Measured on `b6e82e7` the same pairs gave max .233, .193, .223, .231 and .288 m: the spread-out poses there differed from each other in distance as much or more, so this metric shows that states differ, not that they read well; the strips are the check on the read.
+- Touchdown: the toes are .220 m apart on the last flying frame of the assisted landing and .231–.265 m over the next .5 s (was .63 m closing to .26 m).
+- Hero fist: clear of the head in the chase view by at least .190 m between the fist and the head centre in a left turn at 34 m/s (was .071 m), .272 m in straight flight; it stays .217–.244 m right of the head at 16 and 34 m/s and slopes 0 and ±.3 (bound .12–.30), and a full steer swings the wrist .062 m toward the inside (floor .05).
+- Skinning limits: the widest upper-arm abduction with a nearly straight forearm is hover's .45 rad (forearm .30); the brake and flare abduct further only with the elbows bent. The lowest upper-arm x is −.46 in the dive and −.40 in the climb (was −.71).
+- Frame-rate trace: 1.814e-3 between 30 and 120 Hz and 6.24e-4 between 60 and 120 Hz, against the 2.5e-3 bound (was 2.093e-3).
+- Clamps: 0 on the facing grid, the stop-and-turn runs and the launch; also 0 on a wider grid of 12 speeds from 0 to 34 m/s (including 4, 5 and 6), 5 banks from −1 to 1, 4 brake weights to 1, 5 slopes from −1 to 1, 7 loop phases, both styles, reduced motion, the flare and the fist, which covers the 4–6 m/s brake, bank and descent corner where `thigh_l` had clamped by .042 rad.
+- Interpenetration (same static grid as before): worst clearance from the torso core .225 m, from either thigh axis .122 m, from the crown .531 m; knee to knee .164 m.
+- Review strips in chase and side views, with the clips-off baseline and a contact sheet of clips off, `b6e82e7` and this change, were inspected for the reads above and for limbs through the body: none seen.
+- `pnpm verify` green: TypeScript, 188 unit tests in 24 files, the production build and the first-load check (601.5 KB).
+
 ## Flight poses sized to the chase-camera silhouette · 2026-09-19
 
 - The owner found the flight clips too subtle from the chase camera. `tests/flight-silhouette.ts` measures, per flight state, how far the clip layer moves each fingertip (18 cm past the wrist) and each toe tip against the clips-off pose that is live today, projected along the chase camera's rays (boom from the head, view rotation) onto the plane through the chest, so in metres at the explorer's depth perpendicular to the sight line. Steady states average over the loop (a whole hover tread, or 4 s); the brake takes the frame of peak mean brake weight after releasing at 34 m/s, the flare the last flying frame of an assisted landing. At the game's field of view (65° + speed/17) one metre there is 133–152 px of a 1000 px tall frame. `tests/flight-silhouette.test.ts` holds every state to at least .15 m for the hands and .15 m for the feet (no foot floor needed relaxing).
