@@ -1,0 +1,10 @@
+{
+  "source": "public/models/suit.glb",
+  "source_sha256": "79b8313a0706e71f0d9e0d42acd338545b2c09c5bc494f42563d0253d1041f77",
+  "image_sha256": "91170c6e79996c6b44d4705110518b84ee8cd1aacd1f262a2ed5488d6a015d53",
+  "height_normalized_to_m": 1.85,
+  "scale": 0.924385660879683,
+  "facing_rotation_z_radians": 3.141592653589793,
+  "lighting_and_camera": "same as anatomy front",
+  "note": "Current textured game asset vs untextured anatomy study; materials differ."
+}
