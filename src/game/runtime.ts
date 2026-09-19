@@ -6,6 +6,7 @@ export const runtime = {
   position: { ...START }, velocity: { x: 0, y: 0, z: 0 },
   yaw: 0, pitch: -0.12, surge: false, lift: false, reset: false,
   poseEpoch: 0, cameraDistance: 0,
+  turn: { lateral: 0, guard: 0 },
   clearance: { active: false, boundary: false, point: { x: 0, y: 0, z: 0 }, normal: { x: 0, y: 1, z: 0 } },
   thumb: { active: false, throttle: 0, strafe: 0, edgeTurn: 0, edgePitch: 0, bank: 0 }, keys: new Set<string>(),
   trackpad: { active: false, throttle: 8 / SPEED.surge, edgeTurn: 0, edgePitch: 0, edgeAge: 0, unlocking: false },

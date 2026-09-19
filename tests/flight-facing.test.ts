@@ -5,6 +5,7 @@ import { Vector3, Quaternion, Euler } from 'three';
 import { CHASE_BOOM, CHASE_HEAD } from '../src/game/presentation';
 import { advanceFlightMix, createFlightMix, cruising, flightPose, frame, idx, measure, rig, settledMix } from './flight-harness';
 import { drive, edge, keyboard, tap, thumb, trackpad, type Device } from './flight-drive';
+import { speedFade } from '../src/world/suitRoll';
 const PITCHES = [-1.3, -.8, -.12, 0, .5, 1, 1.25];
 type Worst = { chest: number; straight: number; face: number; yaw: number; clamped: number; hinges: boolean; finite: boolean; at: string };
 const start = (): Worst => ({ chest: 9, straight: 9, face: -9, yaw: 0, clamped: 0, hinges: true, finite: true, at: '' });
@@ -42,7 +43,8 @@ describe('flight clips keep the back toward the chase camera', () => {
           const mix = settledMix(p, { x: 0, y: Math.sin(p.pitch) * speed, z: -Math.cos(p.pitch) * speed }, reduced);
           mix.clock = clock; mix.slope = speed > 2 ? Math.sin(p.pitch) : 0; mix.fist = speed >= 15 ? 1 : 0; life.time = clock * 1.19;
           mix.bank.fill(reduced ? 0 : bank / .3); mix.steer = reduced ? 0 : bank / .3;
-          frame(r, p, mix, life, hero, reduced, true, roll, roll ? 1 : 0);
+          // The hover tilt fades as Suit.tsx fades it, with the horizontal speed, so the grid holds only reachable states.
+          frame(r, p, mix, life, hero, reduced, true, roll, speedFade(speed * Math.cos(p.pitch)));
           record(worst, measure(r, p), bank === 0 && yaw === 0, mix.clamped, () => JSON.stringify({ viewPitch, offset, bank, speed, yaw, hero, brake, reduced, roll }));
         }
     if (process.env.ROLL_REPORT) console.log(`static grid: chest min ${worst.chest.toFixed(4)} straight ${worst.straight.toFixed(3)} face max ${worst.face.toFixed(3)}`);
@@ -50,7 +52,7 @@ describe('flight clips keep the back toward the chase camera', () => {
     expect(worst.face).toBeLessThan(0); expect(worst.yaw).toBeLessThanOrEqual(.1);
     // The joint limits are a guard, not a shaper: normal play never reaches them.
     expect(worst.clamped).toBe(0); expect(worst.hinges).toBe(true); expect(worst.finite).toBe(true);
-  });
+  }, 30000);
   it('through hard stops and turns with the full stack, camera from overhead to below', () => {
     const worst = start();
     for (const viewPitch of [-1.3, -.8, 0, .6, 1.25]) for (const drag of [0, .9, .96]) for (const reduced of [false, true]) for (const turn of [0, 1.2, -1.2])

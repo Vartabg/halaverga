@@ -9,8 +9,9 @@ const euler = new Euler(0, 0, 0, 'YXZ'), roll = new Quaternion(), sight = new Ve
  * Hovering and on foot the bank tilts the body sideways; in flight `fade` (suitRoll.ts speedFade) hands that tilt over to
  * `turnRoll`, the whole-body turn roll (rad, positive rolls left). The roll turns the body about the line of sight to the chase
  * camera, so no body direction's dot product with that line changes: the back-to-camera bound holds by construction. It is
- * weighted by how directly the camera looks along the flight axis, so the on-screen tilt matches a bank about that axis and a
- * steep view does not turn it into a heading swing; flying toward the camera gives none.
+ * weighted by how directly the camera looks along the flight axis (body yaw and pitch × power), so the on-screen tilt matches a bank
+ * about that axis and a steep view does not turn it into a heading swing. Within the facing bounds that weight stays above .07, so
+ * its floor at 0 is only a guard; backward flight gives no roll because the turn sweep counts only speed along the heading.
  */
 export function orientSuit(root: Object3D, pose: Pose, motion: SuitMotion, turnRoll = 0, fade = 0) {
   const power = pose.power;

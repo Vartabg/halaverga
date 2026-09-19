@@ -9,6 +9,7 @@ import { presentation } from './presentation';
 import { edgeFreshness } from './trackpadFlight';
 import { FlightSafety } from './FlightSafety';
 import { boundaryDistance, CLEARANCE, nearestTerminal, removeInward, softenBounds } from './navigation';
+import { sweepTurn } from './turnSweep';
 const direction = new Vector3();
 export default function Player() {
   const body = useRef<RapierRigidBody>(null), collider = useRef<RapierCollider>(null);
@@ -73,6 +74,7 @@ export default function Player() {
     }
     let v = runtime.landGoal ? landingVelocity(p, runtime.landGoal) : advanceVelocity(runtime.velocity, intent, runtime.yaw, runtime.pitch, flying, runtime.surge || pointerFlight, dt);
     if (liftTime.current > 0) { v.y = 6; liftTime.current -= dt; }
+    const from = { ...runtime.velocity }, chosen = v;
     runtime.clearance.active = false; runtime.clearance.boundary = boundaryDistance(p) < 12;
     if (flying && !runtime.landGoal) {
       v = softenBounds(p, v);
@@ -94,6 +96,8 @@ export default function Player() {
       if (hit) { const corrected = removeInward(runtime.velocity, hit.normal1); setVec(runtime.velocity, corrected.x, corrected.y, corrected.z); }
     }
     if (!flying && c.computedGrounded() && runtime.velocity.y < 0) runtime.velocity.y = 0;
+    // The turn roll counts the turns the controls make, not the ones the flight safety or a wall makes.
+    sweepTurn(runtime.turn, from, chosen, runtime.velocity, presentation.yaw, dt);
     const next = { x: p.x + actual.x, y: p.y + actual.y, z: p.z + actual.z };
     b.setNextKinematicTranslation(next); setVec(runtime.position, next.x, next.y, next.z);
     if (runtime.landGoal) {

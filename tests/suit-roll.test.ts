@@ -1,11 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import { Euler, Quaternion, Vector3 } from 'three';
 import { advanceSuitRoll, createSuitRoll, ROLL } from '../src/world/suitRoll';
+import { createTurnSweep, sweepTurn } from '../src/game/turnSweep';
 import { flightPose, frame, idx, rig } from './flight-harness';
 import { drive, edge, keyboard, peak, tap, thumb, trackpad, type Device, type Frame, type Options } from './flight-drive';
 const DEVICES: [string, Device, Device][] = [['keyboard 13', keyboard(13), keyboard(13, -1)], ['keyboard 34', keyboard(34), keyboard(34, -1)],
   ['edge 8', edge(8), edge(8, -1)], ['thumb 13', thumb(13), thumb(13, -1)], ['trackpad 13', trackpad(13), trackpad(13, -1)], ['tap', tap(), tap(-1)]];
 const RATES = [30, 45, 90, 120, 144, 165];
+const q = new Quaternion(), view = new Euler(0, 0, 0, 'YXZ'), right = new Vector3(), camRight = new Vector3(), camUp = new Vector3();
+/** On-screen tilt (rad) of the chest's right axis in the chase image. */
+function tilt(r: ReturnType<typeof rig>, p: { viewPitch: number; viewYaw: number }) {
+  view.set(p.viewPitch, p.viewYaw, 0); camRight.set(1, 0, 0).applyEuler(view); camUp.set(0, 1, 0).applyEuler(view);
+  right.set(1, 0, 0).applyQuaternion(r.joints[idx.chest].getWorldQuaternion(q)); return Math.atan2(right.dot(camUp), right.dot(camRight));
+}
 const rolls = (device: Device, options: Options = {}) => { const out: Frame[] = []; drive(device, options, f => out.push({ ...f })); return out; };
 /** Largest roll rate and largest frame-to-frame change of the roll rate (rad/s) over a run at `hz`. */
 function smoothness(device: Device, hz: number, options: Options = {}) {
@@ -66,10 +73,11 @@ describe('whole-body turn roll', () => {
     // Below walking pace the roll fades out: a slow drift turn barely tips the body.
     expect(Math.abs(peak(edge(3)))).toBeLessThan(.05);
     // On foot the roll is exactly 0, however the walk curves, even before the flight weight has settled after a touchdown.
-    const r = createSuitRoll(), p = { ...flightPose({ speed: 5, flight: 1 }), epoch: 0 };
+    const r = createSuitRoll(), p = { ...flightPose({ speed: 5, flight: 1 }), epoch: 0 }, walk = createTurnSweep();
     for (let i = 0; i < 240; i++) {
-      const yaw = i * 1.5 / 60; p.yaw = yaw;
-      expect(advanceSuitRoll(r, p, { paused: false, reduced: false, flying: false, velocity: { x: -Math.sin(yaw) * 5, y: 0, z: -Math.cos(yaw) * 5 } }, 1, 0, 1 / 60)).toBe(0);
+      const yaw = i * 1.5 / 60, from = { x: -Math.sin(yaw - .025) * 5, y: 0, z: -Math.cos(yaw - .025) * 5 }, velocity = { x: -Math.sin(yaw) * 5, y: 0, z: -Math.cos(yaw) * 5 };
+      p.yaw = yaw; sweepTurn(walk, from, velocity, velocity, yaw, 1 / 60);
+      expect(advanceSuitRoll(r, p, { paused: false, reduced: false, flying: false, velocity, turn: walk }, 1, 0, 1 / 60)).toBe(0);
     }
   });
   it('reduced motion removes it: 0 from the start, and eased out without a step when switched on mid-turn', () => {
@@ -82,9 +90,10 @@ describe('whole-body turn roll', () => {
     expect(smoothness(keyboard(34), 60, { reduced: t => t >= 2 }).jolt).toBeLessThan(1.5);
   });
   it('restarts upright on a teleport or reset, holds while paused and restarts cleanly on resume', () => {
-    const p = { ...flightPose({ speed: 13 }), epoch: 0 }, r = createSuitRoll(), input = { paused: false, reduced: false, flying: true, velocity: { x: 0, y: 0, z: -13 } };
+    const p = { ...flightPose({ speed: 13 }), epoch: 0 }, r = createSuitRoll(), input = { paused: false, reduced: false, flying: true, velocity: { x: 0, y: 0, z: -13 }, turn: createTurnSweep() };
     const turn = (frames: number) => { for (let i = 0; i < frames; i++) {
-      const yaw = Math.atan2(-input.velocity.x, -input.velocity.z) + 1.5 / 60; p.yaw = yaw; input.velocity = { x: -Math.sin(yaw) * 13, y: 0, z: -Math.cos(yaw) * 13 };
+      const yaw = Math.atan2(-input.velocity.x, -input.velocity.z) + 1.5 / 60, from = input.velocity; p.yaw = yaw;
+      input.velocity = { x: -Math.sin(yaw) * 13, y: 0, z: -Math.cos(yaw) * 13 }; sweepTurn(input.turn, from, input.velocity, input.velocity, yaw, 1 / 60);
       advanceSuitRoll(r, p, input, 1, 0, 1 / 60);
     } return r.angle; };
     expect(turn(90)).toBeGreaterThan(.5);
@@ -94,9 +103,10 @@ describe('whole-body turn roll', () => {
     input.paused = false; expect(advanceSuitRoll(r, p, input, 1, 0, 1 / 60)).toBe(0);
     expect(turn(1)).toBeLessThan(.02);
   });
-  // The view turns with the slide, as it does while the explorer slides along a wall, so only the deflection itself is measured.
+  // The controller's slide (removeInward) turning the velocity 45 degrees in one step; the view is turned too, so only the deflection
+  // is measured. suit-roll-world.test.ts flies the flight safety's own bend along a facade with the view held still.
   it('barely rolls when a wall turns the velocity 45 degrees at 34 m/s', () => {
-    for (const hz of [60, 144]) {
+    for (const hz of [30, 60, 144]) {
       let hit = false;
       const top = peak({ speed: 34, pointer: false }, { hz, seconds: 3, step: b => {
         if (hit || b.t < 1) return; hit = true;
@@ -120,11 +130,6 @@ describe('whole-body turn roll', () => {
     });
   });
   it('tilts the chest on screen well past the carve alone, as the chase camera sees it', () => {
-    const q = new Quaternion(), view = new Euler(0, 0, 0, 'YXZ'), right = new Vector3(), camRight = new Vector3(), camUp = new Vector3();
-    const tilt = (r: ReturnType<typeof rig>, p: { viewPitch: number; viewYaw: number }) => {
-      view.set(p.viewPitch, p.viewYaw, 0); camRight.set(1, 0, 0).applyEuler(view); camUp.set(0, 1, 0).applyEuler(view);
-      right.set(1, 0, 0).applyQuaternion(r.joints[idx.chest].getWorldQuaternion(q)); return Math.atan2(right.dot(camUp), right.dot(camRight));
-    };
     for (const [speed, floor] of [[13, 20], [34, 25]] as const) for (const dir of [1, -1]) {
       const on = rig(), off = rig(); let most = 0;
       drive(keyboard(speed, dir), { pitch: -.12, rig: on }, f => {
@@ -134,6 +139,24 @@ describe('whole-body turn roll', () => {
       if (process.env.ROLL_REPORT) console.log(`visible chest tilt over the carve alone, ${speed} m/s dir ${dir}: ${most.toFixed(1)} deg`);
       expect(most, `${speed} m/s`).toBeGreaterThan(floor);
     }
+  });
+  it('banks into climbing and diving turns on screen, against straight flight, at 8 and 13 m/s', () => {
+    // Held turns 1.8 s in, the chest measured against the same flight before the turn; the camera below in a climb, above in a dive.
+    const lines: string[] = [];
+    for (const [pitch, speed, floor] of [[.9, 13, 30], [.9, 8, 15], [-.9, 13, 10], [-.9, 8, 1]] as const) for (const dir of [1, -1]) {
+      const r = rig(), device = speed === 8 ? edge(8, dir) : keyboard(13, dir); let straight = 0, net = 0;
+      drive(device, { pitch, rig: r, seconds: 2.8 }, f => { if (Math.abs(f.t - 1) < 1e-9) straight = tilt(r, f.p); net = (tilt(r, f.p) - straight) * dir * 180 / Math.PI; });
+      lines.push(`pitch ${pitch} ${speed} m/s dir ${dir}: ${net.toFixed(1)} deg`); expect(net, lines.at(-1)).toBeGreaterThan(floor);
+    }
+    if (process.env.ROLL_REPORT) console.log(`net chest tilt into the turn: ${lines.join(' · ')}`);
+  });
+  it('circling while strafing banks into the curve up to the measured reach, at 13 m/s and at surge', () => {
+    // From a hover, strafing right while the view turns right at 1.5 rad/s: the body keeps part of its heading along the travel.
+    const still = { seconds: 6, step: (b: { t: number; v: { x: number; y: number; z: number } }) => { if (b.t < 1) b.v = { x: 0, y: 0, z: 0 }; } };
+    const circle = (speed: number, pointer: boolean, hero: number) => Math.abs(peak({ speed, pointer, forward: 0, strafe: 1, rate: t => t >= 1 ? -1.5 : 0 }, { ...still, hero }));
+    const measured = [circle(13, false, 1), circle(13, false, 0), circle(34, false, 1), circle(34, false, 0), circle(34, true, 1)];
+    if (process.env.ROLL_REPORT) console.log(`strafe circle: 13 m/s ${measured[0].toFixed(3)} / ${measured[1].toFixed(3)} classic, 34 m/s ${measured[2].toFixed(3)} / ${measured[3].toFixed(3)}, pointer ${measured[4].toFixed(3)}`);
+    [.319, .219, .699, .480, .699].forEach((m, i) => expect(Math.abs(measured[i] - m), `${i}`).toBeLessThan(.01));
   });
 });
 if (process.env.ROLL_REPORT) {

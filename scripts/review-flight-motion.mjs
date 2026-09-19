@@ -31,6 +31,7 @@ import { advanceSuitAnimation, applySuitAnimation, createSuitAnimation } from '/
 import { advanceFlightMix, createFlightMix } from '/src/world/flightMix';
 import { applyFlightClips } from '/src/world/flightPose';
 import { advanceSuitRoll, createSuitRoll, speedFade } from '/src/world/suitRoll';
+import { createTurnSweep, sweepTurn } from '/src/game/turnSweep';
 const W = ${W}, H = ${H}, O = ${JSON.stringify(options)}, PICK = ${JSON.stringify(rows)}, COLS = O.cols, PHONE = ${phone};
 const FRAME = PHONE ? [852, 393] : [1440, 1000];
 // Rows are authored for eight columns; the phone layout keeps every other one.
@@ -79,14 +80,14 @@ all.forEach(([, , side, warmup, times, drive, eventTimes, event, heroOverride], 
   // Two passes: the first finds the event time, so a column before the event (the approach before touchdown) renders before it.
   const view = O.chase ? 'chase' : side; let mark = null;
   for (const render of event ? [false, true] : [true]) {
-    const motion = { hero, epoch: 0 }, anim = createSuitAnimation(), mix = createFlightMix(), turn = createSuitRoll(), dt = 1 / 60;
+    const motion = { hero, epoch: 0 }, anim = createSuitAnimation(), mix = createFlightMix(), turn = createSuitRoll(), sweep = createTurnSweep(), dt = 1 / 60;
     const pose = { viewYaw: 0, viewPitch: 0, yaw: 0, pitch: 0, lean: 0, bank: 0, speed: 0, flight: 0, power: 0, brake: 0, epoch: 0, position: { x: 0, y: 0, z: 0 } };
     const sim = { t: -warmup, yaw: 0, pitch: 0, flying: false, landing: false, velocity: { x: 0, y: 0, z: 0 }, anchorX: 0, anchorY: 0, anchorZ: 0 };
     drive(sim, 0); pose.flight = sim.flying ? 1 : 0;
     for (let next = 0, guard = 0; (render ? next < shots.length : mark === null) && guard < 60 * 30; guard++) {
-      drive(sim, dt); const v = sim.velocity;
+      const from = sim.velocity; drive(sim, dt); const v = sim.velocity; sweepTurn(sweep, from, v, v, pose.yaw, dt);
       sim.anchorX += v.x * dt; sim.anchorZ += v.z * dt; if (!sim.pinned) sim.anchorY += v.y * dt; pose.position.y = sim.anchorY;
-      const input = { flying: sim.flying, landing: sim.landing, paused: false, reduced: O.reduced, velocity: v };
+      const input = { flying: sim.flying, landing: sim.landing, paused: false, reduced: O.reduced, velocity: v, turn: sweep };
       advanceFlightPose(pose, { yaw: sim.yaw, pitch: sim.pitch, speed: Math.hypot(v.x, v.y, v.z), velocity: v, flying: sim.flying, reduced: O.reduced }, dt);
       advanceSuitMotion(motion, hero > .5, dt); advanceSuitAnimation(anim, pose, input, dt); advanceFlightMix(mix, pose, input, dt); sim.t += dt;
       const roll = O.roll ? advanceSuitRoll(turn, pose, input, motion.hero, mix.flare, dt) : 0, fade = O.roll ? speedFade(Math.hypot(v.x, v.z)) : 0;

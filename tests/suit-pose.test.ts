@@ -4,7 +4,7 @@ import { loadSuit } from './load-suit';
 import { applySuitPose, advanceSuitMotion, orientSuit } from '../src/world/suitPose';
 import { buildSuitRig } from '../src/world/suitRig';
 import { advanceFlightPose, angleDelta, CHASE_BOOM, CHASE_HEAD, FACING, type Pose } from '../src/game/presentation';
-import { ROLL } from '../src/world/suitRoll';
+import { ROLL, sightLine } from '../src/world/suitRoll';
 // Speed alone decides the lean and the pitch that offsets it, exactly as advanceFlightPose derives them.
 const pose = (patch: Partial<Pose> = {}): Pose => {
   const base = { viewYaw: 0, viewPitch: 0, yaw: 0, pitch: 0, bank: 0, speed: 34, flight: 1, brake: 0, ...patch };
@@ -118,6 +118,26 @@ test('the on-screen roll follows how directly the camera looks along the flight,
   const level = shown(-.12, ROLL.hero), steep = shown(-1.3, ROLL.hero);
   if (process.env.ROLL_REPORT) console.log(`on-screen roll for .8: level ${level.toFixed(3)} steep ${steep.toFixed(3)} ratio ${(steep / level).toFixed(3)}`);
   expect(level).toBeGreaterThan(.85 * ROLL.hero); expect(steep).toBeGreaterThan(0); expect(steep / level).toBeLessThan(.75);
+});
+test('the view weight uses the flight axis, body pitch included, when the body pitch differs from the view', () => {
+  const root = new Group(), right = new Vector3(), camRight = new Vector3(), camUp = new Vector3(), view = new Euler(0, 0, 0, 'YXZ'), sight = new Vector3();
+  const shown = (p: Pose) => {
+    const angle = (r: number) => {
+      orientSuit(root, p, hero, r, 1); view.set(p.viewPitch, 0, 0); camRight.set(1, 0, 0).applyEuler(view); camUp.set(0, 1, 0).applyEuler(view);
+      right.set(1, 0, 0).applyQuaternion(root.quaternion); return Math.atan2(right.dot(camUp), right.dot(camRight));
+    };
+    return angle(ROLL.hero) - angle(0);
+  };
+  // t̂·ĉ computed apart from orientSuit: the flight axis (yaw, pitch × power) against the line to the camera.
+  const weight = (p: Pose) => { const e = p.pitch * p.power; sightLine(p, sight); return Math.cos(e) * sight.z - Math.sin(e) * sight.y; };
+  const level = pose({ viewPitch: -.12, pitch: -.12 }), lines: string[] = [];
+  // A dive with the camera above, and a climb with the camera below, each with the body pitched off the view.
+  for (const [viewPitch, pitch] of [[-.8, -.95], [-.8, -.8], [-1.1, -1.25], [.5, .9], [1, 1.4]]) {
+    const p = pose({ viewPitch, pitch }), measured = shown(p) / shown(level), expected = weight(p) / weight(level);
+    lines.push(`view ${viewPitch} body ${pitch}: ${measured.toFixed(3)} against ${expected.toFixed(3)}`);
+    expect(Math.abs(measured - expected), lines.at(-1)).toBeLessThan(.03);
+  }
+  if (process.env.ROLL_REPORT) console.log(`on-screen roll over level, measured against t̂·ĉ: ${lines.join(' · ')}`);
 });
 test('motion blending converges consistently across refresh rates and classic remains available', () => {
   const results = [30, 60, 120].map(hz => {
