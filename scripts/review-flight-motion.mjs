@@ -1,19 +1,20 @@
 // Frame strips of the authored flight clips on the actual rig: the real presentation, pose, animation and flight modules simulated
 // at 60 Hz in system Chrome, chase rows at the game's field of view. `node scripts/review-flight-motion.mjs` needs no server.
-// SUIT_FLIGHT_CLIPS=0 renders the same strips without the clip layer (the A/B baseline); SUIT_HERO=0 uses classic poses;
+// SUIT_FLIGHT_CLIPS=0 renders the same strips without the clip layer (the A/B baseline); SUIT_TURN_ROLL=0 without the whole-body turn
+// roll (its A/B baseline); SUIT_HERO=0 uses classic poses;
 // SUIT_REDUCED=1 turns on reduced camera motion; SUIT_REVIEW_PHONE=1 renders chase tiles as whole landscape phone frames (852 x 393,
 // shown at half size) instead of 2x crops of the 1440 x 1000 desktop frame;
 // SUIT_FLIGHT_VIEW=chase renders every row from the chase camera (the owner's view); SUIT_FLIGHT_OUTPUT sets the PNG path;
-// SUIT_FLIGHT_ROWS=0,6 picks rows; SUIT_REVIEW_SCALE=2.5 screenshots at that device pixel ratio.
+// SUIT_FLIGHT_ROWS=0,6,12 picks rows; SUIT_REVIEW_SCALE=2.5 screenshots at that device pixel ratio.
 import { chromium } from '@playwright/test';
 import { fileURLToPath } from 'node:url';
 import { readFile } from 'node:fs/promises';
 import ts from 'typescript';
 const root = fileURLToPath(new URL('..', import.meta.url)), env = process.env;
 const phone = env.SUIT_REVIEW_PHONE === '1', W = phone ? 426 : 170, H = phone ? 197 : 200, COLS = phone ? 4 : 8;
-const options = { clips: env.SUIT_FLIGHT_CLIPS !== '0', hero: env.SUIT_HERO === '0' ? 0 : 1, reduced: env.SUIT_REDUCED === '1', cols: COLS, chase: env.SUIT_FLIGHT_VIEW === 'chase' };
-const picked = env.SUIT_FLIGHT_ROWS?.split(',').map(s => s.trim());
-if (picked && (picked.some(s => !/^[0-9]$/.test(s)) || new Set(picked).size !== picked.length)) throw new Error('SUIT_FLIGHT_ROWS must list distinct row numbers 0-9.');
+const options = { clips: env.SUIT_FLIGHT_CLIPS !== '0', roll: env.SUIT_TURN_ROLL !== '0', hero: env.SUIT_HERO === '0' ? 0 : 1, reduced: env.SUIT_REDUCED === '1', cols: COLS, chase: env.SUIT_FLIGHT_VIEW === 'chase' };
+const ROWS = 15, picked = env.SUIT_FLIGHT_ROWS?.split(',').map(s => s.trim());
+if (picked && (picked.some(s => !/^[0-9]+$/.test(s) || Number(s) >= ROWS) || new Set(picked).size !== picked.length)) throw new Error(`SUIT_FLIGHT_ROWS must list distinct row numbers 0-${ROWS - 1}.`);
 const rows = picked?.map(Number) ?? null;
 const page = `<!doctype html><html><head><meta charset="utf-8"><style>body{margin:0;background:#12262c;color:#d7e9e3;font:12px Arial}
 #wrap{display:flex}#labels{width:190px}#labels div{height:${H}px;box-sizing:border-box;padding:14px 12px;border-bottom:1px solid #1d3a41;letter-spacing:1px}
@@ -29,6 +30,7 @@ import { advanceVelocity } from '/src/game/motion';
 import { advanceSuitAnimation, applySuitAnimation, createSuitAnimation } from '/src/world/suitAnimation';
 import { advanceFlightMix, createFlightMix } from '/src/world/flightMix';
 import { applyFlightClips } from '/src/world/flightPose';
+import { advanceSuitRoll, createSuitRoll, speedFade } from '/src/world/suitRoll';
 const W = ${W}, H = ${H}, O = ${JSON.stringify(options)}, PICK = ${JSON.stringify(rows)}, COLS = O.cols, PHONE = ${phone};
 const FRAME = PHONE ? [852, 393] : [1440, 1000];
 // Rows are authored for eight columns; the phone layout keeps every other one.
@@ -54,9 +56,14 @@ const all = [
     if (t < 1.2) { sim.flying = t >= 0; sim.velocity = { x: 0, y: t < 0 ? 0 : t < .4 ? 6 : 6 * Math.exp(-9 * (t - .4)), z: 0 }; }
     else { sim.anchorY = Math.max(0, sim.anchorY - 1.5 * dt); sim.flying = sim.anchorY > 0; sim.velocity = { x: 0, y: sim.flying ? -1.5 : 0, z: 0 }; } },
     [-.1, .02, .12, .35], (sim) => sim.t > 1.2 && !sim.flying],
+  ['Right turn · surge', 'chase · keyboard at 34 m/s, 0-1.2 s', 'chase', 3, [0, .15, .3, .45, .6, .8, 1, 1.2], keys({ surge: () => true, turn: t => t >= 0 ? -1.5 : 0 })],
+  ['S-turn · surge', 'chase · 34 m/s, left 0-1 s, then right', 'chase', 3, spread(0, 2), keys({ surge: () => true, turn: t => t < 0 ? 0 : t < 1 ? 1.5 : -1.5 })],
+  ['Climbing turn', 'chase · 13 m/s, camera below, left', 'chase', 2.5, spread(0, 1.2), keys({ pitch: () => .9, turn: t => t >= 0 ? 1.5 : 0 })],
+  ['Diving turn', 'chase · 13 m/s, camera above, right', 'chase', 2.5, spread(0, 1.2), keys({ pitch: () => -.9, turn: t => t >= 0 ? -1.5 : 0 })],
+  ['Thumb turn', 'chase · 8 m/s, right edge held', 'chase', 3, spread(0, 1.6), keys({ surge: () => true, forward: () => 8 / 34, turn: t => t >= 0 ? -1.5 : 0 })],
 ].filter((_, i) => !PICK || PICK.includes(i));
 // Each row's tag names the hero value that row actually renders with.
-const tag = hero => [O.clips ? '' : 'without clips', hero ? '' : 'classic', O.reduced ? 'reduced' : ''].filter(Boolean).join(' · ');
+const tag = hero => [O.clips ? '' : 'without clips', O.roll ? '' : 'no turn roll', hero ? '' : 'classic', O.reduced ? 'reduced' : ''].filter(Boolean).join(' · ');
 for (const [name, note, , , , , , , heroOverride] of all) { const t = tag(heroOverride ?? O.hero), shown = O.chase ? note.replace(/^side/, 'chase') : note;
   document.getElementById('labels').insertAdjacentHTML('beforeend', '<div>' + name.toUpperCase() + '<small>' + shown + (t ? ' · ' + t : '') + '</small></div>'); }
 const asset = await new GLTFLoader().loadAsync('/models/suit.glb');
@@ -72,7 +79,7 @@ all.forEach(([, , side, warmup, times, drive, eventTimes, event, heroOverride], 
   // Two passes: the first finds the event time, so a column before the event (the approach before touchdown) renders before it.
   const view = O.chase ? 'chase' : side; let mark = null;
   for (const render of event ? [false, true] : [true]) {
-    const motion = { hero, epoch: 0 }, anim = createSuitAnimation(), mix = createFlightMix(), dt = 1 / 60;
+    const motion = { hero, epoch: 0 }, anim = createSuitAnimation(), mix = createFlightMix(), turn = createSuitRoll(), dt = 1 / 60;
     const pose = { viewYaw: 0, viewPitch: 0, yaw: 0, pitch: 0, lean: 0, bank: 0, speed: 0, flight: 0, power: 0, brake: 0, epoch: 0, position: { x: 0, y: 0, z: 0 } };
     const sim = { t: -warmup, yaw: 0, pitch: 0, flying: false, landing: false, velocity: { x: 0, y: 0, z: 0 }, anchorX: 0, anchorY: 0, anchorZ: 0 };
     drive(sim, 0); pose.flight = sim.flying ? 1 : 0;
@@ -82,9 +89,10 @@ all.forEach(([, , side, warmup, times, drive, eventTimes, event, heroOverride], 
       const input = { flying: sim.flying, landing: sim.landing, paused: false, reduced: O.reduced, velocity: v };
       advanceFlightPose(pose, { yaw: sim.yaw, pitch: sim.pitch, speed: Math.hypot(v.x, v.y, v.z), velocity: v, flying: sim.flying, reduced: O.reduced }, dt);
       advanceSuitMotion(motion, hero > .5, dt); advanceSuitAnimation(anim, pose, input, dt); advanceFlightMix(mix, pose, input, dt); sim.t += dt;
+      const roll = O.roll ? advanceSuitRoll(turn, pose, input, motion.hero, mix.flare, dt) : 0, fade = O.roll ? speedFade(Math.hypot(v.x, v.z)) : 0;
       if (!render) { if (event(sim, pose)) mark = sim.t; continue; }
       // Pose every frame, as the game does: the living layer consumes its touchdown plant blend on the frame it happens.
-      rig.root.position.set(0, 0, 0); orientSuit(rig.root, pose, motion); applySuitPose(rig.joints, pose, motion, O.reduced);
+      rig.root.position.set(0, 0, 0); orientSuit(rig.root, pose, motion, roll, fade); applySuitPose(rig.joints, pose, motion, O.reduced);
       const authored = O.clips ? applyFlightClips(rig.joints, mix, pose, anim, motion.hero, O.reduced) : 0;
       rig.root.position.y = applySuitAnimation(rig.joints, anim, pose, O.reduced, motion.hero, authored);
       const shot = shots[next], at = shot.rel ? (mark === null ? -Infinity : sim.t - mark) : sim.t;
@@ -116,7 +124,7 @@ window.rendered = true;
 const three = { 'three.module.js': 'build/three.module.js', 'three.core.js': 'build/three.core.js' };
 const browser = await chromium.launch({ executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', args: ['--use-gl=angle', '--use-angle=metal'] });
 try {
-  const tab = await browser.newPage({ viewport: { width: 190 + W * COLS, height: H * (rows?.length ?? 10) }, deviceScaleFactor: Number(env.SUIT_REVIEW_SCALE) || 1 });
+  const tab = await browser.newPage({ viewport: { width: 190 + W * COLS, height: H * (rows?.length ?? ROWS) }, deviceScaleFactor: Number(env.SUIT_REVIEW_SCALE) || 1 });
   let fail; const failed = new Promise((_, reject) => { fail = reject; }); failed.catch(() => {});
   tab.on('pageerror', e => fail(e)); tab.on('console', m => { if (m.type() === 'error') fail(new Error(m.text())); });
   tab.on('requestfailed', r => fail(new Error(`Request failed: ${r.url()}`)));
