@@ -42,6 +42,8 @@ const q = (r: Rig) => r.joints.map(j => j.quaternion.clone());
 /** Per-joint rotation (rad) between two snapshots. */
 export const turned = (a: ReturnType<typeof q>, b: ReturnType<typeof q>) => a.map((x, k) => x.angleTo(b[k]));
 export const snapshot = q;
-/** A joint's head in the root frame (metres). */
-export const local = (r: Rig, bone: number) => r.root.worldToLocal(r.joints[bone].getWorldPosition(new Vector3()));
+/** A point on a joint (its head by default) in the root frame, in metres. */
+export const local = (r: Rig, bone: number, offset = new Vector3()) => r.root.worldToLocal(r.joints[bone].localToWorld(offset.clone()));
+/** The toe tip in the toe bone's frame. */
+export const TOE_TIP = new Vector3(0, -.029, -.065);
 export { BONE_COUNT };

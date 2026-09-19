@@ -64,7 +64,9 @@ export function applyFlightClips(joints: Object3D[], mix: FlightMix, pose: Pose,
   }
   accent(ACCENTS.bankLeft, 0, 1, bankLeft); accent(ACCENTS.bankRight, 0, 1, bankRight);
   const up = Math.max(0, mix.slope), down = Math.max(0, -mix.slope);
-  accent(ACCENTS.climb, 0, up, keep); accent(ACCENTS.dive, 0, down * P, keep); accent(ACCENTS.sink, 0, down * (1 - P));
+  // The feet-first sink belongs to a hover descent and is gone by P = .25; the dive stoop is full from P = .4 (keyboard speed).
+  const hovering = Math.max(0, 1 - 4 * P);
+  accent(ACCENTS.climb, 0, up, keep); accent(ACCENTS.dive, 0, down * smooth(0, .4, P), keep); accent(ACCENTS.sink, 0, down * hovering * hovering);
   if (life.takeoff < 1) {
     // The launch snaps the feet toward an absolute reach by the keyed weight, so they point further without passing the limit.
     accent(ACCENTS.launch, life.takeoff, amp, UNSOLED); const reach = -pitchOf(work, FOOT_R) * amp;
