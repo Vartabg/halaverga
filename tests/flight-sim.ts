@@ -38,7 +38,7 @@ export function landing(from: Vec, goal: Vec, after = 1) {
     return { velocity, flying, landing: approach };
   };
 }
-const q = (r: Rig) => r.joints.map(j => j.quaternion.clone());
+const q = (r: Rig) => r.joints.map(j => j.quaternion.clone().normalize());
 /** Per-joint rotation (rad) between two snapshots. */
 export const turned = (a: ReturnType<typeof q>, b: ReturnType<typeof q>) => a.map((x, k) => x.angleTo(b[k]));
 export const snapshot = q;

@@ -11,6 +11,22 @@ function record(worst: Worst, s: ReturnType<typeof measure>, straight: boolean, 
   worst.face = Math.max(worst.face, s.face); worst.yaw = Math.max(worst.yaw, s.yaw); worst.clamped = Math.max(worst.clamped, clamped);
   worst.hinges &&= s.hinges; worst.finite &&= s.finite;
 }
+type Run = { viewPitch: number; drag: number; reduced: boolean; turn: number; hero: number; from: number };
+/** Flies at `from`, stops at frame 90 (instantly, or dragging per frame) while the view turns, through the full stack at 60 Hz. */
+function stopAndTurn(worst: Worst, { viewPitch, drag, reduced, turn, hero, from }: Run, frames: number) {
+  const p = flightPose({ speed: 0, viewPitch, pitch: viewPitch }), r = rig(), life = createSuitAnimation(), mix = createFlightMix();
+  let speed = from, yaw = 0;
+  for (let f = 0; f < frames; f++) {
+    if (f >= 90) speed = drag ? speed * drag : 0;
+    yaw += turn / 60;
+    const velocity = { x: -Math.sin(yaw) * speed, y: 0, z: -Math.cos(yaw) * speed };
+    advanceFlightPose(p, { yaw, pitch: viewPitch, speed, velocity, flying: true, reduced }, 1 / 60);
+    advanceSuitAnimation(life, p, { flying: true, velocity }, 1 / 60);
+    advanceFlightMix(mix, p, { paused: false, reduced, flying: true, velocity }, 1 / 60);
+    frame(r, p, mix, life, hero, reduced);
+    record(worst, measure(r, p), turn === 0, mix.clamped, () => JSON.stringify({ viewPitch, drag, reduced, turn, hero, from, f }));
+  }
+}
 describe('flight clips keep the back toward the chase camera', () => {
   it('over the static grid of view, body offset, bank, speed, yaw, style, brake, phase and reduced motion', () => {
     const r = rig(), life = cruising(), worst = start();
@@ -34,20 +50,14 @@ describe('flight clips keep the back toward the chase camera', () => {
   it('through hard stops and turns with the full stack, camera from overhead to below', () => {
     const worst = start();
     for (const viewPitch of [-1.3, -.8, 0, .6, 1.25]) for (const drag of [0, .9, .96]) for (const reduced of [false, true]) for (const turn of [0, 1.2, -1.2])
-      for (const hero of [0, 1]) for (const from of [13, 34]) {
-        const p = flightPose({ speed: 0, viewPitch, pitch: viewPitch }), r = rig(), life = createSuitAnimation(), mix = createFlightMix();
-        let speed = from, yaw = 0;
-        for (let f = 0; f < 240; f++) {
-          if (f >= 90) speed = drag ? speed * drag : 0;
-          yaw += turn / 60;
-          const velocity = { x: -Math.sin(yaw) * speed, y: 0, z: -Math.cos(yaw) * speed };
-          advanceFlightPose(p, { yaw, pitch: viewPitch, speed, velocity, flying: true, reduced }, 1 / 60);
-          advanceSuitAnimation(life, p, { flying: true, velocity }, 1 / 60);
-          advanceFlightMix(mix, p, { paused: false, reduced, flying: true, velocity }, 1 / 60);
-          frame(r, p, mix, life, hero, reduced);
-          record(worst, measure(r, p), turn === 0, mix.clamped, () => JSON.stringify({ viewPitch, drag, reduced, turn, hero, from, f }));
-        }
-      }
+      for (const hero of [0, 1]) for (const from of [13, 34]) stopAndTurn(worst, { viewPitch, drag, reduced, turn, hero, from }, 240);
+    expect(worst.chest, worst.at).toBeGreaterThan(.1); expect(worst.face).toBeLessThan(0); expect(worst.yaw).toBeLessThanOrEqual(.1);
+    expect(worst.clamped).toBe(0); expect(worst.hinges).toBe(true); expect(worst.finite).toBe(true);
+  });
+  it('through a 40 s hover turn under the overhead camera, so every hover phase meets every view', () => {
+    const worst = start();
+    for (const viewPitch of [-1.3, -.8]) for (const reduced of [false, true]) for (const turn of [1.2, -1.2]) for (const hero of [0, 1])
+      stopAndTurn(worst, { viewPitch, drag: 0, reduced, turn, hero, from: 13 }, 2400);
     expect(worst.chest, worst.at).toBeGreaterThan(.1); expect(worst.face).toBeLessThan(0); expect(worst.yaw).toBeLessThanOrEqual(.1);
     expect(worst.clamped).toBe(0); expect(worst.hinges).toBe(true); expect(worst.finite).toBe(true);
   });
