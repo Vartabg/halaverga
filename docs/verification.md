@@ -182,7 +182,9 @@
 - `pnpm verify` green: TypeScript, 169 unit tests in 23 files, the production build and the first-load check.
 - Browser suite: 35/35 passed against `next start` on 127.0.0.1:3368, whose HTML carried `BUILD_ID GKXd8Mq8iBxslaFmvOzct`. That includes the new `tests/suit-clips.spec.ts`, which also passed 12 of 12 repeats with four parallel workers.
 - A live before/after capture (the live site against this build, the same keyboard flight, zoomed 2× on the explorer) went to the owner for review.
-- Pending: the owner's verdict on that capture; a physical iPhone check.
+- Owner verdict on that capture (2026-09-19): the poses were too subtle from the chase camera. They were enlarged and then reworked for distinct silhouettes (sections above).
+- After the art pass: 35/35 browser checks passed against `next start` on 127.0.0.1:3368, whose HTML carried `BUILD_ID a04dqtF6NRqwWQSFZfdxE`. A new before/after capture went to the owner.
+- Pending: the owner's verdict on the new capture; a physical iPhone check.
 
 ## 21-bone skeleton · 2026-09-18
 
