@@ -1,5 +1,29 @@
 # First-flight verification · 2026-09-11
 
+## Whole-body turn roll · 2026-09-19
+
+- `src/world/suitRoll.ts` (new) turns the lateral acceleration of the travel into a roll; `orientSuit` applies it about the line of sight to the chase camera, weighted by t̂·ĉ; `Suit.tsx` advances it after the flight mix and writes `presentation.suitRoll`, which the telemetry samples every 350 ms as `data-suit-roll`. `CHASE_HEAD` (.65 m) is shared by `CameraRig.tsx` and the roll. The long-axis bank term is removed.
+- Peak roll (rad, hero; `tests/suit-roll.test.ts`, input devices flown through 60 Hz physics in `tests/flight-drive.ts`):
+
+  | Turn | Measured | Floor | Classic / hero |
+  |---|---|---|---|
+  | keyboard, 13 m/s | .545 | .5 | .688 |
+  | keyboard, 34 m/s | .765 | .7 | .688 |
+  | edge held, 8 m/s | .377 | .3 | .688 |
+  | thumb drag (150 px over .4 s), 13 m/s | .454 | .35 | .687 |
+  | trackpad swipe (300 px over .5 s), 13 m/s | .506 | .45 | .688 |
+  | one look tap | .188 | .12 | .688 |
+
+  Right turns are the exact negative of left turns frame by frame. Classic/hero is checked against .69 ± .05. The roll never exceeds its reach on the device grid; it is exactly 0 in straight flight and .001 two seconds after the travel straightens (limit .04). Keyboard at 13 m/s reaches .3 rad .35 s into the turn.
+- Refresh rate, 30, 45, 90, 120, 144 and 165 Hz against 60 Hz: peak spread at most .005 (limit .01), roll rate at most 2.82 rad/s (limit 6), largest frame-to-frame change in roll rate .947 rad/s (limit 1.5), steady-turn ripple .005 or less (limit .01).
+- No roll: hovering while the view spins 0, strafing from a hover 0, flying backward while turning 0 (limit .05), setting off after a hover spin under .02, a slow drift turn at 3 m/s under .05, on foot exactly 0. Reduced motion: exactly 0 from a fresh epoch; switched on mid-turn at 34 m/s it is under .02 within 1 s with no step in the roll rate. A teleport or reset restarts at 0, pause holds the value and resume restarts at 0. A 45° wall deflection at 34 m/s (view turning with the slide) stays under .25 at 60 and 144 Hz. Touchdown mid-turn at 13 m/s: under .05 within .4 s, with the lower sole on the ground within the existing .15 s plant blend. During a landing flare the roll never exceeds (1 − flare) × reach.
+- Visible tilt of the chest's right axis in the chase image over the same frame without the roll, view pitch −.12: 24.6° left / 28.3° right at 13 m/s (floor 20°), 37.1° / 40.7° at 34 m/s (floor 25°). On-screen roll for .8 rad at 13 m/s: .734 rad with the view level, .468 with the camera overhead (view pitch −1.3), ratio .639 (limit .75).
+- Facing: the roll moves the chest and face measures by at most 2.3e-9 on the device grid (keyboard, edge, thumb, trackpad, S-turns and taps × 8/13/34 m/s × seven view pitches × both directions × hero × reduced) and the root by 5.0e-16 on the static grid (limit 1e-6). Device grid: chest at least .237 (floor .1), face at most −.395, chest yaw within .1, 0 clamped joints, hinges intact. Eased boom and a boom shortened 40%: chest at least .253 (floor .05). The #8 static grid with roll {−.8, 0, .8}: chest at least .059 (floor .05), straight .112 (floor .1), face at most −.046. Removing the long-axis bank term lowered that grid's worst chest from .0652 and its worst face from −.056; the roll itself changes neither. No floor was lowered.
+- Mutation checks: each of these edits makes at least one new test fail: no roll; no forward-only gate; reduced motion not dropping the signal; no velocity-change budget; the budget without the extra physics step; lateral per frame instead of per second; no epoch or resume reset; no clamp to the reach; no flare factor; rolling on foot; no speed fade; classic reach equal to hero; the roll about the body's long axis; the roll about the flight axis; the roll ignored by `orientSuit`; the roll sign flipped; the hover tilt not faded; the hover tilt faded on foot; the sight line without the head height; no view weighting.
+- Review strips (`scripts/review-flight-motion.mjs`, 15 rows with a right turn and an S-turn at 34 m/s, a climbing turn with the camera below, a diving turn with the camera above and a thumb turn at 8 m/s; `SUIT_TURN_ROLL=0` renders the no-roll baseline): chase, side, classic, reduced and phone strips were inspected. From the chase camera the turns read as the body banking into the turn; without the roll the 13 m/s left turn leans outward. The roll is small from steep views by design (the diving turn with the camera above shows the least). `review-flight-poses.mjs` gives the bank case a .6 rad roll.
+- Limits: the browser label spec, the before/after video and the iPhone Safari playtest are not yet run. Circling while strafing banks into the curve by up to .33 rad. The flight mix still derives its own lateral signal with a ±60 clamp before the settle.
+- `pnpm verify` green: TypeScript, 212 unit tests in 26 files, the production build and the first-load check (8 scripts, 601.6 KB; the telemetry field and attribute add .1 KB, no three.js).
+
 ## Flight states read apart in the chase image · round 3 · 2026-09-19
 
 - A third visual review found the legs breaking the flight line in turns (at 34 m/s the outside thigh kicked back with the knee folded and the inside knee folded too, reading as kneeling; at 13 m/s the toes split to .39 m instead of swinging together); the hero trailing arm held about 28° off the body; cruise and climb with nearly the same silhouette from the chase camera; the brake's right arm out near horizontal; a stop out of a slow drift under a camera above holding the outside arm straight out; and the arms flung from the cruise sweep to about 50° within .13 s of an unassisted touchdown.
