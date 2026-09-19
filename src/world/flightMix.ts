@@ -8,8 +8,8 @@ import { BONE_COUNT, BONE_NAMES } from './suitSkeleton';
 export type FlightMix = {
   epoch: number; held: boolean; clock: number; slope: number; fistOn: boolean; raise: number; fist: number; steer: number; braking: number;
   travel: number; tracking: boolean; view: number; lateral: number; command: number; bank: Float32Array; brake: Float32Array; label: string; clamped: number;
-  /** Landing flare weight; from touchdown it eases out from `hold` as `landed` counts the seconds since. */
-  airborne: boolean; flare: number; hold: number; landed: number;
+  /** Landing flare weight; from touchdown it eases out from `hold` as `landed` counts the seconds since (Infinity in flight). */
+  flare: number; hold: number; landed: number;
 };
 export type MixInput = { paused: boolean; reduced: boolean; flying: boolean; landing?: boolean; velocity: Vec };
 /** Seconds over which the landing flare eases out after touchdown, starting and ending at rest (no velocity step). */
@@ -21,11 +21,10 @@ const RATE: Record<string, number> = { pelvis: 16, spine: 14, chest: 12, neck: 1
 /** Settle rate (1/s) of each bone's brake and bank weight. */
 export const LAG: readonly number[] = BONE_NAMES.map(n => RATE[n.replace(/_[lr]$/, '')]);
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
-const smooth = (v: number) => { const t = clamp(v, 0, 1); return t * t * (3 - 2 * t); };
 export function createFlightMix(): FlightMix {
   return { epoch: Number.NaN, held: false, clock: 0, slope: 0, fistOn: false, raise: 0, fist: 0, steer: 0, braking: 0, travel: 0, tracking: false, view: 0, lateral: 0,
     command: 0, bank: new Float32Array(BONE_COUNT), brake: new Float32Array(BONE_COUNT), label: 'ground', clamped: 0,
-    airborne: false, flare: 0, hold: 0, landed: Infinity };
+    flare: 0, hold: 0, landed: Infinity };
 }
 /**
  * Reads speed, travel, turn and slope from the presentation pose and the physics velocity (plain numbers, no allocation). Turns carve
@@ -43,7 +42,7 @@ export function advanceFlightMix(mix: FlightMix, pose: Pose & { epoch: number },
     // A teleport, reset or resume restarts the weights at their targets instead of animating across the gap.
     mix.epoch = pose.epoch; mix.held = false; mix.slope = slope; mix.fist = mix.raise = mix.fistOn ? 1 : 0; mix.travel = travel; mix.tracking = moving; mix.view = pose.viewYaw;
     mix.lateral = mix.command = mix.steer = 0; mix.braking = brake; mix.bank.fill(0); mix.brake.fill(brake);
-    mix.airborne = input.flying; mix.flare = mix.hold = 0; mix.landed = Infinity;
+    mix.flare = mix.hold = 0; mix.landed = Infinity;
   }
   if (input.paused) { mix.held = true; return; }
   // The travel heading goes stale below 2 m/s: setting off again re-seeds it instead of carving the whole change in one frame.
@@ -54,15 +53,19 @@ export function advanceFlightMix(mix: FlightMix, pose: Pose & { epoch: number },
   // Left turns carve with positive weight; drifting right leans right.
   const bank = input.reduced ? 0 : clamp(mix.lateral / 20 - .5 * clamp(side / 13, -1, 1) * pose.flight, -1, 1) || 0;
   // Soft saturation: a surge turn (command about 50) leans the fist in and back out without a flick or a dead stop.
-  mix.steer = input.reduced ? 0 : settle(mix.steer, Math.tanh(mix.command / 20), 30, dt);
+  mix.steer = input.reduced ? 0 : mix.steer + (Math.tanh(mix.command / 20) - mix.steer) * (1 - Math.exp(-30 * dt));
   // Every shared loop divides 4 s; the clock runs a little faster with speed.
   mix.clock = (mix.clock + real * (.85 + .3 * clamp(pose.speed / 34, 0, 1))) % 4 || 0;
-  // The flare follows the landing approach in the air and carries through touchdown, easing out instead of dropping in one frame.
-  if (mix.airborne && !input.flying) { mix.hold = mix.flare; mix.landed = 0; }
-  mix.airborne = input.flying; mix.landed = input.flying ? Infinity : mix.landed + real;
-  mix.flare = input.flying ? settle(mix.flare, input.landing ? 1 : 0, 4, dt) : mix.hold * (1 - smooth(mix.landed / HANDOVER));
-  mix.slope = settle(mix.slope, slope, 6, dt); mix.braking = brake;
-  // A linear raise eased by smoothstep: the fist starts and ends each deploy and stow at rest instead of at full speed.
-  mix.raise = clamp(mix.raise + (mix.fistOn ? dt : -dt) / FIST.time, 0, 1); mix.fist = smooth(mix.raise);
+  ease(mix, input, real, dt); mix.slope = settle(mix.slope, slope, 6, dt); mix.braking = brake;
   for (let b = 0; b < BONE_COUNT; b++) { mix.bank[b] = settle(mix.bank[b], bank, LAG[b], dt); mix.brake[b] = settle(mix.brake[b], brake, LAG[b], dt); }
+}
+/** The eased weights, written in place (a helper returning numbers would box them every frame). */
+function ease(mix: FlightMix, input: MixInput, real: number, dt: number) {
+  // A linear raise through smoothstep: the fist starts and ends each deploy and stow at rest instead of at full speed.
+  const raise = Math.min(1, Math.max(0, mix.raise + (mix.fistOn ? dt : -dt) / FIST.time));
+  mix.raise = raise; mix.fist = raise * raise * (3 - 2 * raise);
+  // The flare follows the landing approach in the air and carries through touchdown, easing out instead of dropping in one frame.
+  if (input.flying) { mix.landed = Infinity; mix.flare += ((input.landing ? 1 : 0) - mix.flare) * (1 - Math.exp(-4 * dt)); return; }
+  if (mix.landed === Infinity) { mix.hold = mix.flare; mix.landed = 0; }
+  mix.landed += real; const u = Math.min(1, mix.landed / HANDOVER); mix.flare = mix.hold * (1 - u * u * (3 - 2 * u));
 }
