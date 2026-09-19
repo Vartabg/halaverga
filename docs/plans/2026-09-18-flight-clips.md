@@ -9,7 +9,7 @@ Owner decisions (2026-09-18):
 
 Design, chosen by a three-way design review with independent judges:
 - The skeleton grows from ten to 21 bones: spine, chest, neck, clavicles, hands, feet and toes. The ten legacy joints keep their indices and pivots, and every rest orientation stays identity.
-- Clips are original keyframe tables in TypeScript, compiled to quaternions and sampled by our own sampler, not three's AnimationMixer. No clip data enters `suit.glb`.
+- Clips are original keyframe tables in TypeScript, compiled to quaternions and sampled by a purpose-built sampler, not three's AnimationMixer. No clip data enters `suit.glb`.
 
 ## 1. Skeleton, no visual change
 
@@ -27,6 +27,7 @@ Design, chosen by a three-way design review with independent judges:
 - [x] Clip sampler, flight clips and accents, flight mix and flight pose modules.
 - [x] Facing, hinge, frame-rate, pause and ground-exactness tests.
 - [x] Review strips, a browser label spec and a first-load check. (The browser spec is written; its run against a server is pending.)
+- [x] Review fixes: touchdown flare hand-over, launch inside the foot limit, no stale-travel carve, eased fist steer and deploy, dive over sink at cruise, deterministic spec heading, clip modes that engage the layer, strip event columns, and pose-level tests for every accent. (Browser suite and owner/iPhone review pending.)
 
 ## 3. Whole-body turn roll
 
