@@ -13,10 +13,10 @@ PARENTS = [-1, 12, 13, 14, 0, 0, 2, 3, 4, 5, 0, 10, 11, 11, 11, 6, 7, 8, 9, 17, 
 # fourteen degrees into the same relaxed rest stance assumed by the flight clips.
 POINTS = [(0, 0, ROOT_HEIGHT), (0, 0, 1.624),
           (-.223, 0, 1.492), (.223, 0, 1.492), (-.100, 0, ROOT_HEIGHT), (.100, 0, ROOT_HEIGHT),
-          (-.344, 0, 1.242), (.344, 0, 1.242), (-.110, 0, .513), (.110, 0, .513),
+          (-.344, 0, 1.242), (.344, 0, 1.242), (-.143, 0, .513), (.143, 0, .513),
           (0, 0, 1.085), (0, 0, 1.305), (0, 0, 1.550),
           (-.048, 0, 1.492), (.048, 0, 1.492), (-.421, -.01, 1.003), (.421, -.01, 1.003),
-          (-.102, 0, .112), (.102, 0, .112), (-.106, -.12, .043), (.106, -.12, .043)]
+          (-.189, 0, .112), (.189, 0, .112), (-.220, -.12, .043), (.220, -.12, .043)]
 
 
 def smooth(a, b, v):
@@ -38,8 +38,17 @@ def rest(point, arm=None):
     dx, dz = x-centre, z-1.492
     rx = centre+cos(angle)*dx+sin(angle)*dz
     rz = 1.492-sin(angle)*dx+cos(angle)*dz
+    # Close the source's six-degree leg splay to the neutral flight stance.
+    # Rotate each whole limb about its hip, retaining the leg's actual volume.
+    leg = (1-smooth(.87, 1.065, z))*(1-share)*smooth(0, .045, abs(x))
+    centre = .100 * (1 if x >= 0 else -1)
+    angle = radians(6) * (1 if x >= 0 else -1)
+    dx, dz = x-centre, z-ROOT_HEIGHT
+    lx = centre+cos(angle)*dx+sin(angle)*dz
+    lz = ROOT_HEIGHT-sin(angle)*dx+cos(angle)*dz
     # Reflection across Y changes front -Y to +Y. X is kept to preserve joint labels.
-    return Vector(((x+(rx-x)*share)*SCALE, -y*SCALE, (z+(rz-z)*share-ROOT_HEIGHT)*SCALE))
+    return Vector(((x+(rx-x)*share+(lx-x)*leg)*SCALE, -y*SCALE,
+                   (z+(rz-z)*share+(lz-z)*leg-ROOT_HEIGHT)*SCALE))
 
 
 def weights(point):

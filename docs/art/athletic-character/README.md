@@ -12,8 +12,9 @@ and final texture work remain later art stages; this is not a finished AAA chara
 
 - **41,200 triangles**, three material batches, 21 bones, at most four influences per vertex.
 - **1.46 MB GLB**, embedded geometry and scalar PBR materials; no external textures or animation tracks.
-- The 1.85 m approved anatomy is uniformly scaled to the game's 1.98 m character height.
-  Arms are lowered fourteen degrees into the relaxed animation rest stance. The trunk
+- The 1.85 m approved anatomy uses a uniform 1.98/1.85 game scale (about two metres
+  after posing). Arms are lowered fourteen degrees and leg splay closed six degrees
+  into the relaxed animation rest stance. The trunk
   and legs retain their approved proportions. Invisible inner cloth geometry is omitted.
 - Bone names, parent relationships, index order, and neutral animation axes stay compatible
   with the flight clips. The loader reads authored joint positions instead of forcing

@@ -1,10 +1,10 @@
 {
   "source": "Approved source surfaces retained in art/athletic-character/character.blend",
   "source_sha256": "611b091264ebcedd83d12c672aec57ebf837bd7f3e8f9c0a2871c5770125b17b",
-  "asset_sha256": "9668e822d5c95f6db5085315a615f1a4545c8ba4be3d35eb22696b3ad4f35488",
-  "bytes": 1458352,
+  "asset_sha256": "c1fc253bcb2e57a6c92a4f7dcfd7a92c6e622a0f1a1e961f5d6d055c25a6e831",
+  "bytes": 1458360,
   "bind": "21 original names/parents; identity rotations; anatomy-fitted joint positions",
-  "changes": "Uniform scale to 1.98 m; arms lowered 14 degrees; body volume retained; outer cloth surface only",
+  "changes": "Uniform 1.98/1.85 scale; arms lowered 14 degrees; leg splay closed 6 degrees; body volume retained; outer cloth surface only",
   "meshes": [
     {
       "name": "Explorer undersuit",

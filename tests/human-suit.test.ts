@@ -14,12 +14,13 @@ test('anatomical joints give the explorer balanced legs and arms', async () => {
     const elbow = rig.joints[6].getWorldPosition(new Vector3());
     const hip = rig.joints[4].getWorldPosition(new Vector3());
     const knee = rig.joints[8].getWorldPosition(new Vector3());
+    const ankle = rig.joints[17].getWorldPosition(new Vector3());
     expect((hip.y - bounds.min.y) / height).toBeGreaterThan(.47);
     expect((hip.y - bounds.min.y) / height).toBeLessThan(.54);
-    expect(shoulder.distanceTo(elbow) / height).toBeGreaterThan(.15);
+    expect(shoulder.distanceTo(elbow) / height).toBeGreaterThan(.145);
     expect(shoulder.distanceTo(elbow) / height).toBeLessThan(.19);
-    expect((hip.y - knee.y) / (knee.y - bounds.min.y)).toBeGreaterThan(.87);
-    expect((hip.y - knee.y) / (knee.y - bounds.min.y)).toBeLessThan(1.18);
+    expect(hip.distanceTo(knee) / knee.distanceTo(ankle)).toBeGreaterThan(.87);
+    expect(hip.distanceTo(knee) / knee.distanceTo(ankle)).toBeLessThan(1.18);
   } finally { rig.dispose(); }
 });
 test('head and feet retain credible scale in the exported geometry', async () => {

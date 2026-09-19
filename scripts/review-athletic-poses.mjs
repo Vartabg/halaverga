@@ -1,5 +1,5 @@
 // Still chase-camera poses of the actual playable rig with the authored flight layer. Needs no server unless PLAYTEST_URL is set;
-// SUIT_FLIGHT_CLIPS=0 leaves the clips out; SUIT_REVIEW_OUTPUT sets the PNG path.
+// SUIT_FLIGHT_CLIPS=0 leaves the clips out; SUIT_REVIEW_OUTPUT sets the PNG path. The bank case carries a .6 rad whole-body turn roll.
 import { chromium } from '@playwright/test';
 import { fileURLToPath } from 'node:url';
 import { readFile } from 'node:fs/promises';
@@ -13,13 +13,13 @@ import{createSuitAnimation}from'/pose-study/world/suitAnimation';import{advanceF
 const asset=await new GLTFLoader().loadAsync('/models/suit.glb');
 const materials=[];asset.scene.traverse(o=>{if(o.isMesh){materials.push(o.material.name);if(o.material.map&&!o.material.map.image?.width)throw new Error('Character texture failed to decode')}});if(!['textile','skin','eyes'].every(n=>materials.includes(n)))throw new Error('Missing anatomy surface');
 const cases=[['FRONT / HUMAN ANATOMY',{},[1,1,-5]],['PROFILE',{},[5,.5,0]],['BACK',{},[0,.6,5]],
- ['CHASE / HOVER',{}],['CHASE / POWER FLIGHT',{speed:34,power:1,lean:-1.35}],['CHASE / BANK',{speed:24,power:.84,lean:-1.134,bank:.3}],
+ ['CHASE / HOVER',{}],['CHASE / POWER FLIGHT',{speed:34,power:1,lean:-1.35}],['CHASE / BANK',{speed:24,power:.84,lean:-1.134,bank:.3,roll:.6}],
  ['CHASE / CLIMB',{speed:34,power:1,lean:-1.35,pitch:1.1,viewPitch:1.25}],['CHASE / DIVE',{speed:34,power:1,lean:-1.35,pitch:-1.1,viewPitch:-1.25}],['CHASE / BRAKE',{speed:10,power:.28,lean:-.258,brake:1}]];
 for(const [name,patch,view]of cases){
  const pose={viewYaw:0,viewPitch:0,yaw:0,pitch:0,lean:0,bank:0,speed:0,flight:1,power:0,brake:0,...patch},motion={hero:1,epoch:0};
  const element=document.createElement('section');element.innerHTML='<span>'+name+'</span>';document.querySelector('main').append(element);
  const renderer=new T.WebGLRenderer({antialias:true});renderer.setSize(440,460);renderer.setPixelRatio(1.5);renderer.setClearColor('#12262c');renderer.toneMapping=T.ACESFilmicToneMapping;element.prepend(renderer.domElement);
- const scene=new T.Scene(),rig=buildSuitRig(asset.scene);scene.add(rig.root);orientSuit(rig.root,pose,motion);applySuitPose(rig.joints,pose,motion,false);
+ const scene=new T.Scene(),rig=buildSuitRig(asset.scene);scene.add(rig.root);orientSuit(rig.root,pose,motion,pose.roll||0,pose.roll?1:0);applySuitPose(rig.joints,pose,motion,false);
  // The authored flight layer in steady flight along the body pitch: the fist is up from 20 m/s and a bank carves the turn fully.
  if(CLIPS){const mix=createFlightMix(),life=Object.assign(createSuitAnimation(),{epoch:0,flying:true,ground:0,takeoff:Infinity}),s=pose.speed;
   advanceFlightMix(mix,{...pose,epoch:0},{paused:false,reduced:false,flying:true,velocity:{x:0,y:Math.sin(pose.pitch)*s,z:-Math.cos(pose.pitch)*s}},0);
@@ -42,7 +42,7 @@ try {
   const name=path.split('/').at(-1), file=files[name];
   if(file)return route.fulfill({contentType:'text/javascript',body:await readFile(root+'/node_modules/three/'+file)});
   const relative=path.replace('/pose-study/','');
-  if(!['world/suitRig','world/skinnedSuit','world/suitSkeleton','world/suitGeometry','world/suitPose','game/presentation','world/suitAnimation','world/flightMix','world/flightPose','world/flightClips','world/flightAccents','world/clipSampler'].includes(relative))return route.abort();
+  if(!['world/suitRig','world/skinnedSuit','world/suitSkeleton','world/suitGeometry','world/suitPose','world/suitRoll','game/turnSweep','game/presentation','world/suitAnimation','world/flightMix','world/flightPose','world/flightClips','world/flightAccents','world/clipSampler'].includes(relative))return route.abort();
   const source=await readFile(root+'/src/'+relative+'.ts','utf8');
   return route.fulfill({contentType:'text/javascript',body:ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2020}}).outputText});
  });

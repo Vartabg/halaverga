@@ -4,7 +4,7 @@ import { loadSuit } from './load-suit';
 import { buildSuitRig } from '../src/world/suitRig';
 import { BONE_NAMES } from '../src/world/suitSkeleton';
 
-test('the lower body never receives arm weights from the A-pose fitting region', async () => {
+test('the lower legs never receive arm weights from the A-pose fitting region', async () => {
   const rig = buildSuitRig((await loadSuit()).scene);
   try {
     let checked = 0;
@@ -12,7 +12,8 @@ test('the lower body never receives arm weights from the A-pose fitting region',
       if (!(o instanceof SkinnedMesh)) return;
       const p = o.geometry.attributes.position, weights = o.geometry.attributes.skinWeight, indices = o.geometry.attributes.skinIndex;
       for (let i = 0; i < p.count; i++) {
-        if (p.getY(i) >= -.25) continue;
+        // Below even the longest fingertip in the relaxed stance.
+        if (p.getY(i) >= -.35) continue;
         checked++;
         // This catches both accidental arm fitting of calves and wrong skin influences.
         expect(Math.abs(p.getX(i))).toBeLessThan(.25);

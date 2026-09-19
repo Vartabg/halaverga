@@ -25,6 +25,10 @@ source_objects = [bpy.data.objects[name] for name in names]+[bpy.data.objects['E
 for obj in list(bpy.context.scene.objects):
     if obj not in source_objects:
         bpy.data.objects.remove(obj, do_unlink=True)
+for collection in [bpy.data.meshes, bpy.data.materials]:
+    for data in list(collection):
+        if data.users == 0:
+            collection.remove(data)
 objects = []
 for name, (label, finish, target) in names.items():
     original = bpy.data.objects[name]
@@ -53,6 +57,7 @@ for name, (label, finish, target) in names.items():
     decimate.ratio = min(1, target/tris)
     decimate.use_collapse_triangulate = True
     bpy.ops.object.modifier_apply(modifier=decimate.name)
+    obj.data.name = label+' mesh'
     for p in obj.data.polygons:
         p.use_smooth = True
     objects.append(obj)
@@ -69,6 +74,7 @@ bpy.context.view_layer.objects.active = objects[2]
 bpy.ops.object.join()
 eyes = bpy.context.object
 eyes.name = 'Explorer eyes'
+eyes.data.name = 'Explorer eyes mesh'
 eyes.data.materials.clear()
 eyes.data.materials.append(bpy.data.materials['eyes'])
 for p in eyes.data.polygons:
@@ -90,7 +96,7 @@ report = {'source': 'Approved source surfaces retained in art/athletic-character
           'source_sha256': approved_sha,
           'asset_sha256': sha(target), 'bytes': target.stat().st_size,
           'bind': '21 original names/parents; identity rotations; anatomy-fitted joint positions',
-          'changes': 'Uniform scale to 1.98 m; arms lowered 14 degrees; body volume retained; outer cloth surface only',
+          'changes': 'Uniform 1.98/1.85 scale; arms lowered 14 degrees; leg splay closed 6 degrees; body volume retained; outer cloth surface only',
           'meshes': [{'name': o.name, 'vertices': len(o.data.vertices),
                       'triangles': sum(len(p.vertices)-2 for p in o.data.polygons)} for o in objects]}
 (DOC/'asset.json').write_text(json.dumps(report, indent=2)+'\n')
