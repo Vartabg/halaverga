@@ -1,13 +1,30 @@
 import { Bone, Group, MeshStandardMaterial, Skeleton, SkinnedMesh, Sphere, Vector3, type Object3D } from 'three';
 import { BONE_HEADS, BONE_NAMES, BONE_PARENTS, boneIndex } from './suitSkeleton';
 
+/** Authored bind heads keep a new body's joints inside its actual anatomy. */
+function authoredHeads(source: Object3D) {
+  const heads = BONE_HEADS.map(p => new Vector3(...p)), found = new Set<number>();
+  source.updateMatrixWorld(true);
+  source.traverse(object => {
+    if (!(object instanceof SkinnedMesh)) return;
+    object.skeleton.bones.forEach(bone => {
+      const index = boneIndex(bone.name), point = bone.getWorldPosition(new Vector3());
+      if (!point.toArray().every(Number.isFinite)) throw new Error('Human suit has invalid bind positions.');
+      if (found.has(index) && heads[index].distanceTo(point) > .00001) throw new Error('Human suit has inconsistent bind positions.');
+      heads[index].copy(point); found.add(index);
+    });
+  });
+  return heads;
+}
+
 /** Bake the authored rest transform, then bind skin weights to neutral game axes. */
 export function buildSkinnedSuit(source: Object3D) {
+  const heads = authoredHeads(source);
   const root = new Group(), joints = BONE_HEADS.map(() => new Bone());
   joints.forEach((joint, i) => {
-    const parent = BONE_PARENTS[i], p = BONE_HEADS[i], origin = parent < 0 ? [0, 0, 0] : BONE_HEADS[parent];
+    const parent = BONE_PARENTS[i], p = heads[i], origin = parent < 0 ? new Vector3() : heads[parent];
     joint.name = BONE_NAMES[i];
-    joint.position.set(p[0] - origin[0], p[1] - origin[1], p[2] - origin[2]);
+    joint.position.copy(p).sub(origin);
     (parent < 0 ? root : joints[parent]).add(joint);
   });
   root.updateMatrixWorld(true);

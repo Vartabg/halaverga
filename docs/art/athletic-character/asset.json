@@ -1,0 +1,25 @@
+{
+  "source": "Approved source surfaces retained in art/athletic-character/character.blend",
+  "source_sha256": "611b091264ebcedd83d12c672aec57ebf837bd7f3e8f9c0a2871c5770125b17b",
+  "asset_sha256": "9668e822d5c95f6db5085315a615f1a4545c8ba4be3d35eb22696b3ad4f35488",
+  "bytes": 1458352,
+  "bind": "21 original names/parents; identity rotations; anatomy-fitted joint positions",
+  "changes": "Uniform scale to 1.98 m; arms lowered 14 degrees; body volume retained; outer cloth surface only",
+  "meshes": [
+    {
+      "name": "Explorer undersuit",
+      "vertices": 14146,
+      "triangles": 28000
+    },
+    {
+      "name": "Explorer anatomy",
+      "vertices": 6085,
+      "triangles": 12000
+    },
+    {
+      "name": "Explorer eyes",
+      "vertices": 604,
+      "triangles": 1200
+    }
+  ]
+}
