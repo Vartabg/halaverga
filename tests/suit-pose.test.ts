@@ -3,7 +3,8 @@ import { Euler, Group, Vector3 } from 'three';
 import { loadSuit } from './load-suit';
 import { applySuitPose, advanceSuitMotion, orientSuit } from '../src/world/suitPose';
 import { buildSuitRig } from '../src/world/suitRig';
-import { advanceFlightPose, angleDelta, CHASE_BOOM, FACING, type Pose } from '../src/game/presentation';
+import { advanceFlightPose, angleDelta, CHASE_BOOM, CHASE_HEAD, FACING, type Pose } from '../src/game/presentation';
+import { ROLL, sightLine } from '../src/world/suitRoll';
 // Speed alone decides the lean and the pitch that offsets it, exactly as advanceFlightPose derives them.
 const pose = (patch: Partial<Pose> = {}): Pose => {
   const base = { viewYaw: 0, viewPitch: 0, yaw: 0, pitch: 0, bank: 0, speed: 34, flight: 1, brake: 0, ...patch };
@@ -36,17 +37,26 @@ test('elbows only flex forward and knees only flex backward in every state, hero
     expect(rig.every(j => [j.rotation.x, j.rotation.y, j.rotation.z].every(v => Number.isFinite(v) && Math.abs(v) <= Math.PI))).toBe(true);
   }
 });
-test('the back faces the chase camera for every view pitch, bounded body pitch, bank and speed', () => {
-  const root = new Group(), back = new Vector3(), toCamera = new Vector3(), q = new Euler(0, 0, 0, 'YXZ');
+test('the back faces the chase camera for every view pitch, bounded body pitch, bank, speed and turn roll', () => {
+  const root = new Group(), back = new Vector3(), front = new Vector3(), toCamera = new Vector3(), q = new Euler(0, 0, 0, 'YXZ');
+  let drift = 0;
   for (const viewPitch of [-1.3, -.8, -.12, 0, .5, 1, 1.25]) for (const offset of [-FACING.pitchDown, 0, FACING.pitchUp])
     for (const bank of [-.3, 0, .3]) for (const speed of [0, 8, 13, 34]) for (const yaw of [-FACING.yaw, 0, FACING.yaw]) for (const h of [0, 1]) {
-      orientSuit(root, pose({ viewPitch, pitch: viewPitch + offset, bank, speed, yaw }), { hero: h, epoch: 0 });
-      back.set(0, 0, 1).applyQuaternion(root.quaternion);
-      toCamera.copy(CHASE_BOOM).applyEuler(q.set(viewPitch, 0, 0)).add(new Vector3(0, .65, 0)).normalize();
-      // Never negative, so the chest never comes around. The floor is low because an upright hover viewed from
-      // straight overhead is legitimately edge-on: the camera sees the head, not the chest.
-      expect(back.dot(toCamera)).toBeGreaterThan(bank === 0 && yaw === 0 ? .1 : .05);
+      const p = pose({ viewPitch, pitch: viewPitch + offset, bank, speed, yaw });
+      toCamera.copy(CHASE_BOOM).applyEuler(q.set(viewPitch, 0, 0)).add(new Vector3(0, CHASE_HEAD, 0)).normalize();
+      orientSuit(root, p, { hero: h, epoch: 0 }, 0, 1); const still = back.set(0, 0, 1).applyQuaternion(root.quaternion).dot(toCamera);
+      for (const roll of [0, -.4, .4, -.8, .8, -1.2, 1.2]) {
+        orientSuit(root, p, { hero: h, epoch: 0 }, roll, roll ? 1 : 0);
+        back.set(0, 0, 1).applyQuaternion(root.quaternion); front.set(0, 0, -1).applyQuaternion(root.quaternion);
+        // Never negative, so the chest never comes around. The floor is low because an upright hover viewed from
+        // straight overhead is legitimately edge-on: the camera sees the head, not the chest.
+        expect(back.dot(toCamera)).toBeGreaterThan(bank === 0 && yaw === 0 ? .1 : .05); expect(front.dot(toCamera)).toBeLessThan(0);
+        // The roll turns the body about the line to the camera: facing is unchanged by it.
+        if (roll) drift = Math.max(drift, Math.abs(back.dot(toCamera) - still));
+      }
     }
+  if (process.env.ROLL_REPORT) console.log(`root facing drift under roll ${drift.toExponential(1)}`);
+  expect(drift).toBeLessThan(1e-6);
 });
 test('the root heading follows the travel yaw, and hovering stays upright wherever the player looks', () => {
   const root = new Group(), forward = new Vector3(), up = new Vector3();
@@ -79,14 +89,55 @@ test('braking hard out of a climb never swings the chest toward a camera below',
     expect(worst).toBeGreaterThan(.1);
   }
 });
-test('banking rolls around the travel axis toward the inside of the turn instead of swinging the torso', () => {
-  const root = new Group(), head = new Vector3(), right = new Vector3();
-  orientSuit(root, pose({ bank: .3 }), hero);
-  head.set(0, 1, 0).applyQuaternion(root.quaternion); right.set(1, 0, 0).applyQuaternion(root.quaternion);
-  expect(Math.abs(head.x)).toBeLessThan(.05); expect(head.z).toBeLessThan(-.9);
-  expect(right.y).toBeGreaterThan(.25);
-  orientSuit(root, pose({ bank: -.3 }), hero); right.set(1, 0, 0).applyQuaternion(root.quaternion);
-  expect(right.y).toBeLessThan(-.25);
+test('the turn roll banks the whole body toward the inside of the turn as the chase camera sees it', () => {
+  const root = new Group(), right = new Vector3(), up = new Vector3(), view = new Euler(0, 0, 0, 'YXZ');
+  for (const viewPitch of [-.12, 0, .5]) for (const reach of [ROLL.classic, ROLL.hero]) for (const sign of [1, -1]) {
+    const p = pose({ viewPitch, pitch: viewPitch });
+    orientSuit(root, p, hero, sign * reach, 1);
+    up.set(0, 1, 0).applyEuler(view.set(viewPitch, 0, 0));
+    // A left roll (positive) raises the right shoulder on screen; a right roll lowers it.
+    expect(right.set(1, 0, 0).applyQuaternion(root.quaternion).dot(up) * sign).toBeGreaterThan(.45);
+  }
+  // With the speed fade full, the hover side tilt has handed over to the roll: without a roll nothing tips the body sideways.
+  for (const speed of [8, 13, 34]) {
+    orientSuit(root, pose({ bank: .3, speed }), hero, 0, 1); expect(Math.abs(right.set(1, 0, 0).applyQuaternion(root.quaternion).y)).toBeLessThan(1e-9);
+  }
+  // Hovering, and on foot, it still tilts.
+  orientSuit(root, pose({ bank: .3, speed: 0 }), hero, 0, 0); expect(right.set(1, 0, 0).applyQuaternion(root.quaternion).y).toBeGreaterThan(.25);
+  orientSuit(root, pose({ bank: .3, speed: 5, flight: 0 }), hero, 0, 1); expect(right.set(1, 0, 0).applyQuaternion(root.quaternion).y).toBeGreaterThan(.25);
+});
+test('the on-screen roll follows how directly the camera looks along the flight, so a steep view does not swing the heading', () => {
+  const root = new Group(), right = new Vector3(), camRight = new Vector3(), camUp = new Vector3(), view = new Euler(0, 0, 0, 'YXZ');
+  const shown = (viewPitch: number, roll: number) => {
+    const p = pose({ viewPitch, pitch: viewPitch, speed: 13 }), angle = (r: number) => {
+      orientSuit(root, p, hero, r, 1); view.set(viewPitch, 0, 0); camRight.set(1, 0, 0).applyEuler(view); camUp.set(0, 1, 0).applyEuler(view);
+      right.set(1, 0, 0).applyQuaternion(root.quaternion); return Math.atan2(right.dot(camUp), right.dot(camRight));
+    };
+    return angle(roll) - angle(0);
+  };
+  const level = shown(-.12, ROLL.hero), steep = shown(-1.3, ROLL.hero);
+  if (process.env.ROLL_REPORT) console.log(`on-screen roll for .8: level ${level.toFixed(3)} steep ${steep.toFixed(3)} ratio ${(steep / level).toFixed(3)}`);
+  expect(level).toBeGreaterThan(.85 * ROLL.hero); expect(steep).toBeGreaterThan(0); expect(steep / level).toBeLessThan(.75);
+});
+test('the view weight uses the flight axis, body pitch included, when the body pitch differs from the view', () => {
+  const root = new Group(), right = new Vector3(), camRight = new Vector3(), camUp = new Vector3(), view = new Euler(0, 0, 0, 'YXZ'), sight = new Vector3();
+  const shown = (p: Pose) => {
+    const angle = (r: number) => {
+      orientSuit(root, p, hero, r, 1); view.set(p.viewPitch, 0, 0); camRight.set(1, 0, 0).applyEuler(view); camUp.set(0, 1, 0).applyEuler(view);
+      right.set(1, 0, 0).applyQuaternion(root.quaternion); return Math.atan2(right.dot(camUp), right.dot(camRight));
+    };
+    return angle(ROLL.hero) - angle(0);
+  };
+  // t̂·ĉ computed apart from orientSuit: the flight axis (yaw, pitch × power) against the line to the camera.
+  const weight = (p: Pose) => { const e = p.pitch * p.power; sightLine(p, sight); return Math.cos(e) * sight.z - Math.sin(e) * sight.y; };
+  const level = pose({ viewPitch: -.12, pitch: -.12 }), lines: string[] = [];
+  // A dive with the camera above, and a climb with the camera below, each with the body pitched off the view.
+  for (const [viewPitch, pitch] of [[-.8, -.95], [-.8, -.8], [-1.1, -1.25], [.5, .9], [1, 1.4]]) {
+    const p = pose({ viewPitch, pitch }), measured = shown(p) / shown(level), expected = weight(p) / weight(level);
+    lines.push(`view ${viewPitch} body ${pitch}: ${measured.toFixed(3)} against ${expected.toFixed(3)}`);
+    expect(Math.abs(measured - expected), lines.at(-1)).toBeLessThan(.03);
+  }
+  if (process.env.ROLL_REPORT) console.log(`on-screen roll over level, measured against t̂·ĉ: ${lines.join(' · ')}`);
 });
 test('motion blending converges consistently across refresh rates and classic remains available', () => {
   const results = [30, 60, 120].map(hz => {
