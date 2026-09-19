@@ -3,14 +3,15 @@
 // SUIT_FLIGHT_CLIPS=0 renders the same strips without the clip layer (the A/B baseline); SUIT_HERO=0 uses classic poses;
 // SUIT_REDUCED=1 turns on reduced camera motion; SUIT_REVIEW_PHONE=1 renders chase tiles as whole landscape phone frames (852 x 393,
 // shown at half size) instead of 2x crops of the 1440 x 1000 desktop frame;
-// SUIT_FLIGHT_OUTPUT sets the PNG path; SUIT_FLIGHT_ROWS=0,6 picks rows.
+// SUIT_FLIGHT_VIEW=chase renders every row from the chase camera (the owner's view); SUIT_FLIGHT_OUTPUT sets the PNG path;
+// SUIT_FLIGHT_ROWS=0,6 picks rows.
 import { chromium } from '@playwright/test';
 import { fileURLToPath } from 'node:url';
 import { readFile } from 'node:fs/promises';
 import ts from 'typescript';
 const root = fileURLToPath(new URL('..', import.meta.url)), env = process.env;
 const phone = env.SUIT_REVIEW_PHONE === '1', W = phone ? 426 : 170, H = phone ? 197 : 200, COLS = phone ? 4 : 8;
-const options = { clips: env.SUIT_FLIGHT_CLIPS !== '0', hero: env.SUIT_HERO === '0' ? 0 : 1, reduced: env.SUIT_REDUCED === '1', cols: COLS };
+const options = { clips: env.SUIT_FLIGHT_CLIPS !== '0', hero: env.SUIT_HERO === '0' ? 0 : 1, reduced: env.SUIT_REDUCED === '1', cols: COLS, chase: env.SUIT_FLIGHT_VIEW === 'chase' };
 const picked = env.SUIT_FLIGHT_ROWS?.split(',').map(s => s.trim());
 if (picked && (picked.some(s => !/^[0-9]$/.test(s)) || new Set(picked).size !== picked.length)) throw new Error('SUIT_FLIGHT_ROWS must list distinct row numbers 0-9.');
 const rows = picked?.map(Number) ?? null;
@@ -56,8 +57,8 @@ const all = [
 ].filter((_, i) => !PICK || PICK.includes(i));
 // Each row's tag names the hero value that row actually renders with.
 const tag = hero => [O.clips ? '' : 'without clips', hero ? '' : 'classic', O.reduced ? 'reduced' : ''].filter(Boolean).join(' · ');
-for (const [name, note, , , , , , , heroOverride] of all) { const t = tag(heroOverride ?? O.hero);
-  document.getElementById('labels').insertAdjacentHTML('beforeend', '<div>' + name.toUpperCase() + '<small>' + note + (t ? ' · ' + t : '') + '</small></div>'); }
+for (const [name, note, , , , , , , heroOverride] of all) { const t = tag(heroOverride ?? O.hero), shown = O.chase ? note.replace(/^side/, 'chase') : note;
+  document.getElementById('labels').insertAdjacentHTML('beforeend', '<div>' + name.toUpperCase() + '<small>' + shown + (t ? ' · ' + t : '') + '</small></div>'); }
 const asset = await new GLTFLoader().loadAsync('/models/suit.glb');
 const renderer = new T.WebGLRenderer({ antialias: true }); renderer.setPixelRatio(${phone ? 2 : 1.5}); renderer.setSize(W * COLS, H * all.length);
 renderer.setScissorTest(true); renderer.toneMapping = T.ACESFilmicToneMapping; renderer.setClearColor('#12262c');
@@ -66,10 +67,10 @@ const scene = new T.Scene(), rig = buildSuitRig(asset.scene), grid = new T.GridH
 scene.add(new T.HemisphereLight('#c0d7eb', '#475b5e', 2.2));
 for (const [color, intensity, pos] of [['#fff0d0', 3, [-3, 5, -3]], ['#92d5dd', 2, [4, 2, 3]]]) { const l = new T.DirectionalLight(color, intensity); l.position.set(...pos); scene.add(l); }
 const camera = new T.PerspectiveCamera(30, W / H, .05, 80);
-all.forEach(([, , view, warmup, times, drive, eventTimes, event, heroOverride], row) => {
+all.forEach(([, , side, warmup, times, drive, eventTimes, event, heroOverride], row) => {
   const hero = heroOverride ?? O.hero, shots = [...pickCols(times).map(t => ({ t, rel: false })), ...(eventTimes ? pickCols(eventTimes) : []).map(t => ({ t, rel: true }))];
   // Two passes: the first finds the event time, so a column before the event (the approach before touchdown) renders before it.
-  let mark = null;
+  const view = O.chase ? 'chase' : side; let mark = null;
   for (const render of event ? [false, true] : [true]) {
     const motion = { hero, epoch: 0 }, anim = createSuitAnimation(), mix = createFlightMix(), dt = 1 / 60;
     const pose = { viewYaw: 0, viewPitch: 0, yaw: 0, pitch: 0, lean: 0, bank: 0, speed: 0, flight: 0, power: 0, brake: 0, epoch: 0, position: { x: 0, y: 0, z: 0 } };

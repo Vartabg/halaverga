@@ -1,5 +1,32 @@
 # First-flight verification · 2026-09-11
 
+## Flight poses sized to the chase-camera silhouette · 2026-09-19
+
+- The owner found the flight clips too subtle from the chase camera. `tests/flight-silhouette.ts` measures, per flight state, how far the clip layer moves each fingertip (18 cm past the wrist) and each toe tip against the clips-off pose that is live today, projected along the chase camera's rays (boom from the head, view rotation) onto the plane through the chest, so in metres at the explorer's depth perpendicular to the sight line. Steady states average over the loop (a whole hover tread, or 4 s); the brake takes the frame of peak mean brake weight after releasing at 34 m/s, the flare the last flying frame of an assisted landing. At the game's field of view (65° + speed/17) one metre there is 133–152 px of a 1000 px tall frame. `tests/flight-silhouette.test.ts` holds every state to at least .15 m for the hands and .15 m for the feet (no foot floor needed relaxing).
+
+  | State (m, max over the two tips) | Hands before | Feet before | Hands after | Feet after |
+  |---|---|---|---|---|
+  | hover | 0.120 | 0.152 | 0.185 | 0.245 |
+  | cruise 8 | 0.291 | 0.134 | 0.294 | 0.245 |
+  | cruise 13 | 0.413 | 0.116 | 0.334 | 0.216 |
+  | power hero 34 | 0.151 | 0.183 | 0.315 | 0.280 |
+  | power classic 34 | 0.409 | 0.118 | 0.554 | 0.200 |
+  | left turn 13 | 0.229 | 0.132 | 0.240 | 0.288 |
+  | right turn 13 | 0.488 | 0.163 | 0.780 | 0.400 |
+  | left turn 34 | 0.444 | 0.175 | 0.556 | 0.339 |
+  | right turn 34 | 0.202 | 0.204 | 0.513 | 0.368 |
+  | brake from 34 (peak) | 0.423 | 0.097 | 0.446 | 0.185 |
+  | dive 13 | 0.848 | 0.168 | 0.733 | 0.235 |
+  | climb 13 | 0.371 | 0.076 | 0.720 | 0.344 |
+  | landing flare (last flying frame) | 0.096 | 0.044 | 0.380 | 0.190 |
+
+  "Before" is `2463cd0`; 8 of the 13 states missed a floor there (the brake, climb and flare feet worst).
+- Data changes (`flightClips.ts`, `flightAccents.ts`): hover arms in a wider A-shape that drift out and back together, legs in a wider stance with a larger antiphase tread; cruise arms swept further back and out, legs spread with a 1 Hz alternating knee flutter; classic power arms swept back along the body and legs pressed together; hero power trailing arm held back and clear of the body with the left knee bent; brake arms flung wider and both knees driven up; bank torso side-bend tripled with the inside arm tucked, outside arm out and legs swinging wide; climb arms low and back with legs together; landing flare arms out to .7 rad and legs forward in a wider stance. The flare now carries full weight on the arms (`flightPose.ts`, was .7). No joint limit was widened.
+- Constraints that shaped the sizes: the joint-limit clamp count stays 0 across the facing grid, the stop-and-turn runs and the takeoff launch; the toes stay within 2 cm of the legacy foot through a touchdown blend (which caps knee fold against hip flex in the hover tread and cruise flutter); the soles stay within 6 cm of the hips after a caught touchdown; the classic power arm stays above −.4 rad through the hero crossfade; the arms of the hover tread stay symmetric so the fist-led launch is hero-only; held accents stay at or under .35 rad; the frame-rate trace stays under 2.5e-3.
+- Interpenetration check (same test file, clips on, a static grid of 5 speeds × 3 banks × style × 3 brakes × 3 slopes × 4 phases, flare at hover): worst clearance of the fingertips and wrists from the torso core (pelvis to neck) .228 m (floor .15), from either thigh axis .129 m (floor .10), from the crown .496 m (floor .30); knee to knee .124 m (floor .11). Clips off: .293, .195, .572, .238. The first enlargement put a tucked inside hand .081 m from the thigh in a hero left turn at 34 m/s; the trailing arm and the bank tuck were opened until it cleared.
+- Review strips: `scripts/review-flight-motion.mjs` gains `SUIT_FLIGHT_VIEW=chase`, which renders every row from the chase camera. Rendered clips, `SUIT_FLIGHT_CLIPS=0`, classic, reduced and chase-only; a chase-only contact sheet shows live, `2463cd0` and this change side by side for the owner. Inspected for limbs through the body and knees crossing: none seen.
+- `pnpm verify` green: TypeScript, 183 unit tests in 24 files, the production build and the first-load check.
+
 ## Authored flight clips · 2026-09-18
 
 - In flight the explorer plays original hand-authored clips on the 21-bone skeleton: hover, cruise, power (classic and hero), the hero fist, brake, bank, climb, dive, sink, a takeoff snap and a landing flare. `src/world/clipSampler.ts` compiles and samples them; `flightMix.ts` advances the blend weights; `flightPose.ts` blends them over the pose targets. The telemetry element carries the clip on show as `data-suit-clip`.
