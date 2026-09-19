@@ -1,12 +1,13 @@
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { createSuitAnimation, type SuitAnimation } from '../src/world/suitAnimation';
-import { approach, hovering, lift, pose, posed, quiet, rotations, simulate, walking, type Drive } from './suit-motion-harness';
+import { approach, calm, hovering, lift, mixOf, pose, posed, quiet, rotations, simulate, walking, useClips, MODES, type Drive } from './suit-motion-harness';
 const flying = pose({ flight: 1 });
 /** Arm swing from the follow-through springs alone: the posed arm minus the same state with the springs at rest. */
 const armSwing = (a: SuitAnimation, reduced = false) =>
   posed(a, flying, { reduced }).joints[3].rotation.x - posed(quiet(a), flying, { reduced }).joints[3].rotation.x;
 const stop = (from: number): Drive => t => ({ flying: true, velocity: { x: 0, y: 0, z: t < 1 ? -from : 0 } });
-describe('living suit motion: transitions', () => {
+describe.each(MODES)('living suit motion: transitions (%o)', mode => {
+  beforeEach(() => useClips(mode));
   it('pushes off from a crouch on a lift, and a caught fall never pops the model, whatever the stride phase', () => {
     expect(posed(simulate(1.1, 60, lift())).joints[8].rotation.x).toBeLessThan(-.8);
     let running = 0;
@@ -73,23 +74,33 @@ describe('living suit motion: transitions', () => {
     expect(frozen).not.toBeNull(); expect(worst).toBeLessThan(.01);
   });
   it('keeps the gait under reduced motion, removes the springs, twist and takeoff hold, and softens the rest', () => {
-    const a = simulate(1.5, 60, walking(0, -5)), full = posed(a), soft = posed(a, pose(), { reduced: true });
+    const full = posed(simulate(1.5, 60, walking(0, -5))), soft = posed(simulate(1.5, 60, calm(walking(0, -5))), pose(), { reduced: true });
     expect(soft.joints[4].rotation.x).toBeCloseTo(full.joints[4].rotation.x, 6);
     expect(soft.joints[0].rotation.y).toBe(0); expect(soft.joints[1].rotation.y).toBe(0);
-    let springs = 0; simulate(2, 60, stop(13), flying, undefined, h => { springs = Math.max(springs, Math.abs(armSwing(h, true))); });
+    let springs = 0; simulate(2, 60, calm(stop(13)), flying, undefined, h => { springs = Math.max(springs, Math.abs(armSwing(h, true))); });
     expect(springs).toBe(0);
-    const touchdown = (reduced: boolean) => posed(simulate(1.1, 60, t => ({ flying: t < 1, velocity: { x: 0, y: 0, z: 0 } })), pose(), { reduced }).lift;
+    const touchdown = (reduced: boolean) => { const drive: Drive = t => ({ flying: t < 1, velocity: { x: 0, y: 0, z: 0 } });
+      return posed(simulate(1.1, 60, reduced ? calm(drive) : drive), pose(), { reduced }).lift; };
     expect(Math.abs(touchdown(true))).toBeLessThan(Math.abs(touchdown(false)) * .5);
     const dip = (reduced: boolean) => { const p = pose(); let low = 0;
-      simulate(1.4, 60, lift(), p, undefined, h => { low = Math.min(low, posed(h, p, { reduced }).lift); }, t => { p.position.y = Math.max(0, 6 * (t - 1)); });
+      simulate(1.4, 60, reduced ? calm(lift()) : lift(), p, undefined, h => { low = Math.min(low, posed(h, p, { reduced }).lift); }, t => { p.position.y = Math.max(0, 6 * (t - 1)); });
       return low; };
     expect(dip(false)).toBeLessThan(-.3); expect(dip(true)).toBeGreaterThan(-.1);
-    const bob = (reduced: boolean) => { const lifts: number[] = []; simulate(3, 60, hovering, flying, undefined, h => lifts.push(posed(h, flying, { reduced }).lift)); return Math.max(...lifts) - Math.min(...lifts); };
+    const bob = (reduced: boolean) => { const lifts: number[] = []; simulate(3, 60, reduced ? calm(hovering) : hovering, flying, undefined, h => lifts.push(posed(h, flying, { reduced }).lift)); return Math.max(...lifts) - Math.min(...lifts); };
     expect(bob(true)).toBeLessThan(bob(false) * .4); expect(bob(false)).toBeGreaterThan(.08);
   });
   it('adds the fist-led launch only with hero poses', () => {
     const launch = simulate(1.25, 60, lift()), lead = (hero: number) => { const j = posed({ ...launch }, pose(), { hero }).joints; return j[3].rotation.x - j[2].rotation.x; };
     expect(lead(1)).toBeGreaterThan(.3); expect(Math.abs(lead(0))).toBeLessThan(.05);
+  });
+  it('poses flight with the clip layer engaged in the clip modes, under the reduced-motion setting it was advanced with', () => {
+    expect(posed(simulate(1, 60, hovering)).authored > 0).toBe(mode.clips);
+    expect(posed(simulate(1, 60, lift(.5))).authored > 0).toBe(mode.clips);
+    expect(posed(simulate(1, 60, calm(hovering))).authored > 0).toBe(mode.clips);
+    if (mode.clips) expect(() => posed(simulate(.1, 60, hovering), pose(), { reduced: true })).toThrow();
+    // The mix leans into a side-slip, unless the frames were advanced under reduced motion.
+    const slip: Drive = () => ({ flying: true, velocity: { x: 13, y: 0, z: 0 } }), bank = (drive: Drive) => Math.abs(mixOf(simulate(1, 60, drive))!.bank[11]);
+    if (mode.clips) { expect(bank(slip)).toBeGreaterThan(.3); expect(bank(calm(slip))).toBe(0); }
   });
   it('restarts cleanly after a teleport', () => {
     const p = pose(), a = simulate(1, 60, stop(34), p); p.epoch = 2;

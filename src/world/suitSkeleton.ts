@@ -22,3 +22,21 @@ export function boneIndex(name: string) {
   if (index === undefined) throw new Error('Human suit has unknown joints.');
   return index;
 }
+/** Left/right partner of each bone (itself on the centre line). Mirroring a rotation keeps x and negates y and z. */
+export const MIRROR: readonly number[] = BONE_NAMES.map(n => INDEX.get(n.replace(/_([lr])$/, (_, s) => s === 'l' ? '_r' : '_l'))!);
+/** Hinges rotate about x only: elbows flex +x, knees -x, toes either way. */
+export const HINGE: ReadonlySet<number> = new Set([6, 7, 8, 9, 19, 20]);
+type Range = readonly [minX: number, maxX: number, minY: number, maxY: number, minZ: number, maxZ: number];
+// Right-side and centre ranges in radians, three.js XYZ Euler; the left side negates and swaps y and z. Spine plus chest yaw stays within .1.
+const RIGHT: Record<string, Range> = {
+  pelvis: [-1.2, 1.2, -.4, .4, -.4, .4], head: [-.6, .7, -.35, .35, -.25, .25], spine: [-.3, .25, -.04, .04, -.12, .12],
+  chest: [-.3, .3, -.06, .06, -.12, .12], neck: [-.4, .6, -.2, .2, -.15, .15], clavicle: [-.1, .1, -.25, .25, -.15, .35],
+  upperarm: [-1, 3.1, -.8, .8, -.35, 1.3], forearm: [0, 2.2, 0, 0, 0, 0], hand: [-.9, 1, -.3, .3, -.35, .45],
+  thigh: [-.5, 1.4, -.4, .4, -.35, .6], shin: [-2.3, 0, 0, 0, 0, 0], foot: [-1.1, .35, -.15, .15, -.2, .2], toe: [-.5, .5, 0, 0, 0, 0],
+};
+export const LIMITS: readonly Range[] = BONE_NAMES.map(name => {
+  const r = RIGHT[name.replace(/_[lr]$/, '')];
+  return name.endsWith('_l') ? [r[0], r[1], -r[3], -r[2], -r[5], -r[4]] as const : r;
+});
+/** Blend pivots (XYZ Euler): quaternions are sign-aligned to these, so wide arm swings between poses pass in front of the body. */
+export const BLEND_REF: readonly (readonly [number, number, number])[] = BONE_NAMES.map(n => n.startsWith('upperarm') ? [1.4, 0, 0] as const : [0, 0, 0] as const);

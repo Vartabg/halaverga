@@ -1,7 +1,8 @@
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import type { AnimatedPose } from '../src/world/suitAnimation';
-import { hovering, lift, approach, pose, posed, rig, rotations, simulate, walking, type Drive } from './suit-motion-harness';
-describe('living suit motion: gait and ground contact', () => {
+import { calm, hovering, lift, approach, pose, posed, rig, rotations, simulate, walking, useClips, MODES, type Drive } from './suit-motion-harness';
+describe.each(MODES)('living suit motion: gait and ground contact (%o)', mode => {
+  beforeEach(() => useClips(mode));
   it('advances the stride with distance travelled at 10, 15, 30, 60 and 120 Hz', () => {
     const rates = [10, 15, 30, 60, 120].map(hz => simulate(2, hz, walking(0, -5)));
     for (const a of rates) expect(a.stride).toBeCloseTo((5 * 2 / 3.3) % 1, 9);
@@ -69,7 +70,7 @@ describe('living suit motion: gait and ground contact', () => {
       [hovering, { flight: 1 }], [() => ({ flying: true, velocity: { x: 0, y: 0, z: -34 } }), { flight: 1, power: 1, speed: 34, lean: -1.35 }],
       [lift(.5), {}], [t => ({ flying: t < .5, velocity: { x: 0, y: 0, z: 0 } }), {}],
       [t => ({ flying: true, velocity: { x: 0, y: 0, z: t < .5 ? -34 : 0 } }), { flight: 1, brake: 1 }]];
-    for (const [reduced, hero] of [[false, 1], [true, 1], [false, 0]] as const) for (const [drive, patch] of states) simulate(12, 30, drive, pose(patch), undefined, a => {
+    for (const [reduced, hero] of [[false, 1], [true, 1], [false, 0]] as const) for (const [drive, patch] of states) simulate(12, 30, reduced ? calm(drive) : drive, pose(patch), undefined, a => {
       const { joints, lift: up } = posed(a, pose(patch), { reduced, hero });
       for (const elbow of [6, 7]) expect(joints[elbow].rotation.x).toBeGreaterThanOrEqual(0);
       for (const knee of [8, 9]) expect(joints[knee].rotation.x).toBeLessThanOrEqual(0);

@@ -23,6 +23,14 @@ function soleHeight(joints: Object3D[], hip: number, shin: number) {
 }
 const clamp = (v: number, low: number, high: number) => Math.min(high, Math.max(low, v));
 const smooth = (from: number, to: number, t: number) => { const u = clamp((t - from) / (to - from), 0, 1); return u * u * (3 - 2 * u); };
+/** 0 through the push-off crouch, 1 once the feet may leave the ground plant (and for a caught fall). */
+export const takeoffRelease = (a: SuitAnimation) => smooth(.1, .22, a.takeoff);
+/**
+ * The flight clips' authority over the arms: the clip authority in flight, then held up and eased out over .45 s from touchdown, so
+ * a landing out of the cruise sweep eases the arms to the grounded pose instead of flinging them. 0 whenever the clips are off.
+ */
+export const armAuthority = (a: SuitAnimation, authored: number) =>
+  a.flying || !(authored > 0) ? authored : authored + (1 - authored) * (1 - smooth(0, .45, a.switched));
 export function createSuitAnimation(): SuitAnimation {
   return { epoch: Number.NaN, time: 0, flying: false, held: false, ground: 1, gait: 0, stride: 0, speed: 0, forward: 0, side: 0, groundY: 0,
     takeoff: Infinity, takeoffY: 0, landing: Infinity, approach: 0, switched: Infinity, pending: false, blend: 0, lastLift: 0,
@@ -72,15 +80,21 @@ export function advanceSuitAnimation(a: SuitAnimation, pose: AnimatedPose, input
 }
 /**
  * Adds the motion to the joint rotations written by applySuitPose this frame and returns the visual root lift in metres, which it
- * also records for the plant blend. `hero` is the settled expressive-pose weight: it adds the fist-led launch.
+ * also records for the plant blend. `hero` is the settled expressive-pose weight: it adds the fist-led launch. `authored` is the flight
+ * clip authority from applyFlightClips: the authored pose replaces the procedural hover drift by that much, and the idle arms and the
+ * impact reaction by the arm authority (`armAuthority`).
  */
-export function applySuitAnimation(joints: Object3D[], a: SuitAnimation, pose: AnimatedPose, reduced: boolean, hero = 1) {
-  const soft = reduced ? .3 : 1, gait = a.gait, idle = a.ground * (1 - gait) * soft;
-  const hover = (1 - a.ground) * (1 - pose.power) * soft, wind = pose.flight * pose.power * Math.min(1, pose.speed / 34) * soft;
-  const h = a.speed, ahead = h > 1e-3 ? a.forward / h : 0, across = h > 1e-3 ? a.side / h : 0;
-  const hold = 1 - smooth(.1, .22, a.takeoff), crouch = smooth(0, .1, a.takeoff) * (1 - smooth(.1, .26, a.takeoff)) * soft;
+export function applySuitAnimation(joints: Object3D[], a: SuitAnimation, pose: AnimatedPose, reduced: boolean, hero = 1, authored = 0) {
+  const soft = reduced ? .3 : 1, gait = a.gait, idle = a.ground * (1 - gait) * soft, arms = armAuthority(a, authored);
+  // The relaxed arms of the grounded idle give way to the authored arms (the landing flare, or the flight pose easing out).
+  const rest = idle * (1 - arms), hover = (1 - a.ground) * (1 - pose.power) * soft;
+  const wind = pose.flight * pose.power * Math.min(1, pose.speed / 34) * soft;
+  const drifting = hover * (1 - authored), h = a.speed, ahead = h > 1e-3 ? a.forward / h : 0, across = h > 1e-3 ? a.side / h : 0;
+  const hold = 1 - takeoffRelease(a), crouch = smooth(0, .1, a.takeoff) * (1 - smooth(.1, .26, a.takeoff)) * soft;
   const extend = smooth(.1, .2, a.takeoff) * (1 - smooth(.3, .55, a.takeoff)) * soft;
   const absorb = .8 * smooth(0, .07, a.landing) * (1 - smooth(.12, .6, a.landing)) * soft;
+  // The authored landing flare already holds the arms out for balance: the impact reaction gives way to it, so the two never stack.
+  const brace = absorb * (1 - arms);
   const lagForward = reduced ? 0 : clamp(a.lagForward.x, -1, 1), lagSide = reduced ? 0 : clamp(a.lagSide.x, -1, 1);
   const breath = Math.sin(a.time * TAU * .25), sway = Math.sin(a.time * TAU * .09), bob = Math.sin(a.time * TAU * .42);
   const swingAmp = Math.min(.5, .12 + .16 * h), kneeAmp = Math.min(1.3, .35 + .2 * h);
@@ -91,19 +105,19 @@ export function applySuitAnimation(joints: Object3D[], a: SuitAnimation, pose: A
     const phase = a.stride * TAU + offset, swing = Math.sin(phase), drift = (1 + Math.sin(a.time * TAU * .42 + offset * .6)) / 2;
     const flutter = (1 + Math.sin(a.time * TAU * (3.1 + offset * .2))) / 2;
     // Gait: the foot travels along the direction of motion and the knee folds while it swings through.
-    joints[hip].rotation.x += lean + gait * swingAmp * swing * ahead + .6 * crouch - .1 * extend + .7 * absorb + hover * .06 * (drift * 2 - 1) + .3 * lagForward;
+    joints[hip].rotation.x += lean + gait * swingAmp * swing * ahead + .6 * crouch - .1 * extend + .7 * absorb + drifting * .06 * (drift * 2 - 1) + .3 * lagForward;
     // Sideways, each foot steps out on its own side and closes back to the hips, so the legs never cross.
     joints[hip].rotation.z += gait * .3 * swingAmp * (across * swing + Math.abs(across) * side) - idle * .025 * sway + .25 * lagSide;
     joints[shin].rotation.x -= gait * (kneeAmp * Math.max(0, Math.cos(phase)) ** 1.5 + .2 * Math.min(1, h / 4) * Math.max(0, -Math.cos(phase)))
-      + idle * .08 * Math.max(0, side * sway) + 1.15 * crouch + 1.35 * absorb + hover * .1 * drift + wind * .05 * flutter + .2 * Math.abs(lagForward);
+      + idle * .08 * Math.max(0, side * sway) + 1.15 * crouch + 1.35 * absorb + drifting * .1 * drift + wind * .05 * flutter + .2 * Math.abs(lagForward);
     // Arms pump against the legs, relax at rest, float while hovering and flare for balance on landing. With hero poses
     // the launch drives the right fist up, matching the power-flight lead; the left arm follows lower.
     joints[arm].rotation.x += -gait * (armAmp * swing * ahead + .2 * Math.min(1, h / 5)) - .5 * crouch + (side > 0 ? .7 + .8 * hero : .7) * extend
-      + .35 * absorb + .4 * lagForward;
-    joints[arm].rotation.z += side * (gait * .06 * Math.min(1, h / 3) + idle * (.07 + .02 * breath) + hover * .05 * drift + .4 * absorb) + .3 * lagSide;
+      + .35 * brace + .4 * lagForward;
+    joints[arm].rotation.z += side * (gait * .06 * Math.min(1, h / 3) + rest * (.07 + .02 * breath) + drifting * .05 * drift + .4 * brace) + .3 * lagSide;
     // The elbow closes as the arm drives forward and opens as it swings back.
-    joints[fore].rotation.x += gait * (elbowBase - .25 * swing * ahead) + idle * (.15 + .03 * breath) + .3 * crouch + .2 * extend
-      + .35 * absorb + hover * .06 * drift + wind * .03 * flutter + .3 * lagForward;
+    joints[fore].rotation.x += gait * (elbowBase - .25 * swing * ahead) + rest * (.15 + .03 * breath) + .3 * crouch + .2 * extend
+      + .35 * brace + drifting * .06 * drift + wind * .03 * flutter + .3 * lagForward;
   }
   joints[0].rotation.x -= lean;
   joints[0].rotation.z += idle * .025 * sway;
