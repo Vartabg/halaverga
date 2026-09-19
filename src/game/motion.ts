@@ -1,10 +1,10 @@
 export type Vec = { x: number; y: number; z: number };
-export type Intent = { forward: number; strafe: number; vertical: number };
+export type Intent = { forward: number; strafe: number; vertical: number; precise?: true };
 export const FOOT = 1.06;
 export const START: Vec = { x: 0, y: 20 + FOOT, z: 65 };
 export const WORLD = { minX: -205, maxX: 205, minZ: -188, maxZ: 108, ceiling: 105 };
 export const SPEED = { walk: 5, flight: 13, surge: 34 };
-export const moving = (i: Intent) => Math.hypot(i.forward, i.strafe, i.vertical) > 0.08;
+export const moving = (i: Intent) => Math.hypot(i.forward, i.strafe, i.vertical) > (i.precise ? 1e-6 : .08);
 export const safeDelta = (dt: number) => Number.isFinite(dt) ? Math.min(Math.max(dt, 0), 1 / 30) : 0;
 export const setVec = (v: Vec, x: number, y: number, z: number) => { v.x = x; v.y = y; v.z = z; };
 

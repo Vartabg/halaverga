@@ -21,7 +21,7 @@ describe('persistence', () => {
     saved['halaverga-flight-v1'] = JSON.stringify({
       checkpoint, camera: 'first', quality: 'low', reduced: true, muted: false, discovered: true,
       tapControls: true, desktopMode: 'mouse', trackpadSteering: 'captured', sustainedEdges: true,
-      reverseScroll: true, cruiseSpeed: 20, heroPoses: false,
+      reverseScroll: true, cruiseSpeed: 20, heroPoses: false, lookSensitivity: 1.7, flowIntroSeen: true,
       started: false, paused: true, ready: true, message: 'poison',
     });
     hydrateGame();
@@ -32,26 +32,28 @@ describe('persistence', () => {
     expect(s.desktopMode).toBe('mouse'); expect(s.trackpadSteering).toBe('captured');
     expect(s.sustainedEdges).toBe(true); expect(s.reverseScroll).toBe(true);
     expect(s.cruiseSpeed).toBe(20); expect(s.heroPoses).toBe(false);
+    expect(s.lookSensitivity).toBe(1.7); expect(s.flowIntroSeen).toBe(true);
     expect(s.started).toBe(true); expect(s.paused).toBe(false); expect(s.message).toBe('live');
   });
   it('round-trips a full settings state through persist and hydrate', () => {
     useGame.setState({
       checkpoint: { x: 30, y: 61.415, z: -38 }, camera: 'first', quality: 'low', reduced: true,
       muted: false, discovered: true, tapControls: true, desktopMode: 'mouse',
-      trackpadSteering: 'captured', sustainedEdges: true, reverseScroll: true, cruiseSpeed: 12, heroPoses: false,
+      trackpadSteering: 'flow', sustainedEdges: true, reverseScroll: true, cruiseSpeed: 12, heroPoses: false, lookSensitivity: 1.4, flowIntroSeen: true,
     });
     persistGame();
     useGame.setState({
       checkpoint: START, camera: 'third', quality: 'high', reduced: false, muted: true,
       discovered: false, tapControls: false, desktopMode: 'trackpad', trackpadSteering: 'free',
-      sustainedEdges: false, reverseScroll: false, cruiseSpeed: 8, heroPoses: true,
+      sustainedEdges: false, reverseScroll: false, cruiseSpeed: 8, heroPoses: true, lookSensitivity: 1, flowIntroSeen: false,
     });
     hydrateGame();
     const s = useGame.getState();
     expect(s.checkpoint).toEqual({ x: 30, y: 61.415, z: -38 });
     expect(s.camera).toBe('first'); expect(s.quality).toBe('low'); expect(s.reduced).toBe(true);
     expect(s.muted).toBe(false); expect(s.discovered).toBe(true); expect(s.tapControls).toBe(true);
-    expect(s.desktopMode).toBe('mouse'); expect(s.trackpadSteering).toBe('captured');
+    expect(s.desktopMode).toBe('mouse'); expect(s.trackpadSteering).toBe('flow');
+    expect(s.lookSensitivity).toBe(1.4); expect(s.flowIntroSeen).toBe(true);
     expect(s.sustainedEdges).toBe(true); expect(s.reverseScroll).toBe(true);
     expect(s.cruiseSpeed).toBe(12); expect(s.heroPoses).toBe(false);
   });

@@ -1,11 +1,13 @@
 import { create } from 'zustand';
 import { START, validCheckpoint, type Vec } from './motion';
 export type CameraMode = 'third' | 'first';
+export type TrackpadProfile = 'free' | 'captured' | 'flow';
 type GameState = {
   started: boolean; paused: boolean; ready: boolean; panel: boolean; journal: boolean;
   camera: CameraMode; quality: 'high' | 'low'; reduced: boolean; muted: boolean; tapControls: boolean;
   desktopMode: 'trackpad' | 'mouse'; trackpadFlying: boolean;
-  trackpadSteering: 'free' | 'captured'; sustainedEdges: boolean; reverseScroll: boolean; cruiseSpeed: number; heroPoses: boolean;
+  trackpadSteering: TrackpadProfile; sustainedEdges: boolean; reverseScroll: boolean; cruiseSpeed: number; heroPoses: boolean;
+  lookSensitivity: number; flowIntroSeen: boolean;
   flying: boolean; landing: boolean; canLand: boolean; nearTerminal: boolean; boundaryNear: boolean; clearanceActive: boolean; inputEpoch: number;
   checkpoint: Vec; discovered: boolean; message: string;
   set: (patch: Partial<Omit<GameState, 'set'>>) => void;
@@ -15,6 +17,7 @@ export const useGame = create<GameState>((set) => ({
   camera: 'third', quality: 'high', reduced: false, muted: true, tapControls: false,
   desktopMode: 'trackpad', trackpadFlying: false,
   trackpadSteering: 'free', sustainedEdges: false, reverseScroll: false, cruiseSpeed: 8, heroPoses: true,
+  lookSensitivity: 1, flowIntroSeen: false,
   flying: false, landing: false, canLand: false, nearTerminal: false, boundaryNear: false, clearanceActive: false, inputEpoch: 0,
   checkpoint: START, discovered: false, message: '', set,
 }));
@@ -22,7 +25,7 @@ const STORAGE = 'halaverga-flight-v1';
 // The single authoritative list of fields saved between sessions. persistGame
 // writes exactly these keys; tests/persistence.test.ts pins hydrateGame to
 // restore every entry and to ignore runtime-only state.
-export const PERSISTED_KEYS = ['checkpoint', 'camera', 'quality', 'reduced', 'muted', 'discovered', 'tapControls', 'desktopMode', 'trackpadSteering', 'sustainedEdges', 'reverseScroll', 'cruiseSpeed', 'heroPoses'] as const;
+export const PERSISTED_KEYS = ['checkpoint', 'camera', 'quality', 'reduced', 'muted', 'discovered', 'tapControls', 'desktopMode', 'trackpadSteering', 'sustainedEdges', 'reverseScroll', 'cruiseSpeed', 'heroPoses', 'lookSensitivity', 'flowIntroSeen'] as const;
 export type PersistedKey = typeof PERSISTED_KEYS[number];
 export function hydrateGame() {
   try {
@@ -35,10 +38,12 @@ export function hydrateGame() {
       muted: saved.muted !== false, discovered: saved.discovered === true,
       tapControls: saved.tapControls === true,
       desktopMode: saved.desktopMode === 'mouse' ? 'mouse' : 'trackpad',
-      trackpadSteering: saved.trackpadSteering === 'captured' ? 'captured' : 'free',
+      trackpadSteering: saved.trackpadSteering === 'flow' ? 'flow' : saved.trackpadSteering === 'captured' ? 'captured' : 'free',
       sustainedEdges: saved.sustainedEdges === true, reverseScroll: saved.reverseScroll === true,
       cruiseSpeed: typeof saved.cruiseSpeed === 'number' && Number.isFinite(saved.cruiseSpeed) ? Math.max(3, Math.min(34, saved.cruiseSpeed)) : 8,
       heroPoses: saved.heroPoses !== false,
+      lookSensitivity: typeof saved.lookSensitivity === 'number' && Number.isFinite(saved.lookSensitivity) ? Math.max(.5, Math.min(2, saved.lookSensitivity)) : 1,
+      flowIntroSeen: saved.flowIntroSeen === true,
     });
   } catch { useGame.setState({ reduced: matchMedia('(prefers-reduced-motion: reduce)').matches }); }
 }

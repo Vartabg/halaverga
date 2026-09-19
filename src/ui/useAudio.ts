@@ -3,6 +3,7 @@ import { useGame } from '@/game/store';
 import { runtime } from '@/game/runtime';
 export function useAudio() {
   const started = useGame(s => s.started), paused = useGame(s => s.paused), muted = useGame(s => s.muted);
+  const flow = useGame(s => s.desktopMode === 'trackpad' && s.trackpadSteering === 'flow');
   useEffect(() => {
     if (!started || paused || muted) return;
     const context = new AudioContext();
@@ -14,9 +15,16 @@ export function useAudio() {
     noise.connect(filter).connect(gain).connect(context.destination); noise.start();
     void context.resume().catch(() => {});
     const id = setInterval(() => {
-      gain.gain.setTargetAtTime(.015 + Math.min(runtime.speed / 300, .1), context.currentTime, .2);
-      filter.frequency.setTargetAtTime(250 + runtime.speed * 32, context.currentTime, .2);
+      const u = Math.min(1, Math.max(0, runtime.speed / 34)), envelope = u * u * (3 - 2 * u);
+      gain.gain.setTargetAtTime(flow ? .008 + envelope * .065 : .015 + Math.min(runtime.speed / 300, .1), context.currentTime, flow ? .3 : .2);
+      filter.frequency.setTargetAtTime(250 + runtime.speed * (flow ? 22 : 32), context.currentTime, .2);
     }, 100);
-    return () => { clearInterval(id); noise.stop(); void context.close(); };
-  }, [started, paused, muted]);
+    return () => {
+      clearInterval(id); gain.gain.cancelScheduledValues(context.currentTime);
+      gain.gain.setTargetAtTime(0, context.currentTime, .012);
+      // A suspended context cannot advance to the scheduled stop; still release it after the fade window.
+      const close = setTimeout(() => { void context.close(); }, 120);
+      noise.onended = () => { clearTimeout(close); void context.close(); }; noise.stop(context.currentTime + .06);
+    };
+  }, [started, paused, muted, flow]);
 }
