@@ -28,7 +28,7 @@ export function createFlightMix(): FlightMix {
 }
 /**
  * Reads speed, travel, turn and slope from the presentation pose and the physics velocity (plain numbers, no allocation). Turns carve
- * from the lateral acceleration of the actual travel; the fist steers from the commanded heading, which leads it by .13-.24 s.
+ * from the lateral acceleration of the actual travel; the fist steers from the commanded heading, eased so it still leads the carve by about .1-.2 s.
  */
 export function advanceFlightMix(mix: FlightMix, pose: Pose & { epoch: number }, input: MixInput, elapsed: number) {
   const real = Number.isFinite(elapsed) ? clamp(elapsed, 0, .25) : 0, dt = Math.min(real, .05), v = input.velocity;

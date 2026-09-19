@@ -82,13 +82,14 @@ all.forEach(([, , view, warmup, times, drive, eventTimes, event, heroOverride], 
       advanceFlightPose(pose, { yaw: sim.yaw, pitch: sim.pitch, speed: Math.hypot(v.x, v.y, v.z), velocity: v, flying: sim.flying, reduced: O.reduced }, dt);
       advanceSuitMotion(motion, hero > .5, dt); advanceSuitAnimation(anim, pose, input, dt); advanceFlightMix(mix, pose, input, dt); sim.t += dt;
       if (!render) { if (event(sim, pose)) mark = sim.t; continue; }
+      // Pose every frame, as the game does: the living layer consumes its touchdown plant blend on the frame it happens.
+      rig.root.position.set(0, 0, 0); orientSuit(rig.root, pose, motion); applySuitPose(rig.joints, pose, motion, O.reduced);
+      const authored = O.clips ? applyFlightClips(rig.joints, mix, pose, anim, motion.hero, O.reduced) : 0;
+      rig.root.position.y = applySuitAnimation(rig.joints, anim, pose, O.reduced, motion.hero, authored);
       const shot = shots[next], at = shot.rel ? (mark === null ? -Infinity : sim.t - mark) : sim.t;
       if (at < shot.t - 1e-9) continue;
       // Every column shows the instant its label names, to within a frame.
       if (at - shot.t > dt + 1e-9) throw new Error('row ' + row + ' column ' + next + ': ' + (shot.rel ? 'event ' : 'time ') + shot.t + ' rendered at ' + at.toFixed(3));
-      rig.root.position.set(0, 0, 0); orientSuit(rig.root, pose, motion); applySuitPose(rig.joints, pose, motion, O.reduced);
-      const authored = O.clips ? applyFlightClips(rig.joints, mix, pose, anim, motion.hero, O.reduced) : 0;
-      rig.root.position.y = applySuitAnimation(rig.joints, anim, pose, O.reduced, motion.hero, authored);
       grid.position.set(-(sim.anchorX % .5), -1.04 - sim.anchorY, -(sim.anchorZ % .5));
       camera.clearViewOffset();
       if (view === 'chase') {

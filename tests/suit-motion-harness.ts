@@ -23,7 +23,6 @@ export const calm = (drive: Drive): Drive => t => ({ ...drive(t), reduced: true 
 /** The flight mix simulate() advanced on this animation state. */
 export const mixOf = (a: SuitAnimation) => (a as WithMix).mix;
 /** Posed() calls in clip modes, and how many of them the clip layer had authority in. */
-export const engaged = { posed: 0, authored: 0 };
 export const pose = (patch: Partial<AnimatedPose> = {}): AnimatedPose => ({ viewYaw: 0, viewPitch: 0, yaw: 0, pitch: 0, lean: 0, bank: 0,
   speed: 0, flight: 0, power: 0, brake: 0, epoch: 0, position: { x: 0, y: 0, z: 0 }, ...patch });
 export const walking = (x: number, z: number): Drive => () => ({ flying: false, velocity: { x, y: 0, z } });
@@ -63,7 +62,6 @@ export function posed(a: SuitAnimation, given = pose(), { reduced = (a as WithMi
   r.root.position.set(p.position.x, p.position.y, p.position.z); orientSuit(r.root, p, { hero, epoch: 0 });
   applySuitPose(r.joints, p, { hero, epoch: 0 }, reduced);
   const authored = clips ? applyFlightClips(r.joints, m.mix!, flown, a, hero, reduced) : 0;
-  if (clips) { engaged.posed++; if (authored > 0) engaged.authored++; }
   const up = applySuitAnimation(r.joints, a, p, reduced, hero, authored);
   r.root.position.y += up; r.root.updateMatrixWorld(true);
   return { joints: r.joints, lift: up, authored, soles: [8, 9].map(i => r.joints[i].localToWorld(new Vector3(0, -.49, 0))) };

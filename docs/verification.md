@@ -20,7 +20,7 @@
   | Head look below the travel axis at fist speeds | 0–25° | 3.0–21.7° |
   | Keyboard turn, chest carve weight at 13 / 34 m/s | > .8 | .933 / 1.0 |
   | Fist steer leads the carve (crossing .5) | ≥ .1 s | .200 s / .117 s |
-  | Touchdown frame of an assisted landing (3 landings × reduced, 60 Hz): per-frame joint change beyond clips-off | ≤ 3° (3.5° at the shins) | +1.2° (forearm), +3.3° (shin, the absorb onset); 12.7° before the fix |
+  | Touchdown frame of an assisted landing (3 landings × reduced, 60 Hz): per-frame joint change beyond clips-off | ≤ 3° (3.5° at the shins) | up to +2.3° (thigh) outside the shins, +3.3° at the shins (the absorb onset); 12.7° (forearm) before the fix |
   | Setting off after a hover and a 90° or 180° view turn: peak chest carve weight at 30/60/120/144 Hz | < .02 | ≤ .0017; .36 at 30 Hz before |
   | Surge turn and reversal, wrist velocity change per frame beyond clips-off (.36 cm/frame²) | ≤ 1 cm/frame² | +.69 (1.05); 4.0 before |
   | Hero fist deploy / stow, wrist velocity change per frame beyond clips-off (.35 / .07 cm/frame²) | ≤ 2 cm/frame² | 1.59 / .51 total; 11.8 / 2.8 before |

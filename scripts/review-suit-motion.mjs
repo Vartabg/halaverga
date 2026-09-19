@@ -60,7 +60,7 @@ all.forEach(([, , view, warmup, samples, drive], row) => {
     sim.anchorX += v.x * dt; sim.anchorZ += v.z * dt; if (!sim.pinned) sim.anchorY += v.y * dt; pose.position.y = sim.anchorY;
     advanceFlightPose(pose, { yaw: 0, pitch: -.12, speed: Math.hypot(v.x, v.y, v.z), velocity: v, flying: sim.flying, reduced: false }, dt);
     advanceSuitAnimation(anim, pose, { flying: sim.flying, landing: sim.landing, velocity: v }, dt);
-    advanceFlightMix(mix, pose, { paused: false, reduced: false, flying: sim.flying, velocity: v }, dt); sim.t += dt;
+    advanceFlightMix(mix, pose, { paused: false, reduced: false, flying: sim.flying, landing: sim.landing, velocity: v }, dt); sim.t += dt;
     if (sim.t < samples[next] - 1e-9) continue;
     rig.root.position.set(0, 0, 0); orientSuit(rig.root, pose, motion); applySuitPose(rig.joints, pose, motion, false);
     const authored = CLIPS && !BASELINE ? applyFlightClips(rig.joints, mix, pose, anim, motion.hero, false) : 0;

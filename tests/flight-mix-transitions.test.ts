@@ -17,7 +17,7 @@ function play(seconds: number, hz: number, drive: Drive, each: (clips: Rig, lega
   for (let i = 1; i <= Math.round(seconds * hz); i++) {
     const t = i / hz, d = drive((i - 1) / hz), v = d.velocity; yaw += yawRate(t) / hz;
     advanceFlightPose(p, { yaw, pitch: -.12, speed: Math.hypot(v.x, v.y, v.z), velocity: v, flying: d.flying, reduced: false }, 1 / hz);
-    advanceSuitAnimation(life, p, d, 1 / hz); advanceFlightMix(mix, p, { paused: !!d.paused, reduced: false, flying: d.flying, velocity: v }, 1 / hz);
+    advanceSuitAnimation(life, p, d, 1 / hz); advanceFlightMix(mix, p, { paused: !!d.paused, reduced: false, flying: d.flying, landing: d.landing, velocity: v }, 1 / hz);
     frame(clips, p, mix, life, 1, false); frame(legacy, p, mix, life, 1, false, false); each(clips, legacy, t, life, p, mix);
   }
   return { p, mix, life };
