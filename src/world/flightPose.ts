@@ -17,7 +17,7 @@ const LEAD = BONE_NAMES.map(n => ['clavicle_r', 'upperarm_r', 'forearm_r', 'hand
 const FEET = BONE_NAMES.map(n => ['foot', 'toe'].includes(group(n))), SOLES = BONE_NAMES.map(n => group(n) === 'foot' ? 1 : 0);
 const UNSOLED = SOLES.map(s => 1 - s);
 const LEGS = BONE_NAMES.map((_, b) => b === 4 || b === 5 || b === 8 || b === 9);
-const FLARE: Record<string, number> = { thigh: 1, shin: 1, foot: 1, toe: 1, upperarm: .7, forearm: .7, hand: .7, clavicle: .5, spine: .5, chest: .5 };
+const FLARE: Record<string, number> = { thigh: 1, shin: 1, foot: 1, toe: 1, upperarm: 1, forearm: 1, hand: 1, clavicle: .5, spine: .5, chest: .5 };
 const FLARE_MASK = BONE_NAMES.map(n => FLARE[group(n)] ?? 0);
 // Preallocated buffers: posing allocates nothing per frame.
 const out = createPose(), work = createPose(), hero = createPose(), still = createPose(), final = createPose();
