@@ -54,8 +54,10 @@ export function applyFlightClips(joints: Object3D[], mix: FlightMix, pose: Pose,
   const h = heroWeight, amp = reduced ? .3 : 1, P = pose.power, t = mix.clock, speed = clamp(pose.speed / 34, 0, 1);
   const u = clamp(P / .35, 0, 1), w = clamp((P - .35) / .5, 0, 1), fist = h * mix.fist;
   styled(out, FLIGHT.hover, FLIGHT.hover, life.time % HOVER_LOOP, 0, amp);
-  // Setting off, the arms sweep back ahead of the legs: full by P = .2 (8 m/s), the rest of the body by P = .35.
-  for (let b = 0; b < BONE_COUNT; b++) sweep[b] = ARM[b] ? clamp(P / .2, 0, 1) : u;
+  // Setting off, the arms sweep back ahead of the legs: full by P = .2 (8 m/s), the rest of the body by P = .35. The arm ramp eases
+  // out, so the sweep settles into the cruise pose instead of stopping dead where a linear ramp would hit its clamp.
+  const reach = clamp(P / .2, 0, 1);
+  for (let b = 0; b < BONE_COUNT; b++) sweep[b] = ARM[b] ? reach * (2 - reach) : u;
   if (u > 0) { styled(work, FLIGHT.cruise, FLIGHT.cruise, t, 0, amp); mixPose(out, work, 1, sweep); }
   if (w > 0) { styled(work, FLIGHT.power[0], FLIGHT.power[1], t, h, amp * (.4 + .6 * speed)); mixPose(out, work, w); }
   if (fist > 1e-4) {
