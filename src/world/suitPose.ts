@@ -1,18 +1,27 @@
 import { Euler, Quaternion, Vector3, type Object3D } from 'three';
 import { settle, type Pose } from '../game/presentation';
+import { sightLine } from './suitRoll';
 export type SuitMotion = { hero: number; epoch: number };
-const euler = new Euler(0, 0, 0, 'YXZ'), roll = new Quaternion(), LONG_AXIS = new Vector3(0, 1, 0);
+const euler = new Euler(0, 0, 0, 'YXZ'), roll = new Quaternion(), sight = new Vector3(), tail = new Vector3();
 /**
- * Root orientation. The model faces -Z and the chase camera hangs at +Z of the view frame, so the back stays toward
- * the camera: yaw and pitch follow the travel direction (bounded near the view in presentation.ts), the lean tips the
- * head into that direction, and banking rolls around the body's long axis instead of swinging the torso sideways.
+ * Root orientation. The model faces -Z and the chase camera hangs at +Z of the view frame, so the back stays toward the camera:
+ * yaw and pitch follow the travel direction (bounded near the view in presentation.ts) and the lean tips the head into it.
+ * Hovering and on foot the bank tilts the body sideways; in flight `fade` (suitRoll.ts speedFade) hands that tilt over to
+ * `turnRoll`, the whole-body turn roll (rad, positive rolls left). The roll turns the body about the line of sight to the chase
+ * camera, so no body direction's dot product with that line changes: the back-to-camera bound holds by construction. It is
+ * weighted by how directly the camera looks along the flight axis, so the on-screen tilt matches a bank about that axis and a
+ * steep view does not turn it into a heading swing; flying toward the camera gives none.
  */
-export function orientSuit(root: Object3D, pose: Pose, motion: SuitMotion) {
+export function orientSuit(root: Object3D, pose: Pose, motion: SuitMotion, turnRoll = 0, fade = 0) {
   const power = pose.power;
-  euler.set(pose.lean + pose.pitch * power, pose.yaw, pose.bank * (1 - power) * (1 + motion.hero * .7));
-  // A modest roll reads on a horizontal travel axis; near-vertical flight would turn it into a heading swing, and a
-  // larger roll combined with yaw lag in a climbing left turn would show the chest to the right-shoulder camera.
-  root.quaternion.setFromEuler(euler).multiply(roll.setFromAxisAngle(LONG_AXIS, -pose.bank * power * (1 + motion.hero * .2) * Math.cos(pose.pitch)));
+  euler.set(pose.lean + pose.pitch * power, pose.yaw, pose.bank * (1 - power) * (1 + motion.hero * .7) * (1 - fade * pose.flight));
+  root.quaternion.setFromEuler(euler);
+  if (!turnRoll) return;
+  const elevation = pose.pitch * power;
+  // Back along the flight axis, the way the camera looks along it.
+  tail.set(Math.sin(pose.yaw) * Math.cos(elevation), -Math.sin(elevation), Math.cos(pose.yaw) * Math.cos(elevation));
+  sightLine(pose, sight);
+  root.quaternion.premultiply(roll.setFromAxisAngle(sight, turnRoll * Math.max(0, tail.dot(sight))));
 }
 /**
  * Joint rotations only: the player/camera remain authoritative. Every limb hangs along -Y at rest, so a positive x

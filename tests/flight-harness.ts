@@ -1,5 +1,5 @@
 import { Euler, Quaternion, Vector3, type Group } from 'three';
-import { CHASE_BOOM, type Pose } from '../src/game/presentation';
+import { CHASE_BOOM, CHASE_HEAD, type Pose } from '../src/game/presentation';
 import { applySuitPose, orientSuit } from '../src/world/suitPose';
 import { applySuitAnimation, createSuitAnimation, type AnimatedPose, type SuitAnimation } from '../src/world/suitAnimation';
 import { advanceFlightMix, createFlightMix, type FlightMix } from '../src/world/flightMix';
@@ -22,10 +22,13 @@ export function cruising(time = 0): SuitAnimation {
 export function settledMix(p: AnimatedPose, velocity: { x: number; y: number; z: number }, reduced = false, flying = true): FlightMix {
   const mix = createFlightMix(); advanceFlightMix(mix, p, { paused: false, reduced, flying, velocity }, 0); return mix;
 }
-/** One Suit.tsx frame: orientation, pose targets, the flight clips (unless `clips` is false), then the living layer. */
-export function frame(r: Rig, p: AnimatedPose, mix: FlightMix, life: SuitAnimation, hero: number, reduced: boolean, clips = true) {
+/**
+ * One Suit.tsx frame: orientation (with the turn roll and the speed fade of the hover tilt), pose targets, the flight clips (unless
+ * `clips` is false), then the living layer.
+ */
+export function frame(r: Rig, p: AnimatedPose, mix: FlightMix, life: SuitAnimation, hero: number, reduced: boolean, clips = true, roll = 0, fade = 0) {
   const m = { hero, epoch: 0 };
-  r.root.position.set(0, 0, 0); orientSuit(r.root, p, m); applySuitPose(r.joints, p, m, reduced);
+  r.root.position.set(0, 0, 0); orientSuit(r.root, p, m, roll, fade); applySuitPose(r.joints, p, m, reduced);
   const authored = clips ? applyFlightClips(r.joints, mix, p, life, hero, reduced) : 0;
   r.root.position.y += applySuitAnimation(r.joints, life, p, reduced, hero, authored);
   r.root.updateMatrixWorld(true);
@@ -33,7 +36,7 @@ export function frame(r: Rig, p: AnimatedPose, mix: FlightMix, life: SuitAnimati
 }
 const view = new Euler(0, 0, 0, 'YXZ'), q = new Quaternion(), v = new Vector3(), e = new Euler();
 /** Unit vector from the suit toward the chase camera (boom in the view frame, aimed at the head). */
-export const toCamera = (p: Pose) => new Vector3(CHASE_BOOM.x, CHASE_BOOM.y, CHASE_BOOM.z).applyEuler(view.set(p.viewPitch, p.viewYaw, 0)).add(new Vector3(0, .65, 0)).normalize();
+export const toCamera = (p: Pose) => new Vector3(CHASE_BOOM.x, CHASE_BOOM.y, CHASE_BOOM.z).applyEuler(view.set(p.viewPitch, p.viewYaw, 0)).add(new Vector3(0, CHASE_HEAD, 0)).normalize();
 export function measure(r: Rig, p: Pose) {
   const camera = toCamera(p), world = (b: number) => r.joints[b].getWorldQuaternion(q);
   const chest = v.set(0, 0, 1).applyQuaternion(world(idx.chest)).dot(camera), face = v.set(0, 0, -1).applyQuaternion(world(idx.head)).dot(camera);

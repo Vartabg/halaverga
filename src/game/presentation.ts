@@ -7,9 +7,13 @@ export const presentation = {
   epoch: -1, alignAfterReset: false,
   /** The flight clip on show (a plain label for telemetry and tests), written by the suit each frame. */
   suitClip: 'ground',
+  /** The whole-body turn roll on show (rad, positive rolls left), written by the suit each frame for telemetry. */
+  suitRoll: 0,
 };
 /** Third-person boom in the view frame: right, up and behind the head. */
 export const CHASE_BOOM: Vec = { x: .85, y: .7, z: 5.3 };
+/** Height (m) of the head above the anchor: the chase boom hangs from it. */
+export const CHASE_HEAD = .65;
 /** The body may trail the travel direction, but never far enough to turn its chest toward the chase camera. */
 export const FACING = { yaw: .3, pitchUp: .4, pitchDown: .15 } as const;
 export const angleDelta = (from: number, to: number) => Math.atan2(Math.sin(to - from), Math.cos(to - from));
