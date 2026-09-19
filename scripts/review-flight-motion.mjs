@@ -4,7 +4,7 @@
 // SUIT_REDUCED=1 turns on reduced camera motion; SUIT_REVIEW_PHONE=1 renders chase tiles as whole landscape phone frames (852 x 393,
 // shown at half size) instead of 2x crops of the 1440 x 1000 desktop frame;
 // SUIT_FLIGHT_VIEW=chase renders every row from the chase camera (the owner's view); SUIT_FLIGHT_OUTPUT sets the PNG path;
-// SUIT_FLIGHT_ROWS=0,6 picks rows.
+// SUIT_FLIGHT_ROWS=0,6 picks rows; SUIT_REVIEW_SCALE=2.5 screenshots at that device pixel ratio.
 import { chromium } from '@playwright/test';
 import { fileURLToPath } from 'node:url';
 import { readFile } from 'node:fs/promises';
@@ -60,7 +60,7 @@ const tag = hero => [O.clips ? '' : 'without clips', hero ? '' : 'classic', O.re
 for (const [name, note, , , , , , , heroOverride] of all) { const t = tag(heroOverride ?? O.hero), shown = O.chase ? note.replace(/^side/, 'chase') : note;
   document.getElementById('labels').insertAdjacentHTML('beforeend', '<div>' + name.toUpperCase() + '<small>' + shown + (t ? ' · ' + t : '') + '</small></div>'); }
 const asset = await new GLTFLoader().loadAsync('/models/suit.glb');
-const renderer = new T.WebGLRenderer({ antialias: true }); renderer.setPixelRatio(${phone ? 2 : 1.5}); renderer.setSize(W * COLS, H * all.length);
+const renderer = new T.WebGLRenderer({ antialias: true }); renderer.setPixelRatio(Math.max(${phone ? 2 : 1.5}, window.devicePixelRatio)); renderer.setSize(W * COLS, H * all.length);
 renderer.setScissorTest(true); renderer.toneMapping = T.ACESFilmicToneMapping; renderer.setClearColor('#12262c');
 document.getElementById('stage').append(renderer.domElement);
 const scene = new T.Scene(), rig = buildSuitRig(asset.scene), grid = new T.GridHelper(40, 80, '#5f8a86', '#35575a'); scene.add(rig.root, grid);
@@ -116,7 +116,7 @@ window.rendered = true;
 const three = { 'three.module.js': 'build/three.module.js', 'three.core.js': 'build/three.core.js' };
 const browser = await chromium.launch({ executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', args: ['--use-gl=angle', '--use-angle=metal'] });
 try {
-  const tab = await browser.newPage({ viewport: { width: 190 + W * COLS, height: H * (rows?.length ?? 10) } });
+  const tab = await browser.newPage({ viewport: { width: 190 + W * COLS, height: H * (rows?.length ?? 10) }, deviceScaleFactor: Number(env.SUIT_REVIEW_SCALE) || 1 });
   let fail; const failed = new Promise((_, reject) => { fail = reject; }); failed.catch(() => {});
   tab.on('pageerror', e => fail(e)); tab.on('console', m => { if (m.type() === 'error') fail(new Error(m.text())); });
   tab.on('requestfailed', r => fail(new Error(`Request failed: ${r.url()}`)));

@@ -61,6 +61,18 @@ describe('flight clips keep the back toward the chase camera', () => {
     expect(worst.chest, worst.at).toBeGreaterThan(.1); expect(worst.face).toBeLessThan(0); expect(worst.yaw).toBeLessThanOrEqual(.1);
     expect(worst.clamped).toBe(0); expect(worst.hinges).toBe(true); expect(worst.finite).toBe(true);
   });
+  it('never reaches a joint limit on a wider grid, including full braking and banking at 4-6 m/s while descending', () => {
+    const r = rig(), life = cruising(); let clamped = 0, at = '';
+    for (const speed of [0, 2, 4, 5, 6, 8, 10, 13, 16, 20, 25, 34]) for (const bank of [-1, -.5, 0, .5, 1]) for (const brake of [0, .4, .7, 1])
+      for (const slope of [-1, -.5, 0, .5, 1]) for (const clock of [0, .6, 1.1, 1.7, 2.3, 2.9, 3.4]) for (const hero of [0, 1]) for (const reduced of [false, true]) {
+        const pitch = slope * .9, p = flightPose({ speed, pitch, viewPitch: pitch, brake });
+        const mix = settledMix(p, { x: 0, y: Math.sin(pitch) * speed, z: -Math.cos(pitch) * speed }, reduced);
+        Object.assign(mix, { clock, slope: speed > 2 ? Math.sin(pitch) : 0, fist: speed >= 15 ? 1 : 0, steer: reduced ? 0 : bank, flare: speed < 3 && slope <= 0 ? 1 : 0 });
+        mix.bank.fill(reduced ? 0 : bank); life.time = clock * 1.19; frame(r, p, mix, life, hero, reduced);
+        if (mix.clamped > clamped) { clamped = mix.clamped; at = JSON.stringify({ speed, bank, brake, slope, clock, hero, reduced }); }
+      }
+    expect(clamped, at).toBe(0);
+  });
   it('keeps the takeoff launch inside the joint limits over the hover tread, climbing or not', () => {
     let clamped = 0, at = '';
     for (const hero of [0, 1]) for (const reduced of [false, true]) for (const slope of [0, 1]) for (let k = 0; k <= 100; k++) for (const time of [0, .6, 1.2, 1.8, 2.4, 3, 3.6, 4.2]) {

@@ -66,13 +66,34 @@ export const STATES: State[] = [
   { name: 'right turn 13', drive: () => keys({ turn: -1.5 }), warm: 3, span: 4 },
   { name: 'left turn 34', drive: () => keys({ surge: true, turn: 1.5 }), warm: 4, span: 4 },
   { name: 'right turn 34', drive: () => keys({ surge: true, turn: -1.5 }), warm: 4, span: 4 },
+  { name: 'left turn 34 classic', drive: () => keys({ surge: true, turn: 1.5 }), warm: 4, span: 4, hero: 0 },
+  { name: 'right turn 34 classic', drive: () => keys({ surge: true, turn: -1.5 }), warm: 4, span: 4, hero: 0 },
   { name: 'brake from 34', drive: () => keys({ surge: true, release: 4 }), warm: 4, span: 1.5, pick: 'brake' },
   { name: 'dive 13', drive: () => keys({ pitch: -.9 }), warm: 3, span: 4 },
   { name: 'climb 13', drive: () => keys({ pitch: .9 }), warm: 3, span: 4 },
   { name: 'landing flare', drive: () => landing({ x: 0, y: 25, z: 0 }, { x: 0, y: 21.06, z: -8 }), warm: 0, span: 9, pick: 'flare' },
 ];
+/**
+ * The read of a pose in the chase image: each arm's angle (degrees, shoulder to fingertip against the neck-to-pelvis axis, outward
+ * positive; right arm first), the toe tips' and knees' lateral spread in the root frame (m), and the hero fist's distance from the
+ * head centre in the image, in head radii (.11 m).
+ */
+export type Read = { arms: [number, number]; toes: number; knees: number; fist: number };
+export function readOf(r: Rig, p: Pose): Read {
+  const cam = chase(p), chest = r.joints[idx.chest].getWorldPosition(new Vector3()), depth = chest.clone().sub(cam.at).dot(cam.forward);
+  const right = new Vector3(1, 0, 0).applyEuler(view.set(p.viewPitch, p.viewYaw, 0)), up = new Vector3(0, 1, 0).applyEuler(view);
+  const flat = (v: Vector3) => { const d = v.clone().sub(cam.at); d.multiplyScalar(depth / d.dot(cam.forward)); return [d.dot(right), d.dot(up)]; };
+  const [nx, ny] = flat(head(r, idx.neck)), [px, py] = flat(head(r, 0)), axis = Math.atan2(nx - px, ny - py);
+  const [hr, hl] = tips(r), arms = ([[idx.upperarmR, hr, 1], [2, hl, -1]] as const).map(([b, tip, side]) => {
+    const [sx, sy] = flat(head(r, b)), [tx, ty] = flat(tip), a = Math.atan2(tx - sx, -(ty - sy)) + axis;
+    return side * Math.atan2(Math.sin(a), Math.cos(a)) * 180 / Math.PI;
+  }) as [number, number];
+  const toe = TOE.map(b => r.root.worldToLocal(r.joints[b].localToWorld(TOE_TIP.clone()))), knee = KNEE.map(b => r.root.worldToLocal(head(r, b)));
+  const [fx, fy] = flat(head(r, idx.handR)), [cx, cy] = flat(r.joints[idx.head].localToWorld(new Vector3(0, .1, 0)));
+  return { arms, toes: Math.abs(toe[0].x - toe[1].x), knees: Math.abs(knee[0].x - knee[1].x), fist: Math.hypot(fx - cx, fy - cy) / .11 };
+}
 /** `body` is each tip in the root frame (the mean over the span, or at the picked frame): the clip-on pose, apart from the camera. */
-export type Result = { name: string; tips: number[]; hands: number; feet: number; px: number; body: Vector3[]; view: View };
+export type Result = { name: string; tips: number[]; hands: number; feet: number; px: number; body: Vector3[]; view: View; read: Read; off: Read; fistMin: number };
 /**
  * Runs a state at 60 Hz and averages each tip's displacement over the span after the warm-up (a whole hover tread, or four seconds,
  * at least three loops of every shared clip). The brake and the flare are transients: they take the frame of the peak weight
@@ -80,23 +101,29 @@ export type Result = { name: string; tips: number[]; hands: number; feet: number
  */
 export function silhouette(s: State, reduced = false): Result {
   const sum = [0, 0, 0, 0], body = [0, 1, 2, 3].map(() => new Vector3()); let n = 0, best = -1, peak: number[] = [], px = 0, at: Vector3[] = [];
-  let view: View | null = null;
+  let view: View | null = null, read = zero(), off = zero(), fistMin = Infinity;
+  const take = (shot: Shot) => { peak = displacement(shot); px = pixels(1, shot); at = rootTips(shot.clips); view = viewOf(shot); read = readOf(shot.clips, shot.p); off = readOf(shot.legacy, shot.p); };
   play(s.warm + s.span, 60, s.drive(), shot => {
     if (shot.t <= s.warm + 1e-9) return;
     if (s.pick === 'brake') {
       const w = shot.mix.brake.reduce((a, b) => a + b, 0) / shot.mix.brake.length;
-      if (w > best) { best = w; peak = displacement(shot); px = pixels(1, shot); at = rootTips(shot.clips); view = viewOf(shot); }
+      if (w > best) { best = w; take(shot); }
     } else if (s.pick === 'flare') {
-      if (shot.life.flying && shot.mix.flare > .5) { peak = displacement(shot); px = pixels(1, shot); at = rootTips(shot.clips); view = viewOf(shot); }
+      if (shot.life.flying && shot.mix.flare > .5) take(shot);
     } else {
       displacement(shot).forEach((d, k) => { sum[k] += d; }); n++; px = pixels(1, shot); view = viewOf(shot);
       rootTips(shot.clips).forEach((v, k) => body[k].add(v));
+      const on = readOf(shot.clips, shot.p); add(read, on); add(off, readOf(shot.legacy, shot.p)); fistMin = Math.min(fistMin, on.fist);
     }
   }, { reduced, hero: s.hero ?? 1, speed: 0 });
   const tipsOut = s.pick ? peak : sum.map(d => d / n);
+  if (!s.pick) { scale(read, 1 / n); scale(off, 1 / n); }
   return { name: s.name, tips: tipsOut, hands: Math.max(tipsOut[0], tipsOut[1]), feet: Math.max(tipsOut[2], tipsOut[3]), px,
-    body: s.pick ? at : body.map(v => v.divideScalar(n)), view: view! };
+    body: s.pick ? at : body.map(v => v.divideScalar(n)), view: view!, read, off, fistMin: s.pick ? read.fist : fistMin };
 }
+const zero = (): Read => ({ arms: [0, 0], toes: 0, knees: 0, fist: 0 });
+const add = (a: Read, b: Read) => { a.arms[0] += b.arms[0]; a.arms[1] += b.arms[1]; a.toes += b.toes; a.knees += b.knees; a.fist += b.fist; };
+const scale = (a: Read, k: number) => { a.arms[0] *= k; a.arms[1] *= k; a.toes *= k; a.knees *= k; a.fist *= k; };
 const rootTips = (r: Rig) => tips(r).map(v => r.root.worldToLocal(v));
 /**
  * Distinctness: per tip, the image-plane distance (m at the chest's depth) between two states' clip-on poses, each pose seen under

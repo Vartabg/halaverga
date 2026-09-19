@@ -86,6 +86,8 @@ export function applySuitAnimation(joints: Object3D[], a: SuitAnimation, pose: A
   const hold = 1 - takeoffRelease(a), crouch = smooth(0, .1, a.takeoff) * (1 - smooth(.1, .26, a.takeoff)) * soft;
   const extend = smooth(.1, .2, a.takeoff) * (1 - smooth(.3, .55, a.takeoff)) * soft;
   const absorb = .8 * smooth(0, .07, a.landing) * (1 - smooth(.12, .6, a.landing)) * soft;
+  // The authored landing flare already holds the arms out for balance: the impact reaction gives way to it, so the two never stack.
+  const brace = absorb * (1 - authored);
   const lagForward = reduced ? 0 : clamp(a.lagForward.x, -1, 1), lagSide = reduced ? 0 : clamp(a.lagSide.x, -1, 1);
   const breath = Math.sin(a.time * TAU * .25), sway = Math.sin(a.time * TAU * .09), bob = Math.sin(a.time * TAU * .42);
   const swingAmp = Math.min(.5, .12 + .16 * h), kneeAmp = Math.min(1.3, .35 + .2 * h);
@@ -104,11 +106,11 @@ export function applySuitAnimation(joints: Object3D[], a: SuitAnimation, pose: A
     // Arms pump against the legs, relax at rest, float while hovering and flare for balance on landing. With hero poses
     // the launch drives the right fist up, matching the power-flight lead; the left arm follows lower.
     joints[arm].rotation.x += -gait * (armAmp * swing * ahead + .2 * Math.min(1, h / 5)) - .5 * crouch + (side > 0 ? .7 + .8 * hero : .7) * extend
-      + .35 * absorb + .4 * lagForward;
-    joints[arm].rotation.z += side * (gait * .06 * Math.min(1, h / 3) + rest * (.07 + .02 * breath) + drifting * .05 * drift + .4 * absorb) + .3 * lagSide;
+      + .35 * brace + .4 * lagForward;
+    joints[arm].rotation.z += side * (gait * .06 * Math.min(1, h / 3) + rest * (.07 + .02 * breath) + drifting * .05 * drift + .4 * brace) + .3 * lagSide;
     // The elbow closes as the arm drives forward and opens as it swings back.
     joints[fore].rotation.x += gait * (elbowBase - .25 * swing * ahead) + rest * (.15 + .03 * breath) + .3 * crouch + .2 * extend
-      + .35 * absorb + drifting * .06 * drift + wind * .03 * flutter + .3 * lagForward;
+      + .35 * brace + drifting * .06 * drift + wind * .03 * flutter + .3 * lagForward;
   }
   joints[0].rotation.x -= lean;
   joints[0].rotation.z += idle * .025 * sway;

@@ -74,6 +74,7 @@ describe('flight mix transitions', () => {
       }
       return samples; });
     const apart = (a: number[][], b: number[][]) => Math.max(...a.flatMap((f, k) => f.map((v, i) => Math.abs(v - b[k][i]))));
+    if (process.env.TRACE_REPORT) console.log('TRACE', apart(traces[0], traces[2]), apart(traces[1], traces[2]));
     expect(traces[0]).toHaveLength(12); expect(apart(traces[0], traces[2])).toBeLessThan(2.5e-3); expect(apart(traces[1], traces[2])).toBeLessThan(2.5e-3);
   });
   it('blends from what the pose targets wrote this frame, weighted by the flight authority', () => {

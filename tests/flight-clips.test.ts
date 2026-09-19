@@ -6,7 +6,7 @@ import { ACCENTS } from '../src/world/flightAccents';
 import { BLEND_REF, BONE_COUNT, BONE_NAMES, HINGE, MIRROR } from '../src/world/suitSkeleton';
 const at = (name: string) => BONE_NAMES.indexOf(name as never);
 const REF = BLEND_REF.map(e => new Quaternion().setFromEuler(new Euler(e[0], e[1], e[2])));
-const CLIPS: Clip[] = [FLIGHT.hover, FLIGHT.cruise, ...FLIGHT.power, FLIGHT.fist, ...FLIGHT.brake, ...Object.values(ACCENTS)];
+const CLIPS: Clip[] = [FLIGHT.hover, FLIGHT.cruise, ...FLIGHT.power, FLIGHT.fist, ...FLIGHT.brake, FLIGHT.climb, FLIGHT.dive, ...Object.values(ACCENTS)];
 const sample = (c: Clip, t: number) => { const p = createPose(); sampleClip(c, t, p); return p; };
 const times = (c: Clip, n = 48) => Array.from({ length: n + 1 }, (_, i) => i * c.duration / n);
 const quat = (p: PoseBuffer, b: number) => new Quaternion().fromArray(p, b * 4);
@@ -37,17 +37,19 @@ describe('authored flight clips', () => {
   });
   it('share one clock: loops divide 4 s, and hover spans two bob periods', () => {
     expect(FLIGHT.hover.duration).toBe(2 / .42); expect(HOVER_LOOP).toBe(2 / .42);
-    for (const c of [FLIGHT.cruise, ...FLIGHT.power, FLIGHT.fist, ...FLIGHT.brake]) { expect(c.loop).toBe(true); expect(Number.isInteger(4 / c.duration)).toBe(true); }
+    for (const c of [FLIGHT.cruise, ...FLIGHT.power, FLIGHT.fist, ...FLIGHT.brake, FLIGHT.climb, FLIGHT.dive]) { expect(c.loop).toBe(true); expect(Number.isInteger(4 / c.duration)).toBe(true); }
   });
   it('blend every pair along the short way round their pivots', () => {
     const base = bases(), fist = times(FLIGHT.fist, 8).flatMap(t => [-.8, -.4, 0, .4].flatMap(aim => [-.25, 0, .25].map(steer => {
       const p = sample(FLIGHT.fist, t); preRotateX(p, at('upperarm_r'), aim); rotateZ(p, at('upperarm_r'), steer); return p; })));
     const brake = FLIGHT.brake.flatMap(c => times(c, 16).map(t => sample(c, t))), flare = [sample(ACCENTS.flare, 0)];
+    const slopes = [FLIGHT.climb, FLIGHT.dive].flatMap(c => times(c, 16).map(t => sample(c, t)));
     const pairs: [string, PoseBuffer[], PoseBuffer[], number[]][] = [
       ['hover-cruise', times(FLIGHT.hover, 16).map(t => sample(FLIGHT.hover, t)), times(FLIGHT.cruise, 16).map(t => sample(FLIGHT.cruise, t)), []],
       ['cruise-power', times(FLIGHT.cruise, 16).map(t => sample(FLIGHT.cruise, t)), FLIGHT.power.flatMap(c => times(c, 8).map(t => sample(c, t))), []],
       ['classic-hero', times(FLIGHT.power[0], 16).map(t => sample(FLIGHT.power[0], t)), times(FLIGHT.power[1], 16).map(t => sample(FLIGHT.power[1], t)), []],
-      ['base-fist', base, fist, ['clavicle_r', 'upperarm_r', 'forearm_r', 'hand_r'].map(at)], ['base-brake', base, brake, []], ['base-flare', [...base, ...brake], flare, []]];
+      ['base-fist', base, fist, ['clavicle_r', 'upperarm_r', 'forearm_r', 'hand_r'].map(at)], ['base-brake', base, brake, []],
+      ['base-slope', base, slopes, []], ['slope-brake', slopes, brake, []], ['base-flare', [...base, ...brake, ...slopes], flare, []]];
     for (const [name, from, to, only] of pairs) {
       let side = 1, length = 1;
       for (const a of from) for (const b of to) for (let bone = 0; bone < BONE_COUNT; bone++) if (!only.length || only.includes(bone)) {
@@ -57,18 +59,18 @@ describe('authored flight clips', () => {
     }
   });
   it('keep held accents small, and the takeoff snap on the added bones only, starting and ending at rest', () => {
-    for (const c of [ACCENTS.bankLeft, ACCENTS.bankRight, ACCENTS.climb, ACCENTS.dive, ACCENTS.sink]) {
+    for (const c of [ACCENTS.bankLeft, ACCENTS.bankRight, ACCENTS.sink]) {
       const p = sample(c, 0);
       for (let b = 0; b < BONE_COUNT; b++) { const e = euler(p, b); expect(Math.max(Math.abs(e.x), Math.abs(e.y), Math.abs(e.z)), `${c.name} ${BONE_NAMES[b]}`).toBeLessThanOrEqual(.35 + 1e-6); }
     }
     for (const ch of ACCENTS.launch.channels) expect(ch.bone).toBeGreaterThanOrEqual(10);
     for (const t of [0, 1]) expect(Math.max(...sample(ACCENTS.launch, t).map((v, i) => Math.abs(v - (i % 4 === 3 ? 1 : 0))))).toBeLessThan(1e-6);
   });
-  it('encode the facing rule: no torso pitch where an overhead camera can meet it, and braking hunches', () => {
+  it('encode the facing rule: no torso pitch where an overhead camera can meet it, and braking and the dive tuck hunch', () => {
     const torso = ['spine', 'chest', 'neck', 'head'].map(at);
-    for (const c of [ACCENTS.climb, ACCENTS.sink, ACCENTS.launch, ACCENTS.flare]) for (const t of times(c, 8)) for (const b of torso)
+    for (const c of [FLIGHT.climb, ACCENTS.sink, ACCENTS.launch, ACCENTS.flare]) for (const t of times(c, 8)) for (const b of torso)
       expect(Math.abs(pitchOf(sample(c, t), b)), `${c.name} ${BONE_NAMES[b]}`).toBeLessThan(1e-6);
-    for (const c of FLIGHT.brake) for (const t of times(c, 32)) for (const b of torso) expect(pitchOf(sample(c, t), b)).toBeLessThanOrEqual(1e-6);
+    for (const c of [...FLIGHT.brake, FLIGHT.dive]) for (const t of times(c, 32)) for (const b of torso) expect(pitchOf(sample(c, t), b)).toBeLessThanOrEqual(1e-6);
   });
   it('mirror the right bank from the left, land the flare feet flat, and are all original', () => {
     const left = sample(ACCENTS.bankLeft, 0), right = sample(ACCENTS.bankRight, 0);
