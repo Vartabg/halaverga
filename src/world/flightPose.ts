@@ -52,7 +52,7 @@ export function applyFlightClips(joints: Object3D[], mix: FlightMix, pose: Pose,
   if (fist > 1e-4) {
     styled(work, FLIGHT.fist, FLIGHT.fist, t, 0, amp);
     // Authored for the full power lean on level travel: re-aim along the travel axis at any lean and slope, then lead the turn.
-    preRotateX(work, UPPERARM_R, clamp(-(pose.lean + 1.35) + pose.pitch * (1 - P), -.8, .4)); rotateZ(work, UPPERARM_R, -.25 * mix.steer);
+    preRotateX(work, UPPERARM_R, clamp(-(pose.lean + 1.35) + pose.pitch * (1 - P), -.8, .4)); rotateZ(work, UPPERARM_R, -.1 * mix.steer);
     mixPose(out, work, fist, LEAD);
   }
   let braking = false;
