@@ -16,6 +16,7 @@ export default function Player() {
   const { world, rapier } = useRapier(), { camera } = useThree();
   const controller = useRef<ReturnType<typeof world.createCharacterController> | null>(null);
   const tick = useRef(0), liftTime = useRef(0), savedTime = useRef(0);
+  const brakeEpoch = useRef(runtime.trackpad.brakeEpoch);
   const safety = useRef<FlightSafety | null>(null), warmup = useRef(0), landingStall = useRef(0);
   const paused = useGame(s => s.paused);
   const spawn = useRef(useGame.getState().checkpoint);
@@ -33,6 +34,7 @@ export default function Player() {
     const b = body.current, col = collider.current, c = controller.current;
     const state = useGame.getState(); if (!b || !col || !c || state.paused) return;
     const dt = 1 / 60;
+    if (brakeEpoch.current !== runtime.trackpad.brakeEpoch) { liftTime.current = 0; brakeEpoch.current = runtime.trackpad.brakeEpoch; }
     if (!safety.current) safety.current = new FlightSafety(world, rapier, col);
     const safe = safety.current;
     // Allow Rapier's first broad-phase update before querying a persisted checkpoint.

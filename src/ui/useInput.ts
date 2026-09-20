@@ -19,6 +19,7 @@ export function useInput() {
       if (e.code === 'Escape') { if (state.started && !state.panel && !state.journal) pause(); return; }
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       if (state.paused || /INPUT|SELECT|TEXTAREA/.test((e.target as HTMLElement).tagName)) return;
+      if (runtime.trackpad.held && state.trackpadSteering === 'flow') return;
       if (controls.includes(e.code)) { e.preventDefault(); runtime.keys.add(e.code); }
       if (e.repeat) return;
       if (e.code === 'Space' && (e.target as HTMLElement).tagName !== 'BUTTON') { e.preventDefault(); runtime.lift = true; }
@@ -31,7 +32,9 @@ export function useInput() {
     };
     const mouse = (e: MouseEvent) => {
       if (document.pointerLockElement && !useGame.getState().paused) {
-        look(e.movementX, e.movementY); recordGesture('captured-steer', { deltaX: e.movementX, deltaY: e.movementY });
+        const state = useGame.getState();
+        look(e.movementX, e.movementY, state.desktopMode === 'trackpad' && state.trackpadSteering === 'flow' ? state.lookSensitivity : 1);
+        recordGesture('captured-steer', { deltaX: e.movementX, deltaY: e.movementY });
       }
     };
     const hidden = () => { if (document.hidden) pause(); };
