@@ -1,0 +1,7 @@
+{
+  "tested_url": "http://127.0.0.1:3474",
+  "runtime_source_tree_sha256": "7816379b08f38a0dfe0f8071e116753fe0341958c2964fe9dee64e21245785d9",
+  "asset_sha256": "c1fc253bcb2e57a6c92a4f7dcfd7a92c6e622a0f1a1e961f5d6d055c25a6e831",
+  "base_revision": "1b23fe37387b801397230de70552a0b32f8a1248",
+  "note": "Local production build; raw measurement deployment field is the configured public URL. Asset and source changes were present before final commit."
+}

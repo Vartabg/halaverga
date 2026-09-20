@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Reclaimed Boulevard · Halaverga art benchmark</title>
+<style>
+:root{color-scheme:dark;font-family:Arial,sans-serif;color:#ecf0dc;background:#102628}
+*{box-sizing:border-box}body{margin:0}main{max-width:1500px;margin:auto;padding:36px clamp(20px,4vw,70px) 60px}
+a{color:#d6efad;text-underline-offset:4px}a:focus-visible,button:focus-visible,input:focus-visible{outline:3px solid #e4ffc1;outline-offset:5px}
+header{display:flex;align-items:center;justify-content:space-between;gap:20px;border-bottom:1px solid #49625b;padding-bottom:22px}
+.eyebrow{font:11px monospace;letter-spacing:.17em;text-transform:uppercase;color:#b5c9b8}
+.play{display:inline-flex;align-items:center;min-height:46px;padding:0 20px;border:1px solid #91ab85;border-radius:3px;text-decoration:none}
+h1{font:clamp(42px,6vw,80px)/1.04 Georgia,serif;letter-spacing:-.04em;margin:32px 0 18px;font-weight:400}
+.intro{font-size:18px;line-height:1.6;color:#c5d5c8;max-width:760px;margin-bottom:26px}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;margin:20px 0 14px}button{font:13px Arial,sans-serif;min-height:44px;padding:9px 18px;background:transparent;border:1px solid #789585;color:#e6ecd7;border-radius:3px;cursor:pointer}
+button[aria-pressed=true]{background:#d6ecaa;border-color:#d6ecaa;color:#17312a}
+figure{margin:0}.comparison{position:relative;aspect-ratio:1440/1000;max-width:100%;overflow:hidden;background:#243b38;border:1px solid #587269;margin:auto}
+.comparison.portrait{aspect-ratio:393/852;max-width:393px}.comparison img{display:block;width:100%;height:100%;object-fit:contain}
+.before{position:absolute;inset:0;clip-path:inset(0 50% 0 0)}.seam{position:absolute;inset:0 auto 0 50%;width:2px;background:#eaf4d4;pointer-events:none}
+.tag{position:absolute;top:14px;background:#0c2326ec;padding:9px 13px;border:1px solid #8da796;font:11px monospace;letter-spacing:.12em}.tag.left{left:14px}.tag.right{right:14px}
+.range{display:grid;grid-template-columns:auto 1fr auto;gap:16px;align-items:center;padding:18px 0}.range span{font-size:12px;color:#c3d6c3}input{width:100%;min-height:44px;accent-color:#cee9a2}
+figcaption{font:12px/1.6 monospace;color:#aac0b1}.notes{display:grid;grid-template-columns:repeat(3,1fr);gap:32px;margin-top:38px;padding-top:24px;border-top:1px solid #49625b}
+h2{font:25px Georgia,serif;font-weight:400}.notes p{font-size:15px;line-height:1.65;color:#bbcdc0}footer{margin-top:28px;color:#a5bcaf;font-size:12px;line-height:1.8}
+@media(max-width:650px){main{padding-top:22px}.eyebrow{font-size:9px}.play{font-size:12px;padding:0 12px}.notes{grid-template-columns:1fr;gap:8px}.intro{font-size:16px}.tag{font-size:9px;padding:5px;top:8px}.tag.left{left:8px}.tag.right{right:8px}}
+</style>
+</head>
+<body><main id="main">
+<header><span class="eyebrow">Halaverga · environment benchmark 01</span><a class="play" href="/">Play the scene ↗</a></header>
+<h1>Reclaimed boulevard.</h1>
+<p class="intro">A broken highway, a flooded city, and eighty years of growth. This first playable corridor establishes the light, materials, and vegetation for the environment.</p>
+<div class="toolbar" role="group" aria-label="Choose comparison view">
+<button type="button" data-view="desktop-arrival" aria-pressed="true">Arrival</button>
+<button type="button" data-view="desktop-approach" aria-pressed="false">Flight approach</button>
+<button type="button" data-view="portrait-arrival" aria-pressed="false">Portrait</button>
+</div>
+<figure>
+<div class="comparison" id="comparison">
+<img id="after" src="after-desktop-arrival.png" alt="Reclaimed boulevard with textured concrete, trees, hanging greenery and a brighter sky.">
+<div class="before" id="before-mask"><img id="before" src="before-desktop-arrival.png" alt="Previous city with plain surfaces and sparse box-shaped vegetation."></div>
+<span class="seam" id="seam"></span><span class="tag left">BEFORE</span><span class="tag right">AFTER</span>
+</div>
+<div class="range"><span>Reveal after</span><input type="range" id="reveal" min="0" max="100" value="50" aria-label="Percentage of the previous environment shown"><span>Reveal before</span></div>
+<figcaption>Matched gameplay camera and viewport. Use the slider or arrow keys to compare. Desktop 1440 × 1000; portrait 393 × 852.</figcaption>
+</figure>
+<section class="notes" aria-label="Art direction">
+<div><h2>Recognizable ruins.</h2><p>Broken floor plates, exposed supports and a collapsed roadway keep the setting grounded in a damaged modern city.</p></div>
+<div><h2>Growth with a place.</h2><p>Tree canopies occupy the street and exposed office floors. Hanging plants follow ledges while open water preserves the flight route.</p></div>
+<div><h2>Light and depth.</h2><p>Warm sunlight, blue-green water and weathered concrete replace flat surfaces and the heavy shading over the play view.</p></div>
+</section>
+<footer>Reference roles: <a href="https://www.playstation.com/en-gb/games/the-last-of-us-part-ii/">The Last of Us Part II</a> for modern ruins;
+<a href="https://blog.playstation.com/2021/05/27/14-minutes-of-new-gameplay-for-horizon-forbidden-west/">Horizon Forbidden West</a> for coastal color;
+<a href="https://www.si.edu/object/abandoned-chinese-village-nature-reclaimed%3Ayt_QaJO50M1Ptk">Houtouwan</a> for vegetation patterns.<br>
+Fictional setting: destroyed in 2033, visited in 2113. Tree, plant and concrete inputs: <a href="https://polyhaven.com/license">Poly Haven, CC0</a>.<br>
+This corridor is an art-direction benchmark. Bespoke architectural assets, the wider district and physical iPhone validation remain further work.</footer>
+</main>
+<script>
+const reveal=document.querySelector('#reveal'),mask=document.querySelector('#before-mask'),seam=document.querySelector('#seam');
+reveal.addEventListener('input',()=>{mask.style.clipPath=`inset(0 ${100-reveal.value}% 0 0)`;seam.style.left=`${reveal.value}%`});
+document.querySelectorAll('[data-view]').forEach(button=>button.addEventListener('click',()=>{
+ document.querySelectorAll('[data-view]').forEach(item=>item.setAttribute('aria-pressed',String(item===button)));
+ const view=button.dataset.view;document.querySelector('#comparison').classList.toggle('portrait',view.startsWith('portrait'));
+ document.querySelector('#before').src=`before-${view}.png`;document.querySelector('#after').src=`after-${view}.png`;
+}));
+</script>
+</body></html>

@@ -4,6 +4,7 @@
 .world{position:absolute;inset:0;z-index:-3}.world canvas{display:block;touch-action:pinch-zoom}
 .vignette{position:absolute;inset:0;z-index:-1;pointer-events:none;background:linear-gradient(180deg,rgba(7,25,32,.67),transparent 25%,transparent 53%,rgba(6,23,28,.78)),linear-gradient(90deg,rgba(12,30,35,.40),transparent 60%)}
 .introVignette::after{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 22% 40%,#10272fa6 0%,#10272f80 35%,transparent 85%)}
+.vignette:not(.introVignette){background:linear-gradient(180deg,#102a3266,transparent 12%,transparent 86%,#0a222ba6)}
 .header{position:absolute;inset:max(28px,env(safe-area-inset-top)) 4.5% auto;display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:16px;z-index:8}
 .brand{display:flex;align-items:center;gap:11px;font-size:17px;font-weight:800;letter-spacing:.16em;text-shadow:0 1px 7px #152f34}.brand svg{width:35px;height:35px}.brand small{display:block;font-size:8px;letter-spacing:.28em;font-weight:500;margin-top:5px}
 .headerActions{display:flex;gap:9px}.headerActions button{border:1px solid #97aaa688;background:#142d34c9;min-width:44px;min-height:44px;padding:0 17px;border-radius:3px;font-size:12px;letter-spacing:.04em;backdrop-filter:blur(8px)}.headerActions button:hover{background:#305058}

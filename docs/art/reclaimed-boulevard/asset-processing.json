@@ -1,0 +1,27 @@
+[
+  {
+    "asset": "island_tree_01",
+    "mesh": "island_tree_01_LOD0",
+    "material": "island_tree_01_branches",
+    "wholeLeafLOD": false,
+    "triangles": 5273
+  },
+  {
+    "asset": "island_tree_01",
+    "mesh": "island_tree_01_LOD0.001",
+    "material": "island_tree_01",
+    "wholeLeafLOD": false,
+    "triangles": 2199
+  },
+  {
+    "asset": "island_tree_01",
+    "mesh": "island_tree_01_LOD0.002",
+    "material": "island_tree_01_leaves",
+    "wholeLeafLOD": true,
+    "triangles": 28800
+  },
+  {
+    "asset": "island_tree_01",
+    "heightMeters": 5.026996750384569
+  }
+]

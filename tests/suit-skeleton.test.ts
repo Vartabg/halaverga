@@ -39,13 +39,17 @@ test('bone names resolve in both the current and the legacy form, and nothing el
   for (const name of ['suit_joint_10', 'head_1', 'Head', 'foo', '']) expect(() => boneIndex(name)).toThrow('unknown joints');
 });
 test('the playable rig rests at identity with every joint at its authored head', async () => {
-  const rig = buildSuitRig((await loadSuit()).scene);
+  const source = (await loadSuit()).scene;
+  source.updateMatrixWorld(true);
+  const authored = new Map<number, Vector3>();
+  source.traverse(o => { if (o instanceof SkinnedMesh) o.skeleton.bones.forEach(b => authored.set(boneIndex(b.name), b.getWorldPosition(new Vector3()))); });
+  const rig = buildSuitRig(source);
   try {
     expect(rig.joints).toHaveLength(BONE_COUNT);
     rig.root.updateMatrixWorld(true);
     rig.joints.forEach((joint, i) => {
       expect(joint.quaternion.toArray()).toEqual([0, 0, 0, 1]);
-      expect(joint.getWorldPosition(new Vector3()).distanceTo(new Vector3(...BONE_HEADS[i]))).toBeLessThan(1e-12);
+      expect(joint.getWorldPosition(new Vector3()).distanceTo(authored.get(i)!)).toBeLessThan(1e-12);
     });
   } finally { rig.dispose(); }
 });

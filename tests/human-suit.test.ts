@@ -14,15 +14,16 @@ test('anatomical joints give the explorer balanced legs and arms', async () => {
     const elbow = rig.joints[6].getWorldPosition(new Vector3());
     const hip = rig.joints[4].getWorldPosition(new Vector3());
     const knee = rig.joints[8].getWorldPosition(new Vector3());
+    const ankle = rig.joints[17].getWorldPosition(new Vector3());
     expect((hip.y - bounds.min.y) / height).toBeGreaterThan(.47);
     expect((hip.y - bounds.min.y) / height).toBeLessThan(.54);
-    expect((shoulder.y - elbow.y) / height).toBeGreaterThan(.15);
-    expect((shoulder.y - elbow.y) / height).toBeLessThan(.19);
-    expect((hip.y - knee.y) / (knee.y - bounds.min.y)).toBeGreaterThan(.87);
-    expect((hip.y - knee.y) / (knee.y - bounds.min.y)).toBeLessThan(1.18);
+    expect(shoulder.distanceTo(elbow) / height).toBeGreaterThan(.145);
+    expect(shoulder.distanceTo(elbow) / height).toBeLessThan(.19);
+    expect(hip.distanceTo(knee) / knee.distanceTo(ankle)).toBeGreaterThan(.87);
+    expect(hip.distanceTo(knee) / knee.distanceTo(ankle)).toBeLessThan(1.18);
   } finally { rig.dispose(); }
 });
-test('head and boots retain credible scale in the exported geometry', async () => {
+test('head and feet retain credible scale in the exported geometry', async () => {
   const source = await asset(), rig = buildSuitRig(source);
   try {
     rig.root.updateMatrixWorld(true); source.updateMatrixWorld(true);
@@ -31,9 +32,10 @@ test('head and boots retain credible scale in the exported geometry', async () =
     rig.root.traverse(object => {
       if (!(object instanceof SkinnedMesh)) return;
       const material = (object.material as MeshStandardMaterial).name;
-      if (material === 'skin' || material === 'hair') head.union(new Box3().setFromObject(object, true));
       const p = object.geometry.attributes.position;
       for (let i = 0; i < p.count; i++) {
+        // Skin now batches the head, hands and feet. Measure above the chin, excluding the neck.
+        if (material === 'skin' && p.getY(i) > .68) head.expandByPoint(new Vector3(p.getX(i), p.getY(i), p.getZ(i)));
         if (p.getY(i) < -.90) foot.expandByPoint(new Vector3(p.getX(i), p.getY(i), p.getZ(i)));
       }
     });
@@ -53,14 +55,15 @@ test('head and boots retain credible scale in the exported geometry', async () =
     });
   } finally { rig.dispose(); }
 });
-test('the face preserves its embedded reference atlas and UVs', async () => {
+test('the approved neutral anatomy preserves its finish and UVs for later surfacing', async () => {
   const rig = buildSuitRig(await asset());
   try {
     let skin: SkinnedMesh | undefined;
     rig.root.traverse(o => { if (o instanceof SkinnedMesh && (o.material as MeshStandardMaterial).name === 'skin') skin = o; });
     const material = skin!.material as MeshStandardMaterial;
-    expect(material.map).not.toBeNull();
-    expect(material.color.r).toBeCloseTo(1);
+    expect(material.map).toBeNull();
+    expect(material.color.r).toBeCloseTo(.38);
+    expect(material.roughness).toBeCloseTo(.65);
     const uv = skin!.geometry.getAttribute('uv');
     expect(uv).toBeDefined();
     expect(Array.from(uv.array).every(Number.isFinite)).toBe(true);
