@@ -2,6 +2,7 @@ import type { Vector3 } from 'three';
 import { SPEED, START, setVec, type Intent } from './motion';
 import { useGame } from './store';
 import { flowSpeed, type CaptureState } from './flowFlight';
+import { createShooter, resetShooterInput, lookGain } from './combat';
 // The landing page imports this module, so vectors stay plain objects and three.js is imported for types only; a value import would load the 3D bundle with the page.
 export const runtime = {
   position: { ...START }, velocity: { x: 0, y: 0, z: 0 },
@@ -18,7 +19,9 @@ export const runtime = {
   speed: 0, altitude: START.y, frames: [] as number[], elapsed: 0, location: 'Arrival terrace',
   frameIndex: 0, skipSample: true, resources: { drawCalls: 0, triangles: 0, geometries: 0, textures: 0 },
   peakResources: { drawCalls: 0, triangles: 0, geometries: 0, textures: 0 },
+  shooter: createShooter(),
 };
+const lookScratch = { x: 0, y: 0 };
 export function readIntent(): Intent {
   const k = runtime.keys;
   const flow = runtime.trackpad.active && useGame.getState().trackpadSteering === 'flow';
@@ -29,7 +32,8 @@ export function readIntent(): Intent {
     ...(flow ? { precise: true as const } : {}),
   };
 }
-export function clearInput(stop = false) {
+export function clearInput(stop = false, keepShooter = false) {
+  if (!keepShooter) resetShooterInput(runtime.shooter);
   runtime.keys.clear(); releaseThumb(); stopTrackpad();
   runtime.tap = { forward: 0, strafe: 0, vertical: 0 };
   runtime.surge = false; runtime.lift = false; runtime.landGoal = null;
@@ -38,8 +42,9 @@ export function clearInput(stop = false) {
 }
 export function toggleSurge() { runtime.surge = !runtime.surge; }
 export function look(dx: number, dy: number, sensitivity = 1) {
-  runtime.yaw -= dx * 0.003 * sensitivity;
-  runtime.pitch = Math.max(-1.3, Math.min(1.25, runtime.pitch - dy * 0.003 * sensitivity));
+  lookGain(runtime.shooter, dx, dy, lookScratch);
+  runtime.yaw -= lookScratch.x * 0.003 * sensitivity;
+  runtime.pitch = Math.max(-1.3, Math.min(1.25, runtime.pitch - lookScratch.y * 0.003 * sensitivity));
 }
 export function releaseThumb() {
   runtime.thumb = { active: false, throttle: 0, strafe: 0, edgeTurn: 0, edgePitch: 0, bank: 0 };

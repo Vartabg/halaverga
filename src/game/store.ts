@@ -8,6 +8,7 @@ type GameState = {
   desktopMode: 'trackpad' | 'mouse'; trackpadFlying: boolean;
   trackpadSteering: TrackpadProfile; sustainedEdges: boolean; reverseScroll: boolean; cruiseSpeed: number; heroPoses: boolean;
   lookSensitivity: number; flowIntroSeen: boolean;
+  shooter: boolean; aimToggle: boolean; aimAssist: number;
   flying: boolean; landing: boolean; canLand: boolean; nearTerminal: boolean; boundaryNear: boolean; clearanceActive: boolean; inputEpoch: number;
   checkpoint: Vec; discovered: boolean; message: string;
   set: (patch: Partial<Omit<GameState, 'set'>>) => void;
@@ -18,6 +19,7 @@ export const useGame = create<GameState>((set) => ({
   desktopMode: 'trackpad', trackpadFlying: false,
   trackpadSteering: 'free', sustainedEdges: false, reverseScroll: false, cruiseSpeed: 8, heroPoses: true,
   lookSensitivity: 1, flowIntroSeen: false,
+  shooter: true, aimToggle: false, aimAssist: 1,
   flying: false, landing: false, canLand: false, nearTerminal: false, boundaryNear: false, clearanceActive: false, inputEpoch: 0,
   checkpoint: START, discovered: false, message: '', set,
 }));
@@ -25,7 +27,7 @@ const STORAGE = 'halaverga-flight-v1';
 // The single authoritative list of fields saved between sessions. persistGame
 // writes exactly these keys; tests/persistence.test.ts pins hydrateGame to
 // restore every entry and to ignore runtime-only state.
-export const PERSISTED_KEYS = ['checkpoint', 'camera', 'quality', 'reduced', 'muted', 'discovered', 'tapControls', 'desktopMode', 'trackpadSteering', 'sustainedEdges', 'reverseScroll', 'cruiseSpeed', 'heroPoses', 'lookSensitivity', 'flowIntroSeen'] as const;
+export const PERSISTED_KEYS = ['checkpoint', 'camera', 'quality', 'reduced', 'muted', 'discovered', 'tapControls', 'desktopMode', 'trackpadSteering', 'sustainedEdges', 'reverseScroll', 'cruiseSpeed', 'heroPoses', 'lookSensitivity', 'flowIntroSeen', 'shooter', 'aimToggle', 'aimAssist'] as const;
 export type PersistedKey = typeof PERSISTED_KEYS[number];
 export function hydrateGame() {
   try {
@@ -44,6 +46,9 @@ export function hydrateGame() {
       heroPoses: saved.heroPoses !== false,
       lookSensitivity: typeof saved.lookSensitivity === 'number' && Number.isFinite(saved.lookSensitivity) ? Math.max(.5, Math.min(2, saved.lookSensitivity)) : 1,
       flowIntroSeen: saved.flowIntroSeen === true,
+      shooter: saved.shooter !== false,
+      aimToggle: saved.aimToggle === true,
+      aimAssist: typeof saved.aimAssist === 'number' && Number.isFinite(saved.aimAssist) ? Math.max(0, Math.min(1.5, saved.aimAssist)) : 1,
     });
   } catch { useGame.setState({ reduced: matchMedia('(prefers-reduced-motion: reduce)').matches }); }
 }
