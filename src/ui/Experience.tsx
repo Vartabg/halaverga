@@ -13,6 +13,7 @@ import TestPanel from './TestPanel';
 import Telemetry from './Telemetry';
 import FlowHud from './FlowHud';
 import FlowWelcome from './FlowWelcome';
+import SimpleTrackpadHud from './SimpleTrackpadHud';
 import styles from './Experience.module.css';
 const Scene = dynamic(() => import('@/world/Scene'), { ssr: false });
 export default function Experience() {
@@ -22,7 +23,7 @@ export default function Experience() {
   useEffect(() => {
     hydrateGame();
     const profile = new URLSearchParams(location.search).get('trackpad');
-    if (profile === 'flow' || profile === 'free' || profile === 'captured') useGame.setState({ desktopMode: 'trackpad', trackpadSteering: profile });
+    if (profile === 'simple' || profile === 'flow' || profile === 'free' || profile === 'captured') useGame.setState({ desktopMode: 'trackpad', trackpadSteering: profile });
     setHydrated(true);
   }, []);
   useInput(); useAudio();
@@ -84,7 +85,8 @@ export default function Experience() {
           {state.nearTerminal && <button className={styles.discovery} onClick={() => { pause(); state.set({ discovered: true, journal: true }); persistGame(); }}>◇ Municipal record <span>Read ↗</span></button>}
           {!state.flying && <div className={styles.touchHint} aria-hidden="true">ONE THUMB TO FLY · TWO TO MOVE + LOOK</div>}
           {state.desktopMode === 'trackpad' && state.trackpadSteering === 'flow' && <FlowHud />}
-          {state.desktopMode === 'trackpad' && state.trackpadSteering !== 'flow' && <div className={styles.trackpadHint}>{state.trackpadFlying ? `MOVE TO STEER · SCROLL FOR SPEED · CLICK TO ${state.trackpadSteering === 'captured' ? 'HOVER + RELEASE' : 'HOVER'}` : 'CLICK TO FLY · DRAG TO LOOK'}</div>}
+          {state.desktopMode === 'trackpad' && state.trackpadSteering === 'simple' && <SimpleTrackpadHud />}
+          {state.desktopMode === 'trackpad' && ['free', 'captured'].includes(state.trackpadSteering) && <div className={styles.trackpadHint}>{state.trackpadFlying ? `MOVE TO STEER · SCROLL FOR SPEED · CLICK TO ${state.trackpadSteering === 'captured' ? 'HOVER + RELEASE' : 'HOVER'}` : 'CLICK TO FLY · DRAG TO LOOK'}</div>}
         </>}
         {state.paused && !state.panel && !state.journal && !failed && <section className={styles.pauseCard} aria-label="Expedition paused">
           <p className={styles.eyebrow}>SUIT HOLDING POSITION</p><h2>Take your time.</h2><p>Your expedition will be here.</p>

@@ -20,6 +20,8 @@ export function useInput() {
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       if (state.paused || /INPUT|SELECT|TEXTAREA/.test((e.target as HTMLElement).tagName)) return;
       if (runtime.trackpad.held && state.trackpadSteering === 'flow') return;
+      // A held key must be released and pressed again after a brake or interruption.
+      if (e.repeat && !runtime.keys.has(e.code)) return;
       if (controls.includes(e.code)) { e.preventDefault(); runtime.keys.add(e.code); }
       if (e.repeat) return;
       if (e.code === 'Space' && (e.target as HTMLElement).tagName !== 'BUTTON') { e.preventDefault(); runtime.lift = true; }
@@ -33,7 +35,7 @@ export function useInput() {
     const mouse = (e: MouseEvent) => {
       if (document.pointerLockElement && !useGame.getState().paused) {
         const state = useGame.getState();
-        look(e.movementX, e.movementY, state.desktopMode === 'trackpad' && state.trackpadSteering === 'flow' ? state.lookSensitivity : 1);
+        look(e.movementX, e.movementY, state.desktopMode === 'trackpad' && ['flow', 'simple'].includes(state.trackpadSteering) ? state.lookSensitivity : 1);
         recordGesture('captured-steer', { deltaX: e.movementX, deltaY: e.movementY });
       }
     };

@@ -14,7 +14,10 @@ export function useCruiseCapture(surface: RefObject<HTMLDivElement | null>) {
   const fail = useCallback(() => {
     if (!pending.current) return;
     cancel(); stopTrackpad();
-    if (useGame.getState().trackpadSteering === 'flow') {
+    if (useGame.getState().trackpadSteering === 'simple') {
+      runtime.trackpad.captureFailed = true;
+      useGame.setState({ message: 'Pointer capture is unavailable. Drag to look or use arrow keys; WASD moves and Space lifts. Click to retry.' });
+    } else if (useGame.getState().trackpadSteering === 'flow') {
       runtime.trackpad.captureFailed = true;
       useGame.setState({ message: 'Flow could not capture the pointer. Click the scene to retry, or use free cursor controls.' });
     } else useGame.setState({ trackpadSteering: 'free', message: 'Captured steering is unavailable. Free cursor steering is ready; click to fly.' });
@@ -24,7 +27,7 @@ export function useCruiseCapture(surface: RefObject<HTMLDivElement | null>) {
     if (!surface.current || document.pointerLockElement !== surface.current) return;
     if (pending.current && runtime.trackpad.capture === 'requesting' && !state.paused && state.desktopMode === 'trackpad' && state.trackpadSteering === requestedProfile.current && state.trackpadSteering !== 'free') {
       pending.current = false;
-      if (state.trackpadSteering === 'flow') startFlow(); else { startTrackpad(); runtime.trackpad.capture = 'engaged'; }
+      if (state.trackpadSteering === 'flow' || state.trackpadSteering === 'simple') startFlow(); else { startTrackpad(); runtime.trackpad.capture = 'engaged'; }
     } else if (!runtime.trackpad.active) cancel();
   }, [surface, cancel]);
   useEffect(() => {

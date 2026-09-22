@@ -8,9 +8,20 @@ beforeEach(() => {
     setItem: (key: string, value: string) => { saved[key] = value; },
     removeItem: (key: string) => { delete saved[key]; },
   });
+  vi.stubGlobal('matchMedia', () => ({ matches: false }));
 });
 afterEach(() => { vi.unstubAllGlobals(); Object.keys(saved).forEach(key => delete saved[key]); });
 describe('persistence', () => {
+  it('defaults to simple controls while preserving an explicitly saved comparison profile', () => {
+    hydrateGame(); expect(useGame.getState().trackpadSteering).toBe('simple');
+    for (const profile of ['simple', 'free', 'captured', 'flow']) {
+      useGame.setState({ trackpadSteering: profile as 'simple' | 'free' | 'captured' | 'flow' });
+      persistGame(); useGame.setState({ trackpadSteering: 'simple' }); hydrateGame();
+      expect(useGame.getState().trackpadSteering).toBe(profile);
+    }
+    saved['halaverga-flight-v1'] = JSON.stringify({ trackpadSteering: 'unknown' });
+    hydrateGame(); expect(useGame.getState().trackpadSteering).toBe('simple');
+  });
   it('writes exactly the authoritative persisted key list', () => {
     persistGame();
     expect(Object.keys(JSON.parse(saved['halaverga-flight-v1'])).sort()).toEqual([...PERSISTED_KEYS].sort());

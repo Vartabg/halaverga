@@ -1,9 +1,10 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { cruiseThrottle } from '../src/game/trackpadFlight';
 import { clearInput, readIntent, runtime, startTrackpad, stopTrackpad } from '../src/game/runtime';
 import { SPEED } from '../src/game/motion';
 import { useGame } from '../src/game/store';
-afterEach(() => clearInput(true));
+beforeEach(() => useGame.setState({ trackpadSteering: 'free' }));
+afterEach(() => { clearInput(true); useGame.setState(useGame.getInitialState()); });
 describe('trackpad cruise', () => {
   it('increases speed on upward scrolling and reduces it on downward scrolling', () => {
     const gentle = 8 / SPEED.surge;
