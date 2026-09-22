@@ -1,6 +1,8 @@
 import { createKit, building, car, colors } from './kit';
 import { trees } from './reclamationData';
 import { heroRuins } from './heroRuins';
+import { waterfrontDetails } from './waterfrontDetails';
+import { distantTerrain } from './distantTerrain';
 export function makeCity() {
   const k = createKit();
   // A hillside on either side of the submerged transport corridor.
@@ -32,6 +34,16 @@ export function makeCity() {
     const x = (i - 9.5) * 17, h = 24 + (i * 17 % 41), z = -210 - (i % 3) * 13;
     k.box(x, h / 2 - 3, z, 11 + i % 5, h, 13, '#737e83');
     k.box(x - 3, h - 1, z, 5, 8, 12, '#737e83');
+    // Weathered floor bands and a fractured roof keep the far skyline architectural.
+    for (let floor=3;floor<h-4;floor+=3.8) {
+      k.box(x,floor-3,z+6.54,9+i%5,.7,.08,'#4f555e');
+      if ((floor+i)%3>1) k.box(x-3,floor-2,z+6.6,2.5,1.5,.08,'#596064');
+    }
+    for (let rib=0;rib<3;rib++) {
+      k.box(x-4+rib*2.6,h-3+rib%2*1.3,z-4,.2,5+rib%2*2,.22,colors.steel);
+      k.box(x-4+rib*2.6,h-3+rib%2*1.3,z+4,.2,5+rib%2*2,.22,colors.steel);
+    }
+    k.box(x-3,h+3.1,z,5.8,.25,13,colors.concrete);
   }
   // Arrival terrace is the sole fully prepared landing surface.
   k.box(0, 19, 65, 24, 2, 20, colors.concrete, true);
@@ -72,5 +84,7 @@ export function makeCity() {
     k.solids.push({ position: [x, y + s, z], size: [.24 * s, s, .24 * s], rotation: [0, 0, 0] });
   }
   heroRuins(k);
+  waterfrontDetails(k);
+  distantTerrain(k);
   return k.finish();
 }
