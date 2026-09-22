@@ -4,6 +4,8 @@ import { runtime } from '@/game/runtime';
 import Modal from './Modal';
 import styles from './Experience.module.css';
 import TrackpadSettings from './TrackpadSettings';
+import ShooterSettings from './ShooterSettings';
+import { audioBus } from './audioBus';
 import { BUILD_STAMP, DEPLOYMENT_URL } from './buildInfo';
 function measurements() {
   const frames = [...runtime.frames].sort((a, b) => a - b);
@@ -26,11 +28,15 @@ export default function TestPanel({ onClose }: { onClose: () => void }) {
       <button aria-pressed={state.camera === 'first'} onClick={() => save({ camera: 'first' })}>First person</button>
     </div></fieldset>
     <label className={styles.setting}>Desktop controls<select value={state.desktopMode} onChange={e => save({ desktopMode: e.target.value as 'trackpad' | 'mouse' })}><option value="trackpad">Trackpad only</option><option value="mouse">Mouse + keyboard</option></select></label>
-    {state.desktopMode === 'trackpad' ? <TrackpadSettings /> : <p className={styles.muted}>Click the scene to capture the mouse. Use WASD to move, Space to lift or land, and Escape to pause.</p>}
+    {state.desktopMode === 'trackpad' ? <TrackpadSettings /> : <p className={styles.muted}>Click the scene to capture the mouse. Use WASD to move, Space to lift or land, and Escape to pause. Left click fires and right click aims once the mouse is captured.</p>}
     <label className={styles.check}><input type="checkbox" checked={state.heroPoses} onChange={e => save({ heroPoses: e.target.checked })} /> Expressive hero poses</label>
     <label className={styles.setting}>Graphics<select value={state.quality} onChange={e => save({ quality: e.target.value as 'high' | 'low' })}><option value="high">Full detail</option><option value="low">Lighter · lower resolution, no shadows</option></select></label>
+    <ShooterSettings />
     <label className={styles.check}><input type="checkbox" checked={state.reduced} onChange={e => save({ reduced: e.target.checked })} /> Reduced camera motion</label>
-    <label className={styles.check}><input type="checkbox" checked={!state.muted} onChange={e => save({ muted: !e.target.checked })} /> Suit and wind audio</label>
+    <label className={styles.check}><input type="checkbox" checked={!state.muted} onChange={e => {
+      // Unmute first: the unlock click sets the playback audio session from the muted flag (iOS silent switch).
+      save({ muted: !e.target.checked }); if (e.target.checked) audioBus.unlock();
+    }} /> Suit and wind audio</label>
     <label className={styles.check}><input type="checkbox" checked={state.tapControls} onChange={e => save({ tapControls: e.target.checked })} /> Show tap controls · no dragging</label>
     <p className={styles.muted}>Reduced motion keeps a fixed field of view, removes camera easing and softens the character’s poses. Flight itself remains player-controlled.</p>
     <details><summary>Playtest measurements</summary>

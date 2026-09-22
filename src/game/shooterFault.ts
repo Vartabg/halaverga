@@ -1,5 +1,5 @@
 import { runtime } from './runtime';
-import { useGame } from './store';
+import { overrideShooter, useGame } from './store';
 import { resetShooterFeel } from './combat';
 // React Three Fiber runs useFrame subscribers in a plain loop with no try/catch, so an uncaught shooter error would skip
 // the suit, the camera rig (the per-frame invalidate caller) and the render. Every shooter frame callback goes through guarded():
@@ -10,7 +10,7 @@ export function shooterFault(where: string, error: unknown): void {
   if (!faulted) console.error('[shooter] ' + where, error);
   faulted = true;
   resetShooterFeel(runtime.shooter);
-  useGame.setState({ shooter: false, message: 'The blaster stopped. Flight continues.' });
+  overrideShooter(false); useGame.setState({ message: 'The blaster stopped. Flight continues.' });
 }
 /** The settings toggle and ?shooter=1 re-enable the blaster after a fault. */
 export function clearShooterFault(): void { faulted = false; }

@@ -99,6 +99,18 @@ describe('drone hits', () => {
     expect(hitDrones(o, d, [drone(v(0, 0, -20), v(0, 0, 1))], 1, Infinity, h)).toBe(true);
     expect(h.weak).toBe(true); expect(h.t).toBeCloseTo(20 - EYE_FORWARD - EYE_RADIUS, 12);
   });
+  it('scores a ray that clips only the protruding eye rim (outside the body) as a weak hit, front-facing only', () => {
+    const side = drone(v(0, 0, -20), unit(Math.sin(60 * deg), 0, Math.cos(60 * deg))), from = v(.93, 0, 0), h = hit();
+    expect(raySphere(from, d, side.c, side.r)).toBe(Infinity); // .93 m off-axis misses the .9 m body
+    const eyeEnter = raySphere(from, d, side.eye, side.eyeR);
+    expect(eyeEnter).toBeLessThan(Infinity);
+    expect(hitDrones(from, d, [side], 1, Infinity, h)).toBe(true);
+    expect(h).toEqual({ index: 0, t: eyeEnter, weak: true });
+    expect(hitDrones(from, d, [side], 1, eyeEnter - .01, h)).toBe(false); // a wall before the eye hides it
+    const away = drone(v(0, 0, -20), unit(Math.sin(60 * deg), 0, -Math.cos(60 * deg)));
+    expect(raySphere(from, d, away.eye, away.eyeR)).toBeLessThan(Infinity);
+    expect(hitDrones(from, d, [away], 1, Infinity, h)).toBe(false); // the rim of an eye facing away never scores
+  });
   it('picks the nearest live drone before maxT and skips dead or uncounted ones', () => {
     const far = drone(v(0, 0, -40), v(0, 0, 1)), near = drone(v(0, 0, -15), v(1, 0, 0)), dead = drone(v(0, 0, -5), v(0, 0, 1), false);
     const h = hit();

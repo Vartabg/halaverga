@@ -44,17 +44,23 @@ export function angleTo(o: Vec3, d: Vec3, p: Vec3): number {
 export const angularRadius = (r: number, dist: number) => dist <= r ? Math.PI / 2 : Math.asin(r / dist);
 
 /**
- * Nearest alive drone whose body sphere the ray enters before maxT. The eye wins (t = eye entry) whenever the ray enters it
- * before leaving the body and the eye faces the shooter: it protrudes only .14 m, so nearest-t alone would score body hits.
+ * Nearest alive drone whose body sphere, or front-facing eye sphere, the ray enters before maxT. The eye wins (t = eye entry)
+ * whenever the ray enters it before leaving the body and the eye faces the shooter: it protrudes only .14 m, so nearest-t alone
+ * would score body hits. A ray that clips only the protruding eye rim (outside the body) is also a weak hit.
  */
 export function hitDrones(o: Vec3, d: Vec3, targets: readonly DroneTarget[], count: number, maxT: number, out: DroneHit): boolean {
   let best = -1, bestEnter = maxT, bestT = 0, bestWeak = false;
   for (let i = 0; i < count; i++) {
     const g = targets[i];
-    if (!g.alive || !raySphereSpan(o, d, g.c, g.r, body) || body.enter >= bestEnter) continue;
-    const weak = raySphereSpan(o, d, g.eye, g.eyeR, eye) && eye.enter < body.exit && eye.enter < maxT
-      && (g.eye.x - g.c.x) * d.x + (g.eye.y - g.c.y) * d.y + (g.eye.z - g.c.z) * d.z < 0;
-    best = i; bestEnter = body.enter; bestWeak = weak; bestT = weak ? eye.enter : body.enter;
+    if (!g.alive) continue;
+    const front = (g.eye.x - g.c.x) * d.x + (g.eye.y - g.c.y) * d.y + (g.eye.z - g.c.z) * d.z < 0;
+    if (raySphereSpan(o, d, g.c, g.r, body)) {
+      if (body.enter >= bestEnter) continue;
+      const weak = front && raySphereSpan(o, d, g.eye, g.eyeR, eye) && eye.enter < body.exit && eye.enter < maxT;
+      best = i; bestEnter = body.enter; bestWeak = weak; bestT = weak ? eye.enter : body.enter;
+    } else if (front && raySphereSpan(o, d, g.eye, g.eyeR, eye) && eye.enter < bestEnter) {
+      best = i; bestEnter = eye.enter; bestWeak = true; bestT = eye.enter;
+    }
   }
   if (best < 0) return false;
   out.index = best; out.t = bestT; out.weak = bestWeak; return true;

@@ -10,6 +10,8 @@ import { edgeFreshness } from './trackpadFlight';
 import { FlightSafety } from './FlightSafety';
 import { boundaryDistance, CLEARANCE, nearestTerminal, removeInward, softenBounds } from './navigation';
 import { sweepTurn } from './turnSweep';
+import { moveMode } from './combat';
+import { aimVelocity, hipVelocity } from './aimMotion';
 const direction = new Vector3();
 export default function Player() {
   const body = useRef<RapierRigidBody>(null), collider = useRef<RapierCollider>(null);
@@ -74,7 +76,11 @@ export default function Player() {
       else if (runtime.landTarget) { runtime.landGoal = runtime.landTarget.clone().add(new Vector3(0, FOOT, 0)); landingStall.current = 0; useGame.setState({ landing: true }); }
       else useGame.setState({ message: 'Aim at a nearby flat rooftop or terrace to land.' });
     }
-    let v = runtime.landGoal ? landingVelocity(p, runtime.landGoal) : advanceVelocity(runtime.velocity, intent, runtime.yaw, runtime.pitch, flying, runtime.surge || pointerFlight, dt);
+    const mode = state.shooter ? moveMode(runtime.shooter) : 0, surge = runtime.surge || pointerFlight;
+    let v = runtime.landGoal ? landingVelocity(p, runtime.landGoal)
+      : mode === 2 ? aimVelocity(runtime.velocity, intent, runtime.yaw, runtime.pitch, flying, dt)
+      : mode === 1 ? hipVelocity(runtime.velocity, intent, runtime.yaw, runtime.pitch, flying, surge, dt)
+      : advanceVelocity(runtime.velocity, intent, runtime.yaw, runtime.pitch, flying, surge, dt);
     if (liftTime.current > 0) { v.y = 6; liftTime.current -= dt; }
     const from = { ...runtime.velocity }, chosen = v;
     runtime.clearance.active = false; runtime.clearance.boundary = boundaryDistance(p) < 12;

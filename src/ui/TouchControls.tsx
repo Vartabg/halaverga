@@ -4,12 +4,15 @@ import { AdaptiveThumbs } from '@/game/adaptiveThumbs';
 import { useGame } from '@/game/store';
 import styles from './Experience.module.css';
 import { useTrackpad } from './useTrackpad';
+import FireControls from './FireControls';
+import { audioBus } from './audioBus';
 export default function TouchControls() {
   const controls = useRef(new AdaptiveThumbs()), timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const surface = useRef<HTMLDivElement>(null), markers = useRef<(HTMLDivElement | null)[]>([]);
   const desktop = useTrackpad(surface);
   const paused = useGame(s => s.paused);
   const trackpadFlying = useGame(s => s.trackpadFlying);
+  const shooterOn = useGame(s => s.shooter);
   const clearTimer = () => {
     if (timer.current) clearTimeout(timer.current);
     timer.current = null;
@@ -46,8 +49,9 @@ export default function TouchControls() {
       return;
     }
     desktop.cancel();
-    // A stale non-primary contact after cancellation/rotation cannot restart flight.
-    if (!controls.current.contacts.size && !e.isPrimary) return;
+    // A stale non-primary contact after cancellation/rotation cannot restart flight. A held Fire is the first thumb.
+    if (!controls.current.contacts.size && !e.isPrimary && runtime.shooter.input.touchId === null) return;
+    runtime.shooter.input.lookSource = 'touch';
     clearTimer();
     e.currentTarget.setPointerCapture(e.pointerId);
     controls.current.start(e.pointerId, e.clientX, e.clientY); sync();
@@ -66,6 +70,11 @@ export default function TouchControls() {
     clearTimer(); controls.current.end(e.pointerId); sync();
     if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
   };
+  // Fire held: the flight thumb becomes a move stick carrying its cruise throttle, and the Fire drag owns the view.
+  const hold = (on: boolean) => {
+    controls.current.setExternal(on); sync();
+    if (surface.current) surface.current.dataset.fireHeld = String(on);
+  };
   const cancel = (e: PointerEvent<HTMLDivElement>) => {
     if (e.pointerType === 'mouse') {
       if (e.type === 'lostpointercapture') desktop.lostCapture(); else desktop.cancel();
@@ -75,9 +84,10 @@ export default function TouchControls() {
     clearTimer(); controls.current.cancel(); sync();
   };
   return <>
-    <div ref={surface} className={styles.flightSurface} aria-hidden="true" data-testid="flight-surface" data-control-mode="idle" data-trackpad-active={String(trackpadFlying)}
+    <div ref={surface} className={styles.flightSurface} aria-hidden="true" data-testid="flight-surface" data-control-mode="idle" data-fire-held="false" data-trackpad-active={String(trackpadFlying)}
       onPointerDown={start} onPointerMove={drag} onPointerUp={end} onPointerCancel={cancel} onLostPointerCapture={cancel}
       onPointerLeave={e => { if (e.pointerType === 'mouse') desktop.leave(); }} />
     {[0, 1].map(i => <div key={i} ref={node => { markers.current[i] = node; }} hidden className={styles.stick} aria-hidden="true"><span /><small /></div>)}
+    {shooterOn && <FireControls onHold={hold} onRelease={audioBus.unlock} />}
   </>;
 }

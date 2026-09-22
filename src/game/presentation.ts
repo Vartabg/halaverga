@@ -9,6 +9,8 @@ export const presentation = {
   suitClip: 'ground',
   /** The whole-body turn roll on show (rad, positive rolls left), written by the suit each frame for telemetry. */
   suitRoll: 0,
+  /** Body aim weight 0..1 (max of the ADS blend and the hip-fire hold) the pose was last advanced with; 0 with the shooter off. */
+  aim: 0,
 };
 /** Third-person boom in the view frame: right, up and behind the head. */
 export const CHASE_BOOM: Vec = { x: .85, y: .7, z: 5.3 };
@@ -24,19 +26,22 @@ export function settleAngle(value: number, target: number, rate: number, dt: num
   return value + angleDelta(value, target) * (1 - Math.exp(-rate * Math.min(dt, .05)));
 }
 
-export type Pose = Pick<typeof presentation, 'viewYaw' | 'viewPitch' | 'yaw' | 'pitch' | 'lean' | 'bank' | 'speed' | 'flight' | 'power' | 'brake'>;
-export type PoseInput = { yaw: number; pitch: number; speed: number; velocity: Vec; flying: boolean; reduced: boolean };
+export type Pose = Pick<typeof presentation, 'viewYaw' | 'viewPitch' | 'yaw' | 'pitch' | 'lean' | 'bank' | 'speed' | 'flight' | 'power' | 'brake'> & { aim?: number };
+/** `aim`: body aim weight 0..1 (squares the chest to the crosshair); `combat`: the view settles faster while shooting. */
+export type PoseInput = { yaw: number; pitch: number; speed: number; velocity: Vec; flying: boolean; reduced: boolean; aim?: number; combat?: boolean };
 export function advanceFlightPose(pose: Pose, input: PoseInput, elapsed: number) {
-  const dt = Math.min(elapsed, .05);
-  pose.viewYaw = input.reduced ? input.yaw : settleAngle(pose.viewYaw, input.yaw, 15, dt);
-  pose.viewPitch = input.reduced ? input.pitch : settle(pose.viewPitch, input.pitch, 15, dt);
+  const dt = Math.min(elapsed, .05), aim = input.aim ?? 0, viewRate = input.combat ? 40 : 15;
+  pose.viewYaw = input.reduced ? input.yaw : settleAngle(pose.viewYaw, input.yaw, viewRate, dt);
+  pose.viewPitch = input.reduced ? input.pitch : settle(pose.viewPitch, input.pitch, viewRate, dt);
   const oldSpeed = pose.speed;
   pose.speed = settle(pose.speed, input.speed, 7, dt);
   const horizontalSpeed = Math.hypot(input.velocity.x, input.velocity.z), travelling = input.flying && pose.speed > 2;
   const travelYaw = travelling && horizontalSpeed > 1 ? Math.atan2(-input.velocity.x, -input.velocity.z) : travelling ? pose.yaw : input.yaw;
   const travelPitch = travelling ? Math.atan2(input.velocity.y, horizontalSpeed) : input.pitch;
-  const turn = Math.max(-.3, Math.min(.3, angleDelta(pose.yaw, travelYaw) * .55));
-  pose.yaw = settleAngle(pose.yaw, travelYaw, 7, dt);
+  // Aiming blends the body toward the view yaw (strafe-aim), so the chest squares to the crosshair.
+  const bodyYaw = aim > 0 ? travelYaw + angleDelta(travelYaw, input.yaw) * aim : travelYaw;
+  const turn = Math.max(-.3, Math.min(.3, angleDelta(pose.yaw, bodyYaw) * .55));
+  pose.yaw = settleAngle(pose.yaw, bodyYaw, 7 + 13 * aim, dt);
   // The player reads the back in chase view, even while velocity catches a sharp turn.
   const facingLag = angleDelta(pose.viewYaw, pose.yaw);
   if (Math.abs(facingLag) > FACING.yaw) pose.yaw = pose.viewYaw + Math.sign(facingLag) * FACING.yaw;
@@ -47,8 +52,9 @@ export function advanceFlightPose(pose: Pose, input: PoseInput, elapsed: number)
   const deceleration = dt > 0 ? (oldSpeed - pose.speed) / dt : 0;
   const brace = input.flying ? Math.max(0, Math.min(1, (deceleration - 2) / 18)) : 0;
   pose.brake = settle(pose.brake, brace, 5, dt);
-  pose.power = settle(pose.power, Math.min(1, Math.max(0, (pose.speed - 3) / 25)) * pose.flight, 5, dt);
+  pose.power = settle(pose.power, Math.min(1, Math.max(0, (pose.speed - 3) / 25)) * pose.flight * (1 - aim), 5, dt);
   // The lean and the body pitch that offsets it both scale with this one settled value. Fading them at
   // separate rates turned the body edge-on while braking hard out of a climb with the camera below it.
   pose.lean = -pose.power * 1.35 + pose.brake * .12;
+  if (input.aim !== undefined) pose.aim = aim;
 }

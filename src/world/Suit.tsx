@@ -10,10 +10,12 @@ import { advanceSuitAnimation, applySuitAnimation, createSuitAnimation } from '.
 import { advanceFlightMix, createFlightMix } from './flightMix';
 import { applyFlightClips } from './flightPose';
 import { advanceSuitRoll, createSuitRoll, speedFade } from './suitRoll';
+import { advanceSuitAim, applySuitAim, createSuitAim } from './aimPose';
 export const SUIT_URL = '/models/suit.glb';
 const input = { flying: false, landing: false, paused: true, reduced: false, velocity: runtime.velocity, turn: runtime.turn };
 export default function Suit() {
   const motion = useRef({ hero: 1, epoch: -1 }), animation = useRef(createSuitAnimation()), flight = useRef(createFlightMix()), turn = useRef(createSuitRoll());
+  const aim = useRef(createSuitAim());
   const asset = useLoader(GLTFLoader, SUIT_URL);
   const rig = useMemo(() => buildSuitRig(asset.scene), [asset]);
   useEffect(() => () => rig.dispose(), [rig]);
@@ -34,6 +36,11 @@ export default function Suit() {
     const authored = applyFlightClips(rig.joints, mix, pose, life, m.hero, state.reduced);
     // Visual only: the lift lowers or bobs the model, never the anchor the camera and physics share.
     rig.root.position.y += applySuitAnimation(rig.joints, life, pose, state.reduced, m.hero, authored);
+    // The blaster arm layers over everything (chase view only); otherwise the muzzle is invalid and shots use a virtual one.
+    const sh = runtime.shooter, on = state.shooter && state.camera === 'third';
+    advanceSuitAim(aim.current, pose.epoch, on ? Math.max(sh.aim.blend, sh.aim.fireHold) : 0, sh.aim.origin, sh.aim.point, sh.weapon.shots, state.paused, state.reduced, dt);
+    if (on) applySuitAim(rig.joints, rig.root, aim.current, sh.aim.origin, sh.aim.dir, sh.muzzle);
+    else { sh.muzzle.valid = false; sh.muzzle.weight = 0; }
     pose.suitClip = mix.label; pose.suitRoll = roll;
   }, -20);
   return <primitive object={rig.root} dispose={null} />;

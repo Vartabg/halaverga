@@ -10,6 +10,12 @@ import Suit from './Suit';
 import Player from '@/game/Player';
 import CameraRig from '@/game/CameraRig';
 import FlightPresentation from '@/game/FlightPresentation';
+import Shooter from '@/game/Shooter';
+import { shooterFault } from '@/game/shooterFault';
+import Boundary from '@/ui/Boundary';
+import Drones from './Drones';
+import ShotFx from './ShotFx';
+import ImpactFx from './ImpactFx';
 import { useGame } from '@/game/store';
 import { clearInput } from '@/game/runtime';
 import EnvironmentLight from './EnvironmentLight';
@@ -22,6 +28,11 @@ function GraphicsRecovery({ onLoss }: { onLoss: () => void }) {
     invalidate(); return () => canvas.removeEventListener('webglcontextlost', lost);
   }, [gl, invalidate, onLoss]);
   return null;
+}
+/** The suit blaster and rogue drones, mounted only while the setting is on. A render error turns the blaster off; flight continues. */
+function ShooterLayer() {
+  const shooter = useGame(s => s.shooter);
+  return shooter ? <Boundary fallback={null} onError={() => shooterFault('render', null)}><Shooter /><Drones /><ShotFx /><ImpactFx /></Boundary> : null;
 }
 export default function Scene({ onLoss }: { onLoss: () => void }) {
   const paused = useGame(s => s.paused), quality = useGame(s => s.quality);
@@ -40,6 +51,7 @@ export default function Scene({ onLoss }: { onLoss: () => void }) {
     <Suspense fallback={null}>
       <Physics paused={paused} timeStep={1 / 60} updatePriority={-50} gravity={[0, -22, 0]}>
         <City /><DistrictBoundary /><Player /><FlightPresentation /><Suit /><CameraRig />
+        <ShooterLayer />
       </Physics>
     </Suspense>
   </Canvas>;

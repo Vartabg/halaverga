@@ -1,11 +1,15 @@
 import { useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { useRapier } from '@react-three/rapier';
-import { Euler, Vector3, Quaternion, MathUtils, type Mesh } from 'three';
+import { Euler, Vector3, Quaternion, MathUtils, type Mesh, type PerspectiveCamera } from 'three';
 import { runtime } from './runtime';
-import { presentation as pose, CHASE_BOOM, CHASE_HEAD } from './presentation';
+import { presentation as pose, CHASE_HEAD } from './presentation';
+import { boomFor, fovFor, speedFovTarget } from './cameraFx';
 import { useGame } from './store';
 const rotation = new Euler(0, 0, 0, 'YXZ'), q = new Quaternion(), desired = new Vector3(), dir = new Vector3(), head = new Vector3();
+const shakeEuler = new Euler(0, 0, 0, 'YXZ'), shake = new Quaternion(), axis = new Vector3();
+// Speed-widened FOV, damped on its own so the ADS drop and shot punches never compound into the damp. Synced to c.fov on init.
+let baseFov = NaN;
 const statKeys = ['drawCalls', 'triangles', 'geometries', 'textures'] as const;
 const identity = { x: 0, y: 0, z: 0, w: 1 };
 export default function CameraRig() {
@@ -16,10 +20,14 @@ export default function CameraRig() {
     const state = useGame.getState();
     if (!state.ready) { invalidate(); return; }
     if (state.paused && initialized.current) return;
-    const elapsed = Math.min(dt, .05);
-    rotation.set(pose.viewPitch, pose.viewYaw, 0); q.setFromEuler(rotation);
+    const elapsed = Math.min(dt, .05), shooter = runtime.shooter, fx = shooter.camFx, aim = shooter.aim, reduced = state.reduced;
+    const persp = 'fov' in camera ? camera as PerspectiveCamera : null, blend = reduced ? 0 : aim.blend;
+    // Recoil kick joins the view; an idle kick adds nothing (adding a literal 0 could turn -0 into +0).
+    rotation.set(fx.kickP === 0 ? pose.viewPitch : pose.viewPitch + fx.kickP, fx.kickY === 0 ? pose.viewYaw : pose.viewYaw + fx.kickY, 0);
+    q.setFromEuler(rotation);
     head.copy(pose.position); head.y += CHASE_HEAD;
-    (state.camera === 'third' ? desired.copy(CHASE_BOOM) : desired.set(0, 0, 0)).applyQuaternion(q);
+    if (state.camera === 'third') boomFor(blend, persp ? persp.aspect : 1, desired); else desired.set(0, 0, 0);
+    desired.applyQuaternion(q);
     const snap = state.reduced || !initialized.current || epoch.current !== runtime.poseEpoch;
     boom.current.lerp(desired, snap ? 1 : 1 - Math.exp(-12 * elapsed));
     const length = boom.current.length();
@@ -31,10 +39,20 @@ export default function CameraRig() {
     // Both camera and suit consume the same interpolated anchor. Only the boom eases.
     camera.position.copy(head).add(boom.current); camera.quaternion.copy(q);
     runtime.cameraDistance = camera.position.distanceTo(pose.position);
-    if ('fov' in camera) {
-      const c = camera as import('three').PerspectiveCamera;
-      c.fov = MathUtils.damp(c.fov, state.reduced ? 65 : 65 + Math.min(pose.speed / 17, 2), 3, elapsed);
-      c.updateProjectionMatrix();
+    // The unshaken camera ray (kick included) for the shooter: shots, assist, drone perception and the suit aim read it.
+    aim.origin.x = camera.position.x; aim.origin.y = camera.position.y; aim.origin.z = camera.position.z;
+    axis.set(0, 0, -1).applyQuaternion(q); aim.dir.x = axis.x; aim.dir.y = axis.y; aim.dir.z = axis.z;
+    axis.set(1, 0, 0).applyQuaternion(q); aim.right.x = axis.x; aim.right.y = axis.y; aim.right.z = axis.z;
+    axis.set(0, 1, 0).applyQuaternion(q); aim.up.x = axis.x; aim.up.y = axis.y; aim.up.z = axis.z;
+    aim.valid = true;
+    // Kill shake: rotation only (no roll, no translation), after the ray and cameraDistance are published.
+    if (fx.trauma > 0 && !reduced) { shakeEuler.set(fx.shakeP, fx.shakeY, 0); camera.quaternion.multiply(shake.setFromEuler(shakeEuler)); }
+    if (persp) {
+      if (!initialized.current || !Number.isFinite(baseFov)) baseFov = persp.fov;
+      baseFov = MathUtils.damp(baseFov, speedFovTarget(pose.speed, reduced), 3, elapsed);
+      persp.fov = fovFor(baseFov, blend, reduced, reduced ? 0 : fx.fovShot + fx.fovKill);
+      persp.updateProjectionMatrix();
+      aim.fov = persp.fov;
     }
     initialized.current = true; epoch.current = runtime.poseEpoch;
     if (marker.current) {

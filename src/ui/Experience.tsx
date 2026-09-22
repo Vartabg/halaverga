@@ -1,9 +1,13 @@
 'use client';
 import dynamic from 'next/dynamic';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { hydrateGame, persistGame, useGame } from '@/game/store';
+import { hydrateGame, overrideShooter, persistGame, useGame } from '@/game/store';
 import { runtime } from '@/game/runtime';
+import { clearShooterFault, shooterFault } from '@/game/shooterFault';
 import { pause, resume, useInput } from './useInput';
+import { useShooterInput } from './useShooterInput';
+import { audioBus } from './audioBus';
+import ShooterHud from './ShooterHud';
 import { useAudio } from './useAudio';
 import Boundary from './Boundary';
 import TouchControls from './TouchControls';
@@ -21,13 +25,16 @@ export default function Experience() {
   const main = useRef<HTMLElement>(null);
   useEffect(() => {
     hydrateGame();
-    const profile = new URLSearchParams(location.search).get('trackpad');
+    const query = new URLSearchParams(location.search), profile = query.get('trackpad'), blaster = query.get('shooter');
+    // ?shooter=1 / 0 overrides the saved setting for this session only.
+    if (blaster === '1') { clearShooterFault(); overrideShooter(true); } else if (blaster === '0') overrideShooter(false);
     if (profile === 'flow' || profile === 'free' || profile === 'captured') useGame.setState({ desktopMode: 'trackpad', trackpadSteering: profile });
     setHydrated(true);
   }, []);
-  useInput(); useAudio();
+  useInput(); useAudio(); useShooterInput({ unlock: audioBus.unlock });
   const failure = useCallback(() => { setFailed(true); pause(); }, []);
-  const enter = () => { resume(); main.current?.focus(); };
+  // Begin/Resume is an activation gesture: it unlocks blaster audio.
+  const enter = () => { audioBus.unlock(); resume(); main.current?.focus(); };
   const closePanel = () => { state.set({ panel: false }); if (state.started && state.ready && !failed) enter(); };
   const closeGuide = () => { state.set({ journal: false }); if (state.started && state.ready && !failed) enter(); };
   // A rejected suit-asset load stays cached under its URL, so a bare remount would rethrow the same failure. The
@@ -41,6 +48,7 @@ export default function Experience() {
   };
   const fallback = <div className={styles.recovery} role="alert"><h2>The world needs a moment.</h2><p>Your field guide remains available. Reload the scene to continue from your saved landing.</p><button className={styles.primary} onClick={retry}>Reload scene</button></div>;
   const playing = state.started && !state.paused;
+  const reticle = <div className={styles.reticle} aria-hidden="true"><span /></div>;
   const flightHint = state.message || (state.flying && state.canLand ? 'SURFACE IN REACH · LAND' : state.boundaryNear ? 'SURVEY LIMIT · TURN BACK' : state.clearanceActive ? 'CLEARANCE ASSIST · STEER AROUND' : '');
   useEffect(() => {
     if (!state.message) return;
@@ -75,10 +83,10 @@ export default function Experience() {
         <TouchControls key={`${state.paused}-${state.inputEpoch}`} />
         {playing && <>
           {state.tapControls && <TapControls key={state.inputEpoch} />}
-          <div className={styles.reticle} aria-hidden="true"><span /></div>
-          {flightHint && <p className={styles.flightHint}>{flightHint}</p>}
+          {state.shooter ? <Boundary fallback={reticle} onError={() => shooterFault('hud', null)}><ShooterHud /></Boundary> : reticle}
+          {flightHint && <p className={styles.flightHint} data-shooter={String(state.shooter)}>{flightHint}</p>}
           <Telemetry />
-          <div className={styles.actions}>
+          <div className={styles.actions} data-shooter={String(state.shooter)}>
             <button className={styles.action} onClick={() => { runtime.lift = true; }}><span aria-hidden="true">{state.flying ? '↓' : '↑'}</span>{state.landing ? 'Cancel landing' : state.flying ? 'Land' : 'Lift'}</button>
           </div>
           {state.nearTerminal && <button className={styles.discovery} onClick={() => { pause(); state.set({ discovered: true, journal: true }); persistGame(); }}>◇ Municipal record <span>Read ↗</span></button>}
@@ -88,6 +96,7 @@ export default function Experience() {
         </>}
         {state.paused && !state.panel && !state.journal && !failed && <section className={styles.pauseCard} aria-label="Expedition paused">
           <p className={styles.eyebrow}>SUIT HOLDING POSITION</p><h2>Take your time.</h2><p>Your expedition will be here.</p>
+          {state.shooter && runtime.shooter.stats.kills > 0 && <p>Drones downed: {runtime.shooter.stats.kills}</p>}
           <button className={styles.primary} disabled={!state.ready} onClick={enter}>{state.ready ? 'Resume flight' : 'Restoring your suit…'} <span aria-hidden="true">↗</span></button>
           <button className={styles.secondary} onClick={() => state.set({ panel: true })}>Adjust flight settings</button>
         </section>}

@@ -52,11 +52,19 @@ export function hydrateGame() {
     });
   } catch { useGame.setState({ reduced: matchMedia('(prefers-reduced-motion: reduce)').matches }); }
 }
+// A session override of the blaster (?shooter=0/1, a fault) is not saved: persistGame keeps writing the stored choice
+// until the player changes the setting themselves.
+let shooterPin: { session: boolean; saved: boolean } | null = null;
+export function overrideShooter(on: boolean) {
+  if (shooterPin) shooterPin.session = on; else shooterPin = { session: on, saved: useGame.getState().shooter };
+  useGame.setState({ shooter: on });
+}
 export function persistGame() {
   try {
     const state = useGame.getState();
     const saved: Record<string, unknown> = {};
     for (const key of PERSISTED_KEYS) saved[key] = state[key];
+    if (shooterPin && state.shooter === shooterPin.session) saved.shooter = shooterPin.saved; else shooterPin = null;
     localStorage.setItem(STORAGE, JSON.stringify(saved));
   }
   catch { /* Private browsing may prohibit storage; play remains available. */ }
