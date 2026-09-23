@@ -19,7 +19,7 @@ export default function TrackpadSettings() {
     {['free', 'captured'].includes(state.trackpadSteering) && <label className={styles.setting}>Starting cruise speed (m/s)<input type="number" min="3" max="34" step="1" value={state.cruiseSpeed} onChange={e => {
       const value = e.target.valueAsNumber; if (Number.isFinite(value)) save({ cruiseSpeed: Math.max(3, Math.min(34, value)) });
     }} /></label>}
-    <p className={styles.muted}>Two- and three-finger gestures may trigger browser or desktop actions. One finger + keyboard needs none of them. Prefer one hand? Enable the tap controls below.</p>
+    <p className={styles.muted}>Two- and three-finger gestures may trigger browser or desktop actions. One finger + keyboard needs none of them. Prefer one hand? {state.shooter ? 'Enable tap controls under More controls below.' : 'Enable the tap controls below.'}</p>
     <details><summary>Local gesture recording</summary>
       <p>Record a few real trackpad strokes, then return here to download them. Input stays in this browser; recording keeps the latest 6,000 events.</p>
       <button className={styles.secondary} aria-pressed={recording} onClick={() => {

@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { advanceAssist, createAssistMemory, magnetize } from '../src/game/aimAssist';
 import { ADS_GAIN, createShooter, pressAim, pressFire, type ShooterState, type Vec3 } from '../src/game/combat';
 import { KEY_FINE, arrowLook, clearInput, keyTurnRate, runtime } from '../src/game/runtime';
-import { controlsHint, crossScale, markerState } from '../src/ui/hudTimeline';
+import { crossScale, markerState } from '../src/ui/hudTimeline';
+import { hintText, hintTrack } from '../src/ui/hintSteps';
 import { CURVE_FLAT, CURVE_HOLD, makePuffs, metresPerPx, puffFrame, pxSize, spawnPuff, tracerSpan, type TracerSpan } from '../src/world/fxPools';
 // Contracts for the phase-1 review fixes: HUD cue and marker legibility, reduced-motion crosshair, tracer beam, kill-burst alpha
 // curves, the pixel-capped muzzle flash and the arrow-key fine aim.
@@ -26,8 +27,10 @@ describe('HUD', () => {
     expect(markerState('hit', .3, false).visible).toBe(false);
   });
   it('never tells a tap-pad player to drag', () => {
-    for (const coarse of [true, false]) expect(controlsHint({ coarse, desktopMode: 'trackpad', steering: 'free', tapControls: true })).not.toMatch(/DRAG/);
-    expect(controlsHint({ coarse: true, desktopMode: 'trackpad', steering: 'free' })).toMatch(/DRAG/);
+    const text = (coarse: boolean, tapControls: boolean) =>
+      hintText(hintTrack({ shooter: true, coarse, desktopMode: 'trackpad', steering: 'free', tapControls }), 0, { autoFire: true, captured: false });
+    for (const coarse of [true, false]) { expect(text(coarse, true)).toBe('Tap pad: Fire and Aim toggle'); expect(text(coarse, true)).not.toMatch(/drag/i); }
+    expect(text(true, false)).toMatch(/drag/i);
   });
 });
 

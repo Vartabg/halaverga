@@ -8,7 +8,7 @@ import { DRONE, advanceDodge, dodgeDwell, ease, lean, startTelegraph } from './d
 // Pure and allocation-free per frame. This module and droneDodge.ts are the only writers of s.drones.
 export { DRONE };
 export type DroneSim = { rng: () => number; time: number; dodger: number; prev: Vec3[]; vel: Vec3[]; flyStart: Vec3[]; flyEnd: Vec3[]; flyDur: Float32Array; respawnAt: Float32Array };
-/** One instance per caller, rewritten in place every frame. threat = engaged(s); tutorialLocked = s.stats.kills === 0. */
+/** One instance per caller, rewritten in place every frame. threat = threat(s) (auto-fire still threatens); tutorialLocked = s.stats.kills === 0. */
 export type DroneContext = { dt: number; player: Vec3; camera: Vec3; aimDir: Vec3; aimDist: number; ads: number; threat: boolean; tier: LookSource; tutorialLocked: boolean; reduced: boolean };
 const v3 = (): Vec3 => ({ x: 0, y: 0, z: 0 });
 const copy = (o: Vec3, a: Vec3) => { o.x = a.x; o.y = a.y; o.z = a.z; return o; };

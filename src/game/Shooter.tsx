@@ -11,6 +11,7 @@ import { createShooterWorld } from './shotResolve';
 import { createDroneSim } from './drones';
 import { createAssistMemory } from './aimAssist';
 import { createStepContext, stepShooter, type AudioSink } from './shooterStep';
+import { autoFire, resetAutoFire } from './autoFire';
 // The suit blaster's frame loop (scene chunk): priority -25, after the flight presentation (-30) and before the suit (-20) and
 // the camera rig (-10), which publishes the camera ray this step reads one frame later. Mounted only while the setting is on.
 const options: PlayOptions = { pan: 0, gain: 1, chain: 0 };
@@ -27,8 +28,11 @@ export default function Shooter() {
     const game = useGame.getState(), ctx = parts.ctx, p = runtime.position, h = presentation.position;
     ctx.dt = delta; ctx.paused = game.paused; ctx.reduced = game.reduced; ctx.flying = game.flying;
     ctx.firstPerson = game.camera !== 'third'; ctx.strength = game.aimAssist; ctx.speed = runtime.speed;
+    ctx.autoFire = game.autoFire;
     ctx.player.x = p.x; ctx.player.y = p.y; ctx.player.z = p.z;
     ctx.head.x = h.x; ctx.head.y = h.y + CHASE_HEAD; ctx.head.z = h.z;
+    // Paused: drop auto-fire's own hold and its dwell, so a resume needs a fresh 100 ms dwell.
+    if (game.paused) resetAutoFire(runtime.shooter, autoFire);
     stepShooter(runtime.shooter, parts.sim, parts.mem, parts.world, ctx, sink);
     if (!compiled.current) {
       // Compile the pooled drone and effect programs now, so the first shot never stalls on a shader compile.
@@ -37,6 +41,6 @@ export default function Shooter() {
   }), [parts]);
   useFrame(frame, -25);
   // Switching the setting off returns look, camera and pose to exact main behaviour.
-  useEffect(() => () => resetShooterFeel(runtime.shooter), []);
+  useEffect(() => () => { resetAutoFire(runtime.shooter, autoFire); resetShooterFeel(runtime.shooter); }, []);
   return null;
 }

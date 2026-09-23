@@ -14,6 +14,8 @@ import { bloom01 } from './weapon';
 export type StepContext = {
   dt: number; paused: boolean; reduced: boolean; flying: boolean; speed: number; player: Vec3; head: Vec3;
   firstPerson: boolean; strength: number;
+  /** store.autoFire: touch auto-fire allowed. */
+  autoFire: boolean;
   /** Last event serial already voiced (-1 until the first step, which skips older events so a remount never replays them). */
   voiced: number;
 };

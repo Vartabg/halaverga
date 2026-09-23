@@ -4,6 +4,16 @@ export type CameraMode = 'third' | 'first';
 export type TrackpadProfile = 'simple' | 'free' | 'captured' | 'flow';
 /** 2: one finger + keyboard became the trackpad default. A save from before it that holds the old default ('free') moves to 'simple'. */
 export const CONTROLS_VERSION = 2;
+export type HintSeries = 'touch' | 'simple' | 'mouse';
+export type HintProgress = Record<HintSeries, number>;
+/** Steps per progressive hint series; progress === HINT_STEPS[series] means done. */
+export const HINT_STEPS: Readonly<HintProgress> = { touch: 2, simple: 4, mouse: 4 };
+/** Each field: finite → floored and clamped to [0, HINT_STEPS[k]]; otherwise 0. A non-object → all 0. */
+export function validHintProgress(raw: unknown): HintProgress {
+  const o = raw !== null && typeof raw === 'object' ? raw as Record<string, unknown> : {};
+  const one = (k: HintSeries) => { const v = o[k]; return typeof v === 'number' && Number.isFinite(v) ? Math.max(0, Math.min(HINT_STEPS[k], Math.floor(v))) : 0; };
+  return { touch: one('touch'), simple: one('simple'), mouse: one('mouse') };
+}
 type GameState = {
   started: boolean; paused: boolean; ready: boolean; panel: boolean; journal: boolean;
   camera: CameraMode; quality: 'high' | 'low'; reduced: boolean; muted: boolean; tapControls: boolean;
@@ -11,6 +21,9 @@ type GameState = {
   trackpadSteering: TrackpadProfile; sustainedEdges: boolean; reverseScroll: boolean; cruiseSpeed: number; heroPoses: boolean;
   lookSensitivity: number; flowIntroSeen: boolean;
   shooter: boolean; aimToggle: boolean; aimAssist: number; controlsVersion: number;
+  autoFire: boolean; aimButton: boolean; hintProgress: HintProgress;
+  /** Runtime only (never saved): a controls hint is on screen, so other notices wait (one message at a time). */
+  hintVisible: boolean;
   flying: boolean; landing: boolean; canLand: boolean; nearTerminal: boolean; boundaryNear: boolean; clearanceActive: boolean; inputEpoch: number;
   checkpoint: Vec; discovered: boolean; message: string;
   set: (patch: Partial<Omit<GameState, 'set'>>) => void;
@@ -22,6 +35,7 @@ export const useGame = create<GameState>((set) => ({
   trackpadSteering: 'simple', sustainedEdges: false, reverseScroll: false, cruiseSpeed: 8, heroPoses: true,
   lookSensitivity: 1, flowIntroSeen: false,
   shooter: true, aimToggle: false, aimAssist: 1, controlsVersion: CONTROLS_VERSION,
+  autoFire: true, aimButton: false, hintProgress: { touch: 0, simple: 0, mouse: 0 }, hintVisible: false,
   flying: false, landing: false, canLand: false, nearTerminal: false, boundaryNear: false, clearanceActive: false, inputEpoch: 0,
   checkpoint: START, discovered: false, message: '', set,
 }));
@@ -29,7 +43,7 @@ const STORAGE = 'halaverga-flight-v1';
 // The single authoritative list of fields saved between sessions. persistGame
 // writes exactly these keys; tests/persistence.test.ts pins hydrateGame to
 // restore every entry and to ignore runtime-only state.
-export const PERSISTED_KEYS = ['checkpoint', 'camera', 'quality', 'reduced', 'muted', 'discovered', 'tapControls', 'desktopMode', 'trackpadSteering', 'sustainedEdges', 'reverseScroll', 'cruiseSpeed', 'heroPoses', 'lookSensitivity', 'flowIntroSeen', 'shooter', 'aimToggle', 'aimAssist', 'controlsVersion'] as const;
+export const PERSISTED_KEYS = ['checkpoint', 'camera', 'quality', 'reduced', 'muted', 'discovered', 'tapControls', 'desktopMode', 'trackpadSteering', 'sustainedEdges', 'reverseScroll', 'cruiseSpeed', 'heroPoses', 'lookSensitivity', 'flowIntroSeen', 'shooter', 'aimToggle', 'aimAssist', 'controlsVersion', 'autoFire', 'aimButton', 'hintProgress'] as const;
 export type PersistedKey = typeof PERSISTED_KEYS[number];
 export function hydrateGame() {
   try {
@@ -56,6 +70,8 @@ export function hydrateGame() {
       aimAssist: typeof saved.aimAssist === 'number' && Number.isFinite(saved.aimAssist) ? Math.max(0, Math.min(1.5, saved.aimAssist)) : 1,
       // A newer build's save keeps its version, so this build never re-runs a migration that already ran.
       controlsVersion: Math.max(CONTROLS_VERSION, version),
+      autoFire: saved.autoFire !== false, aimButton: saved.aimButton === true,
+      hintProgress: validHintProgress(saved.hintProgress),
     });
   } catch { useGame.setState({ reduced: matchMedia('(prefers-reduced-motion: reduce)').matches }); }
 }

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { PERSISTED_KEYS, hydrateGame, persistGame, useGame, type PersistedKey } from '../src/game/store';
+import { PERSISTED_KEYS, hydrateGame, persistGame, useGame, validHintProgress, type PersistedKey } from '../src/game/store';
 import { START } from '../src/game/motion';
 const saved: Record<string, string> = {};
 const STORAGE = 'halaverga-flight-v1';
@@ -8,13 +8,13 @@ const NON_DEFAULT: Record<PersistedKey, unknown> = {
   checkpoint: { x: 30, y: 61.415, z: -38 }, camera: 'first', quality: 'low', reduced: true, muted: false, discovered: true,
   tapControls: true, desktopMode: 'mouse', trackpadSteering: 'captured', sustainedEdges: true, reverseScroll: true,
   cruiseSpeed: 20, heroPoses: false, lookSensitivity: 1.7, flowIntroSeen: true, shooter: false, aimToggle: true, aimAssist: 1.5,
-  controlsVersion: 3,
+  controlsVersion: 3, autoFire: false, aimButton: true, hintProgress: { touch: 2, simple: 3, mouse: 1 },
 };
 const DEFAULTS: Record<PersistedKey, unknown> = {
   checkpoint: START, camera: 'third', quality: 'high', reduced: false, muted: true, discovered: false,
   tapControls: false, desktopMode: 'trackpad', trackpadSteering: 'simple', sustainedEdges: false, reverseScroll: false,
   cruiseSpeed: 8, heroPoses: true, lookSensitivity: 1, flowIntroSeen: false, shooter: true, aimToggle: false, aimAssist: 1,
-  controlsVersion: 2,
+  controlsVersion: 2, autoFire: true, aimButton: false, hintProgress: { touch: 0, simple: 0, mouse: 0 },
 };
 const expectAll = (table: Record<PersistedKey, unknown>) => {
   const s = useGame.getState();
@@ -113,5 +113,32 @@ describe('persistence', () => {
     expect(s.shooter).toBe(false);
     expect(s.started).toBe(false); expect(s.paused).toBe(true); expect(s.panel).toBe(false);
     expect(s.message).toBe(''); expect(s.trackpadFlying).toBe(false); expect(s.flying).toBe(false);
+  });
+  it('hydrates a missing or non-boolean autoFire as on, and aimButton only from true', () => {
+    for (const [raw, want] of [[undefined, true], ['no', true], [0, true], [null, true], [true, true], [false, false]] as const) {
+      useGame.setState({ autoFire: !want });
+      saved[STORAGE] = JSON.stringify(raw === undefined ? {} : { autoFire: raw });
+      hydrateGame();
+      expect([raw, useGame.getState().autoFire]).toEqual([raw, want]);
+    }
+    for (const [raw, want] of [[undefined, false], ['yes', false], [1, false], [true, true]] as const) {
+      saved[STORAGE] = JSON.stringify(raw === undefined ? {} : { aimButton: raw });
+      hydrateGame();
+      expect([raw, useGame.getState().aimButton]).toEqual([raw, want]);
+    }
+  });
+  it('validates hint progress: floors, clamps to each series length, and zeroes anything else', () => {
+    const zeros = { touch: 0, simple: 0, mouse: 0 };
+    const cases: [unknown, unknown][] = [
+      ['x', zeros], [null, zeros], [undefined, zeros], [7, zeros], [[1, 2], zeros],
+      [{ touch: 9, simple: -1, mouse: 2.7 }, { touch: 2, simple: 0, mouse: 2 }],
+      [{ touch: NaN, simple: null, mouse: Infinity }, zeros], [{ touch: '1', simple: 4 }, { touch: 0, simple: 4, mouse: 0 }],
+      [{ simple: 3 }, { touch: 0, simple: 3, mouse: 0 }], [{ touch: 1.99, simple: 4, mouse: 4 }, { touch: 1, simple: 4, mouse: 4 }],
+    ];
+    for (const [raw, want] of cases) expect([raw, validHintProgress(raw)]).toEqual([raw, want]);
+    saved[STORAGE] = JSON.stringify({ hintProgress: { touch: 9, simple: -1, mouse: 2.7 } });
+    hydrateGame(); expect(useGame.getState().hintProgress).toEqual({ touch: 2, simple: 0, mouse: 2 });
+    saved[STORAGE] = JSON.stringify({ hintProgress: 'x' });
+    hydrateGame(); expect(useGame.getState().hintProgress).toEqual(zeros);
   });
 });

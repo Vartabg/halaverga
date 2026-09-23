@@ -28,10 +28,10 @@
 .chev{transform:rotate(var(--pip)) translateX(calc(var(--r) + 14px));filter:drop-shadow(0 0 1px var(--edge))}
 .chev i{width:7px;height:7px;margin:-3.5px 0 0 -5px;border-top:2px solid #ffffff;border-right:2px solid #ffffff;transform:rotate(45deg)}
 .chain{left:calc(max(var(--r) + 16px, 52px))!important;top:-20px!important;color:#ffb347;font:bold 12px 'Courier New',monospace;white-space:nowrap;text-shadow:0 0 2px var(--edge),0 0 1px var(--edge)}
-/* Controls hint: one line in the band under the header (header top + 56px), never over the crosshair or the suit. */
-.hint{position:absolute;top:calc(max(28px,env(safe-area-inset-top)) + 56px);left:50%;transform:translateX(-50%);z-index:1;width:max-content;max-width:calc(100vw - 32px);box-sizing:border-box;text-wrap:balance;margin:0;padding:6px 10px;background:#142c32e8;color:#e8f6d6;font:10px/1.6 'Courier New',monospace;text-align:center;pointer-events:none}
-@media(max-width:600px){.hint{top:calc(max(20px,env(safe-area-inset-top)) + 52px)}}
-@media(max-height:550px) and (orientation:landscape){.hint{top:calc(max(12px,env(safe-area-inset-top)) + 50px)}}
+/* Controls hint: one short line in the band under the header (header top + 56px), never over the crosshair or the suit. No motion. */
+.hint{position:absolute;top:calc(max(28px,env(safe-area-inset-top)) + 56px);left:50%;transform:translateX(-50%);z-index:1;width:max-content;max-width:calc(100vw - 32px);box-sizing:border-box;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:0;padding:6px 12px;border:1px solid #d4f19766;border-radius:6px;background:#10262cf2;color:#f4f9ec;font:600 14px/1.3 system-ui,-apple-system,sans-serif;text-align:center;pointer-events:none;transition:none;animation:none}
+@media(max-width:600px){.hint{top:calc(max(20px,env(safe-area-inset-top)) + 52px);font-size:13px}}
+@media(max-height:550px) and (orientation:landscape){.hint{top:calc(max(12px,env(safe-area-inset-top)) + 50px);font-size:13px}}
 @media(forced-colors:active){
   .hud{forced-color-adjust:none}
   .cross,.cross[data-acquired=true],.marker,.marker[data-kind]{color:CanvasText;filter:none}
@@ -39,4 +39,5 @@
   .heat circle{stroke:CanvasText!important}
   .chev i{border-color:CanvasText}
   .chain,.hint{color:CanvasText;background:Canvas;text-shadow:none}
+  .hint{border-color:CanvasText}
 }

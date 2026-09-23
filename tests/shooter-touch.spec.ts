@@ -75,7 +75,7 @@ for (const viewport of [PORTRAIT, LANDSCAPE]) {
     });
     test('with tap controls: one control per name, pad toggles, Stop keeps Aim latched, no drag hint', async ({ browser }) => {
       const t = await touchPage(browser, viewport, { tapControls: true }), { page } = t;
-      await expect(page.getByText('TAP PAD: FIRE AND AIM ARE TOGGLES')).toBeVisible();
+      await expect(page.getByTestId('controls-hint')).toContainText(/tap pad: fire and aim toggle/i);
       expect(await page.locator('body').innerText()).not.toContain('DRAG IT TO AIM');
       await expect(page.getByRole('button', { name: 'Fire', exact: true })).toHaveCount(1);
       await expect(page.getByRole('button', { name: 'Aim', exact: true })).toHaveCount(0);

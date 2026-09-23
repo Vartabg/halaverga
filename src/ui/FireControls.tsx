@@ -8,7 +8,9 @@ type Props = { onHold: (held: boolean) => void; onRelease?: () => void };
 const SLOP = 3, DRAG = 1.6, EDGE_YAW = 500, EDGE_PITCH = 333.3, HIT = 6;
 // Touch Fire and Aim. Fire held = trigger down; dragging the same finger aims, and holding the drag at a screen edge keeps turning.
 export default function FireControls({ onHold, onRelease }: Props) {
-  const visible = useGame(s => s.shooter && s.started && !s.paused), tapPad = useGame(s => s.tapControls);
+  // Auto-fire (the default) hides Fire; Aim is opt-in under More controls, and the tap pad keeps its own Aim toggle.
+  const fireOn = useGame(s => !s.autoFire), aimOn = useGame(s => s.aimButton && !s.tapControls);
+  const visible = useGame(s => s.shooter && s.started && !s.paused) && (fireOn || aimOn);
   const [latched, setLatched] = useState(false);
   const wrap = useRef<HTMLDivElement>(null), fire = useRef<HTMLButtonElement>(null);
   // l/r/t/b: Fire's hit box (the button plus its 6 px ::before), taken before the press scale. Edge turning waits until the finger
@@ -38,7 +40,7 @@ export default function FireControls({ onHold, onRelease }: Props) {
     if (e || p) look(e * EDGE_YAW * dt, p * EDGE_PITCH * dt);
     h.raf = requestAnimationFrame(tick);
   }, [end]);
-  useEffect(() => { if (!visible) end(); }, [visible, end]);
+  useEffect(() => { if (!visible || !fireOn) end(); }, [visible, fireOn, end]);
   useEffect(() => end, [end]);
   useEffect(() => {
     const id = setInterval(() => setLatched(runtime.shooter.input.aimLatched), 250);
@@ -93,13 +95,12 @@ export default function FireControls({ onHold, onRelease }: Props) {
   };
   const aimLost = (e: PointerEvent<HTMLButtonElement>) => { if (aimId.current === e.pointerId) aimId.current = null; };
   return <div ref={wrap} className={styles.controls} data-shooter-controls="" data-fire-held="false">
-    <button ref={fire} type="button" aria-label="Fire" data-testid="fire-button" className={styles.fire}
+    {fireOn && <button ref={fire} type="button" aria-label="Fire" data-testid="fire-button" className={styles.fire}
       onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={cancel} onLostPointerCapture={cancel}
       onClick={e => { if (e.detail === 0 && useGame.getState().shooter) tapShot(runtime.shooter); }}>
       <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9.5" /><circle cx="12" cy="12" r="5" /><circle cx="12" cy="12" r="1.4" className={styles.dot} /></svg>
-    </button>
-    {/* The tap pad has its own Aim toggle: one Aim control per screen. */}
-    {!tapPad && <button type="button" aria-label="Aim" aria-pressed={latched} className={styles.aim}
+    </button>}
+    {aimOn && <button type="button" aria-label="Aim" aria-pressed={latched} className={styles.aim}
       onPointerDown={aimDown} onPointerUp={aimUp} onPointerCancel={aimLost} onLostPointerCapture={aimLost}
       onClick={e => { if (e.detail === 0) toggleAim(); }}>
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v6M12 15v6M3 12h6M15 12h6" /><circle cx="12" cy="12" r="6.5" /></svg>

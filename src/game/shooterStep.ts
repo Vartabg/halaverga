@@ -2,7 +2,7 @@
 // presentation and before the suit (-20), the cannon (-19) and the camera. Idle (no input, no recent shot) leaves every feel channel
 // at exactly 0 and casts no aim ray. Every per-shot channel (camera kick, cannon/body recoil, muzzle flash, tracer, crosshair pop,
 // voice) starts on the frame the shot fires; the burst counter (burst.ts) attenuates them from the 4th shot of a burst.
-import { HIP_HOLD, SHOT_RANGE, SNAP, aimHeld, engaged, mulberry32, pushEvent, readEvents, releaseFire,
+import { HIP_HOLD, SHOT_RANGE, SNAP, aimHeld, mulberry32, threat, pushEvent, readEvents, releaseFire,
   type ShooterState, type ShotEvent, type Vec3 } from './combat';
 import { adsStep, advanceCamFx } from './cameraFx';
 import { advanceAssist, type AssistMemory } from './aimAssist';
@@ -11,6 +11,7 @@ import { hitDrones, projectedStart, rayWater, type DroneHit } from './shotMath';
 import type { ShooterWorld, WorldHit } from './shotResolve';
 import { advanceSpread, advanceWeapon, spreadHalfAngle } from './weapon';
 import { advanceBurst, burst } from './burst';
+import { autoFire, stepAutoFire } from './autoFire';
 import { fireShot, muzzleFrom, realMuzzle, type AudioSink, type StepContext } from './shooterShots';
 export type { AudioSink, StepContext } from './shooterShots';
 export { NEAR_MISS } from './shooterShots';
@@ -23,7 +24,7 @@ export { NEAR_MISS } from './shooterShots';
 export const ARM_HOLD = .8, ARM_LOWER = 9;
 export function createStepContext(): StepContext {
   return { dt: 0, paused: false, reduced: false, flying: false, speed: 0, player: { x: 0, y: 0, z: 0 }, head: { x: 0, y: 0, z: 0 },
-    firstPerson: false, strength: 1, voiced: -1 };
+    firstPerson: false, strength: 1, autoFire: false, voiced: -1 };
 }
 
 const rng = mulberry32(9);
@@ -74,6 +75,7 @@ export function stepShooter(s: ShooterState, sim: DroneSim, mem: AssistMemory, w
   s.clock += dt;
   const a = s.aim, w = s.weapon, input = s.input, fx = s.camFx;
   if (input.fireSource === 'tap' && s.clock > input.tapFireUntil) releaseFire(s, 'tap');
+  stepAutoFire(s, autoFire, ctx.autoFire, dt);
   let count = s.drones.count, shotKind = '';
   if (a.valid) {
     // c. Aim state. fireHold is 1 from the press frame (the suit eases its arm weight and swings the barrel onto the line that
@@ -101,7 +103,7 @@ export function stepShooter(s: ShooterState, sim: DroneSim, mem: AssistMemory, w
   // f. Drones. Targets are rebuilt after they move, so the aim point, the assist and next frame's shots see where they are drawn.
   const c = droneContext;
   c.dt = dt; copy(c.player, ctx.player); copy(c.camera, a.origin); copy(c.aimDir, a.dir); c.aimDist = a.dist; c.ads = a.blend;
-  c.threat = engaged(s); c.tier = input.lookSource; c.tutorialLocked = s.stats.kills === 0; c.reduced = ctx.reduced;
+  c.threat = threat(s); c.tier = input.lookSource; c.tutorialLocked = s.stats.kills === 0; c.reduced = ctx.reduced;
   advanceDrones(s, sim, c, world.lineClear);
   count = buildTargets(s);
   if (ctx.voiced < 0) ctx.voiced = s.eventSerial;

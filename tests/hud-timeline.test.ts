@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { HEAT } from '../src/game/combat';
-import { chainLabel, controlsHint, crossScale, crosshairRadius, heatColor, hintStaged, markerState, pipAngle, popScale, ventState, type MarkerKind } from '../src/ui/hudTimeline';
+import { chainLabel, crossScale, crosshairRadius, heatColor, markerState, pipAngle, popScale, ventState, type MarkerKind } from '../src/ui/hudTimeline';
 
 const ms = (n: number) => n / 1000;
 describe('markerState', () => {
@@ -158,33 +158,10 @@ describe('pipAngle', () => {
   });
 });
 
-describe('controlsHint', () => {
-  const env = (coarse: boolean, desktopMode: string, steering: string) => controlsHint({ coarse, desktopMode, steering });
-  it('gives each input profile its own line', () => {
-    expect(env(true, 'mouse', 'simple')).toBe('FIRE BUTTON · DRAG IT TO AIM · AIM FOR PRECISION');
-    expect(env(false, 'mouse', 'free')).toBe('CLICK FIRES · RIGHT-CLICK AIMS');
-    // One finger + keyboard: before capture a click only captures, so the full line waits for the captured pointer.
-    expect(env(false, 'trackpad', 'simple')).toBe('CLICK THE SCENE TO START · THEN SLIDE TO LOOK · CLICK TO FIRE');
-    expect(controlsHint({ coarse: false, desktopMode: 'trackpad', steering: 'simple', captured: true })).toBe('SLIDE TO LOOK · CLICK TO FIRE (HOLD FOR AUTO) · HOLD Q TO AIM · WASD FLY · SPACE LIFT/LAND · ESC PAUSE');
-    expect(controlsHint({ coarse: false, desktopMode: 'trackpad', steering: 'simple', aimToggle: true, captured: true })).toBe('SLIDE TO LOOK · CLICK TO FIRE (HOLD FOR AUTO) · Q TOGGLES AIM · WASD FLY · SPACE LIFT/LAND · ESC PAUSE');
-    for (const steering of ['free', 'captured', 'flow'])
-      expect(env(false, 'trackpad', steering)).toBe('HOLD C TO FIRE · HOLD Q TO AIM · MOUSE + KEYBOARD LETS A CLICK FIRE');
-  });
-  it('stages only the desktop one-finger line around capture; touch, tap pad, mouse and other profiles never wait', () => {
-    expect(hintStaged({ coarse: false, desktopMode: 'trackpad', steering: 'simple' })).toBe(true);
-    expect(hintStaged({ coarse: true, desktopMode: 'trackpad', steering: 'simple' })).toBe(false);
-    expect(hintStaged({ coarse: false, desktopMode: 'trackpad', steering: 'simple', tapControls: true })).toBe(false);
-    expect(hintStaged({ coarse: false, desktopMode: 'mouse', steering: 'simple' })).toBe(false);
-    for (const steering of ['free', 'captured', 'flow']) expect(hintStaged({ coarse: false, desktopMode: 'trackpad', steering })).toBe(false);
-    // Captured or not, the touch and tap lines are unchanged.
-    expect(controlsHint({ coarse: true, desktopMode: 'trackpad', steering: 'simple', captured: false })).toBe('FIRE BUTTON · DRAG IT TO AIM · AIM FOR PRECISION');
-  });
-});
-
 describe('HUD sources', () => {
   const read = (f: string) => readFileSync(new URL('../src/ui/' + f, import.meta.url), 'utf8');
   it('stay landing-safe, allocation-light and inside the 200 line budget', () => {
-    for (const f of ['hudTimeline.ts', 'ShooterHud.tsx', 'ControlsHint.tsx', 'ShooterSettings.tsx', 'ShooterHud.module.css']) {
+    for (const f of ['hudTimeline.ts', 'hintSteps.ts', 'ShooterHud.tsx', 'ControlsHint.tsx', 'ShooterSettings.tsx', 'ShooterHud.module.css']) {
       const src = read(f);
       expect(src.split('\n').length).toBeLessThan(200);
       expect(src).not.toMatch(/Math\.random\(|from 'three'|@react-three|invalidate\(/);

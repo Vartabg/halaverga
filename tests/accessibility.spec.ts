@@ -11,6 +11,8 @@ test('entry, field guide and settings satisfy automated AA checks', async ({ pag
   await page.getByRole('button', { name: 'Begin expedition' }).click();
   await page.getByRole('button', { name: 'Flight settings' }).click();
   await expect(page.getByLabel('Reduced camera motion')).toBeChecked(); await scan();
+  // Tap controls sit under the More controls disclosure; scan once with it open.
+  await page.getByText('More controls', { exact: true }).click(); await expect(page.getByLabel('Show tap controls')).toBeVisible(); await scan();
   await page.getByLabel('Show tap controls').check(); await page.getByRole('button', { name: 'Close dialog' }).click();
   await scan(); await page.getByRole('button', { name: 'Lift', exact: true }).click();
   await expect(page.getByTestId('flight-telemetry')).toHaveAttribute('data-flying', 'true');

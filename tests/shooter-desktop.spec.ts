@@ -49,7 +49,7 @@ test('one finger + keyboard: the capture click never fires; a locked click fires
   const errors = errorsOf(page); await begin(page, '/?trackpad=simple');
   const locked = () => page.evaluate(() => !!document.pointerLockElement);
   await page.mouse.click(720, 450); await expect.poll(locked).toBe(true);
-  await expect(page.getByTestId('simple-trackpad-hud')).toContainText('CLICK TO FIRE (HOLD FOR AUTO)');
+  await expect(page.getByTestId('controls-hint')).toHaveText('Slide to look');
   await page.waitForTimeout(300); expect(await shots(page)).toBe(0);
   // Stopped: sliding looks with no button held.
   let before = await heading(page); await page.mouse.move(820, 450, { steps: 10 });
@@ -81,19 +81,6 @@ test('one finger + keyboard: the capture click never fires; a locked click fires
   await page.mouse.click(720, 450); await expect.poll(locked).toBe(true);
   await page.keyboard.press('Escape'); await expect.poll(locked).toBe(false);
   await expect(page.getByRole('button', { name: 'Resume flight' })).toBeVisible();
-  expect(errors).toEqual([]);
-});
-
-test('one finger + keyboard hint: click first until capture, then the full line for its own window; it wraps, never clipped, at 640 px', async ({ page }) => {
-  const errors = errorsOf(page); await page.setViewportSize({ width: 640, height: 900 }); await begin(page, '/?trackpad=simple');
-  const hint = page.getByTestId('controls-hint'), locked = () => page.evaluate(() => !!document.pointerLockElement);
-  await expect(hint).toHaveText('CLICK THE SCENE TO START · THEN SLIDE TO LOOK · CLICK TO FIRE');
-  await page.mouse.click(320, 520); await expect.poll(locked).toBe(true);
-  await expect(hint).toContainText('SLIDE TO LOOK · CLICK TO FIRE (HOLD FOR AUTO)');
-  const box = (await hint.boundingBox())!;
-  expect(box.x).toBeGreaterThanOrEqual(16); expect(box.x + box.width).toBeLessThanOrEqual(640 - 16);
-  expect(box.y + box.height).toBeLessThan(450 - 30); expect(await shots(page)).toBe(0);
-  await expect(hint).toHaveCount(0, { timeout: 8000 });
   expect(errors).toEqual([]);
 });
 

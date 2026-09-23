@@ -5,9 +5,11 @@ const speed = async (p: Page) => Number(await telemetry(p).getAttribute('data-sp
 const heading = async (p: Page) => Number(await telemetry(p).getAttribute('data-heading'));
 const position = async (p: Page): Promise<number[]> => JSON.parse((await telemetry(p).getAttribute('data-position'))!);
 const locked = (p: Page) => p.evaluate(() => !!document.pointerLockElement);
+// With the blaster on the one-finger panel steps aside while a progressive controls hint shows (one message at a time).
+const simpleShown = (p: Page) => expect(p.getByTestId('simple-trackpad-hud').or(p.getByTestId('controls-hint')).first()).toBeVisible();
 async function begin(p: Page, url = '/') {
   await p.goto(url); await p.getByRole('button', { name: 'Begin expedition' }).click();
-  await expect(p.getByTestId('simple-trackpad-hud')).toBeVisible();
+  await simpleShown(p);
 }
 for (const camera of ['third', 'first']) test(`one-finger look, keyboard motion and release-to-hover in ${camera} person`, async ({ page }) => {
   const errors: string[] = []; page.on('pageerror', e => errors.push(e.message));
@@ -126,7 +128,7 @@ test('simple link overrides a saved Flow preference and saves the new selection'
   await expect(page.getByRole('button', { name: 'First person', exact: true })).toHaveAttribute('aria-pressed', 'true');
   await page.getByLabel('Looking sensitivity').fill('1.4');
   await page.goto('/'); await page.getByRole('button', { name: 'Begin expedition' }).click();
-  await expect(page.getByTestId('simple-trackpad-hud')).toBeVisible();
+  await simpleShown(page);
 });
 test('an old saved free profile (the pre-version-2 default) opens in one finger + keyboard; an explicit v2 free stays', async ({ page }) => {
   await page.addInitScript(() => {
@@ -145,6 +147,10 @@ test('an old saved free profile (the pre-version-2 default) opens in one finger 
 for (const blaster of [true, false]) test(`on the ground after a pause, one click ${blaster ? 'restores free looking on the ground' : 'lifts into hover (PR #12)'}`, async ({ page }) => {
   const errors: string[] = []; page.on('pageerror', e => errors.push(e.message));
   const hud = page.getByTestId('simple-trackpad-hud'), shots = async () => Number(await page.getByTestId('shooter-hud').getAttribute('data-shots'));
+  // The blaster panel's reminder appears once the progressive hints are done.
+  if (blaster) await page.addInitScript(() => {
+    if (!sessionStorage.getItem('seeded')) { sessionStorage.setItem('seeded', '1'); localStorage.setItem('halaverga-flight-v1', JSON.stringify({ hintProgress: { touch: 0, simple: 4, mouse: 0 } })); }
+  });
   await begin(page, blaster ? '/' : '/?shooter=0');
   await expect(hud).toContainText(blaster ? 'CLICK THE SCENE TO LOOK FREELY' : 'CLICK THE SCENE TO LIFT INTO HOVER');
   if (blaster) { await page.mouse.click(720, 450); await expect.poll(() => locked(page)).toBe(true); }

@@ -72,6 +72,8 @@ export default function TouchControls() {
     if (!controls.current.contacts.has(e.pointerId)) return;
     clearTimer(); controls.current.end(e.pointerId); sync();
     if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
+    // A thumb lift is an activation gesture: with auto-fire (no Fire press) it is what unlocks blaster audio.
+    unlockBlasterAudio();
   };
   // Fire held: the flight thumb becomes a move stick carrying its cruise throttle, and the Fire drag owns the view.
   const hold = (on: boolean) => {

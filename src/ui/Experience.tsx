@@ -1,7 +1,7 @@
 'use client';
 import dynamic from 'next/dynamic';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { hydrateGame, overrideShooter, persistGame, useGame } from '@/game/store';
+import { HINT_STEPS, hydrateGame, overrideShooter, persistGame, useGame } from '@/game/store';
 import { runtime } from '@/game/runtime';
 import { clearShooterFault, shooterFault } from '@/game/shooterFault';
 import { pause, resume, useInput } from './useInput';
@@ -95,11 +95,12 @@ export default function Experience() {
           {state.shooter ? <Boundary fallback={reticle} onError={() => shooterFault('hud', null)}><ShooterHud /></Boundary> : reticle}
           {flightHint && <p className={styles.flightHint} data-shooter={String(state.shooter)}>{flightHint}</p>}
           <Telemetry />
-          <div className={styles.actions} data-shooter={String(state.shooter)}>
+          <div className={styles.actions} data-shooter={String(state.shooter)} data-fire={String(state.shooter && !state.autoFire)}>
             <button className={styles.action} onClick={() => { runtime.lift = true; }}><span aria-hidden="true">{state.flying ? '↓' : '↑'}</span>{state.landing ? 'Cancel landing' : state.flying ? 'Land' : 'Lift'}</button>
           </div>
           {state.nearTerminal && <button className={styles.discovery} onClick={() => { pause(); state.set({ discovered: true, journal: true }); persistGame(); }}>◇ Municipal record <span>Read ↗</span></button>}
-          {!state.flying && <div className={styles.touchHint} aria-hidden="true">ONE THUMB TO FLY · TWO TO MOVE + LOOK</div>}
+          {/* Blaster on: tap players never get drag advice, and the progressive touch hints speak first (one instruction at a time). */}
+          {!state.flying && !(state.shooter && (state.tapControls || state.hintProgress.touch < HINT_STEPS.touch)) && <div className={styles.touchHint} aria-hidden="true">ONE THUMB TO FLY · TWO TO MOVE + LOOK</div>}
           {state.desktopMode === 'trackpad' && state.trackpadSteering === 'flow' && <FlowHud />}
           {state.desktopMode === 'trackpad' && state.trackpadSteering === 'simple' && <SimpleTrackpadHud />}
           {state.desktopMode === 'trackpad' && ['free', 'captured'].includes(state.trackpadSteering) && <div className={styles.trackpadHint}>{state.trackpadFlying ? `MOVE TO STEER · SCROLL FOR SPEED · CLICK TO ${state.trackpadSteering === 'captured' ? 'HOVER + RELEASE' : 'HOVER'}` : 'CLICK TO FLY · DRAG TO LOOK'}</div>}

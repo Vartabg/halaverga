@@ -16,23 +16,42 @@ Open `/?trackpad=simple` or choose **One finger + keyboard** in Flight settings.
 | Lift / assisted landing | Space, or the Lift / Land button |
 | Brake and free the pointer for buttons (blaster off) | Primary click |
 | Fire (blaster on; hold for automatic fire) | Primary click once the pointer is captured |
-| Aim (blaster on) | Hold Q (or toggle, per Flight settings) |
+| Aim (blaster on; not taught by the hints) | Hold Q (or toggle, under Flight settings › More controls) |
 | Pause and free the pointer | Escape |
 
 ## With the suit blaster (2026-09-23)
 
-The player asked to look freely while stopped and to shoot with the trackpad, the way the phone works: one thumb moves, the other aims and shoots. The keys fly and the finger looks and shoots:
+The player asked to look freely while stopped and to shoot with the trackpad, the way the phone works: one thumb moves, the other aims and shoots. The keys fly and the finger looks and shoots.
 
-**Slide to look · Click to fire (hold for auto) · Hold Q to aim · WASD fly · Space lift/land · Esc pause**
+### Progressive hints (2026-09-23, simple-by-default controls)
+
+The one-line wall of controls is gone. One short hint shows at a time, under the header and clear of the crosshair, and each appears only after the previous action is done (progressive disclosure; Hick's law: fewer visible choices, faster decisions). The rules, copy and pending decisions are in [simple-controls.md](simple-controls.md).
+
+| Step | One finger + keyboard | Mouse + keyboard | Done when (after at least 1 s visible) |
+| --- | --- | --- | --- |
+| 0 | Click the scene to start | Click the scene to start | The pointer is captured (no 1 s minimum) |
+| 1 | Slide to look | Move the mouse to look | 0.2 rad of captured look travel since the hints began, or a hit |
+| 2 | Click to shoot | Click to shoot | A hit, five shots, or 20 s visible |
+| 3 | WASD to fly · Space lifts | WASD to fly · Space lifts | A movement key (W/A/S/D/R/F), a lift or landing, or 20 s visible |
+
+- Progress is saved (`hintProgress` in `PERSISTED_KEYS`), so a finished step never repeats, across reloads too. Pure logic is in `src/ui/hintSteps.ts` (unit-tested in `tests/hint-steps.test.ts`); `src/ui/ControlsHint.tsx` polls every 150 ms and re-evaluates at once on `pointerlockchange`, setting React state only when the capture, step or text changes.
+- Capture exemption: the capture step advances as soon as the pointer is captured, so "Click the scene to start" never lingers over a locked pointer. For the poll gap, step 0 while captured already shows step 1's text.
+- Capture fallback: after Escape, a pause, focus loss or any other capture loss, a later step shows "Click the scene to start" again until the pointer is captured; the saved step is unchanged.
+- Actions count in any order: shots, hits and movement since the hints began are credited, and a step whose action is already done is skipped without showing.
+- STEP_TIMEOUT: the shoot step and the final keys step also hide after 20 s shown (paused time excluded), for this page load only; a timeout is never saved, so the step returns next visit. This and the five-shot fallback deviate from the approved plan and await Garo's confirmation.
+- After Escape, the look and shoot steps read "Click the scene to start" until the pointer is captured again; the keys step keeps its own text (it needs no capture).
+- The free, captured and Flow profiles show one 6 s line, "Hold C to fire", once per page load; tap controls show "Tap pad: Fire and Aim toggle". Neither touches the saved progress.
+- Each hint is also announced once through a polite live region (`hint-live`) outside every `aria-hidden` element. Hints never move or fade, so reduced motion needs no special case.
+- The bottom panel is reduced with the blaster on: hidden while a hint shows (one message at a time), the ONE FINGER + KEYS readout otherwise, and one reminder once the hints are done (CLICK THE SCENE TO LOOK FREELY, or ESC TO PAUSE while captured). The blaster sound notice also waits until no hint shows. With the blaster off the panel is unchanged.
 
 - A scene click while the pointer is free only captures it: it never fires and never lifts. After a landing, a pause, Settings, the Field guide, a resize or focus loss, one click restores free looking on the ground; WASD, R/F or Space lift. Looking needs no held button.
-- Until that capture the blaster hint reads CLICK THE SCENE TO START · THEN SLIDE TO LOOK · CLICK TO FIRE; the full line above gets its own 6 s from the first capture. It wraps instead of clipping in narrow windows. If capture is rejected, the failure message adds "Hold C to fire", because a click cannot fire without the lock.
+- Until that capture the progressive hint reads "Click the scene to start" (see above). If capture is rejected, the failure message adds "Hold C to fire", because a click cannot fire without the lock.
 - Once captured, a primary click fires (source `click`), holding keeps automatic fire and releasing stops it. The click no longer brakes or frees the pointer; releasing the movement keys hovers, and Escape pauses and frees the pointer.
 - R/F rise and descend and Shift toggles Surge as before. Aim assist uses the trackpad look source. No control needs a second finger.
 - Escape, focus loss, a hidden page, resize, rotation and capture loss clear held fire and aim; keyboard auto-repeat never starts either.
 - With the blaster off (`?shooter=0` or the setting), everything in the table above behaves exactly as first written: the captured click brakes and frees the pointer.
 - Saved preferences now carry `controlsVersion` 2. A save from before it that still holds `free`, the old default, opens in this profile once; captured and Flow stay, and choosing free again is kept. PR #12 builds write no version, so a free chosen on purpose on a PR #12 preview also moves once (blaster on or off); it was never on main, and choosing free again sticks.
-- Routing is pure in `src/ui/shooterKeys.ts`: `simplePrimaryPress` routes a press (ignore, fire, brake, engage), and `swallowsPress`, the capture-phase gate in `useShooterInput`, stops exactly the fire route before the flight surface sees it, so a press never both fires and brakes. Both hooks read one `readEnv`. Unit-tested in `tests/simple-click.test.ts`; browser checks are in `tests/shooter-desktop.spec.ts` and `tests/simple-trackpad.spec.ts` for both blaster states. Physical trackpad comfort is still unverified.
+- Routing is pure in `src/ui/shooterKeys.ts`: `simplePrimaryPress` routes a press (ignore, fire, brake, engage), and `swallowsPress`, the capture-phase gate in `useShooterInput`, stops exactly the fire route before the flight surface sees it, so a press never both fires and brakes. Both hooks read one `readEnv`. Unit-tested in `tests/simple-click.test.ts`; browser checks are in `tests/shooter-desktop.spec.ts`, `tests/simple-trackpad.spec.ts` (both blaster states) and `tests/simple-hints.spec.ts` (the hint sequence). Physical trackpad comfort is still unverified.
 
 Normal keyboard flight uses the existing 13 m/s target; Surge uses 34 m/s. Capturing the pointer no longer forces Surge in this profile. Looking works without holding a click. Without pointer lock, drag to look or use arrow keys; Space and WASD remain available. Essential movement also has the existing optional tap controls.
 

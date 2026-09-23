@@ -23,9 +23,13 @@ export function simplePrimaryPress(e: { button: number; ctrlKey: boolean; metaKe
  */
 export const swallowsPress = (e: { button: number; ctrlKey: boolean; metaKey: boolean; altKey: boolean }, env: ShooterEnv, requesting: boolean) =>
   e.button === 0 && (env.desktopMode === 'trackpad' && env.steering === 'simple' ? simplePrimaryPress(e, env, requesting) === 'fire' : lockedClickFire(env));
+/** Keys that look or fire by hand. A press means a keyboard player is steering (an iPad keyboard, a touch laptop), so touch auto-fire
+ * stands down until the next touch re-tags lookSource. Q is left out: it only aims, and a touch player may hold it while dragging. */
+const HAND_KEYS = new Set(['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'KeyC']);
 /** Returns true when handled; the caller then calls preventDefault. A repeat is ignored, so a key held through a pause must be pressed again. */
 export function keyDown(e: ShooterKey, env: ShooterEnv, s: ShooterState) {
   if (!live(env) || e.metaKey || e.ctrlKey || e.altKey || e.repeat || /^(INPUT|SELECT|TEXTAREA)$/.test(e.targetTag)) return false;
+  if (HAND_KEYS.has(e.code)) s.input.lookSource = lookSourceFor('keyboard', env.desktopMode);
   if (e.code === 'KeyC') { pressFire(s, 'keys'); return true; }
   if (e.code === 'KeyQ') { pressAim(s, env.aimToggle); return true; }
   return false;

@@ -30,7 +30,7 @@ export const ASSIST_PROFILE: Record<LookSource, { friction: number; magnet: numb
 export type ShooterInput = {
   fire: boolean; fireSource: FireSource; aim: boolean; aimLatched: boolean;
   /** Bumped on every fire press (never reset), so a press and release inside one frame still fires once. */
-  pressSerial: number; touchId: number | null; lookSource: LookSource; tapFireUntil: number;
+  pressSerial: number; touchId: number | null; lookSource: LookSource; tapFireUntil: number; /** The current or most recent trigger hold was auto-fire's (never slows flight or adds friction). */ auto: boolean;
 };
 export type WeaponState = {
   acc: number; heat: number; spreadHeat: number; lock: number; lockT: number; sinceShot: number;
@@ -85,7 +85,7 @@ export function createDroneField(): DroneField {
 export function createShooter(): ShooterState {
   return {
     clock: 0,
-    input: { fire: false, fireSource: 'none', aim: false, aimLatched: false, pressSerial: 0, touchId: null, lookSource: 'trackpad', tapFireUntil: 0 },
+    input: { fire: false, fireSource: 'none', aim: false, aimLatched: false, pressSerial: 0, touchId: null, lookSource: 'trackpad', tapFireUntil: 0, auto: false },
     weapon: { acc: 0, heat: 0, spreadHeat: 0, lock: 0, lockT: 0, sinceShot: Infinity, handledPress: 0, pending: false, moveMul: 1, shots: 0, justOverheated: false, justVented: false },
     aim: { origin: v3(), dir: { x: 0, y: 0, z: -1 }, right: { x: 1, y: 0, z: 0 }, up: { x: 0, y: 1, z: 0 }, valid: false, fov: 65,
       point: v3(), dist: SHOT_RANGE, blocked: false, blend: 0, fireHold: 0, spreadHalf: 0, combat: false, acquired: false, target: -1 },
@@ -99,13 +99,13 @@ export function createShooter(): ShooterState {
     stats: { shots: 0, hits: 0, kills: 0, chain: 0, lastKillT: -Infinity },
   };
 }
-/** Drops every held control (pause, blur, resize, lock loss, reset, context loss). Serials and stats are kept. */
+/** Drops every held control (pause, blur, resize, lock loss, reset, context loss). Serials, stats and input.auto are kept. */
 export function resetShooterInput(s: ShooterState) {
   const i = s.input; i.fire = false; i.fireSource = 'none'; i.aim = false; i.aimLatched = false; i.touchId = null; i.tapFireUntil = 0;
 }
 /** Returns every feel channel to exact rest (setting off, unmount, fault): afterwards look, camera and pose match main bit for bit. */
 export function resetShooterFeel(s: ShooterState) {
-  resetShooterInput(s);
+  resetShooterInput(s); s.input.auto = false;
   const a = s.aim, w = s.weapon, fx = s.camFx, as = s.assist;
   a.blend = 0; a.fireHold = 0; a.spreadHalf = 0; a.combat = false; a.acquired = false; a.target = -1; a.blocked = false;
   w.acc = 0; w.heat = 0; w.spreadHeat = 0; w.lock = 0; w.lockT = 0; w.sinceShot = Infinity; w.pending = false; w.handledPress = s.input.pressSerial;
@@ -113,22 +113,23 @@ export function resetShooterFeel(s: ShooterState) {
   as.slow = 0; as.driftYaw = 0; as.driftPitch = 0; as.engaged = false;
   s.muzzle.valid = false; s.muzzle.weight = 0;
 }
-export function pressFire(s: ShooterState, source: Exclude<FireSource, 'none'>) { s.input.fire = true; s.input.fireSource = source; s.input.pressSerial++; }
+export function pressFire(s: ShooterState, source: Exclude<FireSource, 'none'>) { s.input.fire = true; s.input.fireSource = source; s.input.pressSerial++; s.input.auto = false; }
 /** Releases the trigger only if `source` owns it (a key-up must not stop a held touch Fire). */
 export function releaseFire(s: ShooterState, source: Exclude<FireSource, 'none'>) {
   if (s.input.fireSource !== source) return;
   s.input.fire = false; s.input.fireSource = 'none';
 }
 /** One shot without a hold (keyboard or switch activation of a button): the weapon consumes the serial. */
-export function tapShot(s: ShooterState) { s.input.pressSerial++; }
+export function tapShot(s: ShooterState) { s.input.pressSerial++; s.input.auto = false; }
 export function pressAim(s: ShooterState, toggle: boolean) { if (toggle) s.input.aimLatched = !s.input.aimLatched; else s.input.aim = true; }
 export const releaseAim = (s: ShooterState) => { s.input.aim = false; };
 export const aimHeld = (s: ShooterState) => s.input.aim || s.input.aimLatched;
-/** 0 = normal flight, 1 = hip fire (13 m/s cap), 2 = ADS hover-strafe. */
+/** 0 = normal flight, 1 = hip fire (13 m/s cap), 2 = ADS hover-strafe. Auto-fire holds never cap speed here or add friction (engaged); threat still counts them. */
 export function moveMode(s: ShooterState): 0 | 1 | 2 {
-  return aimHeld(s) ? 2 : s.input.fire || s.weapon.sinceShot < HIP_HOLD ? 1 : 0;
+  return aimHeld(s) ? 2 : !s.input.auto && (s.input.fire || s.weapon.sinceShot < HIP_HOLD) ? 1 : 0;
 }
-export const engaged = (s: ShooterState) => aimHeld(s) || s.input.fire || s.weapon.sinceShot < ENGAGED_HOLD;
+export const engaged = (s: ShooterState) => aimHeld(s) || !s.input.auto && (s.input.fire || s.weapon.sinceShot < ENGAGED_HOLD);
+export const threat = (s: ShooterState) => aimHeld(s) || s.input.fire || s.weapon.sinceShot < ENGAGED_HOLD;
 /** Copies into the next ring slot; consumers remember the last serial they read. */
 export function pushEvent(s: ShooterState, kind: EventKind, from: Vec3, point: Vec3, normal: Vec3 | null, drone = -1) {
   const e = s.events[s.eventSerial % EVENT_RING];

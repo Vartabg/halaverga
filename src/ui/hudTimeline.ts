@@ -61,19 +61,3 @@ export const chainLabel = (chain: number, sinceKill: number) => chain >= 2 && si
 
 /** Screen angle (rad, y down) of a direction with camera-right component rx and camera-up component ry. */
 export const pipAngle = (rx: number, ry: number) => Math.atan2(-ry, rx) || 0;
-
-/** The one-finger + keyboard blaster line once the pointer is captured: keys fly, the finger looks and shoots. */
-export const simpleShooterHint = (aimToggle = false) =>
-  `SLIDE TO LOOK · CLICK TO FIRE (HOLD FOR AUTO) · ${aimToggle ? 'Q TOGGLES AIM' : 'HOLD Q TO AIM'} · WASD FLY · SPACE LIFT/LAND · ESC PAUSE`;
-/** Before capture a click only captures and sliding does nothing yet, so this line leads; the full line starts its window at capture. */
-export const SIMPLE_FIRST_HINT = 'CLICK THE SCENE TO START · THEN SLIDE TO LOOK · CLICK TO FIRE';
-export type HintEnv = { coarse: boolean; desktopMode: string; steering: string; tapControls?: boolean; aimToggle?: boolean; captured?: boolean };
-/** True where the line describes a captured pointer (one finger + keyboard on a desktop), so it is staged around the capture. */
-export const hintStaged = (env: HintEnv) => !env.tapControls && !env.coarse && env.desktopMode !== 'mouse' && env.steering === 'simple';
-export function controlsHint(env: HintEnv) {
-  if (env.tapControls) return 'TAP PAD: FIRE AND AIM ARE TOGGLES';
-  if (env.coarse) return 'FIRE BUTTON · DRAG IT TO AIM · AIM FOR PRECISION';
-  if (env.desktopMode === 'mouse') return 'CLICK FIRES · RIGHT-CLICK AIMS';
-  if (env.steering === 'simple') return env.captured ? simpleShooterHint(env.aimToggle) : SIMPLE_FIRST_HINT;
-  return 'HOLD C TO FIRE · HOLD Q TO AIM · MOUSE + KEYBOARD LETS A CLICK FIRE';
-}

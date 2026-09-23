@@ -17,10 +17,12 @@ const WINDOW_DASH = `0 ${VENT.windowStart01 * ARC} ${(VENT.windowEnd01 - VENT.wi
 const angle = (deg: number) => ({ '--a': deg + 'deg' }) as CSSProperties;
 const TICKS = [0, 90, 180, 270].map(angle), XTICKS = [45, 135, 225, 315].map(angle);
 const ios = () => /iPhone|iPad/.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Mac/.test(navigator.userAgent));
-// Once per page load: each sound nudge.
+// Once per page load: each sound nudge. It waits while a controls hint is on screen (one message at a time) and is retried on
+// the next shot, so a newcomer sees it only after the hint series is done.
 let mutedNudged = false, silentNudged = false;
 function nudge() {
-  const muted = useGame.getState().muted;
+  const { muted, hintVisible } = useGame.getState();
+  if (hintVisible) return;
   if (muted && !mutedNudged) { mutedNudged = true; useGame.setState({ message: 'Blaster sound is off · Settings' }); }
   else if (!muted && !silentNudged && ios() && !('audioSession' in navigator)) {
     silentNudged = true; useGame.setState({ message: 'No blaster sound? Check the silent switch.' });
@@ -33,7 +35,6 @@ export default function ShooterHud() {
     fill = useRef<SVGCircleElement>(null), vent = useRef<SVGGElement>(null), sweep = useRef<SVGCircleElement>(null),
     marker = useRef<HTMLSpanElement>(null), chev = useRef<HTMLSpanElement>(null), chain = useRef<HTMLSpanElement>(null);
   const [live, setLive] = useState('');
-  const desktopMode = useGame(s => s.desktopMode), steering = useGame(s => s.trackpadSteering), tapControls = useGame(s => s.tapControls), aimToggle = useGame(s => s.aimToggle);
   const coarse = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
   useEffect(() => {
     const el = root.current!, crossEl = cross.current!, heatEl = heat.current!, fillEl = fill.current!, ventEl = vent.current!,
@@ -133,6 +134,6 @@ export default function ShooterHud() {
     </div>
     <div className="sr-only" aria-live="polite" data-testid="shooter-live">{live}</div>
     {/* Outside the crosshair box. */}
-    <ControlsHint coarse={coarse} desktopMode={desktopMode} steering={steering} tapControls={tapControls} aimToggle={aimToggle} />
+    <ControlsHint coarse={coarse} />
   </>;
 }

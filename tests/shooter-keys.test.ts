@@ -24,6 +24,16 @@ describe('keyDown gating', () => {
   it('still handles keys on buttons (only form fields are skipped)', () => expect(keyDown(key('KeyC', { targetTag: 'BUTTON' }), base, s)).toBe(true));
 });
 describe('keyDown effects', () => {
+  it('arrows and C hand the view to the keyboard, so touch auto-fire stands down; Q, WASD and gated presses do not', () => {
+    for (const [code, mode, want] of [['ArrowLeft', 'trackpad', 'trackpad'], ['ArrowDown', 'mouse', 'mouse'], ['KeyC', 'trackpad', 'trackpad']] as const) {
+      s = createShooter(); s.input.lookSource = 'touch'; keyDown(key(code), { ...base, desktopMode: mode }, s);
+      expect([code, s.input.lookSource]).toEqual([code, want]);
+    }
+    for (const [e, env] of [[key('KeyQ'), base], [key('KeyW'), base], [key('ArrowUp', { repeat: true }), base], [key('ArrowUp'), { ...base, paused: true }],
+      [key('ArrowUp', { targetTag: 'INPUT' }), base]] as const) {
+      s = createShooter(); s.input.lookSource = 'touch'; keyDown(e, env, s); expect([e.code, s.input.lookSource]).toEqual([e.code, 'touch']);
+    }
+  });
   it('C fires with source keys', () => {
     expect(keyDown(key('KeyC'), base, s)).toBe(true);
     expect([s.input.fire, s.input.fireSource, s.input.pressSerial]).toEqual([true, 'keys', 1]);
