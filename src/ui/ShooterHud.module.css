@@ -29,7 +29,7 @@
 .chev i{width:7px;height:7px;margin:-3.5px 0 0 -5px;border-top:2px solid #ffffff;border-right:2px solid #ffffff;transform:rotate(45deg)}
 .chain{left:calc(max(var(--r) + 16px, 52px))!important;top:-20px!important;color:#ffb347;font:bold 12px 'Courier New',monospace;white-space:nowrap;text-shadow:0 0 2px var(--edge),0 0 1px var(--edge)}
 /* Controls hint: one line in the band under the header (header top + 56px), never over the crosshair or the suit. */
-.hint{position:absolute;top:calc(max(28px,env(safe-area-inset-top)) + 56px);left:50%;transform:translateX(-50%);z-index:1;width:max-content;white-space:nowrap;margin:0;padding:6px 10px;background:#142c32e8;color:#e8f6d6;font:10px/1.6 'Courier New',monospace;text-align:center;pointer-events:none}
+.hint{position:absolute;top:calc(max(28px,env(safe-area-inset-top)) + 56px);left:50%;transform:translateX(-50%);z-index:1;width:max-content;max-width:calc(100vw - 32px);box-sizing:border-box;text-wrap:balance;margin:0;padding:6px 10px;background:#142c32e8;color:#e8f6d6;font:10px/1.6 'Courier New',monospace;text-align:center;pointer-events:none}
 @media(max-width:600px){.hint{top:calc(max(20px,env(safe-area-inset-top)) + 52px)}}
 @media(max-height:550px) and (orientation:landscape){.hint{top:calc(max(12px,env(safe-area-inset-top)) + 50px)}}
 @media(forced-colors:active){

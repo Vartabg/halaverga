@@ -6,6 +6,23 @@ const live = (env: ShooterEnv) => env.enabled && env.started && !env.paused;
 /** A locked primary click fires in mouse mode and in the one-finger `simple` trackpad profile (plain string: PR #12 may add it). */
 export const lockedClickFire = (env: ShooterEnv) => live(env) && env.locked
   && (env.desktopMode === 'mouse' || (env.desktopMode === 'trackpad' && env.steering === 'simple'));
+/**
+ * What a primary press on the scene means in the one-finger `simple` profile. With the blaster on and the pointer locked it
+ * fires (useShooterInput presses Fire) and never brakes; otherwise PR #12's rules hold: a locked or pending press brakes and
+ * frees the pointer, and an unlocked press may engage capture on release. The engaging press therefore never fires.
+ */
+export type SimplePress = 'ignore' | 'fire' | 'brake' | 'engage';
+export function simplePrimaryPress(e: { button: number; ctrlKey: boolean; metaKey: boolean; altKey: boolean }, env: ShooterEnv, requesting: boolean): SimplePress {
+  if (env.paused || e.ctrlKey || e.metaKey || e.altKey || e.button !== 0) return 'ignore';
+  if (lockedClickFire({ ...env, desktopMode: 'trackpad', steering: 'simple' })) return 'fire';
+  return env.locked || requesting ? 'brake' : 'engage';
+}
+/**
+ * The one gate for a primary press that fires: useShooterInput's capture-phase pointerdown stops exactly these presses, so the
+ * flight surface never sees them. In `simple` it is simplePrimaryPress's own 'fire' route, so a press can never both fire and brake.
+ */
+export const swallowsPress = (e: { button: number; ctrlKey: boolean; metaKey: boolean; altKey: boolean }, env: ShooterEnv, requesting: boolean) =>
+  e.button === 0 && (env.desktopMode === 'trackpad' && env.steering === 'simple' ? simplePrimaryPress(e, env, requesting) === 'fire' : lockedClickFire(env));
 /** Returns true when handled; the caller then calls preventDefault. A repeat is ignored, so a key held through a pause must be pressed again. */
 export function keyDown(e: ShooterKey, env: ShooterEnv, s: ShooterState) {
   if (!live(env) || e.metaKey || e.ctrlKey || e.altKey || e.repeat || /^(INPUT|SELECT|TEXTAREA)$/.test(e.targetTag)) return false;

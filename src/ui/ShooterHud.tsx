@@ -6,18 +6,19 @@ import { lastShotIndex } from '@/game/burst';
 import { guarded } from '@/game/shooterFault';
 import { cannonLink } from '@/world/cannonContract';
 import { useGame } from '@/game/store';
-import { MARKER_T, chainLabel, controlsHint, crossScale, crosshairRadius, heatColor, markerState, pipAngle, ventState, type Marker, type MarkerKind } from './hudTimeline';
+import { MARKER_T, chainLabel, crossScale, crosshairRadius, heatColor, markerState, pipAngle, ventState, type Marker, type MarkerKind } from './hudTimeline';
+import ControlsHint from './ControlsHint';
 import styles from './ShooterHud.module.css';
 // Per-frame values go straight from runtime.shooter to element styles through refs: no React state per frame and no render
 // invalidation. The only state is the kill announcement, in a live region kept outside the aria-hidden visual root.
-const C = 2 * Math.PI * 22, ARC = C * .75, HINT_MS = 6000, TELEGRAPH_T = .35, SAY_MS = 2000;
+const C = 2 * Math.PI * 22, ARC = C * .75, TELEGRAPH_T = .35, SAY_MS = 2000;
 const VENT = ventState(0, HEAT.lock, HEAT.ventAt, HEAT.ventHalf);
 const WINDOW_DASH = `0 ${VENT.windowStart01 * ARC} ${(VENT.windowEnd01 - VENT.windowStart01) * ARC} ${C}`;
 const angle = (deg: number) => ({ '--a': deg + 'deg' }) as CSSProperties;
 const TICKS = [0, 90, 180, 270].map(angle), XTICKS = [45, 135, 225, 315].map(angle);
 const ios = () => /iPhone|iPad/.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Mac/.test(navigator.userAgent));
-// Once per page load: the controls hint window and each sound nudge.
-let hintStart = -1, mutedNudged = false, silentNudged = false;
+// Once per page load: each sound nudge.
+let mutedNudged = false, silentNudged = false;
 function nudge() {
   const muted = useGame.getState().muted;
   if (muted && !mutedNudged) { mutedNudged = true; useGame.setState({ message: 'Blaster sound is off · Settings' }); }
@@ -30,21 +31,18 @@ const isMarker = (k: ShotEvent['kind']): k is MarkerKind => k === 'hit' || k ===
 export default function ShooterHud() {
   const root = useRef<HTMLDivElement>(null), cross = useRef<HTMLDivElement>(null), heat = useRef<SVGSVGElement>(null),
     fill = useRef<SVGCircleElement>(null), vent = useRef<SVGGElement>(null), sweep = useRef<SVGCircleElement>(null),
-    marker = useRef<HTMLSpanElement>(null), chev = useRef<HTMLSpanElement>(null), chain = useRef<HTMLSpanElement>(null),
-    hint = useRef<HTMLParagraphElement>(null);
+    marker = useRef<HTMLSpanElement>(null), chev = useRef<HTMLSpanElement>(null), chain = useRef<HTMLSpanElement>(null);
   const [live, setLive] = useState('');
-  const desktopMode = useGame(s => s.desktopMode), steering = useGame(s => s.trackpadSteering), tapControls = useGame(s => s.tapControls);
+  const desktopMode = useGame(s => s.desktopMode), steering = useGame(s => s.trackpadSteering), tapControls = useGame(s => s.tapControls), aimToggle = useGame(s => s.aimToggle);
   const coarse = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
-  const hintOn = hintStart < 0 || performance.now() - hintStart < HINT_MS;
   useEffect(() => {
-    if (hintStart < 0) hintStart = performance.now();
     const el = root.current!, crossEl = cross.current!, heatEl = heat.current!, fillEl = fill.current!, ventEl = vent.current!,
       sweepEl = sweep.current!, markEl = marker.current!, chevEl = chev.current!, chainEl = chain.current!;
     const s = runtime.shooter, cursor = { last: s.eventSerial }, m: Marker = { visible: false, scale: 1, opacity: 0, rotate: 0 },
       v = ventState(0, HEAT.lock, HEAT.ventAt, HEAT.ventHalf);
     let kind: MarkerKind | null = null, kindT = 0, pipT = -1, pendingKill = false, lastSay = -Infinity, says = 0, shotsSeen = s.stats.shots;
     let lr = -1, lpop = -1, lacq = false, lblocked = false, lheat = false, lfill = -1, lcolor = '', llock = false, lsweep = -1, lin = false,
-      lchain = 0, hintGone = false;
+      lchain = 0;
     const onEvent = (e: ShotEvent) => {
       if (isMarker(e.kind)) {
         // The X ticks already sit on the diagonals, off the crosshair's axes: the kill marker is not rotated further.
@@ -96,7 +94,6 @@ export default function ShooterHud() {
         setLive('Drone down' + (st.chain >= 2 ? ', chain ' + st.chain : '') + (says % 2 ? '' : '\u00a0'));
       }
       if (st.shots !== shotsSeen) { if (st.shots > shotsSeen && !(mutedNudged && silentNudged)) nudge(); shotsSeen = st.shots; }
-      if (!hintGone && now - hintStart >= HINT_MS) { hintGone = true; if (hint.current) hint.current.style.display = 'none'; }
     });
     let raf = 0;
     const frame = (now: number) => { raf = requestAnimationFrame(frame); body(now, 0); };
@@ -135,7 +132,7 @@ export default function ShooterHud() {
       <span ref={chain} className={styles.chain} />
     </div>
     <div className="sr-only" aria-live="polite" data-testid="shooter-live">{live}</div>
-    {/* Outside the crosshair box: one line in the band under the header, clear of the crosshair, the suit and the thumbs. */}
-    {hintOn && <p ref={hint} className={styles.hint} aria-hidden="true">{controlsHint({ coarse, desktopMode, steering, tapControls })}</p>}
+    {/* Outside the crosshair box. */}
+    <ControlsHint coarse={coarse} desktopMode={desktopMode} steering={steering} tapControls={tapControls} aimToggle={aimToggle} />
   </>;
 }

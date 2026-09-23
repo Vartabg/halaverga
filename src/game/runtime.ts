@@ -26,9 +26,11 @@ export const runtime = {
 const lookScratch = { x: 0, y: 0 };
 export function readIntent(): Intent {
   const k = runtime.keys;
-  const flow = runtime.trackpad.active && useGame.getState().trackpadSteering === 'flow';
+  const profile = useGame.getState().trackpadSteering;
+  const flow = runtime.trackpad.active && profile === 'flow';
+  const cruise = runtime.trackpad.active && profile !== 'simple';
   return {
-    forward: Math.max(-1, Math.min(1, Number(k.has('KeyW')) - Number(k.has('KeyS')) + runtime.thumb.throttle + (flow ? runtime.trackpad.selectedSpeed / SPEED.surge : runtime.trackpad.active ? runtime.trackpad.throttle : 0) + runtime.tap.forward)),
+    forward: Math.max(-1, Math.min(1, Number(k.has('KeyW')) - Number(k.has('KeyS')) + runtime.thumb.throttle + (flow ? runtime.trackpad.selectedSpeed / SPEED.surge : cruise ? runtime.trackpad.throttle : 0) + runtime.tap.forward)),
     strafe: Math.max(-1, Math.min(1, Number(k.has('KeyD')) - Number(k.has('KeyA')) + runtime.thumb.strafe + runtime.tap.strafe)),
     vertical: Math.max(-1, Math.min(1, Number(k.has('KeyR')) - Number(k.has('KeyF')) + runtime.tap.vertical)),
     ...(flow ? { precise: true as const } : {}),
@@ -77,7 +79,7 @@ export function startTrackpad() {
 }
 export function stopTrackpad() {
   runtime.trackpad.cancelEpoch++;
-  if (runtime.trackpad.capture !== 'idle' && useGame.getState().trackpadSteering === 'flow') runtime.trackpad.brakeEpoch++;
+  if (runtime.trackpad.capture !== 'idle') runtime.trackpad.brakeEpoch++;
   Object.assign(runtime.trackpad, { active: false, edgeTurn: 0, edgePitch: 0, capture: 'idle', held: false, selectedSpeed: 0 });
   runtime.trackpad.brakedAt = performance.now();
   if (useGame.getState().trackpadFlying) useGame.setState({ trackpadFlying: false });
@@ -99,6 +101,8 @@ export function startFlow() {
   clearInput();
   Object.assign(runtime.trackpad, { active: true, capture: 'engaged', edgeAge: 0 });
   setFlowThrottle(0);
-  runtime.lift = !useGame.getState().flying;
+  // One finger + keyboard with the blaster: keys fly, so the capture click only frees the view and never lifts off the ground.
+  const g = useGame.getState();
+  runtime.lift = !g.flying && !(g.trackpadSteering === 'simple' && g.shooter);
   useGame.setState({ trackpadFlying: true });
 }

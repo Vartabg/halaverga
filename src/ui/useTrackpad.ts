@@ -5,6 +5,7 @@ import { ScrollStroke } from '@/game/trackpadFlight';
 import { useGame } from '@/game/store';
 import { useCruiseCapture } from './useCruiseCapture';
 import { useFlowTrackpad } from './useFlowTrackpad';
+import { useSimpleTrackpad } from './useSimpleTrackpad';
 import { recordGesture } from '@/game/gestureLog';
 type Press = { id: number; x: number; y: number; dragged: boolean; stoppedFlight: boolean };
 const captureError = () => useGame.setState({ message: 'Mouse capture is unavailable. Choose Trackpad in Flight settings to continue.' });
@@ -12,7 +13,9 @@ export function useTrackpad(surface: RefObject<HTMLDivElement | null>) {
   const press = useRef<Press | null>(null), last = useRef({ x: 0, y: 0 });
   const stroke = useRef(new ScrollStroke()), capture = useCruiseCapture(surface);
   const flow = useFlowTrackpad(surface, capture);
+  const simple = useSimpleTrackpad(surface, capture);
   const isFlow = () => useGame.getState().desktopMode === 'trackpad' && useGame.getState().trackpadSteering === 'flow';
+  const isSimple = () => useGame.getState().desktopMode === 'trackpad' && useGame.getState().trackpadSteering === 'simple';
   const cancelCapture = capture.cancel;
   const paused = useGame(s => s.paused);
   const halt = useCallback(() => { press.current = null; stroke.current.stop(performance.now()); cancelCapture(); stopTrackpad(); }, [cancelCapture]);
@@ -24,14 +27,14 @@ export function useTrackpad(surface: RefObject<HTMLDivElement | null>) {
     });
     const wheel = (e: WheelEvent) => {
       if (useGame.getState().paused || useGame.getState().desktopMode !== 'trackpad') return;
-      if (useGame.getState().trackpadSteering === 'flow') return;
+      if (['flow', 'simple'].includes(useGame.getState().trackpadSteering)) return;
       if (e.ctrlKey || e.metaKey) { recordGesture('zoom'); halt(); return; }
       if (e.cancelable) e.preventDefault();
       const next = stroke.current.apply(runtime.trackpad.throttle, e, performance.now(), innerHeight, useGame.getState().reverseScroll);
       if (runtime.trackpad.active) runtime.trackpad.throttle = next;
       recordGesture('wheel', e);
     };
-    const zoom = () => { if (useGame.getState().trackpadSteering === 'flow') brakeFlow(); halt(); };
+    const zoom = () => { if (['flow', 'simple'].includes(useGame.getState().trackpadSteering)) brakeFlow(); halt(); };
     const error = () => { if (useGame.getState().desktopMode === 'mouse') captureError(); };
     element.addEventListener('wheel', wheel, { passive: false });
     element.addEventListener('gesturestart', zoom);
@@ -43,6 +46,7 @@ export function useTrackpad(surface: RefObject<HTMLDivElement | null>) {
     };
   }, [surface, paused, halt]);
   const start = (e: PointerEvent<HTMLDivElement>) => {
+    if (isSimple()) { simple.start(e); return; }
     if (isFlow()) { flow.start(e); return; }
     if (e.button !== 0 || e.ctrlKey || e.metaKey || useGame.getState().paused) return;
     if (useGame.getState().desktopMode === 'mouse') {
@@ -63,6 +67,7 @@ export function useTrackpad(surface: RefObject<HTMLDivElement | null>) {
     e.currentTarget.setPointerCapture(e.pointerId);
   };
   const move = (e: PointerEvent<HTMLDivElement>) => {
+    if (isSimple()) { simple.move(e); return; }
     if (isFlow()) { flow.move(e); return; }
     if (useGame.getState().desktopMode !== 'trackpad' || useGame.getState().paused) return;
     if (document.pointerLockElement === e.currentTarget) return;
@@ -80,6 +85,7 @@ export function useTrackpad(surface: RefObject<HTMLDivElement | null>) {
     }
   };
   const end = (e: PointerEvent<HTMLDivElement>) => {
+    if (isSimple()) { simple.end(e); return; }
     if (isFlow()) { flow.end(e); return; }
     const p = press.current; if (!p || p.id !== e.pointerId) return;
     press.current = null;
@@ -89,6 +95,7 @@ export function useTrackpad(surface: RefObject<HTMLDivElement | null>) {
     if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
   };
   // Releasing a completed click loses capture too; that must not cancel its new cruise.
-  return { start, move, end, leave: () => { if (!document.pointerLockElement && !isFlow()) halt(); },
-    cancel: () => { if (isFlow()) flow.cancel(); else halt(); }, lostCapture: () => { if (isFlow()) flow.lostCapture(); else if (press.current) halt(); } };
+  return { start, move, end, leave: () => { if (!document.pointerLockElement && !isFlow() && !isSimple()) halt(); },
+    cancel: () => { if (isSimple()) simple.cancel(); else if (isFlow()) flow.cancel(); else halt(); },
+    lostCapture: () => { if (isSimple()) simple.lostCapture(); else if (isFlow()) flow.lostCapture(); else if (press.current) halt(); } };
 }
