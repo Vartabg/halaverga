@@ -2,10 +2,12 @@ import { useEffect, useRef } from 'react';
 import { releaseAim, releaseFire, resetShooterInput } from '@/game/combat';
 import { runtime } from '@/game/runtime';
 import { useGame } from '@/game/store';
-import { keyDown, keyUp, lockedClickFire, lookSourceFor, mouseDown, mouseUp, OWN_LOOK_SELECTOR, type ShooterEnv } from './shooterKeys';
+import { keyDown, keyUp, lockedClickFire, lookSourceFor, mouseDown, mouseUp, OWN_LOOK_SELECTOR, swallowsPress, type ShooterEnv } from './shooterKeys';
 // A separate listener set (useInput and the trackpad hooks stay untouched). Handlers write runtime.shooter.input only.
 const env: ShooterEnv = { enabled: false, started: false, paused: true, aimToggle: false, desktopMode: 'trackpad', steering: 'free', locked: false };
-function readEnv() {
+/** The single ShooterEnv reader (also used by useSimpleTrackpad). `locked` is any pointer lock: under a lock every pointer event
+ * targets the locked element, so when the flight surface receives a press this equals PR #12's `pointerLockElement === surface`. */
+export function readEnv() {
   const g = useGame.getState();
   env.enabled = g.shooter; env.started = g.started; env.paused = g.paused; env.aimToggle = g.aimToggle;
   env.desktopMode = g.desktopMode; env.steering = g.trackpadSteering; env.locked = !!document.pointerLockElement;
@@ -29,7 +31,7 @@ export function useShooterInput(options?: { unlock?: () => void }) {
       tag(e);
       if (e.pointerType === 'mouse') {
         // The fire click replaces the simple profile's brake-and-free click; no preventDefault, so mousedown still fires for chords.
-        if (e.button === 0 && lockedClickFire(readEnv())) e.stopPropagation();
+        if (swallowsPress(e, readEnv(), runtime.trackpad.capture === 'requesting')) e.stopPropagation();
         if (s.input.touchId !== null) { releaseFire(s, 'touch'); s.input.touchId = null; }
       } else if (e.pointerType === 'touch') {
         if (s.input.fireSource === 'keys' || s.input.fireSource === 'click') releaseFire(s, s.input.fireSource);

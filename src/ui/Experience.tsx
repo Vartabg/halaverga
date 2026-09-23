@@ -12,7 +12,6 @@ import Boundary from './Boundary';
 import TouchControls, { loadFireControls } from './TouchControls';
 import TapControls from './TapControls';
 import FieldGuide from './FieldGuide';
-import TestPanel from './TestPanel';
 import Telemetry from './Telemetry';
 import FlowHud from './FlowHud';
 import FlowWelcome from './FlowWelcome';
@@ -23,6 +22,9 @@ const Scene = dynamic(() => import('@/world/Scene'), { ssr: false });
 const Reticle = () => <div className={styles.reticle} aria-hidden="true"><span /></div>;
 const loadHud = () => import('./ShooterHud');
 const ShooterHud = dynamic(loadHud, { ssr: false, loading: Reticle });
+// Flight settings open only after Begin, so they are a chunk warmed then: settings copy never grows the landing first load.
+const loadPanel = () => import('./TestPanel');
+const TestPanel = dynamic(loadPanel, { ssr: false, loading: () => null });
 export default function Experience() {
   const state = useGame(), [hydrated, setHydrated] = useState(false), [failed, setFailed] = useState(false);
   const [sceneKey, setSceneKey] = useState(0);
@@ -37,6 +39,7 @@ export default function Experience() {
   }, []);
   // Warm the blaster UI chunks after hydration so the first aim never waits on them; with the blaster off nothing is requested.
   useEffect(() => { if (hydrated && state.shooter) { void loadHud().catch(() => {}); void loadFireControls().catch(() => {}); } }, [hydrated, state.shooter]);
+  useEffect(() => { if (state.started) void loadPanel().catch(() => {}); }, [state.started]);
   useInput(); useAudio(); useShooterInput({ unlock: unlockBlasterAudio });
   const failure = useCallback(() => { setFailed(true); pause(); }, []);
   // Begin/Resume is an activation gesture: it unlocks blaster audio (a no-op while the blaster is off or muted).

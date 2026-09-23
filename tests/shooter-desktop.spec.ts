@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import { beginFlow } from './flow-browser';
-import { aiming, begin, fov, hud, resume, reticle, seed, shots } from './shooter-browser';
+import { aiming, begin, fov, heading, hud, resume, reticle, seed, shots, speed } from './shooter-browser';
 const scene = (p: Page) => p.getByTestId('flight-surface');
 const errorsOf = (p: Page) => { const errors: string[] = []; p.on('pageerror', e => errors.push(e.message)); return errors; };
 
@@ -42,6 +42,70 @@ test('mouse mode: the capture click never fires, then an LMB+RMB chord fires whi
   await expect.poll(() => shots(page)).toBeGreaterThan(2);
   await page.mouse.up({ button: 'left' }); await page.mouse.up({ button: 'right' });
   await expect(hud(page)).toHaveAttribute('data-aiming', 'false');
+  expect(errors).toEqual([]);
+});
+
+test('one finger + keyboard: the capture click never fires; a locked click fires, holds for auto and keeps the pointer and flight', async ({ page }) => {
+  const errors = errorsOf(page); await begin(page, '/?trackpad=simple');
+  const locked = () => page.evaluate(() => !!document.pointerLockElement);
+  await page.mouse.click(720, 450); await expect.poll(locked).toBe(true);
+  await expect(page.getByTestId('simple-trackpad-hud')).toContainText('CLICK TO FIRE (HOLD FOR AUTO)');
+  await page.waitForTimeout(300); expect(await shots(page)).toBe(0);
+  // Stopped: sliding looks with no button held.
+  let before = await heading(page); await page.mouse.move(820, 450, { steps: 10 });
+  await expect.poll(() => heading(page)).toBeLessThan(before - .2);
+  await page.keyboard.down('KeyW'); await expect.poll(() => speed(page)).toBeGreaterThan(8);
+  await page.mouse.down(); await expect.poll(() => shots(page)).toBeGreaterThan(3);
+  expect(await locked()).toBe(true); expect(await speed(page)).toBeGreaterThan(8);
+  await expect(scene(page)).toHaveAttribute('data-trackpad-active', 'true');
+  await page.mouse.up(); await page.waitForTimeout(250);
+  const settled = await shots(page); await page.waitForTimeout(400); expect(await shots(page)).toBe(settled);
+  await page.keyboard.up('KeyW'); await expect.poll(() => speed(page)).toBeLessThan(.1);
+  // A single click while hovering is one more shot, and the view still moves freely afterwards.
+  await page.mouse.click(820, 450); await expect.poll(() => shots(page)).toBeGreaterThan(settled);
+  expect(await locked()).toBe(true);
+  before = await heading(page); await page.mouse.move(920, 450, { steps: 10 });
+  await expect.poll(() => heading(page)).toBeLessThan(before - .2);
+  // Q aims while locked.
+  await page.keyboard.down('KeyQ'); await expect(hud(page)).toHaveAttribute('data-aiming', 'true');
+  await page.keyboard.up('KeyQ'); await expect(hud(page)).toHaveAttribute('data-aiming', 'false');
+  // Focus loss mid-burst pauses and clears the held click: resuming by keyboard with the button still down does not fire.
+  await page.mouse.down(); await expect.poll(() => shots(page)).toBeGreaterThan(settled + 1);
+  await page.evaluate(() => window.dispatchEvent(new Event('blur')));
+  await expect(page.getByRole('button', { name: 'Resume flight' })).toBeVisible();
+  await page.getByRole('button', { name: 'Resume flight' }).press('Enter');
+  await expect(page.getByRole('button', { name: 'Pause expedition' })).toBeVisible();
+  await page.waitForTimeout(250); const afterBlur = await shots(page); await page.waitForTimeout(400);
+  expect(await shots(page)).toBe(afterBlur); await page.mouse.up();
+  // Escape pauses and frees the pointer.
+  await page.mouse.click(720, 450); await expect.poll(locked).toBe(true);
+  await page.keyboard.press('Escape'); await expect.poll(locked).toBe(false);
+  await expect(page.getByRole('button', { name: 'Resume flight' })).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
+test('one finger + keyboard hint: click first until capture, then the full line for its own window; it wraps, never clipped, at 640 px', async ({ page }) => {
+  const errors = errorsOf(page); await page.setViewportSize({ width: 640, height: 900 }); await begin(page, '/?trackpad=simple');
+  const hint = page.getByTestId('controls-hint'), locked = () => page.evaluate(() => !!document.pointerLockElement);
+  await expect(hint).toHaveText('CLICK THE SCENE TO START · THEN SLIDE TO LOOK · CLICK TO FIRE');
+  await page.mouse.click(320, 520); await expect.poll(locked).toBe(true);
+  await expect(hint).toContainText('SLIDE TO LOOK · CLICK TO FIRE (HOLD FOR AUTO)');
+  const box = (await hint.boundingBox())!;
+  expect(box.x).toBeGreaterThanOrEqual(16); expect(box.x + box.width).toBeLessThanOrEqual(640 - 16);
+  expect(box.y + box.height).toBeLessThan(450 - 30); expect(await shots(page)).toBe(0);
+  await expect(hint).toHaveCount(0, { timeout: 8000 });
+  expect(errors).toEqual([]);
+});
+
+test('one finger + keyboard with ?shooter=0: the locked click still brakes and frees the pointer', async ({ page }) => {
+  const errors = errorsOf(page); await begin(page, '/?trackpad=simple&shooter=0');
+  const locked = () => page.evaluate(() => !!document.pointerLockElement);
+  await page.mouse.click(720, 450); await expect.poll(locked).toBe(true);
+  await page.keyboard.down('KeyW'); await expect.poll(() => speed(page)).toBeGreaterThan(8);
+  await page.mouse.down(); await expect.poll(locked).toBe(false); await page.mouse.up();
+  await expect.poll(() => speed(page)).toBeLessThan(.1);
+  await expect(scene(page)).toHaveAttribute('data-trackpad-active', 'false');
+  await expect(hud(page)).toHaveCount(0); await page.keyboard.up('KeyW');
   expect(errors).toEqual([]);
 });
 

@@ -101,6 +101,8 @@ export function startFlow() {
   clearInput();
   Object.assign(runtime.trackpad, { active: true, capture: 'engaged', edgeAge: 0 });
   setFlowThrottle(0);
-  runtime.lift = !useGame.getState().flying;
+  // One finger + keyboard with the blaster: keys fly, so the capture click only frees the view and never lifts off the ground.
+  const g = useGame.getState();
+  runtime.lift = !g.flying && !(g.trackpadSteering === 'simple' && g.shooter);
   useGame.setState({ trackpadFlying: true });
 }
