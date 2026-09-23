@@ -11,7 +11,7 @@ const NON_DEFAULT: Record<PersistedKey, unknown> = {
 };
 const DEFAULTS: Record<PersistedKey, unknown> = {
   checkpoint: START, camera: 'third', quality: 'high', reduced: false, muted: true, discovered: false,
-  tapControls: false, desktopMode: 'trackpad', trackpadSteering: 'free', sustainedEdges: false, reverseScroll: false,
+  tapControls: false, desktopMode: 'trackpad', trackpadSteering: 'simple', sustainedEdges: false, reverseScroll: false,
   cruiseSpeed: 8, heroPoses: true, lookSensitivity: 1, flowIntroSeen: false, shooter: true, aimToggle: false, aimAssist: 1,
 };
 const expectAll = (table: Record<PersistedKey, unknown>) => {
@@ -29,6 +29,16 @@ beforeEach(() => {
 });
 afterEach(() => { vi.unstubAllGlobals(); Object.keys(saved).forEach(key => delete saved[key]); });
 describe('persistence', () => {
+  it('defaults to simple controls while preserving an explicitly saved comparison profile', () => {
+    hydrateGame(); expect(useGame.getState().trackpadSteering).toBe('simple');
+    for (const profile of ['simple', 'free', 'captured', 'flow']) {
+      useGame.setState({ trackpadSteering: profile as 'simple' | 'free' | 'captured' | 'flow' });
+      persistGame(); useGame.setState({ trackpadSteering: 'simple' }); hydrateGame();
+      expect(useGame.getState().trackpadSteering).toBe(profile);
+    }
+    saved[STORAGE] = JSON.stringify({ trackpadSteering: 'unknown' });
+    hydrateGame(); expect(useGame.getState().trackpadSteering).toBe('simple');
+  });
   it('writes exactly the authoritative persisted key list', () => {
     persistGame();
     expect(Object.keys(JSON.parse(saved[STORAGE])).sort()).toEqual([...PERSISTED_KEYS].sort());

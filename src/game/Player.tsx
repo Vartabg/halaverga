@@ -80,7 +80,9 @@ export default function Player() {
       else if (runtime.landTarget) { runtime.landGoal = runtime.landTarget.clone().add(new Vector3(0, FOOT, 0)); landingStall.current = 0; useGame.setState({ landing: true }); }
       else useGame.setState({ message: 'Aim at a nearby flat rooftop or terrace to land.' });
     }
-    const mode = state.shooter ? moveMode(runtime.shooter) : 0, surge = runtime.surge || pointerFlight;
+    // PR #12: the one-finger 'simple' trackpad profile looks without thrusting; every other gesture still surges.
+    const gestureThrust = runtime.thumb.active || (runtime.trackpad.active && state.trackpadSteering !== 'simple');
+    const mode = state.shooter ? moveMode(runtime.shooter) : 0, surge = runtime.surge || gestureThrust;
     let v = runtime.landGoal ? landingVelocity(p, runtime.landGoal)
       : mode === 2 ? aimVelocity(runtime.velocity, intent, runtime.yaw, runtime.pitch, flying, dt)
       : mode === 1 ? hipVelocity(runtime.velocity, intent, runtime.yaw, runtime.pitch, flying, surge, dt)
