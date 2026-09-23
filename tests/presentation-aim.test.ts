@@ -1,5 +1,8 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { advanceFlightPose, angleDelta, FACING, settle, settleAngle, type Pose, type PoseInput } from '../src/game/presentation';
+import { createShooter, pressFire, releaseFire } from '../src/game/combat';
+import { advanceWeapon } from '../src/game/weapon';
+import { advanceFlightPose, aimDemand, angleDelta, FACING, settle, settleAngle, type Pose, type PoseInput } from '../src/game/presentation';
 const fresh = (): Pose => ({ viewYaw: 0, viewPitch: 0, yaw: 0, pitch: 0, lean: 0, bank: 0, speed: 0, flight: 0, power: 0, brake: 0, aim: 0 });
 const cruise = { yaw: 0, pitch: 0, speed: 34, velocity: { x: 0, y: 0, z: -34 }, flying: true, reduced: false };
 /** main's advanceFlightPose, verbatim: the shooter-off pose must match it bit for bit. */
@@ -86,5 +89,23 @@ describe('presentation with the shooter aim', () => {
     const p = fresh(); p.aim = .7;
     advanceFlightPose(p, cruise, 1 / 60); expect(p.aim).toBe(.7);
     advanceFlightPose(p, { ...cruise, aim: .3 }, 1 / 60); expect(p.aim).toBe(.3);
+  });
+  it('asks for full aim on the press frame itself: held fire or a pending press, with fireHold still 0', () => {
+    const s = createShooter();
+    expect(aimDemand(s)).toBe(0);
+    pressFire(s, 'click'); expect(s.aim.fireHold).toBe(0); expect(aimDemand(s)).toBe(1);
+    // A press released inside the same frame is still pending until the weapon handles it (at -25, after the presentation at -30).
+    releaseFire(s, 'click'); expect(s.input.fire).toBe(false); expect(aimDemand(s)).toBe(1);
+    advanceWeapon(s.weapon, false, s.input.pressSerial, 1 / 60); expect(aimDemand(s)).toBe(0);
+    // The locked weapon ignores a press outside the vent window, as the shooter step's pending rule does.
+    s.weapon.lock = 1; s.input.pressSerial++; expect(aimDemand(s)).toBe(0);
+    s.aim.blend = .3; s.aim.fireHold = .6; expect(aimDemand(s)).toBe(.6);
+    // The torso therefore squares up on the press frame: the body yaw moves toward the view that same frame.
+    const p = fresh(), q = fresh(), t = createShooter(); pressFire(t, 'touch');
+    advanceFlightPose(p, { ...cruise, speed: 0, velocity: { x: 0, y: 0, z: 0 }, flying: false, yaw: .25, aim: aimDemand(t), combat: true }, 1 / 60);
+    advanceFlightPose(q, { ...cruise, speed: 0, velocity: { x: 0, y: 0, z: 0 }, flying: false, yaw: .25, aim: t.aim.fireHold, combat: true }, 1 / 60);
+    expect(p.aim).toBe(1); expect(q.aim).toBe(0); expect(p.yaw).toBeGreaterThan(2 * q.yaw);
+    const src = readFileSync(new URL('../src/game/FlightPresentation.tsx', import.meta.url), 'utf8');
+    expect(src).toContain('state.shooter ? aimDemand(runtime.shooter) : 0');
   });
 });

@@ -1,5 +1,7 @@
-// Shooter orchestrator step (pure, landing-safe): one call per render frame from Shooter.tsx, after the flight presentation
-// and before the suit and camera. Idle (no input, no recent shot) leaves every feel channel at exactly 0 and casts no aim ray.
+// Shooter orchestrator step (pure, landing-safe): one call per render frame from Shooter.tsx (priority -25), after the flight
+// presentation and before the suit (-20), the cannon (-19) and the camera. Idle (no input, no recent shot) leaves every feel channel
+// at exactly 0 and casts no aim ray. Every per-shot channel (camera kick, cannon/body recoil, muzzle flash, tracer, crosshair pop,
+// voice) starts on the frame the shot fires; the burst counter (burst.ts) attenuates them from the 4th shot of a burst.
 import { HIP_HOLD, SHOT_RANGE, SNAP, aimHeld, engaged, mulberry32, pushEvent, readEvents, releaseFire,
   type ShooterState, type ShotEvent, type Vec3 } from './combat';
 import { adsStep, advanceCamFx } from './cameraFx';
@@ -8,12 +10,17 @@ import { advanceDrones, buildTargets, createDroneContext, type DroneSim } from '
 import { hitDrones, projectedStart, rayWater, type DroneHit } from './shotMath';
 import type { ShooterWorld, WorldHit } from './shotResolve';
 import { advanceSpread, advanceWeapon, spreadHalfAngle } from './weapon';
+import { advanceBurst, burst } from './burst';
 import { fireShot, muzzleFrom, realMuzzle, type AudioSink, type StepContext } from './shooterShots';
 export type { AudioSink, StepContext } from './shooterShots';
 export { NEAR_MISS } from './shooterShots';
 
-/** Seconds the hip-fire arm stays raised after a shot; it rises at 40/s and then lowers at rate 6. */
-export const ARM_HOLD = .8;
+/**
+ * Seconds the hip-fire arm stays raised after a shot. fireHold is exactly 1 on the press frame (held fire, or a pending press such
+ * as tapShot) and while a shot is younger than ARM_HOLD, so the cannon swings onto the crosshair on the frame it fires; then it
+ * decays as exp(-9 dt) (95% in 333 ms) and snaps to 0 under SNAP.
+ */
+export const ARM_HOLD = .8, ARM_LOWER = 9;
 export function createStepContext(): StepContext {
   return { dt: 0, paused: false, reduced: false, flying: false, speed: 0, player: { x: 0, y: 0, z: 0 }, head: { x: 0, y: 0, z: 0 },
     firstPerson: false, strength: 1, voiced: -1 };
@@ -69,16 +76,19 @@ export function stepShooter(s: ShooterState, sim: DroneSim, mem: AssistMemory, w
   if (input.fireSource === 'tap' && s.clock > input.tapFireUntil) releaseFire(s, 'tap');
   let count = s.drones.count, shotKind = '';
   if (a.valid) {
-    // c. Aim state. The arm rises on press and holds; the shot never waits for it.
+    // c. Aim state. fireHold is 1 from the press frame (the suit eases its arm weight and swings the barrel onto the line that
+    // frame); the shot never waits for it. A pending press is a new serial or a press the weapon is holding for its period.
     a.blend = adsStep(a.blend, aimHeld(s), dt, ctx.reduced);
-    if (input.fire || w.sinceShot < ARM_HOLD) a.fireHold = Math.min(1, a.fireHold + 40 * dt);
-    else { a.fireHold *= Math.exp(-6 * dt); if (a.fireHold < SNAP) a.fireHold = 0; }
+    const pending = w.lock === 0 && (input.pressSerial !== w.handledPress || w.pending);
+    if (input.fire || pending || w.sinceShot < ARM_HOLD) a.fireHold = 1;
+    else { a.fireHold *= Math.exp(-ARM_LOWER * dt); if (a.fireHold < SNAP) a.fireHold = 0; }
     a.combat = a.blend > .05 || input.fire || w.sinceShot < HIP_HOLD;
     // d. Weapon.
     // This frame's shots use the cone from before they fire (a rested, still ADS first shot is exact); the HUD then sees the bloom.
     advanceSpread(w, a.blend, ctx.speed, dt);
     a.spreadHalf = spreadHalfAngle(w, a.blend, ctx.speed);
     const n = advanceWeapon(w, input.fire, input.pressSerial, dt);
+    advanceBurst(burst, s, n);
     if (w.justOverheated) {
       pushEvent(s, 'overheat', muzzleFrom(s, ctx, a.dir), a.origin, null); audio('overheat', 0, 1, 0); releaseFire(s, 'tap');
     }

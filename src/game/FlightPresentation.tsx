@@ -3,7 +3,7 @@ import { useFrame } from '@react-three/fiber';
 import { Vector3 } from 'three';
 import { setVec } from './motion';
 import { runtime } from './runtime';
-import { presentation as pose, advanceFlightPose, type PoseInput } from './presentation';
+import { presentation as pose, advanceFlightPose, aimDemand, type PoseInput } from './presentation';
 import { useGame } from './store';
 const rendered = new Vector3();
 export default function FlightPresentation() {
@@ -32,7 +32,8 @@ export default function FlightPresentation() {
     target.yaw = runtime.yaw; target.pitch = runtime.pitch; target.speed = runtime.speed;
     target.flying = state.flying; target.reduced = state.reduced;
     const aim = runtime.shooter.aim;
-    target.aim = state.shooter ? Math.max(aim.blend, aim.fireHold) : 0;
+    // This frame's fire input counts, so the torso squares up on the press frame (the shooter step runs after this, at -25).
+    target.aim = state.shooter ? aimDemand(runtime.shooter) : 0;
     target.combat = state.shooter && aim.combat;
     advanceFlightPose(pose, target, dt);
   }, -30);

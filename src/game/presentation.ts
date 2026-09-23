@@ -1,5 +1,6 @@
 import type { Object3D } from 'three';
 import type { Vec } from './motion';
+import type { ShooterState } from './combat';
 // Telemetry reads this on the landing page, so vectors stay plain objects and three.js is imported for types only.
 export const presentation = {
   anchor: null as Object3D | null, position: { x: 0, y: 0, z: 0 },
@@ -26,6 +27,15 @@ export function settleAngle(value: number, target: number, rate: number, dt: num
   return value + angleDelta(value, target) * (1 - Math.exp(-rate * Math.min(dt, .05)));
 }
 
+/**
+ * The body aim weight FlightPresentation (-30) passes on: the ADS blend, the hip-fire hold, or 1 when this frame's input fires (held
+ * fire, or a press the unlocked weapon has not handled yet, as the shooter step's own pending rule). The shooter step (-25) raises fireHold later in the same frame, so reading the input
+ * here turns the torso on the press frame instead of the next one.
+ */
+export function aimDemand(s: Pick<ShooterState, 'aim' | 'input' | 'weapon'>) {
+  const pressed = s.input.fire || (s.weapon.lock === 0 && s.input.pressSerial !== s.weapon.handledPress);
+  return Math.max(s.aim.blend, s.aim.fireHold, pressed ? 1 : 0);
+}
 export type Pose = Pick<typeof presentation, 'viewYaw' | 'viewPitch' | 'yaw' | 'pitch' | 'lean' | 'bank' | 'speed' | 'flight' | 'power' | 'brake'> & { aim?: number };
 /** `aim`: body aim weight 0..1 (squares the chest to the crosshair); `combat`: the view settles faster while shooting. */
 export type PoseInput = { yaw: number; pitch: number; speed: number; velocity: Vec; flying: boolean; reduced: boolean; aim?: number; combat?: boolean };

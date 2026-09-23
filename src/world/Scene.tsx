@@ -16,6 +16,7 @@ import Boundary from '@/ui/Boundary';
 import Drones from './Drones';
 import ShotFx from './ShotFx';
 import ImpactFx from './ImpactFx';
+import ArmCannon from './ArmCannon';
 import { useGame } from '@/game/store';
 import { clearInput } from '@/game/runtime';
 import EnvironmentLight from './EnvironmentLight';
@@ -29,10 +30,12 @@ function GraphicsRecovery({ onLoss }: { onLoss: () => void }) {
   }, [gl, invalidate, onLoss]);
   return null;
 }
-/** The suit blaster and rogue drones, mounted only while the setting is on. A render error turns the blaster off; flight continues. */
+/** The suit blaster, its arm cannon and the rogue drones, mounted only while the setting is on (so arm-cannon.glb is fetched only
+ * then). A render or load error turns the blaster off; flight continues. */
 function ShooterLayer() {
   const shooter = useGame(s => s.shooter);
-  return shooter ? <Boundary fallback={null} onError={() => shooterFault('render', null)}><Shooter /><Drones /><ShotFx /><ImpactFx /></Boundary> : null;
+  return shooter ? <Boundary fallback={null} onError={() => shooterFault('render', null)}><Shooter /><Drones /><ShotFx /><ImpactFx />
+    <Suspense fallback={null}><ArmCannon /></Suspense></Boundary> : null;
 }
 export default function Scene({ onLoss }: { onLoss: () => void }) {
   const paused = useGame(s => s.paused), quality = useGame(s => s.quality);

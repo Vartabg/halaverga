@@ -2,8 +2,9 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { EVENT_RING, WATER_LEVEL, createShooter, flashGate, mulberry32, pushEvent, readEvents, type ShotEvent } from '../src/game/combat';
 import {
-  claim, debrisAt, drawSparks, impactDelay, isShotKind, lobeDir, makePuffs, makeSparks, puffFrame, puffU, spawnPuff, spawnSpark,
-  tracerSpan, tracerSpeed, tracerWidth, waterContactTime,
+  CLEAR_PX, CORE_FLOOR_PX, DRIFT_TAU, PUFF, STEAM_GAP, STEAM_PUFFS, claim, debrisAt, drawSparks, haloAlpha, haloClampPx, impactDelay, isShotKind,
+  lobeDir, makePuffs, makeSparks, makeSteam, puffFrame, puffU, sparkParams, sparkReach, spawnPuff, spawnSpark, startSteam, stepSteam,
+  tracerOrigin, tracerSpan, tracerSpeed, tracerWidth, waterContactTime, FIRST_FRAME,
 } from '../src/world/fxPools';
 const O = { x: 0, y: 0, z: 0 };
 const span = { head: 0, tail: 0, alive: false };
@@ -38,6 +39,16 @@ describe('tracers', () => {
     expect(tracerSpan(.02, d, span)).toMatchObject({ alive: true });
     expect(span.tail).toBeCloseTo(d * (.02 / life) ** 2, 9);
     expect(tracerSpan(life / 2, d, span).tail).toBeCloseTo(d / 4, 9);
+  });
+  it('draw from the muzzle on the shot frame: tail 0, head one 60 Hz frame of flight out (never a zero-length first frame)', () => {
+    for (const d of [.5, 12, 70, 250]) {
+      const first = tracerSpan(0, d, { head: 0, tail: 0, alive: false }, true);
+      expect(first.tail).toBe(0); expect(first.alive).toBe(true); expect(first.fade).toBe(1);
+      expect(first.head).toBeCloseTo(Math.min(d, tracerSpeed(d) * FIRST_FRAME), 9); expect(first.head).toBeGreaterThan(0);
+      // A late first frame keeps its own (longer) head but still starts at the muzzle.
+      const late = tracerSpan(.03, d, { head: 0, tail: 0, alive: false }, true);
+      expect(late.tail).toBe(0); expect(late.head).toBeCloseTo(Math.min(d, tracerSpeed(d) * .03), 9);
+    }
   });
   it('are at least .05 m and exactly 1.5 px at long range', () => {
     for (const d of [0, .5, 3, 10, 40, 120, 250]) for (const fov of [50, 65]) for (const h of [320, 800, 1440]) {
@@ -153,5 +164,112 @@ describe('source guard', () => {
   it('the effect modules never call Math.random', () => {
     for (const f of ['ShotFx.tsx', 'ImpactFx.tsx', 'fxPools.ts', 'fxMaterials.ts'])
       expect(readFileSync(new URL('../src/world/' + f, import.meta.url), 'utf8')).not.toContain('Math.random');
+  });
+});
+
+describe('cannon-synced muzzle effects', () => {
+  const shot = (t: number) => {
+    const s = createShooter(); s.clock = t;
+    pushEvent(s, 'miss', { x: 1, y: 2, z: 3 }, { x: 1, y: 2, z: -47 }, null); return s.events[0];
+  };
+  const org = { from: { x: 0, y: 0, z: 0 }, dir: { x: 0, y: 0, z: 0 }, dist: 0 };
+  it('starts a same-frame tracer at the live kicked muzzle and points it at the shot point', () => {
+    const e = shot(2), fx = { x: 1.3, y: 2.4, z: 2.2, valid: true };
+    expect(tracerOrigin(e, 2, fx, org)).toBe(true);
+    for (const k of ['x', 'y', 'z'] as const) expect(Math.abs(org.from[k] - fx[k])).toBeLessThan(1e-9);
+    const d = Math.hypot(e.point.x - fx.x, e.point.y - fx.y, e.point.z - fx.z);
+    expect(org.dist).toBeCloseTo(d, 12);
+    for (const k of ['x', 'y', 'z'] as const) expect(fx[k] + org.dir[k] * org.dist).toBeCloseTo(e.point[k], 9);
+    expect(org.from).not.toBe(fx);
+  });
+  it('falls back to the event origin for older events or an invalid muzzle', () => {
+    const e = shot(2);
+    for (const [clock, valid] of [[2.016, true], [2, false]] as const) {
+      expect(tracerOrigin(e, clock, { x: 9, y: 9, z: 9, valid }, org)).toBe(true);
+      expect(org.from).toEqual(e.from); expect(org.dist).toBeCloseTo(50, 12); expect(org.dir).toEqual({ x: 0, y: 0, z: -1 });
+    }
+    const z = shot(0); z.point.x = z.from.x; z.point.y = z.from.y; z.point.z = z.from.z;
+    expect(tracerOrigin(z, 1, { x: 0, y: 0, z: 0, valid: false }, org)).toBe(false);
+  });
+  it('keeps the halo edge 40 px off screen centre, never above its size, never below the core floor', () => {
+    for (let dx = -400; dx <= 400; dx += 3.5) for (const halo of [40, 80, 200]) for (const core of [8, 16, 36]) {
+      const r = haloClampPx(dx, halo, core), floor = Math.min(core, CORE_FLOOR_PX);
+      expect(r).toBeLessThanOrEqual(halo); expect(r).toBeGreaterThanOrEqual(floor);
+      if (r > floor) expect(Math.abs(dx) - r / 2).toBeGreaterThanOrEqual(CLEAR_PX - 1e-9);
+    }
+    expect(haloClampPx(200, 80, 36)).toBe(80); expect(haloClampPx(Infinity, 80, 36)).toBe(80);
+    expect(haloClampPx(60, 80, 36)).toBe(40); expect(haloClampPx(-60, 80, 36)).toBe(40); expect(haloClampPx(10, 80, 36)).toBe(16);
+  });
+  it('draws touch and tap tracers at least 2 px wide', () => {
+    for (const d of [3, 10, 40, 120, 250]) for (const fov of [50, 65]) for (const h of [390, 844]) {
+      expect(tracerWidth(d, fov, h, 2) / pxAt(d, fov, h)).toBeGreaterThanOrEqual(2 - 1e-9);
+      expect(tracerWidth(d, fov, h, 2)).toBeGreaterThanOrEqual(tracerWidth(d, fov, h));
+    }
+    expect(tracerWidth(200, 65, 844, 2) / pxAt(200, 65, 844)).toBeCloseTo(2, 9);
+  });
+  it('dims the halo from the 4th shot of a burst', () => {
+    expect([0, 1, 2, 3, 4, 20].map(haloAlpha)).toEqual([.45, .45, .45, .3, .3, .3]);
+  });
+  it('vents steam from the vent mouth once it is valid, first puff 40 ms after the overheat, 40 ms apart', () => {
+    const p = makePuffs(STEAM_PUFFS), q = makeSteam(), rng = mulberry32(5), c = { r: 1, g: 1, b: 1 };
+    const vent = { x: 3, y: 4, z: 5, valid: false }, muzzle = { x: 0, y: 0, z: 0 };
+    expect(stepSteam(q, 10, vent, muzzle, rng, p, c)).toBe(0);
+    startSteam(q, 10);
+    expect(stepSteam(q, 10.039, vent, muzzle, rng, p, c)).toBe(0);
+    vent.valid = true;
+    expect(stepSteam(q, 10.04, vent, muzzle, rng, p, c)).toBe(1);
+    expect(p.d[0]).toBeCloseTo(10.04, 12);
+    expect(Math.hypot(p.d[2] - 3, p.d[3] - 4, p.d[4] - 5)).toBeLessThan(.06);
+    expect(stepSteam(q, 10.5, vent, muzzle, rng, p, c)).toBe(STEAM_PUFFS - 1);
+    for (let k = 0; k < STEAM_PUFFS; k++) {
+      expect(p.d[k * PUFF]).toBeCloseTo(10.04 + k * STEAM_GAP, 12);
+      expect(Math.hypot(p.d[k * PUFF + 2] - 3, p.d[k * PUFF + 3] - 4, p.d[k * PUFF + 4] - 5)).toBeLessThan(.06);
+    }
+    expect(stepSteam(q, 11, vent, muzzle, rng, p, c)).toBe(0);
+    // Small wisps: each puff grows to at most .22 m, rises .1 m/s, jets at most .12 m out of the hatch and lives .5 s, so it stays
+    // within about .3 m of the hatch.
+    const reach = (o: number, d: Float64Array) => d[o + 5] * d[o + 1] + Math.hypot(d[o + 17], d[o + 18], d[o + 19]) * DRIFT_TAU + d[o + 7] / 2;
+    for (let k = 0; k < STEAM_PUFFS; k++) {
+      const o = k * PUFF, d = p.d;
+      expect(d[o + 1]).toBeLessThanOrEqual(.5); expect(d[o + 7]).toBeLessThanOrEqual(.22); expect(d[o + 15]).toBeLessThanOrEqual(.3);
+      expect(reach(o, d)).toBeLessThanOrEqual(.3);
+    }
+    // With the vent direction, every puff jets along it (so it leaves the hatch sideways, not up the barrel) and drifts there.
+    const dir = { x: 0, y: 0, z: 1 }, pos = { x: 0, y: 0, z: 0 }, col = { r: 0, g: 0, b: 0 }, size = { x: 0, y: 0 };
+    startSteam(q, 30); vent.valid = true; stepSteam(q, 31, vent, muzzle, rng, p, c, dir);
+    for (let k = 0; k < STEAM_PUFFS; k++) {
+      const o = k * PUFF, d = p.d;
+      expect(d[o + 19]).toBeGreaterThan(.8); expect(Math.hypot(d[o + 17], d[o + 18])).toBe(0); expect(reach(o, d)).toBeLessThanOrEqual(.3);
+      puffFrame(p, k, .5, pos, col, size); expect(pos.z - d[o + 4]).toBeGreaterThan(.1);
+    }
+    // Hatch not open (vent invalid): the muzzle is the fallback.
+    startSteam(q, 20); vent.valid = false; stepSteam(q, 20.04, vent, muzzle, rng, p, c);
+    expect(Math.hypot(p.d[2], p.d[3], p.d[4])).toBeLessThan(.1);
+  });
+  it('keeps non-kill sparks within 1.35 m; the kill burst keeps its spray', () => {
+    const out = { speed: 0, life: 0 };
+    let reach = 0, kill = 0;
+    for (let i = 0; i <= 20; i++) for (let j = 0; j <= 20; j++) {
+      sparkParams(i / 20, j / 20, false, out); reach = Math.max(reach, sparkReach(out.speed, out.life));
+      expect(out.speed).toBeGreaterThan(0); expect(out.life).toBeGreaterThan(0);
+      sparkParams(i / 20, j / 20, true, out); kill = Math.max(kill, sparkReach(out.speed, out.life));
+    }
+    expect(reach).toBeLessThanOrEqual(1.35); expect(kill).toBeGreaterThan(1.35);
+    // The bound holds for real ballistic sparks at the worst case, in any direction.
+    const sp = makeSparks(1), pos = new Float32Array(3), col = new Float32Array(3), w = { r: 1, g: 1, b: 1 };
+    sparkParams(.999999, .999999, false, out);
+    for (const d of [{ x: 1, y: 0, z: 0 }, { x: 0, y: -1, z: 0 }, { x: 0, y: 1, z: 0 }]) {
+      spawnSpark(sp, 0, O, d, out.speed, out.life); drawSparks(sp, out.life - 1e-6, pos, col, w, w);
+      expect(Math.hypot(pos[0], pos[1], pos[2])).toBeLessThanOrEqual(1.35);
+    }
+  });
+  it('wires the helpers into the effect components', () => {
+    const shotFx = readFileSync(new URL('../src/world/ShotFx.tsx', import.meta.url), 'utf8');
+    const impact = readFileSync(new URL('../src/world/ImpactFx.tsx', import.meta.url), 'utf8');
+    expect(shotFx).toMatch(/tracerOrigin\(e, clock, cannonLink\.fxMuzzle, org\)/);
+    expect(shotFx).toMatch(/cannonLink\.fxMuzzle\.valid \? cannonLink\.fxMuzzle : runtime\.shooter\.muzzle\.valid/);
+    expect(shotFx).toMatch(/stepSteam\(steamQ, t, cannonLink\.ventMouth/); expect(shotFx).toMatch(/tracerSpan\(t - tr\[o\], dist, span, live\[i\] === 2\)/); expect(shotFx).toMatch(/haloAlpha\(eventBurstIndex\(e\.serial\)\)/);
+    expect(impact).toMatch(/sparkParams\(rng\(\), rng\(\), kill, spark\)/);
+    for (const src of [shotFx, impact]) expect(src.split('\n').length).toBeLessThan(200);
   });
 });

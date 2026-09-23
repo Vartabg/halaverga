@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { useFrame, useLoader } from '@react-three/fiber';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import type { PerspectiveCamera } from 'three';
 import { presentation as pose } from '@/game/presentation';
 import { runtime } from '@/game/runtime';
 import { useGame } from '@/game/store';
@@ -10,19 +11,17 @@ import { advanceSuitAnimation, applySuitAnimation, createSuitAnimation } from '.
 import { advanceFlightMix, createFlightMix } from './flightMix';
 import { applyFlightClips } from './flightPose';
 import { advanceSuitRoll, createSuitRoll, speedFade } from './suitRoll';
-import { advanceSuitAim, applySuitAim, createSuitAim } from './aimPose';
-import { buildFistMorph, clearFist, setFist, type FistMorph } from './fistMorph';
+import { createBlasterFrame, releaseSuitBlaster, stepSuitBlaster } from './suitBlaster';
 export const SUIT_URL = '/models/suit.glb';
 const input = { flying: false, landing: false, paused: true, reduced: false, velocity: runtime.velocity, turn: runtime.turn };
 export default function Suit() {
   const motion = useRef({ hero: 1, epoch: -1 }), animation = useRef(createSuitAnimation()), flight = useRef(createFlightMix()), turn = useRef(createSuitRoll());
-  const aim = useRef(createSuitAim());
   const asset = useLoader(GLTFLoader, SUIT_URL);
   const rig = useMemo(() => buildSuitRig(asset.scene), [asset]);
-  // The blaster fist morph, built the first time the blaster is on (undefined until then, null on a rig without a hand).
-  const fist = useMemo(() => ({ morph: undefined as FistMorph | null | undefined }), [rig]);
-  useEffect(() => () => rig.dispose(), [rig]);
-  useFrame((_, dt) => {
+  // The blaster block's per-frame inputs (suitBlaster.ts), rewritten in place each frame.
+  const blaster = useMemo(() => createBlasterFrame(rig, runtime.shooter), [rig]);
+  useEffect(() => () => { releaseSuitBlaster(blaster); rig.dispose(); }, [rig, blaster]);
+  useFrame((three, dt) => {
     const state = useGame.getState(), m = motion.current, life = animation.current, mix = flight.current;
     if (m.epoch !== pose.epoch) Object.assign(m, { epoch: pose.epoch, hero: state.heroPoses ? 1 : 0 });
     if (!state.paused) advanceSuitMotion(m, state.heroPoses, dt);
@@ -39,14 +38,12 @@ export default function Suit() {
     const authored = applyFlightClips(rig.joints, mix, pose, life, m.hero, state.reduced);
     // Visual only: the lift lowers or bobs the model, never the anchor the camera and physics share.
     rig.root.position.y += applySuitAnimation(rig.joints, life, pose, state.reduced, m.hero, authored);
-    // The blaster arm layers over everything (chase view only); otherwise the muzzle is invalid and shots use a virtual one.
-    const sh = runtime.shooter, on = state.shooter && state.camera === 'third';
-    advanceSuitAim(aim.current, pose.epoch, on ? Math.max(sh.aim.blend, sh.aim.fireHold) : 0, sh.aim.origin, sh.aim.point, sh.weapon.shots, state.paused, state.reduced, dt);
-    if (on) applySuitAim(rig.joints, rig.root, aim.current, sh.aim.origin, sh.aim.dir, sh.muzzle);
-    else { sh.muzzle.valid = false; sh.muzzle.weight = 0; }
-    // The hand closes into a fist with the aim layer; with the blaster off the morph is detached and the mesh is main's.
-    if (state.shooter) { if (fist.morph === undefined) fist.morph = buildFistMorph(rig.root); if (fist.morph) setFist(fist.morph, aim.current.weight); }
-    else if (fist.morph) clearFist(fist.morph);
+    // The blaster (arm cannon, carry and aim, whole-body shot choreography, hand hide) layers over everything, in one guarded block.
+    const f = blaster, cam = three.camera as PerspectiveCamera;
+    f.on = state.shooter; f.third = state.camera === 'third'; f.paused = state.paused; f.reduced = state.reduced; f.epoch = pose.epoch;
+    f.flight = pose.flight; f.speed = pose.speed; f.ground = life.ground; f.fov = cam.fov ?? 65; f.height = three.size.height;
+    f.camera.x = cam.position.x; f.camera.y = cam.position.y; f.camera.z = cam.position.z;
+    stepSuitBlaster(f, dt);
     pose.suitClip = mix.label; pose.suitRoll = roll;
   }, -20);
   return <primitive object={rig.root} dispose={null} />;

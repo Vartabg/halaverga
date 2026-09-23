@@ -17,7 +17,7 @@ The local Playwright configuration uses system Chrome on macOS, never Chrome for
 - Aim toward a flat surface to reveal its landing ring, release, then tap Land. New flight input cancels landing. The active flight surface owns touch gestures; pause or open the Field guide to use native pinch zoom. The page has no zoom-limit metadata. Game controls suppress selection and long-press callouts; the guide remains selectable.
 - Field guide offers the same discovery as readable text. Settings include perspective, graphics, reduced camera motion, audio, reset, a local timing-report download, and a QR handoff to the deployed build with its build stamp.
 - Optional tap controls provide short directional movements and separate view buttons without dragging. They are hidden by default to keep the scene clear.
-- Suit blaster (on by default; plan in [docs/plans/2026-09-22-shooter.md](docs/plans/2026-09-22-shooter.md)): rogue drones to shoot, with controls per device. Turn it off in Flight settings, or add `?shooter=0` (or `?shooter=1`) to the URL for one session.
+- Suit blaster (on by default; plan in [docs/plans/2026-09-22-shooter.md](docs/plans/2026-09-22-shooter.md)): rogue drones to shoot, with controls per device. Turn it off in Flight settings, or add `?shooter=0` (or `?shooter=1`) to the URL for one session. While it is on, the explorer's right hand is an arm cannon (original model, `scripts/arm_cannon/build.py`; records in [docs/art/arm-cannon](docs/art/arm-cannon/README.md)), carried low and snapped onto the crosshair when you fire; with it off the explorer is exactly as on main.
 
 ## Architecture and original assets
 

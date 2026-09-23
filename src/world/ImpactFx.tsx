@@ -7,7 +7,7 @@ import { guarded } from '@/game/shooterFault';
 import { runtime } from '@/game/runtime';
 import { useGame } from '@/game/store';
 import { CURVE_FLAT, CURVE_HOLD, claim, debrisAt, drawSparks, impactDelay, isShotKind, lobeDir, makePuffs, makeSparks, puffFrame, puffU,
-  spawnPuff, spawnSpark, waterContactTime, type Ring } from './fxPools';
+  sparkParams, spawnPuff, spawnSpark, waterContactTime, type Ring } from './fxPools';
 import { FX, commit, debrisPool, disposePool, drawPuffs, fxKit, place, retainFx, ringPool, sparkMinPx, sparkPool, spritePool, tint } from './fxMaterials';
 // ALPHA holds the kill plume (6 x 1.8 s) beside up to 8 broken-drone smoke trails (about 6 live puffs each) without evicting them.
 const SPARKS = 128, ADD = 24, ALPHA = 48, RINGS = 8, DEBRIS = 32, DB = 17, PD = 10, UP = { x: 0, y: 1, z: 0 }, HEAT_T = .6;
@@ -26,9 +26,13 @@ function createImpactFx() {
   const smokeAt = new Float64Array(MAX_DRONES), sparkAt = new Float64Array(MAX_DRONES), rng = mulberry32(0x1a2b3c);
   const cursor = { last: runtime.shooter.eventSerial }, p = { x: 0, y: 0, z: 0 }, n = { x: 0, y: 1, z: 0 }, dir = { x: 0, y: 0, z: 0 };
   const v = { x: 0, y: 0, z: 0 }, at = { x: 0, y: 0, z: 0 }, pos = { x: 0, y: 0, z: 0 }, col = { r: 0, g: 0, b: 0 }, size = { x: 0, y: 0 };
+  const spark = { speed: 0, life: 0 };
   let reduced = false, t = 0;
-  const burstSparks = (c: Vec3, nrm: Vec3, count: number) => {
-    for (let k = 0; k < count; k++) spawnSpark(sp, t, c, lobeDir(nrm, rng(), rng(), dir), 4 + 5 * rng(), .15 + .1 * rng());
+  /** Non-kill sparks reach at most 1.35 m, so they stay tight around the impact (the aim zone); the kill burst keeps its spray. */
+  const burstSparks = (c: Vec3, nrm: Vec3, count: number, kill = false) => {
+    for (let k = 0; k < count; k++) {
+      lobeDir(nrm, rng(), rng(), dir); sparkParams(rng(), rng(), kill, spark); spawnSpark(sp, t, c, dir, spark.speed, spark.life);
+    }
   };
   const ring = (x: number, z: number, when: number) => {
     at.x = x; at.y = WATER_LEVEL + .02; at.z = z; spawnPuff(ringP, when, at, 0, .8, .2, 1.6, 1, FX.water, FX.water, .8);
@@ -47,7 +51,7 @@ function createImpactFx() {
       spawnPuff(addP, t, at, 0, .3, .2, .26, 2.4, FX.water, FX.water, .9); ring(c.x, c.z, t);
       return;
     }
-    burstSparks(c, nrm, reduced ? 4 : 6 + Math.floor(rng() * 5));
+    burstSparks(c, nrm, reduced ? 4 : 6 + Math.floor(rng() * 5), kind === 'kill');
     if (kind === 'hit' || kind === 'weak' || kind === 'kill')
       spawnPuff(addP, t, c, 0, .12, .35, .6, 1, kind === 'weak' ? FX.amber : FX.core, FX.spark, .8);
   };
@@ -62,7 +66,7 @@ function createImpactFx() {
       spawnPuff(addP, t, c, 0, .15, .6, 1.4, 1, FX.pop, FX.flame, 1, CURVE_HOLD);
       spawnPuff(addP, t, c, 0, .2, 1.2, 2.6, 1, FX.flame, FX.blaze, 1, CURVE_HOLD);
       spawnPuff(addP, t + .12, c, 0, .3, 2.4, 3.5, 1, FX.blaze, FX.ember, .9, CURVE_HOLD);
-      burstSparks(c, UP, reduced ? 6 : 20 + Math.floor(rng() * 9));
+      burstSparks(c, UP, reduced ? 6 : 20 + Math.floor(rng() * 9), true);
       // A pale plume that starts 80 ms after the pop, rises and spreads (reduced motion: two still puffs).
       for (let k = 0, n = reduced ? 2 : 6; k < n; k++) {
         at.x = c.x + (rng() - .5) * .6; at.y = c.y + (rng() - .5) * .4; at.z = c.z + (rng() - .5) * .6;

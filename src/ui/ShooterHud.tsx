@@ -2,7 +2,9 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { HEAT, readEvents, type ShotEvent } from '@/game/combat';
 import { runtime } from '@/game/runtime';
+import { lastShotIndex } from '@/game/burst';
 import { guarded } from '@/game/shooterFault';
+import { cannonLink } from '@/world/cannonContract';
 import { useGame } from '@/game/store';
 import { MARKER_T, chainLabel, controlsHint, crossScale, crosshairRadius, heatColor, markerState, pipAngle, ventState, type Marker, type MarkerKind } from './hudTimeline';
 import styles from './ShooterHud.module.css';
@@ -59,7 +61,7 @@ export default function ShooterHud() {
       readEvents(s, cursor, onEvent);
       const r = Math.round(crosshairRadius(a.spreadHalf, a.fov, innerHeight, a.acquired) * 10) / 10;
       if (r !== lr) { lr = r; el.style.setProperty('--r', r + 'px'); }
-      const pop = crossScale(w.sinceShot, reduced);
+      const pop = crossScale(w.sinceShot, reduced, lastShotIndex());
       if (pop !== lpop) { lpop = pop; crossEl.style.scale = String(pop); }
       if (a.acquired !== lacq) { lacq = a.acquired; crossEl.dataset.acquired = String(lacq); }
       if (a.blocked !== lblocked) { lblocked = a.blocked; crossEl.dataset.blocked = String(lblocked); }
@@ -103,6 +105,8 @@ export default function ShooterHud() {
       const d = el.dataset, st = s.stats, a = s.aim, w = s.weapon;
       d.shots = String(st.shots); d.hits = String(st.hits); d.kills = String(st.kills); d.aiming = String(a.blend > .5);
       d.heat = String(Math.round(w.heat / HEAT.max * 100)); d.locked = String(w.lock > 0); d.acquired = String(a.acquired); d.fov = a.fov.toFixed(1);
+      // The arm cannon for the browser specs: none, ready (parented, hand still shown) or shown (hand hidden, cannon drawn).
+      d.cannon = cannonLink.ready ? cannonLink.handHidden ? 'shown' : 'ready' : 'none';
     };
     stamp();
     const timer = setInterval(stamp, 100);
@@ -111,12 +115,12 @@ export default function ShooterHud() {
   return <>
     <div ref={root} className={styles.hud} aria-hidden="true" data-testid="shooter-hud">
       <svg ref={heat} className={styles.heat} viewBox="0 0 50 50" style={{ opacity: 0 }}>
-        <g transform="rotate(135 25 25)" fill="none" strokeWidth="3">
+        <g transform="rotate(135 25 25)" fill="none" strokeWidth="1.5">
           <circle className={styles.track} cx="25" cy="25" r="22" strokeDasharray={`${ARC} ${C}`} />
           <circle ref={fill} cx="25" cy="25" r="22" stroke="#58e1ff" strokeDasharray={`0 ${C}`} />
           <g ref={vent} className={styles.vent} style={{ opacity: 0 }}>
             <circle className={styles.window} cx="25" cy="25" r="22" strokeDasharray={WINDOW_DASH} />
-            <circle ref={sweep} className={styles.sweep} cx="25" cy="25" r="22" strokeWidth="5" strokeDasharray={`0 ${C}`} />
+            <circle ref={sweep} className={styles.sweep} cx="25" cy="25" r="22" strokeWidth="2.5" strokeDasharray={`0 ${C}`} />
           </g>
         </g>
       </svg>

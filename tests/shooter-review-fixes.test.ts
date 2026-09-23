@@ -13,6 +13,10 @@ describe('HUD', () => {
     expect(crossScale(0, true)).toBe(1); expect(crossScale(.05, true)).toBe(1);
     expect(crossScale(0, false)).toBe(1.12); expect(crossScale(Infinity, false)).toBe(1);
   });
+  it('attenuates the pop to 1.06 from the 4th shot of a burst (index 3), and keeps it exactly 1 under reduced motion', () => {
+    expect(crossScale(0, false, 2)).toBe(1.12); expect(crossScale(0, false, 3)).toBe(1.06);
+    expect(crossScale(0, true, 0)).toBe(1); expect(crossScale(0, true, 3)).toBe(1);
+  });
   it('draws the kill as an unrotated, larger X that lasts 450 ms; other markers keep their timing', () => {
     expect(markerState('kill', .1, false)).toMatchObject({ visible: true, scale: 1.15, rotate: 0, opacity: 1 });
     expect(markerState('kill', .4, false).visible).toBe(true);

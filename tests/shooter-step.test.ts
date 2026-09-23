@@ -3,12 +3,13 @@ import { readFileSync } from 'node:fs';
 import { lookGain, moveMode, pressAim, pressFire, releaseAim, releaseFire, resetShooterFeel, tapShot, type ShooterState, type Vec3 } from '../src/game/combat';
 import { createAssistMemory } from '../src/game/aimAssist';
 import { createDroneSim, type DroneSim } from '../src/game/drones';
-import { createStepContext, droneContext, stepShooter, type AudioSink, type StepContext } from '../src/game/shooterStep';
+import { ARM_HOLD, createStepContext, droneContext, stepShooter, type AudioSink, type StepContext } from '../src/game/shooterStep';
+import { SHOT_GAIN_LATE, burst, resetBurst } from '../src/game/burst';
 import { runtime } from '../src/game/runtime';
 import { clearShooterFault, guarded } from '../src/game/shooterFault';
 import { useGame } from '../src/game/store';
 import { PHASE, createShooter } from '../src/game/combat';
-afterEach(() => { clearShooterFault(); vi.restoreAllMocks(); });
+afterEach(() => { clearShooterFault(); vi.restoreAllMocks(); resetBurst(); });
 /** Stub Rapier queries: a wall `wall` m along every shot ray (or none) and clear sight lines. Counts castShot calls. */
 function stubWorld(wall = Infinity) {
   const w = { casts: 0, castShot: (_o: Vec3, d: Vec3, maxT: number, out: { t: number; normal: Vec3 }) => {
@@ -69,8 +70,9 @@ describe('shooter step', () => {
     });
     expect(counts[0]).toBeGreaterThanOrEqual(18); expect(new Set(counts).size).toBe(1);
   });
-  it('kicks the camera per shot, never under reduced motion', () => {
-    const r = rig(); tapShot(r.s); step(r); expect(r.s.camFx.kickPv).toBeGreaterThan(0); expect(r.s.camFx.fovShotV).toBeGreaterThan(0);
+  it('kicks the camera per shot, never under reduced motion, and never punches the FOV', () => {
+    const r = rig(); tapShot(r.s); step(r); expect(r.s.camFx.kickPv).toBeGreaterThan(0);
+    pressFire(r.s, 'click'); for (let i = 0; i < 60; i++) { step(r); expect([r.s.camFx.fovShot, r.s.camFx.fovShotV]).toEqual([0, 0]); }
     const q = rig(); q.ctx.reduced = true; tapShot(q.s); step(q);
     expect(q.s.stats.shots).toBe(1); expect(Object.values(q.s.camFx).every(v => v === 0)).toBe(true);
   });
@@ -84,6 +86,8 @@ describe('shooter step', () => {
     const e = r.s.events[(r.s.eventSerial - 1) % 16].kind === 'kill' ? r.s.events[(r.s.eventSerial - 1) % 16] : r.s.events.find(v => v.kind === 'kill')!;
     const p = e.point, d = Math.hypot(p.x - ORIGIN.x, p.y - ORIGIN.y, p.z - ORIGIN.z);
     expect(r.s.camFx.trauma).toBeCloseTo(.45 * (1 - d / 20) - 1 / 60, 12);
+    // No FOV punch on shots or kills: only the kill's small rotational shake.
+    for (const k of ['fovShot', 'fovShotV', 'fovKill', 'fovKillV'] as const) expect(r.s.camFx[k]).toBe(0);
     expect(r.s.targets[0].alive).toBe(false); expect(r.played).toContain('kill');
   });
   it('grants a magnetised body hit near the edge for touch but not for mouse', () => {
@@ -157,6 +161,35 @@ describe('shooter step', () => {
     // The held glyph still follows a real block within one frame.
     r.world.castShot = (o, d, maxT, out) => { r.world.casts++; out.t = o === m ? 2 : 40; out.normal.x = -d.x; out.normal.y = -d.y; out.normal.z = -d.z; return out.t < maxT; };
     step(r, 2); expect(r.s.aim.blocked).toBe(true);
+  });
+  it('raises the arm fully on the press frame, holds it for ARM_HOLD, then lowers it 95% in 333 ms', () => {
+    const r = rig(); pressFire(r.s, 'click'); step(r); expect(r.s.aim.fireHold).toBe(1);
+    const q = rig(); tapShot(q.s); step(q); expect(q.s.stats.shots).toBe(1); expect(q.s.aim.fireHold).toBe(1);
+    while (q.s.weapon.sinceShot < ARM_HOLD - 1e-9) { expect(q.s.aim.fireHold).toBe(1); step(q); }
+    while (q.s.weapon.sinceShot < ARM_HOLD + .1) step(q);
+    expect(q.s.aim.fireHold).toBeGreaterThan(.2); expect(q.s.aim.fireHold).toBeLessThan(1);
+    while (q.s.weapon.sinceShot < ARM_HOLD + .34) step(q);
+    expect(q.s.aim.fireHold).toBeLessThanOrEqual(.05);
+    // Once lowered to exactly 0, a lone tapShot (a pending press, no held trigger) raises it fully on its own frame again.
+    while (q.s.aim.fireHold > 0) step(q);
+    tapShot(q.s); step(q); expect(q.s.stats.shots).toBe(2); expect(q.s.aim.fireHold).toBe(1);
+  });
+  it('leaves an idle shooter bit-identical: no feel channel, burst or ray moves', () => {
+    const r = rig(), pick = () => structuredClone({ a: r.s.aim, w: r.s.weapon, fx: r.s.camFx, as: r.s.assist, st: r.s.stats, i: r.s.input, b: burst });
+    step(r, 120); expect(r.s.aim.fireHold).toBe(0); expect(r.s.camFx.kickP).toBe(0); // the spread's move multiplier settles first
+    const before = pick(); step(r, 240);
+    expect(pick()).toEqual(before); expect(r.world.casts).toBe(0); expect(r.played).toEqual([]);
+  });
+  it('plays the fire voice at full gain for shots 1-3 and -1.5 dB from shot 4, resetting after a .25 s gap', () => {
+    const r = rig(), gains: number[] = [];
+    r.audio = (kind, _pan, gain) => { if (kind === 'fire') gains.push(gain); };
+    pressFire(r.s, 'click'); step(r, 60);
+    expect(gains.length).toBeGreaterThanOrEqual(9);
+    expect(gains.slice(0, 3)).toEqual([1, 1, 1]); expect(gains.slice(3).every(g => g === SHOT_GAIN_LATE)).toBe(true);
+    expect(SHOT_GAIN_LATE).toBeCloseTo(10 ** (-1.5 / 20), 4);
+    releaseFire(r.s, 'click'); step(r, 30); gains.length = 0;
+    tapShot(r.s); step(r, 8); tapShot(r.s); step(r, 8); tapShot(r.s); step(r, 8); tapShot(r.s); step(r);
+    expect(gains).toEqual([1, 1, 1, SHOT_GAIN_LATE]);
   });
   it('keeps the step modules pure, landing-safe and under 200 lines', () => {
     for (const file of ['src/game/shooterStep.ts', 'src/game/shooterShots.ts']) {

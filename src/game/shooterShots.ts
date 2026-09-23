@@ -1,8 +1,9 @@
 // One hitscan shot for the shooter orchestrator (pure, landing-safe): spread, magnetism, resolution, damage, stats, event,
-// recoil and audio. Module scratch only: nothing allocates per shot. Called only from stepShooter (resolveShot is not re-entrant).
+// camera kick and audio. No FOV punch on shots or kills (measured moderate-juice band: at most 4 visible channels per shot). Module scratch only: nothing allocates per shot. Called only from stepShooter (resolveShot is not re-entrant).
 import { droneAlive, pushEvent, type EventKind, type ShooterState, type Vec3 } from './combat';
 import type { Voice } from '@/ui/audioBus';
-import { addTrauma, kick, punchFov } from './cameraFx';
+import { addTrauma, kick } from './cameraFx';
+import { SHOT_GAIN_LATE, attenuated, burst, markShotEvent } from './burst';
 import { magnetize } from './aimAssist';
 import { damageDrone, nearMiss, type DroneSim } from './drones';
 import { coneSample } from './shotMath';
@@ -56,7 +57,7 @@ function nearMisses(s: ShooterState, count: number, o: Vec3, d: Vec3, point: Vec
 }
 
 /**
- * Fires one shot along the published camera ray. `count` targets were built this frame; a killed drone is marked dead in
+ * Fires one shot along the published camera ray (burst.index is this shot's place in the burst; it is advanced here). `count` targets were built this frame; a killed drone is marked dead in
  * s.targets so later shots in the same frame pass through it. Returns the module ShotHit (valid until the next shot).
  */
 export function fireShot(s: ShooterState, sim: DroneSim, world: ShooterWorld, ctx: StepContext, audio: AudioSink,
@@ -75,17 +76,15 @@ export function fireShot(s: ShooterState, sim: DroneSim, world: ShooterWorld, ct
       kind = 'kill'; s.targets[drone].alive = false;
       stats.kills++; stats.chain = s.clock - stats.lastKillT <= 4 ? stats.chain + 1 : 1; stats.lastKillT = s.clock;
       const p = hit.point, o = a.origin, d = Math.hypot(p.x - o.x, p.y - o.y, p.z - o.z);
-      addTrauma(fx, .45 * Math.max(0, 1 - d / 20)); punchFov(fx, 'kill', 1.5);
+      addTrauma(fx, .45 * Math.max(0, 1 - d / 20));
     }
     stats.hits++;
   } else nearMisses(s, count, a.origin, dir, hit.point);
   stats.shots++;
-  pushEvent(s, kind, from, hit.point, hit.normal, drone);
-  if (!ctx.reduced) {
-    const A = src === 'mouse' ? .35 : .2;
-    kick(fx, A, (rng() * 2 - 1) * .4 * A); punchFov(fx, 'shot', .3 + (.2 - .3) * blend);
-  }
-  audio('fire', 0, 1, 0);
+  const index = burst.index++;
+  pushEvent(s, kind, from, hit.point, hit.normal, drone); markShotEvent(s.eventSerial, index);
+  if (!ctx.reduced) { const A = src === 'mouse' ? .35 : .2; kick(fx, A, (rng() * 2 - 1) * .4 * A); }
+  audio('fire', 0, attenuated(index) ? SHOT_GAIN_LATE : 1, 0);
   if (kind === 'hit' || kind === 'weak' || kind === 'blocked') audio(kind, 0, 1, 0);
   else if (kind === 'kill') audio('kill', 0, 1, stats.chain);
   return hit;

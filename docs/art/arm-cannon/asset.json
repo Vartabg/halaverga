@@ -1,0 +1,82 @@
+{
+  "asset": "public/models/arm-cannon.glb",
+  "blender": "4.0.2",
+  "method": "Measured on the exported GLB. Extent: widest projection perpendicular to BARREL_AXIS. Flexion (runtime R1 + R3 weights, hand_r 1e-3): nearest posed triangle under 95% forearm/hand weight, negative = inside (within 2 cm).",
+  "sha256": "cd0f9e5119258fd9af0fa1be126313b04826643388655be5f87f722b7794aea8",
+  "bytes": 106000,
+  "triangles": {
+    "cannon_shell": 2380,
+    "cannon_slide": 320,
+    "cannon_vent": 108
+  },
+  "triangles_total": 2808,
+  "muzzle_residual_mm": 0.0,
+  "vent_hinge_dot_axis": -0.0,
+  "length_m": 0.36,
+  "largest_extent_m": 0.1721,
+  "extent_u_by_z_m": [
+    0.1687,
+    0.1563
+  ],
+  "length_over_extent": 2.092,
+  "min_cuff_clearance_mm": 5.61,
+  "min_cuff_clearance_station": 0.226,
+  "hand_head_inset_mm": 10.19,
+  "cone_min_inset_mm": 16.14,
+  "metal_area_pct": 17.7,
+  "flexion": {
+    "CARRY": {
+      "min_mm_to_upper_arm": 56.21,
+      "pass": true
+    },
+    "AIM": {
+      "min_mm_to_upper_arm": 56.21,
+      "pass": true
+    },
+    "VENT": {
+      "min_mm_to_upper_arm": 56.21,
+      "pass": true
+    },
+    "STRESS": {
+      "min_mm_to_upper_arm": 56.21,
+      "pass": true
+    }
+  },
+  "cuff_flexor": 0.15,
+  "visibility": {
+    "views": [
+      "chase",
+      "ads_portrait",
+      "ads_landscape"
+    ],
+    "core_lens": [
+      {
+        "visible_fraction": 0.9,
+        "projected_m2": 0.000637
+      },
+      {
+        "visible_fraction": 0.9,
+        "projected_m2": 0.000652
+      },
+      {
+        "visible_fraction": 0.9,
+        "projected_m2": 0.00065
+      }
+    ],
+    "strips_fins": [
+      {
+        "visible_fraction": 0.221,
+        "projected_m2": 0.000908
+      },
+      {
+        "visible_fraction": 0.223,
+        "projected_m2": 0.000955
+      },
+      {
+        "visible_fraction": 0.223,
+        "projected_m2": 0.001009
+      }
+    ]
+  },
+  "consecutive_builds_identical": true
+}

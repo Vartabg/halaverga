@@ -139,7 +139,7 @@ describe('blaster audio bus', () => {
     expect(c.of('osc').at(-1)!.frequency.ramps.at(-1)).toMatchObject({ value: 1800, time: .22 });
     const arrive = ends('arrive'); expect(arrive[0]).toBeCloseTo(.15, 9); expect(arrive[1]).toBeCloseTo(.3, 9);
     expect(oscFreqs(c, from)).toEqual([500, 750]);
-    const fire = ends('fire'); expect(fire.map(t => +t.toFixed(3))).toEqual([.012, .11, .1, .35]);
+    const fire = ends('fire'); expect(fire.map(t => +t.toFixed(3))).toEqual([.01, .11, .07, .09]);
     const saw = c.nodes.slice(from).find(n => n.type === 'sawtooth')!;
     const pitch = saw.frequency.ramps[0].value / 1100; expect(pitch).toBeGreaterThanOrEqual(.95); expect(pitch).toBeLessThanOrEqual(1.05);
     expect(saw.frequency.ramps[1].value / pitch).toBeCloseTo(150, 6);

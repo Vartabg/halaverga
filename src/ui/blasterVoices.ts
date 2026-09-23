@@ -34,12 +34,15 @@ function boom(ctx: BaseAudioContext, dest: AudioNode, noise: AudioBuffer, rng: (
 }
 
 export const VOICES: Record<Voice, Build> = {
+  // Shot, tuned for phone speakers and 9/s without smear: a 1 ms noise transient, a saw sweep 1100 -> 150 Hz over 110 ms, a sine
+  // punch 260 -> 160 Hz over 70 ms and a 90 ms body tail, all at ctx.currentTime; every part is at the floor by 110 ms (-20 dB well
+  // before). The pitch jitter only goes up (x1 to x1.05) so no endpoint drops under 150 Hz, where small speakers roll off.
   fire(ctx, dest, noise, rng) {
-    const t = ctx.currentTime, p = .95 + rng() * .1, g = .35 * db(rng() * 2 - 1);
-    hiss(ctx, dest, noise, rng, t, .012, g, 'highpass', 3000, .7, .001);
+    const t = ctx.currentTime, p = 1 + rng() * .05, g = .35 * db(rng() * 2 - 1);
+    hiss(ctx, dest, noise, rng, t, .01, g, 'highpass', 3000, .7, .001);
     tone(ctx, dest, 'sawtooth', 1100 * p, 150 * p, t, .11, g * .6, .002);
-    tone(ctx, dest, 'sine', 200 * p, 55 * p, t, .1, g, .002);
-    return hiss(ctx, dest, noise, rng, t, .35, g * .35, 'bandpass', 900 * p, 1.2, .01);
+    tone(ctx, dest, 'sine', 260 * p, 160 * p, t, .07, g, .002);
+    return hiss(ctx, dest, noise, rng, t, .09, g * .35, 'bandpass', 900 * p, 1.2, .004);
   },
   hit: (ctx, dest) => tone(ctx, dest, 'sine', 2000, 2000, ctx.currentTime, .04, HIT_PEAK, .002),
   weak(ctx, dest) {

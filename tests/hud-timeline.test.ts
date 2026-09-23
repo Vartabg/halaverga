@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { HEAT } from '../src/game/combat';
-import { chainLabel, controlsHint, crosshairRadius, heatColor, markerState, pipAngle, popScale, ventState, type MarkerKind } from '../src/ui/hudTimeline';
+import { chainLabel, controlsHint, crossScale, crosshairRadius, heatColor, markerState, pipAngle, popScale, ventState, type MarkerKind } from '../src/ui/hudTimeline';
 
 const ms = (n: number) => n / 1000;
 describe('markerState', () => {
@@ -87,6 +87,20 @@ describe('popScale', () => {
     expect(popScale(NaN)).toBe(1);
     expect(popScale(-.1)).toBe(1);
   });
+  it('scales the whole curve by amp (default .12)', () => {
+    for (const t of [0, .02, .05, .1, .2, .4]) expect(popScale(t, .06) - 1).toBeCloseTo((popScale(t) - 1) / 2, 12);
+    expect(popScale(0, .06)).toBeCloseTo(1.06, 12); expect(popScale(Infinity, .06)).toBe(1);
+  });
+});
+
+describe('crossScale burst attenuation', () => {
+  it('pops 1.12 for burst indices 0-2 and 1.06 from index 3, exactly 1 under reduced motion', () => {
+    expect([0, 1, 2].map(i => crossScale(0, false, i))).toEqual([1.12, 1.12, 1.12]);
+    expect([3, 4, 12].map(i => crossScale(0, false, i))).toEqual([1.06, 1.06, 1.06]);
+    expect(crossScale(0, false)).toBe(1.12);
+    for (const i of [0, 3, 9]) for (const t of [0, .03, .1, Infinity]) expect(crossScale(t, true, i)).toBe(1);
+    expect(crossScale(Infinity, false, 5)).toBe(1);
+  });
 });
 
 describe('heatColor', () => {
@@ -163,6 +177,15 @@ describe('HUD sources', () => {
       expect(src.split('\n').length).toBeLessThan(200);
       expect(src).not.toMatch(/Math\.random\(|from 'three'|@react-three|invalidate\(/);
     }
+  });
+  it('keeps a 1 px opaque dark edge on the hit-marker ticks', () => {
+    const css = read('ShooterHud.module.css'), edge = css.match(/--edge:(#[0-9a-f]{6})\b/i);
+    // A six-digit hex colour is fully opaque (alpha 1 >= .6).
+    expect(edge).not.toBeNull();
+    expect(css).toMatch(/\.marker i\{[^}]*box-shadow:0 0 0 1px var\(--edge\)/);
+  });
+  it('pops the crosshair from the index of the last shot in its burst', () => {
+    expect(read('ShooterHud.tsx')).toMatch(/crossScale\(w\.sinceShot, reduced, lastShotIndex\(\)\)/);
   });
   it('keeps the live region outside the aria-hidden root and the HUD free of pointer events', () => {
     const hud = read('ShooterHud.tsx'), css = read('ShooterHud.module.css');

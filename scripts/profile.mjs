@@ -52,5 +52,7 @@ const report = { ...measurement, shooter, hardware: os.cpus()[0]?.model, gpu, os
 await writeFile(output + '/measurements.json', JSON.stringify(report, null, 2));
 console.log(JSON.stringify(report));
 const peak = measurement.peakResources ?? {};
-console.log(`Peak draw calls ${peak.drawCalls}, peak triangles ${peak.triangles}${shooter ? ' (shooter on; budget: at most 12 draw calls and 10k triangles above a PROFILE_SHOOTER=0 run)' : ''}`);
+// Shooter budget (docs/plans/2026-09-22-shooter.md): at most 15 draw calls and 14k triangles above a PROFILE_SHOOTER=0 run. Of that,
+// the arm cannon is 3 draw calls (shell, slide, vent; one material), 0 shadow draws (castShadow off) and at most 4k triangles (2,724).
+console.log(`Peak draw calls ${peak.drawCalls}, peak triangles ${peak.triangles}${shooter ? ' (shooter on; budget: at most 15 draw calls and 14k triangles above a PROFILE_SHOOTER=0 run, the arm cannon 3 of them, 0 shadow draws, <= 4k triangles)' : ''}`);
 await browser.close();

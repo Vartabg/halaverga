@@ -29,15 +29,21 @@ export function crosshairRadius(spreadHalf: number, fovDeg: number, heightPx: nu
 }
 
 const POP_W = 2 * Math.PI * 5, POP_Z = .6, POP_WD = POP_W * Math.sqrt(1 - POP_Z * POP_Z), POP_K = POP_Z / Math.sqrt(1 - POP_Z * POP_Z);
-/** 1.12 at the shot, then an underdamped return (5 Hz, zeta .6, zero start velocity, closed form) to 1. */
-export function popScale(ageSinceShot: number) {
+/** 1 + amp at the shot, then an underdamped return (5 Hz, zeta .6, zero start velocity, closed form) to 1. */
+export function popScale(ageSinceShot: number, amp = .12) {
   if (!(ageSinceShot >= 0 && ageSinceShot < .6)) return 1;
   const t = ageSinceShot;
-  return 1 + .12 * Math.exp(-POP_Z * POP_W * t) * (Math.cos(POP_WD * t) + POP_K * Math.sin(POP_WD * t));
+  return 1 + amp * Math.exp(-POP_Z * POP_W * t) * (Math.cos(POP_WD * t) + POP_K * Math.sin(POP_WD * t));
 }
+/** Pop amplitude from the 4th shot of a burst (index 3): attenuated so sustained fire does not smear the crosshair. */
+export const POP_LATE = .06, POP_LATE_FROM = 3;
 
-/** Crosshair scale per shot: the pop, or exactly 1 under reduced motion (the plan keeps markers but drops every pop). */
-export const crossScale = (sinceShot: number, reduced: boolean) => reduced ? 1 : Math.round(popScale(sinceShot) * 1000) / 1000;
+/**
+ * Crosshair scale per shot: the pop (1.12, or 1.06 once burstIndex >= 3), or exactly 1 under reduced motion (the plan keeps markers
+ * but drops every pop). burstIndex is the place of the last shot in its burst (burst.ts lastShotIndex).
+ */
+export const crossScale = (sinceShot: number, reduced: boolean, burstIndex = 0) =>
+  reduced ? 1 : Math.round(popScale(sinceShot, burstIndex >= POP_LATE_FROM ? POP_LATE : .12) * 1000) / 1000;
 
 export const heatColor = (h01: number) => h01 < .6 ? '#58e1ff' : h01 < .85 ? '#ffb347' : '#ff5a36';
 
