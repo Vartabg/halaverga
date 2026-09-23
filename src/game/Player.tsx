@@ -3,7 +3,7 @@ import { RigidBody, CapsuleCollider, useRapier, useBeforePhysicsStep, type Rapie
 import { useThree } from '@react-three/fiber';
 import { Vector3 } from 'three';
 import { useGame, persistGame } from './store';
-import { runtime, readIntent, clearInput } from './runtime';
+import { runtime, readIntent, clearInput, arrowLook } from './runtime';
 import { advanceVelocity, boundMovement, landingVelocity, moving, setVec, START, FOOT } from './motion';
 import { presentation } from './presentation';
 import { edgeFreshness } from './trackpadFlight';
@@ -65,8 +65,12 @@ export default function Player() {
       runtime.yaw -= pointer.edgeTurn * dt * 1.5 * gain;
       runtime.pitch = Math.max(-1.3, Math.min(1.25, runtime.pitch + pointer.edgePitch * dt * gain));
     }
-    runtime.yaw += (Number(k.has('ArrowLeft')) - Number(k.has('ArrowRight'))) * dt * 1.5;
-    runtime.pitch = Math.max(-1.3, Math.min(1.25, runtime.pitch + (Number(k.has('ArrowUp')) - Number(k.has('ArrowDown'))) * dt * 1.2));
+    // Blaster on: arrows get a fine first step and the ADS gain (arrowLook). Off: main's exact lines, bit for bit.
+    if (state.shooter) arrowLook(dt);
+    else {
+      runtime.yaw += (Number(k.has('ArrowLeft')) - Number(k.has('ArrowRight'))) * dt * 1.5;
+      runtime.pitch = Math.max(-1.3, Math.min(1.25, runtime.pitch + (Number(k.has('ArrowUp')) - Number(k.has('ArrowDown'))) * dt * 1.2));
+    }
     if (runtime.landGoal && moving(intent)) { runtime.landGoal = null; useGame.setState({ landing: false }); }
     let flying = state.flying;
     if (runtime.lift || (pointerFlight && moving(intent) && !flying)) {

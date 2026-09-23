@@ -50,7 +50,10 @@ export default function Drones() {
     const cam: Camera = state.camera, fov = (cam as PerspectiveCamera).isPerspectiveCamera ? (cam as PerspectiveCamera).fov : runtime.shooter.aim.fov;
     const h = state.gl.domElement.clientHeight || state.size.height || 1, t = runtime.shooter.clock, reduced = useGame.getState().reduced;
     const n = Math.min(f.count, MAX_DRONES);
-    for (let k = 0; k < 5; k++) parts.list[k].count = n;
+    // Body, plate and eye stay indexed by drone (aFlash is shared by index). Halo and ring are compacted into the first slots
+    // that are actually shown, so a pool with nothing to show issues no draw call.
+    body.count = plate.count = eyes.count = n;
+    let hk = 0, rk = 0;
     for (let i = 0; i < n; i++) {
       const ph = f.phase[i], dead = ph === PHASE.dead, alive = droneAlive(f, i), pos = f.pos[i], kn = f.knock[i];
       shake.set(0, 0, 0);
@@ -71,15 +74,18 @@ export default function Drones() {
       c.copy(phaseColor(ph)).lerp(white, Math.min(f.flash[i], .6));
       if (f.hp[i] <= 3) c.multiplyScalar(reduced ? .8 : .75 + .25 * Math.sin(2 * Math.PI * 1.5 * t));
       eyes.setColorAt(i, c);
-      const dist = p.distanceTo(cam.position), near = alive && dist <= HALO_RANGE;
-      place(halo, i, p, cam.quaternion, near ? s.setScalar(Math.max(.9, minWorldSize(10, dist, fov, h))) : zero);
-      halo.setColorAt(i, glow.copy(c).multiplyScalar(.6));
+      const dist = p.distanceTo(cam.position);
+      if (alive && dist <= HALO_RANGE) {
+        place(halo, hk, p, cam.quaternion, s.setScalar(Math.max(.9, minWorldSize(10, dist, fov, h))));
+        halo.setColorAt(hk++, glow.copy(c).multiplyScalar(.6));
+      }
       if (alive && ph === PHASE.telegraph) {
         const k = Math.min(1, f.phaseT[i] / TELEGRAPH), base = Math.max(1, minWorldSize(14, dist, fov, h));
-        place(ring, i, p, cam.quaternion, s.setScalar(base * (reduced ? 1.6 : 1 + 1.4 * k)));
-        ring.setColorAt(i, glow.copy(white).multiplyScalar(1 - .6 * k));
-      } else place(ring, i, p, cam.quaternion, zero);
+        place(ring, rk, p, cam.quaternion, s.setScalar(base * (reduced ? 1.6 : 1 + 1.4 * k)));
+        ring.setColorAt(rk++, glow.copy(white).multiplyScalar(1 - .6 * k));
+      }
     }
+    halo.count = hk; halo.visible = hk > 0; ring.count = rk; ring.visible = rk > 0;
     for (let k = 0; k < 5; k++) parts.list[k].instanceMatrix.needsUpdate = true;
     eyes.instanceColor!.needsUpdate = halo.instanceColor!.needsUpdate = ring.instanceColor!.needsUpdate = true;
     parts.flash.needsUpdate = true;

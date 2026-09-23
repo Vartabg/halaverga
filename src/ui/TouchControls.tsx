@@ -1,11 +1,14 @@
+import dynamic from 'next/dynamic';
 import { useEffect, useRef, type PointerEvent } from 'react';
 import { look, releaseThumb, runtime } from '@/game/runtime';
 import { AdaptiveThumbs } from '@/game/adaptiveThumbs';
 import { useGame } from '@/game/store';
 import styles from './Experience.module.css';
 import { useTrackpad } from './useTrackpad';
-import FireControls from './FireControls';
-import { audioBus } from './audioBus';
+import { unlockBlasterAudio } from './audioUnlock';
+// Fire and Aim load as their own chunk (warmed by Experience once the blaster is on); until it arrives nothing is drawn.
+export const loadFireControls = () => import('./FireControls');
+const FireControls = dynamic(loadFireControls, { ssr: false, loading: () => null });
 export default function TouchControls() {
   const controls = useRef(new AdaptiveThumbs()), timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const surface = useRef<HTMLDivElement>(null), markers = useRef<(HTMLDivElement | null)[]>([]);
@@ -88,6 +91,6 @@ export default function TouchControls() {
       onPointerDown={start} onPointerMove={drag} onPointerUp={end} onPointerCancel={cancel} onLostPointerCapture={cancel}
       onPointerLeave={e => { if (e.pointerType === 'mouse') desktop.leave(); }} />
     {[0, 1].map(i => <div key={i} ref={node => { markers.current[i] = node; }} hidden className={styles.stick} aria-hidden="true"><span /><small /></div>)}
-    {shooterOn && <FireControls onHold={hold} onRelease={audioBus.unlock} />}
+    {shooterOn && <FireControls onHold={hold} onRelease={unlockBlasterAudio} />}
   </>;
 }

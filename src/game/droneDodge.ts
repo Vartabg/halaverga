@@ -1,4 +1,4 @@
-import { PHASE, SNAP, pushEvent, type DroneField, type ShooterState, type Vec3 } from './combat';
+import { DRONE_RADIUS, PHASE, SNAP, pushEvent, type DroneField, type ShooterState, type Vec3 } from './combat';
 import { settle } from './presentation';
 import type { DroneContext, DroneSim } from './drones';
 // Drone dodge: side selection, TELEGRAPH (.22 s), DODGE (.35 s smootherstep) and PUNISH (.7 s). drones.ts owns the other phases.
@@ -23,9 +23,10 @@ export function lean(f: DroneField, i: number, ax: number, az: number, dt: numbe
 export const dodgeDwell = (ctx: DroneContext) => ctx.tier === 'tap' ? DRONE.dwellTap : ctx.tier === 'touch' ? DRONE.dwellTouch : DRONE.dwellMouse;
 const probe: Vec3 = { x: 0, y: 0, z: 0 };
 function tryDodge(f: DroneField, i: number, dx: number, dy: number, dz: number, clear: (a: Vec3, b: Vec3) => boolean) {
-  const p = f.pos[i], d = DRONE.dodgeDist;
-  // The probe runs 1 m past the landing point so the drone never ends flush against a wall.
-  probe.x = p.x + dx * (d + 1); probe.y = p.y + dy * (d + 1); probe.z = p.z + dz * (d + 1);
+  const p = f.pos[i], d = DRONE.dodgeDist, reach = d + DRONE_RADIUS + .7;
+  // lineClear skips the last .5 m of a segment, so this probe checks d + radius + .2 m: the landing centre keeps at least
+  // 1.1 m from fixed geometry on the centre line, clear of the .9 m hit sphere (rotor rim .93 m).
+  probe.x = p.x + dx * reach; probe.y = p.y + dy * reach; probe.z = p.z + dz * reach;
   if (!clear(p, probe)) return false;
   const from = f.from[i], to = f.to[i];
   from.x = p.x; from.y = p.y; from.z = p.z; to.x = p.x + dx * d; to.y = p.y + dy * d; to.z = p.z + dz * d;

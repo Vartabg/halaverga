@@ -138,6 +138,26 @@ describe('shooter step', () => {
     expect(s.input.fire).toBe(false); expect(s.aim.fireHold).toBe(0);
     const clock = s.clock; pressFire(s, 'click'); frame(null, 1 / 60); expect(s.clock).toBe(clock);
   });
+  it('shows blocked only from a real muzzle: first person over a ledge never flags it, shot or no shot', () => {
+    // The camera ray clears a ledge to a far wall; anything cast from elsewhere (the old virtual muzzle) hits the ledge at 1 m.
+    const r = rig({ x: 0, y: 0, z: -1 }), from = (o: Vec3) => Math.hypot(o.x - ORIGIN.x, o.y - ORIGIN.y, o.z - ORIGIN.z) < 1e-6;
+    r.world.castShot = (o, d, maxT, out) => { r.world.casts++; out.t = from(o) ? 40 : 1; out.normal.x = -d.x; out.normal.y = -d.y; out.normal.z = -d.z; return out.t < maxT; };
+    r.ctx.firstPerson = true; r.s.muzzle.valid = false; pressAim(r.s, false);
+    for (let i = 0; i < 30; i++) { step(r); expect(r.s.aim.blocked).toBe(false); }
+    tapShot(r.s); step(r);
+    expect(r.s.events[0].kind).toBe('world'); expect(r.s.aim.blocked).toBe(false);
+    step(r); expect(r.s.aim.blocked).toBe(false);
+  });
+  it('casts no ray idle, then one aim ray plus a muzzle ray on alternate frames while aiming', () => {
+    const r = rig({ x: 0, y: 0, z: -1 }, null, 40), m = r.s.muzzle;
+    Object.assign(m, { x: ORIGIN.x + .5, y: ORIGIN.y - .4, z: ORIGIN.z - 1, valid: true, weight: 1 });
+    step(r, 60); expect(r.world.casts).toBe(0);
+    pressAim(r.s, false); step(r, 60);
+    expect(r.world.casts).toBeGreaterThanOrEqual(60); expect(r.world.casts).toBeLessThanOrEqual(91);
+    // The held glyph still follows a real block within one frame.
+    r.world.castShot = (o, d, maxT, out) => { r.world.casts++; out.t = o === m ? 2 : 40; out.normal.x = -d.x; out.normal.y = -d.y; out.normal.z = -d.z; return out.t < maxT; };
+    step(r, 2); expect(r.s.aim.blocked).toBe(true);
+  });
   it('keeps the step modules pure, landing-safe and under 200 lines', () => {
     for (const file of ['src/game/shooterStep.ts', 'src/game/shooterShots.ts']) {
       const src = readFileSync(file, 'utf8');

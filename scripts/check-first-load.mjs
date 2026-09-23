@@ -1,9 +1,14 @@
-// The landing page's first load must not reach three.js or the flight clips: they live in the lazy scene chunk.
-// Run after `next build`: reads the prerendered landing HTML, sums the scripts it loads and fails on any scene marker.
+// The landing page's first load must not reach three.js, the flight clips or the blaster UI/audio: they live in lazy chunks.
+// Run after `next build`: reads the prerendered landing HTML, sums the scripts it loads, fails on any marker and on size creep.
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 const root = fileURLToPath(new URL('..', import.meta.url));
-const MARKERS = ['WebGLRenderer', 'isVector3', '@react-three', 'BufferGeometry', 'powerHero', 'bankLeft'];
+const SCENE = ['WebGLRenderer', 'isVector3', '@react-three', 'BufferGeometry', 'powerHero', 'bankLeft'];
+// Minification-safe blaster markers: CSS module class prefixes, data-testids, a DOM API name and settings copy, never
+// component identifiers (the minifier renames those). runtime.shooter's plain state (combat.ts) is an accepted exception.
+const SHOOTER = ['ShooterHud-module', 'FireControls-module', 'shooter-hud', 'fire-button', 'createDynamicsCompressor', 'drones and shooting'];
+// Main measured 614.9 KB (PR #11); the blaster keeps only its input handlers and plain state on the landing page.
+const BUDGET_KB = 636;
 const html = await readFile(root + '.next/server/app/index.html', 'utf8').catch(() => {
   throw new Error('No landing build found: run `next build` first.');
 });
@@ -15,7 +20,9 @@ let bytes = 0; const found = [];
 for (const src of sources) {
   const body = await readFile(root + '.next/' + src.slice('/_next/'.length).split('?')[0], 'utf8');
   bytes += Buffer.byteLength(body);
-  for (const marker of MARKERS) if (body.includes(marker)) found.push(`${marker} in ${src}`);
+  for (const marker of [...SCENE, ...SHOOTER]) if (body.includes(marker)) found.push(`${marker} in ${src}`);
 }
-console.log(`Landing first load: ${sources.size} scripts, ${(bytes / 1024).toFixed(1)} KB.`);
-if (found.length) { console.error('Scene code reached the landing first load:\n  ' + found.join('\n  ')); process.exit(1); }
+const kb = bytes / 1024;
+console.log(`Landing first load: ${sources.size} scripts, ${kb.toFixed(1)} KB (budget ${BUDGET_KB} KB).`);
+if (found.length) { console.error('Scene or blaster code reached the landing first load:\n  ' + found.join('\n  ')); process.exit(1); }
+if (kb > BUDGET_KB) { console.error(`The landing first load grew past its ${BUDGET_KB} KB budget.`); process.exit(1); }

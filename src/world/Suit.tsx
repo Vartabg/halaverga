@@ -11,6 +11,7 @@ import { advanceFlightMix, createFlightMix } from './flightMix';
 import { applyFlightClips } from './flightPose';
 import { advanceSuitRoll, createSuitRoll, speedFade } from './suitRoll';
 import { advanceSuitAim, applySuitAim, createSuitAim } from './aimPose';
+import { buildFistMorph, clearFist, setFist, type FistMorph } from './fistMorph';
 export const SUIT_URL = '/models/suit.glb';
 const input = { flying: false, landing: false, paused: true, reduced: false, velocity: runtime.velocity, turn: runtime.turn };
 export default function Suit() {
@@ -18,6 +19,8 @@ export default function Suit() {
   const aim = useRef(createSuitAim());
   const asset = useLoader(GLTFLoader, SUIT_URL);
   const rig = useMemo(() => buildSuitRig(asset.scene), [asset]);
+  // The blaster fist morph, built the first time the blaster is on (undefined until then, null on a rig without a hand).
+  const fist = useMemo(() => ({ morph: undefined as FistMorph | null | undefined }), [rig]);
   useEffect(() => () => rig.dispose(), [rig]);
   useFrame((_, dt) => {
     const state = useGame.getState(), m = motion.current, life = animation.current, mix = flight.current;
@@ -41,6 +44,9 @@ export default function Suit() {
     advanceSuitAim(aim.current, pose.epoch, on ? Math.max(sh.aim.blend, sh.aim.fireHold) : 0, sh.aim.origin, sh.aim.point, sh.weapon.shots, state.paused, state.reduced, dt);
     if (on) applySuitAim(rig.joints, rig.root, aim.current, sh.aim.origin, sh.aim.dir, sh.muzzle);
     else { sh.muzzle.valid = false; sh.muzzle.weight = 0; }
+    // The hand closes into a fist with the aim layer; with the blaster off the morph is detached and the mesh is main's.
+    if (state.shooter) { if (fist.morph === undefined) fist.morph = buildFistMorph(rig.root); if (fist.morph) setFist(fist.morph, aim.current.weight); }
+    else if (fist.morph) clearFist(fist.morph);
     pose.suitClip = mix.label; pose.suitRoll = roll;
   }, -20);
   return <primitive object={rig.root} dispose={null} />;

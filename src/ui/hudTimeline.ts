@@ -3,19 +3,22 @@
 export type MarkerKind = 'hit' | 'weak' | 'kill' | 'blocked';
 export type Marker = { visible: boolean; scale: number; opacity: number; rotate: number };
 export type Vent = { sweep01: number; windowStart01: number; windowEnd01: number; inWindow: boolean };
-export const POP_T = .07, HOLD_END = .16, MARKER_T = .3, FADE_T = MARKER_T - HOLD_END;
+export const POP_T = .07, HOLD_END = .16, MARKER_T = .3, KILL_T = .45, FADE_T = MARKER_T - HOLD_END;
 const clamp01 = (v: number) => v < 0 ? 0 : v > 1 ? 1 : v;
 
-/** Pop 1.4 -> 1 over 70 ms (ease-out cubic), hold 90 ms, fade 140 ms, gone at 300 ms. Kill: 1.6x and 45 deg. */
+/**
+ * Pop 1.4 -> 1 over 70 ms (ease-out cubic), hold 90 ms, fade 140 ms, gone at 300 ms. Kill: a larger red diagonal X (1.15x, never
+ * rotated, so it stays off the crosshair's axes) that fades until 450 ms. rotate is kept at 0 for callers that read it.
+ */
 export function markerState(kind: MarkerKind, age: number, reduced: boolean,
   out: Marker = { visible: false, scale: 1, opacity: 0, rotate: 0 }): Marker {
-  const base = kind === 'kill' ? 1.6 : 1;
-  out.rotate = kind === 'kill' ? 45 : 0;
-  out.visible = age >= 0 && age < MARKER_T;
+  const kill = kind === 'kill', base = kill ? 1.15 : 1, end = kill ? KILL_T : MARKER_T;
+  out.rotate = 0;
+  out.visible = age >= 0 && age < end;
   if (!out.visible) { out.scale = base; out.opacity = 0; return out; }
   const u = 1 - clamp01(age / POP_T);
   out.scale = reduced ? base : base * (1 + .4 * u * u * u);
-  out.opacity = age <= HOLD_END ? 1 : 1 - (age - HOLD_END) / FADE_T;
+  out.opacity = age <= HOLD_END ? 1 : 1 - (age - HOLD_END) / (end - HOLD_END);
   return out;
 }
 
@@ -32,6 +35,9 @@ export function popScale(ageSinceShot: number) {
   const t = ageSinceShot;
   return 1 + .12 * Math.exp(-POP_Z * POP_W * t) * (Math.cos(POP_WD * t) + POP_K * Math.sin(POP_WD * t));
 }
+
+/** Crosshair scale per shot: the pop, or exactly 1 under reduced motion (the plan keeps markers but drops every pop). */
+export const crossScale = (sinceShot: number, reduced: boolean) => reduced ? 1 : Math.round(popScale(sinceShot) * 1000) / 1000;
 
 export const heatColor = (h01: number) => h01 < .6 ? '#58e1ff' : h01 < .85 ? '#ffb347' : '#ff5a36';
 
@@ -50,7 +56,8 @@ export const chainLabel = (chain: number, sinceKill: number) => chain >= 2 && si
 /** Screen angle (rad, y down) of a direction with camera-right component rx and camera-up component ry. */
 export const pipAngle = (rx: number, ry: number) => Math.atan2(-ry, rx) || 0;
 
-export function controlsHint(env: { coarse: boolean; desktopMode: string; steering: string }) {
+export function controlsHint(env: { coarse: boolean; desktopMode: string; steering: string; tapControls?: boolean }) {
+  if (env.tapControls) return 'TAP PAD: FIRE AND AIM ARE TOGGLES';
   if (env.coarse) return 'FIRE BUTTON · DRAG IT TO AIM · AIM FOR PRECISION';
   if (env.desktopMode === 'mouse') return 'CLICK FIRES · RIGHT-CLICK AIMS';
   if (env.steering === 'simple') return 'CLICK FIRES · HOLD Q TO AIM · ESC FREES POINTER';

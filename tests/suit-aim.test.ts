@@ -1,23 +1,15 @@
 import { beforeAll, describe, expect, it } from 'vitest';
-import { Euler, Group, Quaternion, Vector3, type Object3D } from 'three';
-import { CHASE_BOOM, CHASE_HEAD } from '../src/game/presentation';
+import { Euler, Group, type Object3D } from 'three';
 import { createShooter, type Muzzle } from '../src/game/combat';
-import { advanceSuitAim, applySuitAim, createSuitAim, type SuitAim } from '../src/world/aimPose';
+import { HAND_AXIS, MUZZLE_OFS, NEAR_IK, advanceSuitAim, applySuitAim, createSuitAim, type SuitAim } from '../src/world/aimPose';
 import { BONE_COUNT, LIMITS } from '../src/world/suitSkeleton';
 import { parents, pivots } from '../src/world/suitGeometry';
 import { buildSkinnedSuit } from '../src/world/skinnedSuit';
 import { cruising, flightPose, frame, measure, quats, rig, settledMix, type Rig } from './flight-harness';
 import { loadSuit } from './load-suit';
+import { VIEWS, aimMetrics, cameraRay, meshAxes, type Axes, type Shot } from './aim-metrics';
 const DEG = Math.PI / 180, TOUCHED = [10, 11, 12, 1, 14, 3, 7, 16];
-const view = new Euler(0, 0, 0, 'YXZ'), q = new Quaternion(), e = new Euler();
-type Shot = { origin: Vector3; dir: Vector3; target: Vector3 };
-/** The chase camera ray (boom in the view frame from the head, as toCamera()) and the point `dist` metres along it. */
-function cameraRay(viewYaw: number, viewPitch: number, dist: number): Shot {
-  view.set(viewPitch, viewYaw, 0);
-  const origin = new Vector3(CHASE_BOOM.x, CHASE_BOOM.y, CHASE_BOOM.z).applyEuler(view).add(new Vector3(0, CHASE_HEAD, 0));
-  const dir = new Vector3(0, 0, -1).applyEuler(view);
-  return { origin, dir, target: origin.clone().addScaledVector(dir, dist) };
-}
+const e = new Euler();
 type Case = { speed: number; viewYaw: number; viewPitch: number; offset: number; clock?: number };
 /** One Suit.tsx frame with the body facing the view (yaw offset for the facing lag), flying along the body heading. */
 function posed(r: Rig, c: Case) {
@@ -33,14 +25,6 @@ function aim(r: Rig, shot: Shot, weight = 1, a: SuitAim = createSuitAim()) {
   const muzzle = muzzleOf(); applySuitAim(r.joints, r.root, a, shot.origin, shot.dir, muzzle);
   return muzzle;
 }
-/** Degrees between the hand's rest forearm axis (world) and the line from the fingertip muzzle to the target. */
-function error(r: Rig, target: Vector3, muzzle: Muzzle) {
-  const hand = r.joints[16], tip = hand.position.clone().setLength(.18);
-  r.root.updateMatrixWorld(true);
-  const point = hand.localToWorld(tip.clone()), axis = tip.clone().normalize().applyQuaternion(hand.getWorldQuaternion(q));
-  expect(point.distanceTo(new Vector3(muzzle.x, muzzle.y, muzzle.z))).toBeLessThan(1e-9);
-  return axis.angleTo(target.clone().sub(point)) / DEG;
-}
 function withinLimits(r: Rig) {
   for (const b of TOUCHED) {
     e.setFromQuaternion(r.joints[b].quaternion); const l = LIMITS[b], slack = 1e-6;
@@ -50,10 +34,10 @@ function withinLimits(r: Rig) {
   }
 }
 const GRID: Case[] = [];
-for (const speed of [0, 13]) for (const viewYaw of [0, 2.2]) for (const offset of [-.25, 0, .25]) for (const viewPitch of [-40, -20, 0, 20, 40])
+for (const speed of [0, 13, 34]) for (const viewYaw of [0, 2.2]) for (const offset of [-.25, 0, .25]) for (const viewPitch of [-40, -20, 0, 20, 40])
   GRID.push({ speed, viewYaw, viewPitch: viewPitch * DEG, offset });
-let glb: Rig;
-beforeAll(async () => { glb = buildSkinnedSuit((await loadSuit()).scene) as unknown as Rig; });
+let glb: Rig, axes: Axes;
+beforeAll(async () => { glb = buildSkinnedSuit((await loadSuit()).scene) as unknown as Rig; axes = meshAxes(glb.root, glb.joints); });
 describe('suit aim', () => {
   it('at weight 0 writes no joint and publishes no muzzle', () => {
     const c = { speed: 13, viewYaw: .4, viewPitch: .2, offset: .1 }, shot = cameraRay(.4, .2, 20), a = createSuitAim(), r = rig(), plain = rig();
@@ -62,24 +46,37 @@ describe('suit aim', () => {
     expect(a.weight).toBe(0); expect(muzzle.valid).toBe(false); expect(muzzle.weight).toBe(0);
     expect(quats(r.joints)).toEqual(quats(plain.joints));
   });
-  it('points the emitter within 2 degrees of the crosshair on both rigs, hovering and cruising, inside the limits', () => {
-    let worst = 0, at = '', checked = 0, behind = 0;
-    for (const [name, make] of [['plain', rig], ['glb', () => glb]] as const) for (const c of GRID) for (const dist of [5, 20, 100]) {
-      const r = make(), p = posed(r, c), shot = cameraRay(c.viewYaw, c.viewPitch, dist), muzzle = aim(r, shot);
-      expect(muzzle.valid).toBe(true); expect(muzzle.weight).toBe(1);
-      const err = error(r, shot.target, muzzle);
+  // The old check measured the very vector the solver's last step aligned, so it passed with the fingers 35 deg off and the forearm
+  // 6 deg off. These measure what the player sees: the whole arm, the forearm's own vertices, the wrist and the screen.
+  // Eyes-on review (2026-09-23): aiming only the elbow-to-muzzle line left the long upper arm, most of the arm on screen, pointing
+  // off to the side (the arm line passed 80-90 px under the crosshair at 1280x800). The solver now aims the shoulder-to-muzzle line.
+  it('lays the whole arm on the crosshair line, wrist straight, on both rigs, hip and ADS at three aspects, inside the limits', () => {
+    const worst: Record<string, [number, string]> = {};
+    const note = (k: string, v: number, at: string) => { if (!(v <= (worst[k]?.[0] ?? -1))) worst[k] = [v, at]; };
+    expect(MUZZLE_OFS.clone().sub(HAND_AXIS.clone().multiplyScalar(.18)).length()).toBeLessThan(1e-12);
+    for (const [name, make] of [['plain', rig], ['glb', () => glb]] as const) for (const c of GRID) for (const dist of [1.5, 5, 20, 100]) for (const view of VIEWS) {
+      const r = make(), p = posed(r, c), shot = cameraRay(c.viewYaw, c.viewPitch, dist, view), a = createSuitAim(), muzzle = aim(r, shot, 1, a);
+      expect(muzzle.valid).toBe(true); expect(muzzle.weight).toBe(1); expect(a.dist).toBeCloseTo(Math.max(dist, NEAR_IK), 9);
       withinLimits(r);
       const s = measure(r, p);
       expect(s.hinges).toBe(true); expect(s.finite).toBe(true); expect(s.chest).toBeGreaterThan(.05); expect(s.yaw).toBeLessThanOrEqual(.1);
-      // 5 m along the chase ray ends beside the explorer: with a cruise lean or the body turned left it can lie up to 1.1 m behind
-      // the shoulder, where no arm inside LIMITS can point. The arm reaches half a metre behind the shoulder plane (chest frame).
-      const chest = r.joints[11], shoulder = chest.worldToLocal(r.joints[3].getWorldPosition(new Vector3()));
-      if (chest.worldToLocal(shot.target.clone()).z - shoulder.z > .5) { expect(dist).toBe(5); behind++; continue; }
-      checked++;
-      if (err > worst) { worst = err; at = JSON.stringify({ name, ...c, dist }); }
+      const m = aimMetrics(r.joints, r.root, shot, a.dist, muzzle, axes), at = JSON.stringify({ name, ...c, dist, view: view.name });
+      expect(m.muzzleGap, at).toBeLessThan(1e-9); expect(m.nearer, at).toBe(true);
+      for (const k of ['arm', 'armScreen', 'kink', 'foreScreen', 'limb', 'fore', 'knuckle', 'bend', 'elbowBend'] as const) note(k, m[k], at);
     }
-    expect(checked).toBeGreaterThan(GRID.length * 6 - 40); expect(behind).toBeLessThan(40);
-    expect(worst, at).toBeLessThan(2);
+    // Measured worst: arm 0, armScreen 0, elbow kink 14.6 px, forearm vertices 6.4 (15.7 on screen), lower-arm line 6.0, knuckle 16.3
+    // (plain rig), bend 6.1, elbow 8.3. The elbow-to-muzzle solver measured armScreen 57.5 and forearm-on-screen 29.9 on this grid.
+    expect(worst.arm[0], worst.arm[1]).toBeLessThan(1); expect(worst.armScreen[0], worst.armScreen[1]).toBeLessThan(2);
+    expect(worst.kink[0], worst.kink[1]).toBeLessThan(16); expect(worst.foreScreen[0], worst.foreScreen[1]).toBeLessThan(18);
+    expect(worst.limb[0], worst.limb[1]).toBeLessThan(8); expect(worst.fore[0], worst.fore[1]).toBeLessThan(10);
+    expect(worst.knuckle[0], worst.knuckle[1]).toBeLessThan(18); expect(worst.bend[0], worst.bend[1]).toBeLessThan(8);
+    expect(worst.elbowBend[0], worst.elbowBend[1]).toBeLessThan(15);
+  });
+  it('a crosshair on a wall 1.5 m away converges the arm on the point 8 m along the ray', () => {
+    const c = { speed: 0, viewYaw: .3, viewPitch: -.2, offset: .1 }, r = rig(), shot = cameraRay(.3, -.2, 1.5, VIEWS[3]), a = createSuitAim();
+    posed(r, c); const muzzle = aim(r, shot, 1, a);
+    expect(a.dist).toBe(8); withinLimits(r);
+    expect(aimMetrics(r.joints, r.root, shot, 8, muzzle, axes).arm).toBeLessThan(1);
   });
   it('blends continuously with the weight', () => {
     const c = { speed: 13, viewYaw: -.6, viewPitch: -.3, offset: .15 }, shot = cameraRay(-.6, -.3, 20), plain = rig(); posed(plain, c);
@@ -118,9 +115,9 @@ describe('suit aim', () => {
     advanceSuitAim(a, 1, 1, shot.origin, shot.target, 0, false, false, 1 / 60); expect(a.dist).toBe(250);
     const near = cameraRay(0, 0, 1);
     advanceSuitAim(a, 1, 1, near.origin, near.target, 0, false, false, 1 / 60);
-    expect(a.dist).toBeLessThan(250); expect(a.dist).toBeGreaterThan(2);
+    expect(a.dist).toBeLessThan(250); expect(a.dist).toBeGreaterThan(NEAR_IK);
     for (let f = 0; f < 120; f++) advanceSuitAim(a, 1, 1, near.origin, near.target, 0, false, false, 1 / 60);
-    expect(a.dist).toBe(2);
+    expect(a.dist).toBe(NEAR_IK);
   });
   it('kicks once per new shot, peaking near 1, then decays to exactly 0; reduced motion never kicks', () => {
     const shot = cameraRay(0, 0, 20), a = createSuitAim(), dt = 1 / 1000;

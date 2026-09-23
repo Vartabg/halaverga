@@ -5,7 +5,23 @@ import { AdditiveBlending, BoxGeometry, DoubleSide, BufferAttribute, BufferGeome
 import { puffFrame, puffU, type Puffs, type Rgb } from './fxPools';
 export const FX = { core: new Color('#f2feff'), fringe: new Color('#58e1ff'), hot: new Color('#ff8a3c'), white: new Color('#ffffff'),
   spark: new Color('#ffd08a'), water: new Color('#9fe3d6'), fire: new Color('#ff9a3c'), ember: new Color('#8a1c0c'),
-  smoke: new Color('#4a4450'), steam: new Color('#d9e2e0'), amber: new Color('#ffb347') };
+  smoke: new Color('#4a4450'), steam: new Color('#d9e2e0'), amber: new Color('#ffb347'),
+  // Kill burst: a white-hot pop, a flame core that cools yellow -> orange -> ember, and a pale smoke plume that reads on ruins.
+  pop: new Color('#fff2c0'), flame: new Color('#ffd27a'), blaze: new Color('#ff7a2a'), plume: new Color('#8c8794') };
+/** Sparks never draw below this many drawing-buffer pixels (2 CSS px; ImpactFx sets it from the pixel ratio each frame). */
+export const sparkMinPx = { value: 2 };
+function sparkShader(shader: WebGLProgramParametersWithUniforms) {
+  shader.uniforms.uMinPoint = sparkMinPx;
+  shader.vertexShader = shader.vertexShader.replace('uniform float scale;', 'uniform float scale;\nuniform float uMinPoint;')
+    .replace('#include <logdepthbuf_vertex>', 'gl_PointSize = max(gl_PointSize, uMinPoint);\n#include <logdepthbuf_vertex>');
+}
+/** Per-instance heat (aHeat 0..1) glows the kill debris orange as it cools; break chips and cold pieces write 0. */
+function debrisShader(shader: WebGLProgramParametersWithUniforms) {
+  shader.vertexShader = shader.vertexShader.replace('#include <common>', '#include <common>\nattribute float aHeat;\nvarying float vHeat;')
+    .replace('#include <begin_vertex>', '#include <begin_vertex>\nvHeat = aHeat;');
+  shader.fragmentShader = shader.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vHeat;')
+    .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance += vec3(1., .48, .16) * 2. * vHeat;');
+}
 function haloTexture() {
   const n = 64, data = new Uint8Array(n * n * 4);
   for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
@@ -51,9 +67,10 @@ function createKit() {
       fringe: { value: FX.fringe } }, transparent: true, depthWrite: false, blending: AdditiveBlending, toneMapped: false, fog: false,
       side: DoubleSide }),   // the ribbon's winding faces away from the camera with the spec's side = cross(end - start, eye - mid)
     ring: new MeshBasicMaterial({ color: FX.water, transparent: true, depthWrite: false, blending: AdditiveBlending, fog: true }),
-    spark: new PointsMaterial({ size: .08, sizeAttenuation: true, vertexColors: true, transparent: true, depthWrite: false,
-      blending: AdditiveBlending, fog: true }),
-    debris: new MeshStandardMaterial({ color: '#4a525c', metalness: .6, roughness: .55 }) };
+    spark: Object.assign(new PointsMaterial({ size: .15, sizeAttenuation: true, vertexColors: true, transparent: true, depthWrite: false,
+      blending: AdditiveBlending, fog: true }), { onBeforeCompile: sparkShader, customProgramCacheKey: () => 'fx-spark' }),
+    debris: Object.assign(new MeshStandardMaterial({ color: '#4a525c', metalness: .6, roughness: .55 }),
+      { onBeforeCompile: debrisShader, customProgramCacheKey: () => 'fx-debris-heat' }) };
 }
 let kit: ReturnType<typeof createKit> | null = null, users = 0;
 export const fxKit = () => kit ??= createKit();
@@ -91,7 +108,10 @@ export function ringPool(n: number) {
   const g = new RingGeometry(.88, 1, 40, 1); g.rotateX(-Math.PI / 2);
   return pool(withColor(new InstancedMesh(g, fxKit().ring, n)));
 }
-export const debrisPool = (n: number) => pool(new InstancedMesh(new BoxGeometry(.5, .08, .35), fxKit().debris, n));
+export function debrisPool(n: number) {
+  const g = new BoxGeometry(.5, .08, .35); dyn(g, 'aHeat', n, 1);
+  return pool(new InstancedMesh(g, fxKit().debris, n));
+}
 export function sparkPool(n: number) {
   const g = new BufferGeometry(); dyn(g, 'position', n, 3, false); dyn(g, 'color', n, 3, false); g.setDrawRange(0, 0);
   return pool(new Points(g, fxKit().spark));

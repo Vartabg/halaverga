@@ -28,16 +28,16 @@ describe('tracers', () => {
       for (let t = 0; t < arrive + .2; t += .0005) {
         tracerSpan(t, d, span);
         expect(span.tail).toBeLessThanOrEqual(d); expect(span.head).toBeLessThanOrEqual(d);
-        expect(span.head - span.tail).toBeGreaterThanOrEqual(0); expect(span.head - span.tail).toBeLessThanOrEqual(18 + 1e-9);
+        expect(span.head - span.tail).toBeGreaterThanOrEqual(0);
         expect(span.tail).toBeGreaterThanOrEqual(prevTail); prevTail = span.tail;
         if (span.alive) expect(span.tail).toBeLessThan(d);
       }
     }
-    // Long shots show an 18 m streak; after arrival the tail keeps the bullet speed until it reaches the point.
-    const d = 250, v = tracerSpeed(d);
+    // Retracting beam (approved 2026-09-23 deviation): the tail eases in from the muzzle over the whole life as dist * k^2.
+    const d = 250, life = d / tracerSpeed(d) + .07;
     expect(tracerSpan(.02, d, span)).toMatchObject({ alive: true });
-    expect(span.head - span.tail).toBeCloseTo(18, 9);
-    expect(tracerSpan(.033 + 5 / v, d, span).tail).toBeCloseTo(d - 13, 6);
+    expect(span.tail).toBeCloseTo(d * (.02 / life) ** 2, 9);
+    expect(tracerSpan(life / 2, d, span).tail).toBeCloseTo(d / 4, 9);
   });
   it('are at least .05 m and exactly 1.5 px at long range', () => {
     for (const d of [0, .5, 3, 10, 40, 120, 250]) for (const fov of [50, 65]) for (const h of [320, 800, 1440]) {

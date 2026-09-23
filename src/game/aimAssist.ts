@@ -2,6 +2,7 @@
 // no rotational pull (runtime.yaw/pitch are the flight heading), and no allocation after module load.
 import { ASSIST_PROFILE, engaged, type DroneTarget, type LookSource, type ShooterState, type Vec3 } from './combat';
 import { angleDelta } from './presentation';
+import { bloom01 } from './weapon';
 
 /** Angles in degrees. Slow values are zone base strengths before the device profile and the strength setting. */
 export const ZONES = { hipInner: .6, hipOuter: 2, adsInner: .4, adsOuter: 1.2, hipSlowInner: .6, hipSlowOuter: .5, adsSlowInner: .7,
@@ -47,13 +48,17 @@ const pick: BestTarget = { index: -1, zone: 0, angle: 0, dist: 0 };
 /**
  * Per-frame assist update. Writes only s.assist and s.aim.acquired/target. The slow ramps at a constant rate (Lyra: in 60/s,
  * out 4/s) to exactly 0; drift is the target's bearing rate, settled at rate 10, and resets to exactly 0 on a target change.
+ * The amber 'acquired' cue is not the friction zone: it lights only when a centred shot would connect, through the same
+ * magnet cone the shot uses (device profile, ADS, bloom, 60-100 m falloff) or, with assist off or out of magnet range, on the body.
  */
 export function advanceAssist(s: ShooterState, mem: AssistMemory, o: Vec3, d: Vec3, fovDeg: number, strength: number, elapsed: number) {
   const dt = Number.isFinite(elapsed) ? Math.min(Math.max(elapsed, 0), .05) : 0, as = s.assist;
   const on = engaged(s) && strength > 0;
   as.engaged = on; as.scale = strength;
   const b = bestTarget(o, d, s.targets, s.drones.count, fovDeg, s.aim.blend, pick);
-  s.aim.acquired = b.zone >= 1; s.aim.target = b.index;
+  s.aim.target = b.index;
+  s.aim.acquired = magnetize(o, d, s.targets, s.drones.count, s.aim.blend, bloom01(s.weapon), s.input.lookSource, strength) >= 0
+    || (b.index >= 0 && b.angle <= radiusAngle(s.targets[b.index].r, b.dist));
   const inner = b.zone === 2, a = s.aim.blend;
   const goal = on && b.zone > 0
     ? lerp(inner ? ZONES.hipSlowInner : ZONES.hipSlowOuter, inner ? ZONES.adsSlowInner : ZONES.adsSlowOuter, a) : 0;

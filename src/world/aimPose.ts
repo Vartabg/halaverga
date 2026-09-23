@@ -2,8 +2,20 @@ import { Euler, Quaternion, Vector3, type Object3D } from 'three';
 import { SNAP, springStep, type Muzzle, type Vec3 } from '../game/combat';
 import { BONE_COUNT, LIMITS } from './suitSkeleton';
 import { createPose, mixPose } from './clipSampler';
-/** XYZ Euler; an upright arm pointing forward on the GLB heads. */
-export const AIM_BASE = { clavicle_r: [0, .1, 0], upperarm_r: [1.571, 0, -.124], forearm_r: [.2, 0, 0], hand_r: [0, 0, 0] } as const;
+/** XYZ Euler; an upright arm pointing forward on the GLB heads, the elbow straight, and the hand's
+ * relaxed 15 deg forward flex eased by 11 deg so it continues the forearm (a larger turn about the off-mesh wrist head shears the skin).
+ */
+export const AIM_BASE = { clavicle_r: [0, .1, 0], upperarm_r: [1.571, 0, -.124], forearm_r: [0, 0, 0], hand_r: [-.2, 0, 0] } as const;
+/**
+ * Measured on the GLB in its bind frame (every bind rotation is identity; tests/suit-aim-asset.test.ts fails if the asset drifts).
+ * HAND_AXIS: the knuckle axis, hand head to the centroid of the farthest 20% of hand_r vertices, 35 deg ahead of the forearm bone
+ * because the bone heads sit on the back of the wrist. LIMB_AXIS: the visible lower-arm line, forearm head to MUZZLE_OFS at bind.
+ */
+export const HAND_AXIS = new Vector3(.0037, -.7933, -.6088).normalize(), LIMB_AXIS = new Vector3(.0438, -.9588, -.2807).normalize();
+/** The emitter in the hand frame: .18 m along the knuckle axis, at the knuckles. Read-only. */
+export const MUZZLE_OFS = HAND_AXIS.clone().multiplyScalar(.18);
+/** The arm converges on a point at least this far along the camera ray (m); nearer, it would have to reach behind the shoulder. */
+export const NEAR_IK = 8;
 /** The right-forearm emitter layer: weight (0..1), the smoothed IK distance (m), the recoil spring and the last shot count seen. */
 export type SuitAim = { epoch: number; weight: number; dist: number; kick: number; kickV: number; shots: number };
 export const createSuitAim = (): SuitAim => ({ epoch: NaN, weight: 0, dist: 30, kick: 0, kickV: 0, shots: 0 });
@@ -15,7 +27,7 @@ const IMPULSE = KICK_W * Math.exp(KICK_Z * Math.acos(KICK_Z) / Math.sqrt(1 - KIC
 const AIM = createPose(), MASK = new Float32Array(BONE_COUNT), buf = createPose();
 const qa = new Quaternion(), qb = new Quaternion(), ID = new Quaternion(), X = new Vector3(1, 0, 0);
 const target = new Vector3(), shoulder = new Vector3(), tip = new Vector3(), point = new Vector3(), va = new Vector3(), vb = new Vector3();
-const spring = { x: 0, v: 0 };
+const spring = { x: 0, v: 0 }, base = new Quaternion();
 ([['clavicle_r', CLAV], ['upperarm_r', UPPER], ['forearm_r', FORE], ['hand_r', HAND]] as const).forEach(([name, b]) => {
   const e = AIM_BASE[name]; MASK[b] = 1; qa.setFromEuler(new Euler(e[0], e[1], e[2])).toArray(AIM, b * 4);
 });
@@ -32,7 +44,7 @@ function ease(value: number, to: number, rate: number, dt: number) {
 export function advanceSuitAim(a: SuitAim, epoch: number, target: number, origin: Vec3, point: Vec3, shots: number, paused: boolean, reduced: boolean, elapsed: number) {
   if (paused) return;
   const goal = Number.isFinite(target) ? clamp(target, 0, 1) : 0;
-  const r = Math.hypot(point.x - origin.x, point.y - origin.y, point.z - origin.z), range = r >= 0 ? clamp(r, 2, 250) : a.dist;
+  const r = Math.hypot(point.x - origin.x, point.y - origin.y, point.z - origin.z), range = r >= 0 ? clamp(r, NEAR_IK, 250) : a.dist;
   if (a.epoch !== epoch) {
     // A teleport or resume starts from the new state instead of animating across the gap.
     a.epoch = epoch; a.weight = goal; a.kick = a.kickV = 0; a.dist = range; a.shots = shots; return;
@@ -68,9 +80,9 @@ function toward(frame: Object3D, at: Vector3, out: Vector3) {
 }
 /**
  * Points the right forearm emitter along the camera ray after the suit animation layers: a small torso pitch and gaze, the arm base
- * pose, a shoulder swing that puts the muzzle on the shoulder-to-target line, and a wrist correction that aims the hand's rest
- * forearm axis at the target. Rotations only, from values earlier layers wrote this frame, so nothing accumulates. Publishes the
- * muzzle world point. At weight 0, or on the rigid ten-joint rig, it writes no joint.
+ * pose, then a shoulder swing that lays the whole arm (shoulder to knuckle muzzle) on the shoulder-to-target line. Rotations only,
+ * from values earlier layers wrote this frame, so nothing accumulates. Publishes the muzzle world point. At weight 0, or on the rigid
+ * ten-joint rig, it writes no joint.
  */
 export function applySuitAim(joints: Object3D[], root: Object3D, a: SuitAim, origin: Vec3, dir: Vec3, muzzle: Muzzle) {
   if (!(a.weight >= 1e-4) || joints.length < BONE_COUNT) { muzzle.valid = false; muzzle.weight = 0; return; }
@@ -93,15 +105,18 @@ export function applySuitAim(joints: Object3D[], root: Object3D, a: SuitAim, ori
   for (let i = 0; i < ARM.length; i++) joints[ARM[i]].quaternion.toArray(buf, ARM[i] * 4);
   mixPose(buf, AIM, w, MASK);
   for (let i = 0; i < ARM.length; i++) joints[ARM[i]].quaternion.fromArray(buf, ARM[i] * 4);
-  // Swing: the shoulder turns the muzzle onto the shoulder-to-target line. The fingertip offset is read from the live joints.
-  tip.copy(joints[HAND].position).normalize().multiplyScalar(.18);
+  // Swing: the shoulder turns the whole arm so the shoulder-to-muzzle line runs through the target. On screen every point of that line
+  // projects onto one ray from the crosshair, so the upper arm, forearm and fist all read as pointing at it (aiming only the lower arm
+  // left the long upper arm, the part the player sees, off to the side). The shoulder is the pivot, so one exact swing solves it,
+  // at full weight, then slerped by w. The wrist keeps AIM_BASE, so the hand stays on the forearm.
+  tip.copy(MUZZLE_OFS); base.copy(joints[UPPER].quaternion);
+  root.updateMatrixWorld(true);
   joints[UPPER].getWorldPosition(shoulder); joints[HAND].localToWorld(point.copy(tip));
   joints[CLAV].getWorldQuaternion(qa).invert();
   va.subVectors(point, shoulder).applyQuaternion(qa).normalize(); vb.subVectors(target, shoulder).applyQuaternion(qa).normalize();
-  swing(joints[UPPER], va, vb, w); limit(joints, UPPER);
-  // Wrist: the hand's rest forearm axis (its own frame) turns onto the wrist-to-target line, in the forearm frame.
-  toward(joints[FORE], joints[HAND].getWorldPosition(point), vb);
-  swing(joints[HAND], va.copy(tip).normalize().applyQuaternion(joints[HAND].quaternion), vb, w); limit(joints, HAND);
+  swing(joints[UPPER], va, vb, 1);
+  if (w < 1) joints[UPPER].quaternion.slerpQuaternions(base, qb.copy(joints[UPPER].quaternion), w);
+  limit(joints, UPPER);
   // Recoil, visual only: the arm rises about the shoulder's x and the elbow closes. The aim ray never moves.
   const k = a.kick * w;
   if (k) { joints[UPPER].quaternion.premultiply(qa.setFromAxisAngle(X, 3 * RAD * k)); joints[FORE].rotation.x += 6 * RAD * k; }

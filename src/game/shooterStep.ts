@@ -8,7 +8,7 @@ import { advanceDrones, buildTargets, createDroneContext, type DroneSim } from '
 import { hitDrones, projectedStart, rayWater, type DroneHit } from './shotMath';
 import type { ShooterWorld, WorldHit } from './shotResolve';
 import { advanceSpread, advanceWeapon, spreadHalfAngle } from './weapon';
-import { fireShot, muzzleFrom, type AudioSink, type StepContext } from './shooterShots';
+import { fireShot, muzzleFrom, realMuzzle, type AudioSink, type StepContext } from './shooterShots';
 export type { AudioSink, StepContext } from './shooterShots';
 export { NEAR_MISS } from './shooterShots';
 
@@ -25,6 +25,8 @@ export const droneContext = createDroneContext();
 const start: Vec3 = { x: 0, y: 0, z: 0 }, toPoint: Vec3 = { x: 0, y: 0, z: 0 };
 const env: WorldHit = { t: 0, normal: { x: 0, y: 1, z: 0 } }, block: WorldHit = { t: 0, normal: { x: 0, y: 1, z: 0 } };
 const aimDrone: DroneHit = { index: -1, t: 0, weak: false };
+/** Alternates the HUD-only blocked check between frames. */
+let blockTick = 0;
 const copy = (o: Vec3, a: Vec3) => { o.x = a.x; o.y = a.y; o.z = a.z; };
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 
@@ -49,9 +51,9 @@ function aimPoint(s: ShooterState, world: ShooterWorld, ctx: StepContext, count:
   else { a.point.x = o.x + d.x * SHOT_RANGE; a.point.y = o.y + d.y * SHOT_RANGE; a.point.z = o.z + d.z * SHOT_RANGE; }
   a.dist = Math.hypot(a.point.x - o.x, a.point.y - o.y, a.point.z - o.z);
 }
-/** True when the segment from the muzzle to the crosshair point is blocked short of it (as resolveShot's muzzle check). */
-function muzzleBlocked(s: ShooterState, world: ShooterWorld, ctx: StepContext) {
-  const m = muzzleFrom(s, ctx, s.aim.dir), p = s.aim.point;
+/** True when the segment from the real muzzle to the crosshair point is blocked short of it (as resolveShot's muzzle check). */
+function muzzleBlocked(s: ShooterState, world: ShooterWorld, m: Vec3) {
+  const p = s.aim.point;
   const x = p.x - m.x, y = p.y - m.y, z = p.z - m.z, l = Math.hypot(x, y, z);
   if (!(l > .15)) return false;
   toPoint.x = x / l; toPoint.y = y / l; toPoint.z = z / l;
@@ -96,10 +98,15 @@ export function stepShooter(s: ShooterState, sim: DroneSim, mem: AssistMemory, w
   cursor.last = ctx.voiced; voiceSink = audio; voiceState = s;
   readEvents(s, cursor, voice);
   ctx.voiced = cursor.last; voiceSink = null; voiceState = null;
-  // g. Aim point for the suit IK: only while the arm or the aim is up (exactly 0 when idle, so no ray then).
+  // g. Aim point for the suit IK: only while the arm or the aim is up (exactly 0 when idle, so no ray then). The blocked glyph
+  // follows the shot rule: a shot frame reports its result; with no real muzzle nothing can block; otherwise the muzzle ray (HUD
+  // only) is re-cast on alternate frames and held between, so aiming costs 1.5 rays a frame on average.
   if (a.valid && (a.blend > 0 || a.fireHold > 0)) {
     aimPoint(s, world, ctx, count);
-    a.blocked = shotKind !== '' ? shotKind === 'blocked' : muzzleBlocked(s, world, ctx);
+    const m = realMuzzle(s);
+    if (shotKind !== '') a.blocked = shotKind === 'blocked';
+    else if (!m) a.blocked = false;
+    else if ((blockTick ^= 1) === 1) a.blocked = muzzleBlocked(s, world, m);
   } else a.blocked = false;
   // h. Assist and camera effects.
   advanceAssist(s, mem, a.origin, a.dir, a.fov, ctx.strength, dt);

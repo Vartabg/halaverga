@@ -17,15 +17,20 @@
 .sweep{stroke:#ffffff}
 .marker{color:#ffffff;filter:drop-shadow(0 0 1px var(--edge))}
 .marker[data-kind=weak]{color:#ffb347}
-.marker[data-kind=kill]{color:#ff5a36}
 .marker[data-kind=blocked]{color:#a3adaf}
-.marker i{width:2px;height:6px;margin:-3px 0 0 -1px;background:currentColor;transform:rotate(var(--a)) translateY(-9px)}
-.marker b{display:none!important;width:6px;height:2px;margin:-1px 0 0 -3px;background:currentColor;transform:rotate(45deg) translateY(-13px)}
+.marker[data-kind=kill]{color:#ff3b30}
+/* Ticks span 11-19 px from the centre: outside the drone silhouette at range, inside the heat ring (20.5 px), with a hard edge. */
+.marker i{width:2.5px;height:8px;margin:-4px 0 0 -1.25px;background:currentColor;box-shadow:0 0 0 1px var(--edge);transform:rotate(var(--a)) translateY(-15px)}
+.marker[data-kind=kill] i{width:3px;height:9px;margin:-4.5px 0 0 -1.5px}
+.marker b{display:none!important;width:6px;height:2px;margin:-1px 0 0 -3px;background:currentColor;transform:rotate(45deg) translateY(-19px)}
 .marker[data-kind=weak] b{display:block!important}
 .chev{transform:rotate(var(--pip)) translateX(calc(var(--r) + 14px));filter:drop-shadow(0 0 1px var(--edge))}
 .chev i{width:7px;height:7px;margin:-3.5px 0 0 -5px;border-top:2px solid #ffffff;border-right:2px solid #ffffff;transform:rotate(45deg)}
 .chain{left:calc(var(--r) + 16px)!important;top:-20px!important;color:#ffb347;font:bold 12px 'Courier New',monospace;white-space:nowrap;text-shadow:0 0 2px var(--edge),0 0 1px var(--edge)}
-.hint{position:absolute;top:56px;left:0;transform:translateX(-50%);width:max-content;max-width:min(85vw,420px);margin:0;padding:6px 10px;background:#142c32e8;color:#e8f6d6;font:10px/1.6 'Courier New',monospace;text-align:center}
+/* Controls hint: one line in the band under the header (header top + 56px), never over the crosshair or the suit. */
+.hint{position:absolute;top:calc(max(28px,env(safe-area-inset-top)) + 56px);left:50%;transform:translateX(-50%);z-index:1;width:max-content;white-space:nowrap;margin:0;padding:6px 10px;background:#142c32e8;color:#e8f6d6;font:10px/1.6 'Courier New',monospace;text-align:center;pointer-events:none}
+@media(max-width:600px){.hint{top:calc(max(20px,env(safe-area-inset-top)) + 52px)}}
+@media(max-height:550px) and (orientation:landscape){.hint{top:calc(max(12px,env(safe-area-inset-top)) + 50px)}}
 @media(forced-colors:active){
   .hud{forced-color-adjust:none}
   .cross,.cross[data-acquired=true],.marker,.marker[data-kind]{color:CanvasText;filter:none}

@@ -6,11 +6,10 @@ import { runtime } from '@/game/runtime';
 import { clearShooterFault, shooterFault } from '@/game/shooterFault';
 import { pause, resume, useInput } from './useInput';
 import { useShooterInput } from './useShooterInput';
-import { audioBus } from './audioBus';
-import ShooterHud from './ShooterHud';
+import { unlockBlasterAudio } from './audioUnlock';
 import { useAudio } from './useAudio';
 import Boundary from './Boundary';
-import TouchControls from './TouchControls';
+import TouchControls, { loadFireControls } from './TouchControls';
 import TapControls from './TapControls';
 import FieldGuide from './FieldGuide';
 import TestPanel from './TestPanel';
@@ -19,6 +18,10 @@ import FlowHud from './FlowHud';
 import FlowWelcome from './FlowWelcome';
 import styles from './Experience.module.css';
 const Scene = dynamic(() => import('@/world/Scene'), { ssr: false });
+// The blaster HUD is its own chunk: the landing page's first load carries no shooter UI. It is warmed once the setting is on.
+const Reticle = () => <div className={styles.reticle} aria-hidden="true"><span /></div>;
+const loadHud = () => import('./ShooterHud');
+const ShooterHud = dynamic(loadHud, { ssr: false, loading: Reticle });
 export default function Experience() {
   const state = useGame(), [hydrated, setHydrated] = useState(false), [failed, setFailed] = useState(false);
   const [sceneKey, setSceneKey] = useState(0);
@@ -31,10 +34,12 @@ export default function Experience() {
     if (profile === 'flow' || profile === 'free' || profile === 'captured') useGame.setState({ desktopMode: 'trackpad', trackpadSteering: profile });
     setHydrated(true);
   }, []);
-  useInput(); useAudio(); useShooterInput({ unlock: audioBus.unlock });
+  // Warm the blaster UI chunks after hydration so the first aim never waits on them; with the blaster off nothing is requested.
+  useEffect(() => { if (hydrated && state.shooter) { void loadHud().catch(() => {}); void loadFireControls().catch(() => {}); } }, [hydrated, state.shooter]);
+  useInput(); useAudio(); useShooterInput({ unlock: unlockBlasterAudio });
   const failure = useCallback(() => { setFailed(true); pause(); }, []);
-  // Begin/Resume is an activation gesture: it unlocks blaster audio.
-  const enter = () => { audioBus.unlock(); resume(); main.current?.focus(); };
+  // Begin/Resume is an activation gesture: it unlocks blaster audio (a no-op while the blaster is off or muted).
+  const enter = () => { unlockBlasterAudio(); resume(); main.current?.focus(); };
   const closePanel = () => { state.set({ panel: false }); if (state.started && state.ready && !failed) enter(); };
   const closeGuide = () => { state.set({ journal: false }); if (state.started && state.ready && !failed) enter(); };
   // A rejected suit-asset load stays cached under its URL, so a bare remount would rethrow the same failure. The
@@ -48,7 +53,7 @@ export default function Experience() {
   };
   const fallback = <div className={styles.recovery} role="alert"><h2>The world needs a moment.</h2><p>Your field guide remains available. Reload the scene to continue from your saved landing.</p><button className={styles.primary} onClick={retry}>Reload scene</button></div>;
   const playing = state.started && !state.paused;
-  const reticle = <div className={styles.reticle} aria-hidden="true"><span /></div>;
+  const reticle = <Reticle />;
   const flightHint = state.message || (state.flying && state.canLand ? 'SURFACE IN REACH · LAND' : state.boundaryNear ? 'SURVEY LIMIT · TURN BACK' : state.clearanceActive ? 'CLEARANCE ASSIST · STEER AROUND' : '');
   useEffect(() => {
     if (!state.message) return;

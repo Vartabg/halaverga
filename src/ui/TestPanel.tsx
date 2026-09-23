@@ -1,11 +1,13 @@
+import dynamic from 'next/dynamic';
 import { useEffect, useState } from 'react';
 import { persistGame, useGame } from '@/game/store';
 import { runtime } from '@/game/runtime';
 import Modal from './Modal';
 import styles from './Experience.module.css';
 import TrackpadSettings from './TrackpadSettings';
-import ShooterSettings from './ShooterSettings';
-import { audioBus } from './audioBus';
+import { unlockBlasterAudio } from './audioUnlock';
+// Blaster settings load with the panel, not with the landing page.
+const ShooterSettings = dynamic(() => import('./ShooterSettings'), { ssr: false, loading: () => null });
 import { BUILD_STAMP, DEPLOYMENT_URL } from './buildInfo';
 function measurements() {
   const frames = [...runtime.frames].sort((a, b) => a - b);
@@ -34,8 +36,8 @@ export default function TestPanel({ onClose }: { onClose: () => void }) {
     <ShooterSettings />
     <label className={styles.check}><input type="checkbox" checked={state.reduced} onChange={e => save({ reduced: e.target.checked })} /> Reduced camera motion</label>
     <label className={styles.check}><input type="checkbox" checked={!state.muted} onChange={e => {
-      // Unmute first: the unlock click sets the playback audio session from the muted flag (iOS silent switch).
-      save({ muted: !e.target.checked }); if (e.target.checked) audioBus.unlock();
+      // Unmute first: the unlock reads the muted flag (and the blaster setting) before touching the audio session.
+      save({ muted: !e.target.checked }); if (e.target.checked) unlockBlasterAudio();
     }} /> Suit and wind audio</label>
     <label className={styles.check}><input type="checkbox" checked={state.tapControls} onChange={e => save({ tapControls: e.target.checked })} /> Show tap controls · no dragging</label>
     <p className={styles.muted}>Reduced motion keeps a fixed field of view, removes camera easing and softens the character’s poses. Flight itself remains player-controlled.</p>

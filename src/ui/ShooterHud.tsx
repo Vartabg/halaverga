@@ -4,7 +4,7 @@ import { HEAT, readEvents, type ShotEvent } from '@/game/combat';
 import { runtime } from '@/game/runtime';
 import { guarded } from '@/game/shooterFault';
 import { useGame } from '@/game/store';
-import { MARKER_T, chainLabel, controlsHint, crosshairRadius, heatColor, markerState, pipAngle, popScale, ventState, type Marker, type MarkerKind } from './hudTimeline';
+import { MARKER_T, chainLabel, controlsHint, crossScale, crosshairRadius, heatColor, markerState, pipAngle, ventState, type Marker, type MarkerKind } from './hudTimeline';
 import styles from './ShooterHud.module.css';
 // Per-frame values go straight from runtime.shooter to element styles through refs: no React state per frame and no render
 // invalidation. The only state is the kill announcement, in a live region kept outside the aria-hidden visual root.
@@ -18,7 +18,7 @@ const ios = () => /iPhone|iPad/.test(navigator.userAgent) || (navigator.maxTouch
 let hintStart = -1, mutedNudged = false, silentNudged = false;
 function nudge() {
   const muted = useGame.getState().muted;
-  if (muted && !mutedNudged) { mutedNudged = true; useGame.setState({ message: 'Sound on for blaster feedback · Flight settings' }); }
+  if (muted && !mutedNudged) { mutedNudged = true; useGame.setState({ message: 'Blaster sound is off · Settings' }); }
   else if (!muted && !silentNudged && ios() && !('audioSession' in navigator)) {
     silentNudged = true; useGame.setState({ message: 'No blaster sound? Check the silent switch.' });
   }
@@ -31,7 +31,7 @@ export default function ShooterHud() {
     marker = useRef<HTMLSpanElement>(null), chev = useRef<HTMLSpanElement>(null), chain = useRef<HTMLSpanElement>(null),
     hint = useRef<HTMLParagraphElement>(null);
   const [live, setLive] = useState('');
-  const desktopMode = useGame(s => s.desktopMode), steering = useGame(s => s.trackpadSteering);
+  const desktopMode = useGame(s => s.desktopMode), steering = useGame(s => s.trackpadSteering), tapControls = useGame(s => s.tapControls);
   const coarse = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
   const hintOn = hintStart < 0 || performance.now() - hintStart < HINT_MS;
   useEffect(() => {
@@ -45,7 +45,8 @@ export default function ShooterHud() {
       lchain = 0, hintGone = false;
     const onEvent = (e: ShotEvent) => {
       if (isMarker(e.kind)) {
-        if (e.kind !== kind) { markEl.dataset.kind = e.kind; markEl.style.rotate = e.kind === 'kill' ? '45deg' : '0deg'; }
+        // The X ticks already sit on the diagonals, off the crosshair's axes: the kill marker is not rotated further.
+        if (e.kind !== kind) markEl.dataset.kind = e.kind;
         kind = e.kind; kindT = e.t; if (e.kind === 'kill') pendingKill = true;
       } else if (e.kind === 'telegraph') {
         const a = s.aim, x = e.from.x - a.origin.x, y = e.from.y - a.origin.y, z = e.from.z - a.origin.z;
@@ -58,7 +59,7 @@ export default function ShooterHud() {
       readEvents(s, cursor, onEvent);
       const r = Math.round(crosshairRadius(a.spreadHalf, a.fov, innerHeight, a.acquired) * 10) / 10;
       if (r !== lr) { lr = r; el.style.setProperty('--r', r + 'px'); }
-      const pop = Math.round(popScale(w.sinceShot) * 1000) / 1000;
+      const pop = crossScale(w.sinceShot, reduced);
       if (pop !== lpop) { lpop = pop; crossEl.style.scale = String(pop); }
       if (a.acquired !== lacq) { lacq = a.acquired; crossEl.dataset.acquired = String(lacq); }
       if (a.blocked !== lblocked) { lblocked = a.blocked; crossEl.dataset.blocked = String(lblocked); }
@@ -128,8 +129,9 @@ export default function ShooterHud() {
       </span>
       <span ref={chev} className={styles.chev} style={{ opacity: 0 }}><i /></span>
       <span ref={chain} className={styles.chain} />
-      {hintOn && <p ref={hint} className={styles.hint}>{controlsHint({ coarse, desktopMode, steering })}</p>}
     </div>
     <div className="sr-only" aria-live="polite" data-testid="shooter-live">{live}</div>
+    {/* Outside the crosshair box: one line in the band under the header, clear of the crosshair, the suit and the thumbs. */}
+    {hintOn && <p ref={hint} className={styles.hint} aria-hidden="true">{controlsHint({ coarse, desktopMode, steering, tapControls })}</p>}
   </>;
 }

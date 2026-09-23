@@ -6,20 +6,22 @@ import { chainLabel, controlsHint, crosshairRadius, heatColor, markerState, pipA
 const ms = (n: number) => n / 1000;
 describe('markerState', () => {
   const kinds: MarkerKind[] = ['hit', 'weak', 'kill', 'blocked'];
+  // Kill (approved 2026-09-23 deviation): a larger 1.15x X, never rotated, fading until 450 ms. Other kinds end at 300 ms.
+  const baseOf = (k: MarkerKind) => k === 'kill' ? 1.15 : 1, endOf = (k: MarkerKind) => k === 'kill' ? 450 : 300;
   it('pops, holds, fades and disappears on the plan timeline for every kind', () => {
     for (const kind of kinds) {
-      const base = kind === 'kill' ? 1.6 : 1, rot = kind === 'kill' ? 45 : 0;
+      const base = baseOf(kind), end = endOf(kind);
       const at = (t: number) => markerState(kind, ms(t), false);
-      expect(at(0)).toEqual({ visible: true, scale: 1.4 * base, opacity: 1, rotate: rot });
+      expect(at(0)).toEqual({ visible: true, scale: 1.4 * base, opacity: 1, rotate: 0 });
       // Ease-out cubic: half the time covers 7/8 of the pop.
       expect(at(35).scale).toBeCloseTo(base * (1 + .4 / 8), 9);
       expect(at(35).opacity).toBe(1);
       expect(at(70).scale).toBeCloseTo(base, 12);
       expect(at(70).opacity).toBe(1);
-      expect(at(160)).toMatchObject({ visible: true, opacity: 1, rotate: rot });
+      expect(at(160)).toMatchObject({ visible: true, opacity: 1, rotate: 0 });
       expect(at(160).scale).toBeCloseTo(base, 12);
-      expect(at(230).opacity).toBeCloseTo(.5, 9);
-      expect(at(300)).toMatchObject({ visible: false, opacity: 0 });
+      expect(at((160 + end) / 2).opacity).toBeCloseTo(.5, 9);
+      expect(at(end)).toMatchObject({ visible: false, opacity: 0 });
       expect(at(-1).visible).toBe(false);
     }
   });
@@ -28,22 +30,22 @@ describe('markerState', () => {
     for (let t = 0; t <= 70; t += 5) { const s = markerState('hit', ms(t), false).scale; expect(s).toBeLessThanOrEqual(last); last = s; }
     expect(1.4 - markerState('hit', ms(17.5), false).scale).toBeGreaterThan(.2);
   });
-  it('kill is 1.6x and rotated 45 deg', () => {
-    expect(markerState('kill', ms(100), false)).toMatchObject({ scale: 1.6, rotate: 45 });
+  it('kill is 1.15x and never rotated', () => {
+    expect(markerState('kill', ms(100), false)).toMatchObject({ scale: 1.15, rotate: 0 });
     expect(markerState('weak', ms(100), false)).toMatchObject({ scale: 1, rotate: 0 });
   });
   it('reduced motion removes the pop and keeps the fade', () => {
     for (const kind of kinds) {
-      const base = kind === 'kill' ? 1.6 : 1;
+      const base = baseOf(kind), end = endOf(kind);
       for (const t of [0, 35, 70, 160]) expect(markerState(kind, ms(t), true)).toMatchObject({ visible: true, scale: base, opacity: 1 });
       expect(markerState(kind, ms(230), true).opacity).toBeCloseTo(markerState(kind, ms(230), false).opacity, 12);
-      expect(markerState(kind, ms(300), true).visible).toBe(false);
+      expect(markerState(kind, ms(end), true).visible).toBe(false);
     }
   });
   it('writes into a reused out object', () => {
     const out = { visible: false, scale: 0, opacity: 0, rotate: 0 };
     expect(markerState('kill', 0, false, out)).toBe(out);
-    expect(out.scale).toBeCloseTo(2.24, 12);
+    expect(out.scale).toBeCloseTo(1.15 * 1.4, 12);
   });
 });
 

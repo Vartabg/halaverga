@@ -1,22 +1,25 @@
 // Sparks, splashes, debris, fireball and smoke: 5 draw calls (sparks, additive sprites, alpha sprites, rings, debris).
 import { useEffect, useMemo } from 'react';
-import { useFrame } from '@react-three/fiber';
+import { useFrame, type RootState } from '@react-three/fiber';
 import { Euler, Matrix4, Quaternion, Vector3 } from 'three';
-import { EVENT_RING, MAX_DRONES, WATER_LEVEL, droneAlive, mulberry32, readEvents, type EventKind, type ShotEvent, type Vec3 } from '@/game/combat';
+import { EVENT_RING, MAX_DRONES, WATER_LEVEL, droneAlive, flashGate, mulberry32, readEvents, type EventKind, type ShotEvent, type Vec3 } from '@/game/combat';
 import { guarded } from '@/game/shooterFault';
 import { runtime } from '@/game/runtime';
 import { useGame } from '@/game/store';
-import { claim, debrisAt, drawSparks, impactDelay, isShotKind, lobeDir, makePuffs, makeSparks, puffFrame, puffU, spawnPuff,
-  spawnSpark, waterContactTime, type Puffs, type Ring } from './fxPools';
-import { FX, commit, debrisPool, disposePool, drawPuffs, fxKit, place, retainFx, ringPool, sparkPool, spritePool, tint } from './fxMaterials';
-const SPARKS = 128, ADD = 16, ALPHA = 24, RINGS = 8, DEBRIS = 32, DB = 16, PD = 10, UP = { x: 0, y: 1, z: 0 };
+import { CURVE_FLAT, CURVE_HOLD, claim, debrisAt, drawSparks, impactDelay, isShotKind, lobeDir, makePuffs, makeSparks, puffFrame, puffU,
+  spawnPuff, spawnSpark, waterContactTime, type Ring } from './fxPools';
+import { FX, commit, debrisPool, disposePool, drawPuffs, fxKit, place, retainFx, ringPool, sparkMinPx, sparkPool, spritePool, tint } from './fxMaterials';
+// ALPHA holds the kill plume (6 x 1.8 s) beside up to 8 broken-drone smoke trails (about 6 live puffs each) without evicting them.
+const SPARKS = 128, ADD = 24, ALPHA = 48, RINGS = 8, DEBRIS = 32, DB = 17, PD = 10, UP = { x: 0, y: 1, z: 0 }, HEAT_T = .6;
 const m4 = new Matrix4(), q = new Quaternion(), eu = new Euler(), vp = new Vector3(), vs = new Vector3();
 
 function createImpactFx() {
   const sparks = sparkPool(SPARKS), add = spritePool(ADD, true), alpha = spritePool(ALPHA, false), rings = ringPool(RINGS);
   const debris = debrisPool(DEBRIS), sp = makeSparks(SPARKS), addP = makePuffs(ADD), alphaP = makePuffs(ALPHA), ringP = makePuffs(RINGS);
+  const heat = debris.geometry.attributes.aHeat.array as Float32Array, popHist = new Float64Array(3).fill(-Infinity);
   const sPos = sparks.geometry.attributes.position.array as Float32Array, sCol = sparks.geometry.attributes.color.array as Float32Array;
-  // Debris per slot: born, end, p0 xyz, v0 xyz, spin xyz, rot0 xyz, scale, wet (ends on the water). Pending: spawnAt, point, normal.
+  // Debris per slot: born, end, p0 xyz, v0 xyz, spin xyz, rot0 xyz, scale, wet (ends on the water), hot (kill piece that glows).
+  // Pending: spawnAt, point, normal.
   const db = new Float64Array(DEBRIS * DB), dbLive = new Uint8Array(DEBRIS), dbRing: Ring = { next: 0, size: DEBRIS };
   const pend = new Float64Array(EVENT_RING * PD), pendKind: EventKind[] = Array.from({ length: EVENT_RING }, () => 'miss');
   const pendLive = new Uint8Array(EVENT_RING), pendRing: Ring = { next: 0, size: EVENT_RING };
@@ -30,13 +33,13 @@ function createImpactFx() {
   const ring = (x: number, z: number, when: number) => {
     at.x = x; at.y = WATER_LEVEL + .02; at.z = z; spawnPuff(ringP, when, at, 0, .8, .2, 1.6, 1, FX.water, FX.water, .8);
   };
-  const addDebris = (c: Vec3, speed0: number, speed1: number, up: number, scale: number) => {
+  const addDebris = (c: Vec3, speed0: number, speed1: number, up: number, scale: number, hot = 0) => {
     const i = claim(dbRing), o = i * DB, a = 2 * Math.PI * rng(), el = (rng() - .3) * .9, s = speed0 + (speed1 - speed0) * rng();
     v.x = Math.cos(el) * Math.cos(a) * s; v.y = Math.sin(el) * s + up; v.z = Math.cos(el) * Math.sin(a) * s;
     const hit = waterContactTime(c, v, WATER_LEVEL), end = Math.min(2.5, hit);
     db[o] = t; db[o + 1] = end; db[o + 2] = c.x; db[o + 3] = c.y; db[o + 4] = c.z; db[o + 5] = v.x; db[o + 6] = v.y; db[o + 7] = v.z;
     for (let k = 0; k < 3; k++) { db[o + 8 + k] = (3 + 6 * rng()) * (rng() < .5 ? -1 : 1); db[o + 11 + k] = 2 * Math.PI * rng(); }
-    db[o + 14] = scale; db[o + 15] = hit <= 2.5 ? 1 : 0; dbLive[i] = 1;
+    db[o + 14] = scale; db[o + 15] = hit <= 2.5 ? 1 : 0; db[o + 16] = hot; dbLive[i] = 1;
   };
   const impact = (kind: EventKind, c: Vec3, nrm: Vec3) => {
     if (kind === 'water') {
@@ -51,11 +54,19 @@ function createImpactFx() {
   const onEvent = (e: ShotEvent) => {
     if (e.kind === 'break') { addDebris(e.point, 2, 4, 2, 1); burstSparks(e.point, UP, reduced ? 4 : 8); return; }
     if (e.kind === 'burst') {
-      for (let k = 0; k < 9; k++) addDebris(e.point, 5, 11, 4, k < 3 ? 1.6 : .6 + .3 * rng());
-      spawnPuff(addP, t, e.point, 0, .25, .8, 2.2, 1, FX.fire, FX.ember, 1);
-      for (let k = 0; k < 4; k++) {
-        at.x = e.point.x + (rng() - .5); at.y = e.point.y + (rng() - .5) * .5; at.z = e.point.z + (rng() - .5);
-        spawnPuff(alphaP, t, at, 1.5, 1.2, .9, 2.2, 1, FX.smoke, FX.smoke, .5);
+      const c = e.point;
+      for (let k = 0; k < 9; k++) addDebris(c, 5, 11, 4, k < 3 ? 2.2 : .6 + .3 * rng(), 1);
+      // A 50 ms white-hot pop (its own 3-per-second flash gate; none under reduced motion), a hot centre, then a flame core that
+      // holds its brightness for about 150 ms while it grows 1.2 -> 3.5 m and cools yellow -> orange -> ember.
+      if (!reduced && flashGate(popHist, 0, t)) spawnPuff(addP, t, c, 0, .05, 3.5, 3.5, 1, FX.pop, FX.pop, 1, CURVE_FLAT);
+      spawnPuff(addP, t, c, 0, .15, .6, 1.4, 1, FX.pop, FX.flame, 1, CURVE_HOLD);
+      spawnPuff(addP, t, c, 0, .2, 1.2, 2.6, 1, FX.flame, FX.blaze, 1, CURVE_HOLD);
+      spawnPuff(addP, t + .12, c, 0, .3, 2.4, 3.5, 1, FX.blaze, FX.ember, .9, CURVE_HOLD);
+      burstSparks(c, UP, reduced ? 6 : 20 + Math.floor(rng() * 9));
+      // A pale plume that starts 80 ms after the pop, rises and spreads (reduced motion: two still puffs).
+      for (let k = 0, n = reduced ? 2 : 6; k < n; k++) {
+        at.x = c.x + (rng() - .5) * .6; at.y = c.y + (rng() - .5) * .4; at.z = c.z + (rng() - .5) * .6;
+        spawnPuff(alphaP, t + .08 + .03 * k, at, reduced ? 0 : 1.2, 1.8, 1.2, 4, 1, FX.plume, FX.plume, .7);
       }
       return;
     }
@@ -73,8 +84,9 @@ function createImpactFx() {
       p.x = db[o + 2]; p.y = db[o + 3]; p.z = db[o + 4]; v.x = db[o + 5]; v.y = db[o + 6]; v.z = db[o + 7];
       if (age >= db[o + 1]) {
         if (db[o + 15]) { debrisAt(p, v, db[o + 1], at); ring(at.x, at.z, db[o] + db[o + 1]); }
-        place(debris, i, 0, 0, 0, 0, 0, 0); dbLive[i] = 0; continue;
+        place(debris, i, 0, 0, 0, 0, 0, 0); heat[i] = 0; dbLive[i] = 0; continue;
       }
+      heat[i] = db[o + 16] ? Math.max(0, 1 - age / HEAT_T) : 0;
       debrisAt(p, v, age, at);
       q.setFromEuler(eu.set(db[o + 11] + db[o + 8] * age, db[o + 12] + db[o + 9] * age, db[o + 13] + db[o + 10] * age));
       debris.setMatrixAt(i, m4.compose(vp.set(at.x, at.y, at.z), q, vs.setScalar(db[o + 14]))); top = i + 1;
@@ -101,8 +113,9 @@ function createImpactFx() {
       if (t >= sparkAt[i]) { burstSparks(p, UP, 1); sparkAt[i] = t + .4; }
     }
   };
-  const frame = () => {
+  const frame = (st: RootState) => {
     const s = runtime.shooter;
+    sparkMinPx.value = 2 * st.gl.getPixelRatio();
     t = s.clock; reduced = useGame.getState().reduced;
     readEvents(s, cursor, onEvent);
     for (let i = 0; i < EVENT_RING; i++) {
@@ -115,7 +128,7 @@ function createImpactFx() {
     const top = drawSparks(sp, t, sPos, sCol, FX.white, FX.spark), g = sparks.geometry;
     g.setDrawRange(0, top); sparks.visible = top > 0;
     if (top) { g.attributes.position.needsUpdate = true; g.attributes.color.needsUpdate = true; }
-    fxKit().spark.size = reduced ? .08 : .08 * (.8 + .4 * rng());
+    fxKit().spark.size = reduced ? .15 : .15 * (.8 + .4 * rng());
     commit(add, drawPuffs(add, addP, t)); commit(alpha, drawPuffs(alpha, alphaP, t));
     commit(rings, drawRings()); commit(debris, drawDebris());
   };

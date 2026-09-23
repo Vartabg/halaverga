@@ -51,8 +51,9 @@ export default function TapControls() {
   return <div className={styles.tapPad} role="group" aria-label="Tap flight controls">
     {buttons.map(([icon,label,action]) => <button key={label} aria-label={label} title={label} onClick={() => { tap(); action(); }}>{icon}</button>)}
     {shooter && <>
-      <button aria-label="Fire" title="Fire · stops after 3 seconds" aria-pressed={firing} onClick={fire}>◎</button>
-      <button aria-label="Aim" title="Aim" aria-pressed={aiming} onClick={aim}>⌖</button>
+      {/* Distinct names: the hold-to-fire button beside the pad is also called Fire. */}
+      <button aria-label="Fire toggle, stops after 3 seconds" title="Fire · stops after 3 seconds" aria-pressed={firing} onClick={fire}>◎</button>
+      <button aria-label="Aim toggle" title="Aim" aria-pressed={aiming} onClick={aim}>⌖</button>
     </>}
   </div>;
 }

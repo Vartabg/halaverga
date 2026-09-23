@@ -6,16 +6,26 @@ export const isShotKind = (k: EventKind) => k === 'miss' || k === 'world' || k =
   || k === 'kill' || k === 'blocked';
 /** Arrives within 33 ms at any range <= 250 m. */
 export const tracerSpeed = (d: number) => Math.max(600, d / .033);
-/** Head and tail distance along the shot. The tail keeps its bullet speed after arrival, so the streak leaves through the target. */
-export function tracerSpan(age: number, dist: number, out: { head: number; tail: number; alive: boolean }) {
-  const speed = tracerSpeed(dist), run = speed * Math.max(0, age);
-  out.head = Math.min(dist, run); out.tail = Math.min(dist, Math.max(0, run - Math.min(dist, 18)));
-  out.alive = out.tail < dist && age <= dist / speed + .07;
+export const TRACER_FADE = .07;
+export type TracerSpan = { head: number; tail: number; alive: boolean; fade?: number };
+/**
+ * Head and tail distance along the shot, and the fade (1 in flight, then (1 - k)^2 over the last 70 ms). A retracting beam, not a
+ * slug: the head reaches the point within 33 ms and the tail eases in from the muzzle over the whole life (arrival + 70 ms), so the
+ * beam starts at the arm for the first frames at any range (a 250 m miss draws muzzle to near-crosshair, not a far sub-pixel dash).
+ */
+export function tracerSpan(age: number, dist: number, out: TracerSpan) {
+  const a = Math.max(0, age), arrive = dist / tracerSpeed(dist), life = arrive + TRACER_FADE, k = Math.min(1, a / life);
+  out.head = Math.min(dist, tracerSpeed(dist) * a); out.tail = Math.min(out.head, dist * k * k);
+  out.alive = age <= life && out.tail < dist;
+  out.fade = a <= arrive ? 1 : Math.max(0, 1 - (a - arrive) / TRACER_FADE) ** 2;
   return out;
 }
 /** World width at `dist` that covers 1.5 px, never below .05 m (no sub-pixel shimmer). */
 export const tracerWidth = (dist: number, fovDeg: number, heightPx: number) =>
   Math.max(.05, 1.5 * dist * 2 * Math.tan(fovDeg * Math.PI / 360) / heightPx);
+/** World metres covered by one screen pixel at `dist`; a sprite of pxSize(px, cap, m) is px pixels wide, capped at cap metres. */
+export const metresPerPx = (dist: number, fovDeg: number, heightPx: number) => 2 * dist * Math.tan(fovDeg * Math.PI / 360) / heightPx;
+export const pxSize = (px: number, capM: number, mPerPx: number) => Math.min(capM, px * mPerPx);
 export const impactDelay = (dist: number) => dist / tracerSpeed(dist);
 /** p0 + v0 t with g = 22 (as Scene.tsx). */
 export function debrisAt(p0: Vec3, v0: Vec3, t: number, out: Vec3) {
@@ -42,8 +52,9 @@ export function lobeDir(n: Vec3, u1: number, u2: number, out: Vec3) {
   out.x = tx * a + bx * b + n.x * c; out.y = ty * a + by * b + n.y * c; out.z = tz * a + bz * b + n.z * c;
   return out;
 }
-// Timed sprite puffs: born, life, x, y, z, rise, size0, size1, stretch, rgb0, rgb1, alpha0 per slot.
-export const PUFF = 16;
+// Timed sprite puffs: born, life, x, y, z, rise, size0, size1, stretch, rgb0, rgb1, alpha0, alpha curve per slot.
+// Curves: 0 = alpha (1 - u^2) (default), 1 = alpha (1 - u)^1.5 (holds, then drops: fireballs), 2 = flat (a single pop).
+export const PUFF = 17, CURVE_HOLD = 1, CURVE_FLAT = 2;
 export type Puffs = Ring & { d: Float64Array; shown: Uint8Array };
 export function makePuffs(size: number): Puffs {
   const d = new Float64Array(size * PUFF);
@@ -51,11 +62,11 @@ export function makePuffs(size: number): Puffs {
   return { next: 0, size, d, shown: new Uint8Array(size) };
 }
 export function spawnPuff(p: Puffs, t: number, at: Vec3, rise: number, life: number, s0: number, s1: number,
-  stretch: number, c0: Rgb, c1: Rgb, alpha: number) {
+  stretch: number, c0: Rgb, c1: Rgb, alpha: number, curve = 0) {
   const o = claim(p) * PUFF, d = p.d;
   d[o] = t; d[o + 1] = life; d[o + 2] = at.x; d[o + 3] = at.y; d[o + 4] = at.z; d[o + 5] = rise;
   d[o + 6] = s0; d[o + 7] = s1; d[o + 8] = stretch; d[o + 9] = c0.r; d[o + 10] = c0.g; d[o + 11] = c0.b;
-  d[o + 12] = c1.r; d[o + 13] = c1.g; d[o + 14] = c1.b; d[o + 15] = alpha;
+  d[o + 12] = c1.r; d[o + 13] = c1.g; d[o + 14] = c1.b; d[o + 15] = alpha; d[o + 16] = curve;
   return o / PUFF;
 }
 /** Life fraction of slot i at time t: 0..1 while alive, else -1. */
@@ -69,7 +80,8 @@ export function puffFrame(p: Puffs, i: number, u: number, pos: Vec3, col: Rgb, s
   pos.x = d[o + 2]; pos.y = d[o + 3] + d[o + 5] * age; pos.z = d[o + 4];
   size.x = s; size.y = s * d[o + 8];
   col.r = d[o + 9] + (d[o + 12] - d[o + 9]) * u; col.g = d[o + 10] + (d[o + 13] - d[o + 10]) * u; col.b = d[o + 11] + (d[o + 14] - d[o + 11]) * u;
-  return d[o + 15] * (1 - u * u);
+  const curve = d[o + 16];
+  return d[o + 15] * (curve === CURVE_FLAT ? 1 : curve === CURVE_HOLD ? (1 - u) ** 1.5 : 1 - u * u);
 }
 // Ballistic sparks: born, life, p0 xyz, v0 xyz per slot, drawn into flat position and colour arrays (Points).
 export const SPARK = 8;

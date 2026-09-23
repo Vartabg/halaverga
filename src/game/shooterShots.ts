@@ -23,10 +23,12 @@ export const shotHit: ShotHit = { kind: 'miss', t: 0, drone: -1, point: { x: 0, 
 /** Closest approach (m) at which a passing shot unsettles a live drone. */
 export const NEAR_MISS = 1.5;
 
-/** The suit muzzle when the arm is raised, else a virtual muzzle beside the camera (first person) or the head (chase view). */
+/** The suit muzzle once the arm is raised past .6, else null. Shots (resolveShot's muzzle check) and the HUD blocked glyph share it. */
+export const realMuzzle = (s: ShooterState): Vec3 | null => s.muzzle.valid && s.muzzle.weight > .6 ? s.muzzle : null;
+/** The real muzzle, else a virtual one beside the camera (first person) or the head (chase view): visual event origins only. */
 export function muzzleFrom(s: ShooterState, ctx: StepContext, shotDir: Vec3): Vec3 {
-  const m = s.muzzle, a = s.aim;
-  if (m.valid && m.weight > .6) return m;
+  const m = realMuzzle(s), a = s.aim;
+  if (m) return m;
   if (ctx.firstPerson) {
     const o = a.origin;
     virtual.x = o.x + a.right.x * .25 - a.up.x * .3 + shotDir.x * .4;
@@ -62,7 +64,7 @@ export function fireShot(s: ShooterState, sim: DroneSim, world: ShooterWorld, ct
   const a = s.aim, fx = s.camFx, stats = s.stats, blend = a.blend, src = s.input.lookSource;
   coneSample(a.dir, a.spreadHalf, rng, dir);
   const magnet = magnetize(a.origin, dir, s.targets, count, blend, bloom01(s.weapon), src, ctx.strength);
-  const muzzle = s.muzzle.valid && s.muzzle.weight > .6 ? s.muzzle : null;
+  const muzzle = realMuzzle(s);
   const from = muzzleFrom(s, ctx, dir);
   const hit = resolveShot(world, a.origin, dir, ctx.head, muzzle, s.targets, count, magnet, shotHit);
   let kind: EventKind = hit.kind, drone = -1;
