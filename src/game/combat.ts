@@ -21,7 +21,7 @@ export const HEAT = { max: 100, lock: 1.6, ventAt: .8, ventHalf: .11 } as const;
 export const HIP_HOLD = .3, ENGAGED_HOLD = 1;
 /** Exponential blends snap to their target inside this distance, so idle state returns to exactly 0 (bit-identical to main). */
 export const SNAP = 1e-4;
-/** tan(25 deg) / tan(32.5 deg): ADS look gain that keeps the crosshair's screen speed constant from 65 to 50 deg vFOV. */
+/** tan(25)/tan(32.5): ADS zoom tan(ads/2)/tan(hip/2) at every hip FOV (cameraFx.adsFovOf), so the look gain keeps crosshair speed. */
 export const ADS_GAIN = Math.tan(25 * Math.PI / 180) / Math.tan(32.5 * Math.PI / 180);
 /** Aim-assist scale per steering device. Friction is read at look() time, so switching device takes effect at once. */
 export const ASSIST_PROFILE: Record<LookSource, { friction: number; magnet: number }> = { touch: { friction: 1, magnet: 1 },
@@ -38,7 +38,7 @@ export type WeaponState = {
 };
 export type AimState = {
   /** Published by CameraRig each frame: the unshaken camera ray (kick included), its right/up axes and the rendered vertical FOV (deg). */
-  origin: Vec3; dir: Vec3; right: Vec3; up: Vec3; valid: boolean; fov: number;
+  origin: Vec3; dir: Vec3; right: Vec3; up: Vec3; valid: boolean; fov: number; hipFov: number;
   /** Last resolved crosshair point and distance, for the suit IK and the HUD. */
   point: Vec3; dist: number; blocked: boolean;
   /** ADS blend 0..1, hip-fire arm hold 0..1, current spread half-angle (rad). */
@@ -87,7 +87,7 @@ export function createShooter(): ShooterState {
     clock: 0,
     input: { fire: false, fireSource: 'none', aim: false, aimLatched: false, pressSerial: 0, touchId: null, lookSource: 'trackpad', tapFireUntil: 0, auto: false },
     weapon: { acc: 0, heat: 0, spreadHeat: 0, lock: 0, lockT: 0, sinceShot: Infinity, handledPress: 0, pending: false, moveMul: 1, shots: 0, justOverheated: false, justVented: false },
-    aim: { origin: v3(), dir: { x: 0, y: 0, z: -1 }, right: { x: 1, y: 0, z: 0 }, up: { x: 0, y: 1, z: 0 }, valid: false, fov: 65,
+    aim: { origin: v3(), dir: { x: 0, y: 0, z: -1 }, right: { x: 1, y: 0, z: 0 }, up: { x: 0, y: 1, z: 0 }, valid: false, fov: 65, hipFov: 65,
       point: v3(), dist: SHOT_RANGE, blocked: false, blend: 0, fireHold: 0, spreadHalf: 0, combat: false, acquired: false, target: -1 },
     muzzle: { x: 0, y: 0, z: 0, valid: false, weight: 0 },
     camFx: { kickP: 0, kickY: 0, kickPv: 0, kickYv: 0, fovShot: 0, fovShotV: 0, fovKill: 0, fovKillV: 0, trauma: 0, shakeP: 0, shakeY: 0 },

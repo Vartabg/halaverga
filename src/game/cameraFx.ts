@@ -1,10 +1,11 @@
 // Camera feel for the shooter (pure, landing-safe): recoil kick, FOV punches, kill shake, ADS blend, ADS FOV and boom.
 // Every channel returns to exactly 0 at rest, so an idle shooter leaves the camera bit-identical to main. No allocation.
-import { SNAP, springStep, type CamFx, type Vec3 } from './combat';
+import { ADS_GAIN, SNAP, springStep, type CamFx, type Vec3 } from './combat';
 import { CHASE_BOOM } from './presentation';
 
 export const CAM = { kickW: 10, kickZ: .6, shotW: 30, shotZ: .7, killW: 2 * Math.PI * 3, killZ: .8, shotMax: 1, traumaDecay: 1,
-  shakeDeg: 2.5, shakeHz: 15, adsIn: 20, adsOut: 14, adsFovDrop: 15, hipFov: 65, fovRate: 3 } as const;
+  shakeDeg: 2.5, shakeHz: 15, adsIn: 20, adsOut: 14, adsFovDrop: 15, hipFov: 65, fovRate: 3,
+  hCap: 95, shortFrom: 440, shortTo: 600, wideFrom: 1.2, wideTo: 1.5, near: .12, hipDrop: .2, adsDrop: .1 } as const;
 const DEG = Math.PI / 180, TAN25 = Math.tan(25 * DEG);
 const clampDt = (elapsed: number) => elapsed > 0 ? Math.min(elapsed, .05) : 0;
 
@@ -69,18 +70,45 @@ export function adsStep(blend: number, on: boolean, elapsed: number, reduced: bo
   const target = on ? 1 : 0, b = blend + (target - blend) * (1 - Math.exp(-(on ? CAM.adsIn : CAM.adsOut) * clampDt(elapsed)));
   return on ? (1 - b < SNAP ? 1 : b) : (b < SNAP ? 0 : b);
 }
-/** Speed-widened hip FOV: exactly CameraRig's existing expression. */
-export const speedFovTarget = (speed: number, reduced: boolean) => reduced ? CAM.hipFov : CAM.hipFov + Math.min(speed / 17, 2);
+const smooth = (t: number) => t * t * (3 - 2 * t);
+/** Short-viewport weight: 1 at CSS height <= 440 (every phone in landscape), 0 at >= 600 (tablets, desktops), smoothstep between,
+ * gated to landscape by smoothstep(1.2, 1.5, aspect): a small portrait phone (375x548 in Safari's 100svh) is short but stays exactly 0.
+ * CSS px roughly track visual angle, so a short landscape viewport is a physically small screen that needs a bigger character. */
+export function shortWeight(cssHeight: number, aspect: number) {
+  if (!(cssHeight < CAM.shortTo) || !(aspect > CAM.wideFrom)) return 0;
+  const t = Math.max(0, (cssHeight - CAM.shortFrom) / (CAM.shortTo - CAM.shortFrom)), a = Math.min(1, (aspect - CAM.wideFrom) / (CAM.wideTo - CAM.wideFrom));
+  return (1 - smooth(t)) * smooth(a);
+}
+/** Hip vertical FOV: 65, or on short viewports toward a 95 deg horizontal cap (Hor+ capped). Exactly 65 at w 0. */
+export function hipFovFor(aspect: number, w: number) {
+  if (!(w > 0) || !(aspect > 0)) return CAM.hipFov;
+  const capped = 2 * Math.atan(Math.tan(CAM.hCap * DEG / 2) / aspect) / DEG;
+  return capped >= CAM.hipFov ? CAM.hipFov : CAM.hipFov - (CAM.hipFov - capped) * w;
+}
+/** ADS FOV at a constant zoom: tan(ads/2) = ADS_GAIN * tan(hip/2); exactly 50 at 65. */
+export const adsFovOf = (hip: number) => hip === CAM.hipFov ? CAM.hipFov - CAM.adsFovDrop : 2 * Math.atan(ADS_GAIN * Math.tan(hip * DEG / 2)) / DEG;
+/** Speed-widened hip FOV: exactly CameraRig's existing expression at hip 65. */
+export const speedFovTarget = (speed: number, reduced: boolean, hip: number = CAM.hipFov) => reduced ? hip : hip + Math.min(speed / 17, 2);
+/** CameraRig's damped base FOV (MathUtils.damp at CAM.fovRate, inlined to stay three-free). A hip change (rotation, resize) shifts
+ * the base by the same amount instead of gliding; pass lastHip NaN on the first frame. */
+export function baseFovStep(base: number, lastHip: number, hip: number, speed: number, reduced: boolean, elapsed: number) {
+  const b = Number.isFinite(lastHip) && hip !== lastHip ? base + (hip - lastHip) : base, t = 1 - Math.exp(-CAM.fovRate * elapsed);
+  return (1 - t) * b + t * speedFovTarget(speed, reduced, hip);
+}
 /** Rendered FOV from a separately damped base. Never feed the result back into the damp (the offsets would compound). */
-export const fovFor = (baseFov: number, blend: number, reduced: boolean, punch: number) =>
-  reduced ? baseFov : baseFov - CAM.adsFovDrop * blend + punch;
+export const fovFor = (baseFov: number, blend: number, reduced: boolean, punch: number, hip: number = CAM.hipFov) =>
+  reduced ? baseFov : baseFov - (hip - adsFovOf(hip)) * blend + punch;
 
-/** Chase boom (view frame) blended toward the ADS over-shoulder boom. Exactly CHASE_BOOM at blend 0. */
-export function boomFor(blend: number, aspect: number, out: Vec3) {
-  if (blend <= 0) { out.x = CHASE_BOOM.x; out.y = CHASE_BOOM.y; out.z = CHASE_BOOM.z; return out; }
-  const t = Math.min(1, Math.max(0, (aspect - .46) / .54)), z = 3.4 + (2.6 - 3.4) * t, y = .55 + (.45 - .55) * t;
-  const x = Math.min(.85, .6 * z * TAN25 * aspect), a = Math.min(blend, 1);
-  out.x = CHASE_BOOM.x + (x - CHASE_BOOM.x) * a; out.y = CHASE_BOOM.y + (y - CHASE_BOOM.y) * a; out.z = CHASE_BOOM.z + (z - CHASE_BOOM.z) * a;
+/** Chase boom (view frame) blended toward the ADS over-shoulder boom. Exactly CHASE_BOOM at blend 0 and w 0. A short viewport (w)
+ * brings both booms 12% closer and lowers them (hip .2, ADS .1) so the feet stay clear of the bottom edge. */
+export function boomFor(blend: number, aspect: number, out: Vec3, w = 0) {
+  const k = w > 0 ? 1 - CAM.near * Math.min(w, 1) : 1, hw = w > 0 ? Math.min(w, 1) : 0;
+  const hx = CHASE_BOOM.x * k, hy = hw ? CHASE_BOOM.y - CAM.hipDrop * hw : CHASE_BOOM.y, hz = CHASE_BOOM.z * k;
+  if (blend <= 0) { out.x = hx; out.y = hy; out.z = hz; return out; }
+  const t = Math.min(1, Math.max(0, (aspect - .46) / .54)), z = (3.4 + (2.6 - 3.4) * t) * k, y = .55 + (.45 - .55) * t - CAM.adsDrop * hw;
+  const tanA = hw ? Math.tan(adsFovOf(hipFovFor(aspect, hw)) * DEG / 2) : TAN25;
+  const x = Math.min(.85, .6 * z * tanA * aspect), a = Math.min(blend, 1);
+  out.x = hx + (x - hx) * a; out.y = hy + (y - hy) * a; out.z = hz + (z - hz) * a;
   return out;
 }
 /** Screen radius (px) of a cone with the given half-angle (rad) at vertical FOV fovDeg on a viewport heightPx tall. */

@@ -89,6 +89,7 @@ function shoot(b: ShotBody, s: ShooterState, env: ShotBodyEnv, at: number) {
   if (env.reduced || b.m === 0) return;
   // ADS keeps .35 of the arm snap: at .85 the muzzle jumped 15-17 CSS px on the shot frame, about 2.5x the hip kick once scaled for the
   // closer ADS camera (visual review r4). The bold cannon (r5) also caps the ADS rise at POSE.adsRiseCap (shotBodyPose.ts).
+  // land lifts a far, small hip cannon (a big FOV); the phone-landscape camera (cameraFx.shortWeight) now draws it near portrait size, so land is ~1.
   const ads = clamp(env.ads, 0, 1), land = env.pxPerM > 0 && ads < .5 ? clamp(4 / (.06 * env.pxPerM), 1, 1.6) : 1;
   const arm = base * lerp(1, .35, ads) * land, body = base * lerp(1, .8, ads), sp = b.springs;
   for (let i = 0; i < ARM.length; i++) b.snap[ARM[i]] += arm;

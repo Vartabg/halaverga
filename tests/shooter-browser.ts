@@ -22,12 +22,14 @@ export async function resume(page: Page) {
 }
 export type Touch = { id: number; x: number; y: number };
 type Viewport = { width: number; height: number };
-/** A touch page after Begin, seeded only when `saved` is given (fresh storage otherwise: auto-fire on, no Fire button). */
-export async function autoTouchPage(browser: Browser, viewport: Viewport, saved?: Record<string, unknown>, url = '/') {
+/** A touch page after Begin, seeded only when `saved` is given (fresh storage otherwise: auto-fire on, no Fire button). `init` runs
+ * before the app's scripts (an instrumentation hook). */
+export async function autoTouchPage(browser: Browser, viewport: Viewport, saved?: Record<string, unknown>, url = '/', init?: () => void) {
   const context = await browser.newContext({ viewport, isMobile: true, hasTouch: true });
   const page = await context.newPage(), errors: string[] = [];
   page.on('pageerror', e => errors.push(e.message));
   if (saved) await seed(page, saved);
+  if (init) await page.addInitScript(init);
   await page.goto(url); await page.getByRole('button', { name: 'Begin expedition' }).tap();
   await expect(page.getByRole('button', { name: 'Pause expedition' })).toBeVisible();
   const cdp = await context.newCDPSession(page);
@@ -38,8 +40,8 @@ export async function autoTouchPage(browser: Browser, viewport: Viewport, saved?
   return { context, page, cdp, send, thumb, errors, surface: page.getByTestId('flight-surface') };
 }
 /** The Fire/Aim specs: auto-fire off and the Aim button on, so every existing Fire and Aim check keeps its controls. */
-export async function touchPage(browser: Browser, viewport: Viewport, saved?: Record<string, unknown>) {
-  const t = await autoTouchPage(browser, viewport, { autoFire: false, aimButton: true, ...saved }), fire = t.page.getByTestId('fire-button');
+export async function touchPage(browser: Browser, viewport: Viewport, saved?: Record<string, unknown>, init?: () => void) {
+  const t = await autoTouchPage(browser, viewport, { autoFire: false, aimButton: true, ...saved }, '/', init), fire = t.page.getByTestId('fire-button');
   await expect(fire).toBeVisible();
   const box = (await fire.boundingBox())!;
   const trigger: Touch = { id: 2, x: Math.round(box.x + box.width / 2), y: Math.round(box.y + box.height / 2) };

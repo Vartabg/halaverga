@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { advanceAssist, bestTarget, createAssistMemory, fovScale, magnetize, ZONES } from '../src/game/aimAssist';
 import { aimGain, createShooter, frictionNow, lookGain, pressAim, pressFire, type ShooterState, type Vec3 } from '../src/game/combat';
+import { adsFovOf, hipFovFor } from '../src/game/cameraFx';
 import { readFileSync } from 'node:fs';
 
 const DEG = Math.PI / 180, O: Vec3 = { x: 0, y: 0, z: 0 }, D: Vec3 = { x: 0, y: 0, z: -1 };
@@ -62,12 +63,12 @@ describe('friction', () => {
 });
 
 describe('zones', () => {
-  const boundary = (fov: number, ads: number, zone: 1 | 2) => {
+  const boundary = (fov: number, ads: number, zone: 1 | 2, hip = 65) => {
     const out = { index: -1, zone: 0 as 0 | 1 | 2, angle: 0, dist: 0 };
     let lo = rhoDeg(20), hi = lo + 5;
     for (let k = 0; k < 60; k++) {
       const mid = (lo + hi) / 2; place(0, 20, mid);
-      if (bestTarget(O, D, s.targets, s.drones.count, fov, ads, out).zone >= zone) lo = mid; else hi = mid;
+      if (bestTarget(O, D, s.targets, s.drones.count, fov, ads, out, hip).zone >= zone) lo = mid; else hi = mid;
     }
     return lo - rhoDeg(20);
   };
@@ -81,6 +82,14 @@ describe('zones', () => {
       // Same fraction of the half-screen at both FOVs.
       expect(Math.tan(boundary(50, 0, zone) * DEG) / Math.tan(25 * DEG)).toBeCloseTo(Math.tan(boundary(65, 0, zone) * DEG) / Math.tan(32.5 * DEG), 4);
     }
+  });
+  it('keep the same assist angles on the narrowed phone-landscape camera, hip and ADS', () => {
+    const hip = hipFovFor(852 / 393, 1), ads = adsFovOf(hip);
+    expect(boundary(hip, 0, 2, hip)).toBeCloseTo(.6, 8); expect(boundary(hip, 0, 1, hip)).toBeCloseTo(2, 8);
+    for (const zone of [1, 2] as const) expect(boundary(ads, 1, zone, hip)).toBeCloseTo(boundary(50, 1, zone), 8);
+    // advanceAssist reads the hip the camera published.
+    place(0, 20, rhoDeg(20) + 1.9); s.aim.hipFov = hip; pressAim(s, true); s.aim.blend = 0;
+    advanceAssist(s, mem, O, D, hip, 1, 1 / 60); expect(s.aim.target).toBe(0);
   });
   it('pick the target nearest in edge angle and skip dead or occluded ones', () => {
     const out = { index: -1, zone: 0 as 0 | 1 | 2, angle: 0, dist: 0 };

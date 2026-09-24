@@ -35,10 +35,11 @@ export function frame(r: Rig, p: AnimatedPose, mix: FlightMix, life: SuitAnimati
   return authored;
 }
 const view = new Euler(0, 0, 0, 'YXZ'), q = new Quaternion(), v = new Vector3(), e = new Euler();
-/** Unit vector from the suit toward the chase camera (boom in the view frame, aimed at the head). */
-export const toCamera = (p: Pose) => new Vector3(CHASE_BOOM.x, CHASE_BOOM.y, CHASE_BOOM.z).applyEuler(view.set(p.viewPitch, p.viewYaw, 0)).add(new Vector3(0, CHASE_HEAD, 0)).normalize();
-export function measure(r: Rig, p: Pose) {
-  const camera = toCamera(p), world = (b: number) => r.joints[b].getWorldQuaternion(q);
+type Boom = { x: number; y: number; z: number };
+/** Unit vector from the suit toward the chase camera (boom in the view frame, aimed at the head). The phone-landscape boom is nearer. */
+export const toCamera = (p: Pose, boom: Boom = CHASE_BOOM) => new Vector3(boom.x, boom.y, boom.z).applyEuler(view.set(p.viewPitch, p.viewYaw, 0)).add(new Vector3(0, CHASE_HEAD, 0)).normalize();
+export function measure(r: Rig, p: Pose, boom: Boom = CHASE_BOOM) {
+  const camera = toCamera(p, boom), world = (b: number) => r.joints[b].getWorldQuaternion(q);
   const chest = v.set(0, 0, 1).applyQuaternion(world(idx.chest)).dot(camera), face = v.set(0, 0, -1).applyQuaternion(world(idx.head)).dot(camera);
   // Chest yaw against the root: pelvis, spine and chest together.
   const yaw = Math.abs([0, idx.spine, idx.chest].reduce((sum, b) => sum + e.setFromQuaternion(r.joints[b].quaternion).y, 0));

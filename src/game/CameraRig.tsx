@@ -1,34 +1,39 @@
 import { useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { useRapier } from '@react-three/rapier';
-import { Euler, Vector3, Quaternion, MathUtils, type Mesh, type PerspectiveCamera } from 'three';
+import { Euler, Vector3, Quaternion, type Mesh, type PerspectiveCamera } from 'three';
 import { runtime } from './runtime';
 import { presentation as pose, CHASE_HEAD } from './presentation';
-import { boomFor, fovFor, speedFovTarget } from './cameraFx';
+import { baseFovStep, boomFor, CAM, fovFor, hipFovFor, shortWeight } from './cameraFx';
 import { useGame } from './store';
 const rotation = new Euler(0, 0, 0, 'YXZ'), q = new Quaternion(), desired = new Vector3(), dir = new Vector3(), head = new Vector3();
 const shakeEuler = new Euler(0, 0, 0, 'YXZ'), shake = new Quaternion(), axis = new Vector3();
 // Speed-widened FOV, damped on its own so the ADS drop and shot punches never compound into the damp. Synced to c.fov on init.
-let baseFov = NaN;
+// Short landscape screens get a narrower hip FOV and a closer boom (cameraFx.shortWeight); a hip change shifts baseFov, never glides.
+let baseFov = NaN, lastHip = NaN, lastW = NaN;
 const statKeys = ['drawCalls', 'triangles', 'geometries', 'textures'] as const;
 const identity = { x: 0, y: 0, z: 0, w: 1 };
 export default function CameraRig() {
   const { world, rapier } = useRapier();
   const initialized = useRef(false), epoch = useRef(-1), marker = useRef<Mesh>(null);
   const boom = useRef(new Vector3()), probe = useMemo(() => new rapier.Ball(.28), [rapier]);
-  useFrame(({ camera, invalidate, gl }, dt) => {
+  useFrame(({ camera, invalidate, gl, size }, dt) => {
     const state = useGame.getState();
     if (!state.ready) { invalidate(); return; }
-    if (state.paused && initialized.current) return;
-    const elapsed = Math.min(dt, .05), shooter = runtime.shooter, fx = shooter.camFx, aim = shooter.aim, reduced = state.reduced;
-    const persp = 'fov' in camera ? camera as PerspectiveCamera : null, blend = reduced ? 0 : aim.blend;
+    const persp = 'fov' in camera ? camera as PerspectiveCamera : null;
+    const aspect = persp ? persp.aspect : 1, w = shortWeight(size.height, aspect), hip = hipFovFor(aspect, w);
+    const resized = w !== lastW || hip !== lastHip;
+    // Paused, the view stays frozen, except that a rotation or resize re-frames it once at zero elapsed time (no damp or spring moves).
+    if (state.paused && initialized.current && !resized) return;
+    const elapsed = state.paused ? 0 : Math.min(dt, .05), shooter = runtime.shooter, fx = shooter.camFx, aim = shooter.aim, reduced = state.reduced;
+    const blend = reduced ? 0 : aim.blend;
     // Recoil kick joins the view; an idle kick adds nothing (adding a literal 0 could turn -0 into +0).
     rotation.set(fx.kickP === 0 ? pose.viewPitch : pose.viewPitch + fx.kickP, fx.kickY === 0 ? pose.viewYaw : pose.viewYaw + fx.kickY, 0);
     q.setFromEuler(rotation);
     head.copy(pose.position); head.y += CHASE_HEAD;
-    if (state.camera === 'third') boomFor(blend, persp ? persp.aspect : 1, desired); else desired.set(0, 0, 0);
+    if (state.camera === 'third') boomFor(blend, aspect, desired, w); else desired.set(0, 0, 0);
     desired.applyQuaternion(q);
-    const snap = state.reduced || !initialized.current || epoch.current !== runtime.poseEpoch;
+    const snap = state.reduced || !initialized.current || epoch.current !== runtime.poseEpoch || resized;
     boom.current.lerp(desired, snap ? 1 : 1 - Math.exp(-12 * elapsed));
     const length = boom.current.length();
     if (length > .05) {
@@ -48,13 +53,15 @@ export default function CameraRig() {
     // Kill shake: rotation only (no roll, no translation), after the ray and cameraDistance are published.
     if (fx.trauma > 0 && !reduced) { shakeEuler.set(fx.shakeP, fx.shakeY, 0); camera.quaternion.multiply(shake.setFromEuler(shakeEuler)); }
     if (persp) {
-      if (!initialized.current || !Number.isFinite(baseFov)) baseFov = persp.fov;
-      baseFov = MathUtils.damp(baseFov, speedFovTarget(pose.speed, reduced), 3, elapsed);
-      persp.fov = fovFor(baseFov, blend, reduced, reduced ? 0 : fx.fovShot + fx.fovKill);
+      const fresh = !initialized.current || !Number.isFinite(baseFov);
+      if (fresh) baseFov = hip === CAM.hipFov ? persp.fov : hip;
+      baseFov = baseFovStep(baseFov, fresh ? NaN : lastHip, hip, pose.speed, reduced, elapsed);
+      persp.fov = fovFor(baseFov, blend, reduced, reduced ? 0 : fx.fovShot + fx.fovKill, hip);
+      aim.hipFov = hip;
       persp.updateProjectionMatrix();
       aim.fov = persp.fov;
     }
-    initialized.current = true; epoch.current = runtime.poseEpoch;
+    initialized.current = true; epoch.current = runtime.poseEpoch; lastW = w; lastHip = hip;
     if (marker.current) {
       marker.current.visible = !!runtime.landTarget && state.flying;
       if (runtime.landTarget) { marker.current.position.copy(runtime.landTarget); marker.current.position.y += .04; }

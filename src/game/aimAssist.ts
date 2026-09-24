@@ -10,8 +10,8 @@ export const ZONES = { hipInner: .6, hipOuter: 2, adsInner: .4, adsOuter: 1.2, h
 export type AssistMemory = { target: number; yaw: number; pitch: number; valid: boolean };
 export type BestTarget = { index: number; zone: 0 | 1 | 2; angle: number; dist: number };
 export const createAssistMemory = (): AssistMemory => ({ target: -1, yaw: 0, pitch: 0, valid: false });
-/** Zone widths scale with the rendered FOV so their on-screen size matches the 65 deg hip view. */
-export const fovScale = (fovDeg: number) => Math.tan(fovDeg * Math.PI / 360) / Math.tan(32.5 * Math.PI / 180);
+/** Zone widths scale with the rendered FOV against the live hip FOV (65, or less on a short landscape screen), so ADS zones match. */
+export const fovScale = (fovDeg: number, hipDeg = 65) => Math.tan(fovDeg * Math.PI / 360) / Math.tan(hipDeg * Math.PI / 360);
 
 const DEG = Math.PI / 180;
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
@@ -28,8 +28,8 @@ const radiusAngle = (r: number, dist: number) => dist <= r ? Math.PI / 2 : Math.
 
 /** Picks the live, visible target nearest the aim in angle (edge-first), with its friction zone (2 inner, 1 outer, 0 none). */
 export function bestTarget(o: Vec3, d: Vec3, targets: readonly DroneTarget[], count: number, fovDeg: number, ads: number,
-  out: BestTarget): BestTarget {
-  const k = fovScale(fovDeg) * DEG;
+  out: BestTarget, hipDeg = 65): BestTarget {
+  const k = fovScale(fovDeg, hipDeg) * DEG;
   const inW = lerp(ZONES.hipInner, ZONES.adsInner, ads) * k, outW = lerp(ZONES.hipOuter, ZONES.adsOuter, ads) * k;
   out.index = -1; out.zone = 0; out.angle = 0; out.dist = 0;
   let best = Infinity;
@@ -55,7 +55,7 @@ export function advanceAssist(s: ShooterState, mem: AssistMemory, o: Vec3, d: Ve
   const dt = Number.isFinite(elapsed) ? Math.min(Math.max(elapsed, 0), .05) : 0, as = s.assist;
   const on = engaged(s) && strength > 0;
   as.engaged = on; as.scale = strength;
-  const b = bestTarget(o, d, s.targets, s.drones.count, fovDeg, s.aim.blend, pick);
+  const b = bestTarget(o, d, s.targets, s.drones.count, fovDeg, s.aim.blend, pick, s.aim.hipFov);
   s.aim.target = b.index;
   s.aim.acquired = magnetize(o, d, s.targets, s.drones.count, s.aim.blend, bloom01(s.weapon), s.input.lookSource, strength) >= 0
     || (b.index >= 0 && b.angle <= radiusAngle(s.targets[b.index].r, b.dist));
