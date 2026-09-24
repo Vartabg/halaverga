@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { START, validCheckpoint, type Vec } from './motion';
 export type CameraMode = 'third' | 'first';
-export type TrackpadProfile = 'free' | 'captured' | 'flow';
+export type TrackpadProfile = 'simple' | 'free' | 'captured' | 'flow';
 type GameState = {
   started: boolean; paused: boolean; ready: boolean; panel: boolean; journal: boolean;
   camera: CameraMode; quality: 'high' | 'low'; reduced: boolean; muted: boolean; tapControls: boolean;
@@ -16,7 +16,7 @@ export const useGame = create<GameState>((set) => ({
   started: false, paused: true, ready: false, panel: false, journal: false,
   camera: 'third', quality: 'high', reduced: false, muted: true, tapControls: false,
   desktopMode: 'trackpad', trackpadFlying: false,
-  trackpadSteering: 'free', sustainedEdges: false, reverseScroll: false, cruiseSpeed: 8, heroPoses: true,
+  trackpadSteering: 'simple', sustainedEdges: false, reverseScroll: false, cruiseSpeed: 8, heroPoses: true,
   lookSensitivity: 1, flowIntroSeen: false,
   flying: false, landing: false, canLand: false, nearTerminal: false, boundaryNear: false, clearanceActive: false, inputEpoch: 0,
   checkpoint: START, discovered: false, message: '', set,
@@ -38,7 +38,7 @@ export function hydrateGame() {
       muted: saved.muted !== false, discovered: saved.discovered === true,
       tapControls: saved.tapControls === true,
       desktopMode: saved.desktopMode === 'mouse' ? 'mouse' : 'trackpad',
-      trackpadSteering: saved.trackpadSteering === 'flow' ? 'flow' : saved.trackpadSteering === 'captured' ? 'captured' : 'free',
+      trackpadSteering: ['flow', 'captured', 'free'].includes(saved.trackpadSteering) ? saved.trackpadSteering : 'simple',
       sustainedEdges: saved.sustainedEdges === true, reverseScroll: saved.reverseScroll === true,
       cruiseSpeed: typeof saved.cruiseSpeed === 'number' && Number.isFinite(saved.cruiseSpeed) ? Math.max(3, Math.min(34, saved.cruiseSpeed)) : 8,
       heroPoses: saved.heroPoses !== false,
