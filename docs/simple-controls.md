@@ -51,7 +51,7 @@ Thumbs:
 - **Two thumbs**: left moves, right looks and aims.
 - **No thumb**: it still fires if the crosshair rests on a drone. Heat and the lock cap it.
 
-### Auto-fire never brakes flight (pending Garo's confirmation)
+### Auto-fire never brakes flight (Garo confirmed, 2026-09-23)
 
 `ShooterInput.auto` marks a trigger hold owned by auto-fire. Any manual press (`pressFire`, `tapShot`) clears it; `releaseFire` and `resetShooterInput` keep it, so the trailing HIP_HOLD/ENGAGED_HOLD window after an auto-fire hold is exempt too; `resetShooterFeel` clears it.
 
@@ -99,7 +99,7 @@ Advance (MIN_VISIBLE = 1 s on every step except simple/mouse step 0). Actions co
 - STEP_TIMEOUT: the shoot steps and the keys step end after 20 s shown (the clock stops while paused). A timeout hides the step for this page load only and is never saved (`progressToSave`): saved progress never passes the first step that timed out, so the phone's "Point at a drone to fire" lesson comes back on the next visit.
 - While a hint shows (`store.hintVisible`, runtime only), the blaster sound notice waits (it is retried on the next shot) and the one-finger panel steps aside, so only one message is on screen.
 
-The 5-shot fallback and the 20 s timeout are deviations from the approved plan (pending confirmation). Hints have no transition or animation, sit above the crosshair band, and are announced once each through a polite live region.
+The 5-shot fallback and the 20 s timeout are deviations from the approved plan that Garo confirmed on 2026-09-23. Hints have no transition or animation, sit above the crosshair band, and are announced once each through a polite live region.
 
 ## Buttons and blaster-off identity
 
@@ -111,7 +111,7 @@ The 5-shot fallback and the 20 s timeout are deviations from the approved plan (
 
 In the free and captured trackpad profiles, main's bottom flight legend stays next to the 6 s "Hold C to fire" line. Those profiles are opt-in, and the legend is main's flight UI.
 
-## Decisions for Garo (pending confirmation)
+## Owner decisions (Garo confirmed all five on 2026-09-23)
 
 1. Auto-fire never slows flight: no hip cap and no friction from auto-fire alone.
 2. The 5-shot fallback, and the 20 s timeout on the shoot and keys steps (a timeout is never saved).
