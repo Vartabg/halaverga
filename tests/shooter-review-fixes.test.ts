@@ -27,10 +27,13 @@ describe('HUD', () => {
     expect(markerState('hit', .3, false).visible).toBe(false);
   });
   it('never tells a tap-pad player to drag', () => {
-    const text = (coarse: boolean, tapControls: boolean) =>
-      hintText(hintTrack({ shooter: true, coarse, desktopMode: 'trackpad', steering: 'free', tapControls }), 0, { autoFire: true, captured: false });
-    for (const coarse of [true, false]) { expect(text(coarse, true)).toBe('Tap pad: Fire and Aim toggle'); expect(text(coarse, true)).not.toMatch(/drag/i); }
-    expect(text(true, false)).toMatch(/drag/i);
+    const text = (coarse: boolean, tapControls: boolean, scheme = 'classic') =>
+      hintText(hintTrack({ shooter: true, coarse, desktopMode: 'trackpad', steering: 'free', tapControls, scheme }), 0, { autoFire: true, captured: false });
+    for (const scheme of ['classic', 'twin']) for (const coarse of [true, false]) {
+      expect(text(coarse, true, scheme)).toBe('Tap pad: Fire and Aim toggle'); expect(text(coarse, true, scheme)).not.toMatch(/drag/i);
+    }
+    expect(text(true, false, 'classic')).toMatch(/drag/i);
+    expect(text(true, false, 'twin')).toBe('Left thumb: move');
   });
 });
 

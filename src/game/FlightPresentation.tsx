@@ -5,6 +5,7 @@ import { setVec } from './motion';
 import { runtime } from './runtime';
 import { presentation as pose, advanceFlightPose, aimDemand, type PoseInput } from './presentation';
 import { useGame } from './store';
+import { touchMode } from './pointerMode';
 const rendered = new Vector3();
 export default function FlightPresentation() {
   const wasPaused = useRef(true);
@@ -34,7 +35,8 @@ export default function FlightPresentation() {
     const aim = runtime.shooter.aim;
     // This frame's fire input counts, so the torso squares up on the press frame (the shooter step runs after this, at -25).
     target.aim = state.shooter ? aimDemand(runtime.shooter) : 0;
-    target.combat = state.shooter && aim.combat;
+    // Twin-stick touch: the right thumb aims all the time, so the view settles at the fast combat rate.
+    target.combat = state.shooter && aim.combat || touchMode() && state.touchScheme === 'twin';
     advanceFlightPose(pose, target, dt);
   }, -30);
   return null;

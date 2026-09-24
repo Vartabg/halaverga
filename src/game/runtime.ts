@@ -2,7 +2,7 @@ import type { Vector3 } from 'three';
 import { SPEED, START, setVec, type Intent } from './motion';
 import { useGame } from './store';
 import { flowSpeed, type CaptureState } from './flowFlight';
-import { aimGain, createShooter, engaged, resetShooterInput, lookGain } from './combat';
+import { aimGain, createShooter, engaged, resetShooterInput, lookGain, releaseFire } from './combat';
 // The landing page imports this module, so vectors stay plain objects and three.js is imported for types only; a value import would load the 3D bundle with the page.
 export const runtime = {
   position: { ...START }, velocity: { x: 0, y: 0, z: 0 },
@@ -22,17 +22,29 @@ export const runtime = {
   shooter: createShooter(),
   /** Seconds each arrow axis has been held in one direction (physics clock), and that direction. Blaster only. */
   keyHold: { yaw: 0, pitch: 0, yawSign: 0, pitchSign: 0 },
+  /** Twin-stick touch input, written by the touch controls. rise/descend are 0 or 1; moves, climbs and lookTravel only count up. */
+  stick: { forward: 0, strafe: 0, rise: 0, descend: 0, descendUsed: false, active: false, boost: false, cruise: false,
+    moves: 0, climbs: 0, lookTravel: 0 },
+  /** Bumped by clearInput and releaseHeldInput: a touch control whose stored epoch differs is dead until its finger lifts. */
+  touchEpoch: 0,
 };
+/** Held Descend sinks at this fraction of full flight speed (0.7 x 13 = 9.1 m/s). */
+export const DESCEND_RATE = .7;
 const lookScratch = { x: 0, y: 0 };
+/** Rise and Descend: both held hover; a Descend already spent on a landing approach no longer sinks. */
+function stickVertical() {
+  const st = runtime.stick;
+  return st.rise && st.descend ? 0 : st.rise - (st.descendUsed ? 0 : st.descend * DESCEND_RATE);
+}
 export function readIntent(): Intent {
-  const k = runtime.keys;
+  const k = runtime.keys, st = runtime.stick;
   const profile = useGame.getState().trackpadSteering;
   const flow = runtime.trackpad.active && profile === 'flow';
   const cruise = runtime.trackpad.active && profile !== 'simple';
   return {
-    forward: Math.max(-1, Math.min(1, Number(k.has('KeyW')) - Number(k.has('KeyS')) + runtime.thumb.throttle + (flow ? runtime.trackpad.selectedSpeed / SPEED.surge : cruise ? runtime.trackpad.throttle : 0) + runtime.tap.forward)),
-    strafe: Math.max(-1, Math.min(1, Number(k.has('KeyD')) - Number(k.has('KeyA')) + runtime.thumb.strafe + runtime.tap.strafe)),
-    vertical: Math.max(-1, Math.min(1, Number(k.has('KeyR')) - Number(k.has('KeyF')) + runtime.tap.vertical)),
+    forward: Math.max(-1, Math.min(1, Number(k.has('KeyW')) - Number(k.has('KeyS')) + runtime.thumb.throttle + (flow ? runtime.trackpad.selectedSpeed / SPEED.surge : cruise ? runtime.trackpad.throttle : 0) + runtime.tap.forward + st.forward)),
+    strafe: Math.max(-1, Math.min(1, Number(k.has('KeyD')) - Number(k.has('KeyA')) + runtime.thumb.strafe + runtime.tap.strafe + st.strafe)),
+    vertical: Math.max(-1, Math.min(1, Number(k.has('KeyR')) - Number(k.has('KeyF')) + runtime.tap.vertical + stickVertical())),
     ...(flow ? { precise: true as const } : {}),
   };
 }
@@ -57,11 +69,39 @@ export function arrowLook(dt: number) {
 }
 export function clearInput(stop = false, keepShooter = false) {
   if (!keepShooter) resetShooterInput(runtime.shooter);
-  runtime.keys.clear(); clearKeyHold(); releaseThumb(); stopTrackpad();
+  runtime.keys.clear(); clearKeyHold(); releaseThumb(); stopTrackpad(); zeroStick();
   runtime.tap = { forward: 0, strafe: 0, vertical: 0 };
-  runtime.surge = false; runtime.lift = false; runtime.landGoal = null;
+  runtime.surge = false; runtime.lift = false; runtime.landGoal = null; runtime.touchEpoch++;
   useGame.setState({ landing: false });
   if (stop) setVec(runtime.velocity, 0, 0, 0);
+}
+/** Zeroes the live stick values; the counters (moves, climbs, lookTravel) are kept. */
+function zeroStick() {
+  const st = runtime.stick;
+  st.forward = st.strafe = st.rise = st.descend = 0; st.descendUsed = st.active = st.boost = st.cruise = false;
+}
+/**
+ * Touch-mode blur, rotation or a lost gesture: lets go of everything held without pausing. Velocity, a latched Aim, the trackpad
+ * state and a landing in progress stay; only a manual touch Fire is released (an auto-fire hold is auto-fire's to drop).
+ */
+export function releaseHeldInput() {
+  runtime.keys.clear(); clearKeyHold(); releaseThumb(); zeroStick();
+  runtime.tap = { forward: 0, strafe: 0, vertical: 0 };
+  runtime.surge = false; runtime.lift = false;
+  const s = runtime.shooter;
+  if (s.input.fireSource === 'touch' && !s.input.auto) releaseFire(s, 'touch');
+  s.input.touchId = null;
+  runtime.touchEpoch++;
+}
+/**
+ * Touch-mode window blur: only the keyboard can miss its keyup while focus is away, so only keys (and a keyboard-held Fire) are
+ * dropped. Fingers keep their controls: iOS sends pointercancel itself when the system takes the touches (Control Center,
+ * Notification Center), and a blur from focus moving into an iframe (such as a preview toolbar) is no interruption at all.
+ */
+export function releaseKeys() {
+  runtime.keys.clear(); clearKeyHold(); runtime.surge = false;
+  const s = runtime.shooter;
+  if (s.input.fireSource === 'keys') releaseFire(s, 'keys');
 }
 export function toggleSurge() { runtime.surge = !runtime.surge; }
 export function look(dx: number, dy: number, sensitivity = 1) {

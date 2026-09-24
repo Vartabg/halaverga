@@ -138,7 +138,7 @@ test('an old saved free profile (the pre-version-2 default) opens in one finger 
   await page.getByRole('button', { name: 'Flight settings' }).click();
   await expect(page.getByLabel('Trackpad steering')).toHaveValue('simple');
   await page.getByLabel('Trackpad steering').selectOption('free');
-  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('halaverga-flight-v1')!))).toMatchObject({ trackpadSteering: 'free', controlsVersion: 2, camera: 'first' });
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('halaverga-flight-v1')!))).toMatchObject({ trackpadSteering: 'free', controlsVersion: 3, camera: 'first' });
   await page.goto('/'); await page.getByRole('button', { name: 'Begin expedition' }).click();
   await expect(page.getByTestId('simple-trackpad-hud')).toHaveCount(0);
   await page.getByRole('button', { name: 'Flight settings' }).click();

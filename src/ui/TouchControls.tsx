@@ -1,98 +1,51 @@
-import dynamic from 'next/dynamic';
-import { useEffect, useRef, type PointerEvent } from 'react';
-import { look, releaseThumb, runtime } from '@/game/runtime';
-import { AdaptiveThumbs } from '@/game/adaptiveThumbs';
+import type { PointerEvent } from 'react';
+import { useRef } from 'react';
 import { useGame } from '@/game/store';
 import styles from './Experience.module.css';
 import { useTrackpad } from './useTrackpad';
-import { unlockBlasterAudio } from './audioUnlock';
-// Fire and Aim load as their own chunk (warmed by Experience once the blaster is on); until it arrives nothing is drawn.
-export const loadFireControls = () => import('./FireControls');
-const FireControls = dynamic(loadFireControls, { ssr: false, loading: () => null });
+import { useTwinStick } from './useTwinStick';
+import { useClassicThumbs } from './useClassicThumbs';
+import TwinStickOverlay from './TwinStickOverlay';
+import TouchCluster from './TouchCluster';
+// The lazy touch layer (Experience loads it with next/dynamic; nothing here is on the landing first load). One full-screen
+// surface: a mouse goes to the desktop trackpad/mouse handlers unchanged; touch and pen go to the chosen touch scheme.
+// Both scheme hooks are always called (hook order), and only the active one renders or receives events.
 export default function TouchControls() {
-  const controls = useRef(new AdaptiveThumbs()), timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const surface = useRef<HTMLDivElement>(null), markers = useRef<(HTMLDivElement | null)[]>([]);
+  const surface = useRef<HTMLDivElement>(null);
   const desktop = useTrackpad(surface);
-  const paused = useGame(s => s.paused);
-  const trackpadFlying = useGame(s => s.trackpadFlying);
-  const shooterOn = useGame(s => s.shooter);
-  const clearTimer = () => {
-    if (timer.current) clearTimeout(timer.current);
-    timer.current = null;
-  };
-  const sync = () => {
-    const c = controls.current, output = c.output;
-    Object.assign(runtime.thumb, { active: c.active, throttle: output.forward, strafe: output.strafe, edgeTurn: output.edgeTurn, edgePitch: output.edgePitch, bank: 0 });
-    if (surface.current) surface.current.dataset.controlMode = c.mode;
-    const points = [...c.contacts.values()];
-    markers.current.forEach((marker, i) => {
-      if (!marker) return;
-      const p = points[i]; marker.hidden = !c.active || !p;
-      if (!p) return;
-      marker.style.left = `${p.originX}px`; marker.style.top = `${p.originY}px`;
-      const dx = p.x - p.originX, dy = p.y - p.originY, radius = Math.max(1, Math.hypot(dx, dy) / 28);
-      const knob = marker.querySelector('span')!, label = marker.querySelector('small')!;
-      knob.style.transform = `translate(${dx / radius}px, ${dy / radius}px)`;
-      label.textContent = c.mode === 'dual' ? p.role === 'move' ? 'MOVE' : 'LOOK' : '';
-    });
-  };
-  useEffect(() => () => {
-    if (timer.current) clearTimeout(timer.current);
-    releaseThumb();
-  }, []);
-  const activate = () => {
-    clearTimer();
-    if (useGame.getState().paused) return;
-    controls.current.activate(); sync();
-  };
+  const paused = useGame(s => s.paused), trackpadFlying = useGame(s => s.trackpadFlying);
+  const twinOn = useGame(s => s.touchScheme) === 'twin';
+  const twin = useTwinStick(surface, twinOn);
+  const classic = useClassicThumbs(surface);
   if (paused) return null;
+  const scheme = twinOn ? twin : classic;
   const start = (e: PointerEvent<HTMLDivElement>) => {
     if (e.pointerType === 'mouse') {
-      if (!controls.current.contacts.size) desktop.start(e);
+      if (!scheme.busy()) desktop.start(e);
       return;
     }
     desktop.cancel();
-    // A stale non-primary contact after cancellation/rotation cannot restart flight. A held Fire is the first thumb.
-    if (!controls.current.contacts.size && !e.isPrimary && runtime.shooter.input.touchId === null) return;
-    runtime.shooter.input.lookSource = 'touch';
-    clearTimer();
-    e.currentTarget.setPointerCapture(e.pointerId);
-    controls.current.start(e.pointerId, e.clientX, e.clientY); sync();
-    if (controls.current.mode === 'single') timer.current = setTimeout(activate, 180);
+    scheme.start(e);
   };
-  const drag = (e: PointerEvent<HTMLDivElement>) => {
-    if (e.pointerType === 'mouse') { desktop.move(e); return; }
-    const c = controls.current; if (!c.contacts.has(e.pointerId)) return;
-    c.move(e.pointerId, e.clientX, e.clientY, window.innerWidth, window.innerHeight);
-    if (c.active) clearTimer();
-    look(c.output.lookX, c.output.lookY); sync();
+  const move = (e: PointerEvent<HTMLDivElement>) => {
+    if (e.pointerType === 'mouse') desktop.move(e); else scheme.move(e);
   };
   const end = (e: PointerEvent<HTMLDivElement>) => {
-    if (e.pointerType === 'mouse') { desktop.end(e); return; }
-    if (!controls.current.contacts.has(e.pointerId)) return;
-    clearTimer(); controls.current.end(e.pointerId); sync();
-    if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
-    // A thumb lift is an activation gesture: with auto-fire (no Fire press) it is what unlocks blaster audio.
-    unlockBlasterAudio();
-  };
-  // Fire held: the flight thumb becomes a move stick carrying its cruise throttle, and the Fire drag owns the view.
-  const hold = (on: boolean) => {
-    controls.current.setExternal(on); sync();
-    if (surface.current) surface.current.dataset.fireHeld = String(on);
+    if (e.pointerType === 'mouse') desktop.end(e); else scheme.end(e);
   };
   const cancel = (e: PointerEvent<HTMLDivElement>) => {
-    if (e.pointerType === 'mouse') {
-      if (e.type === 'lostpointercapture') desktop.lostCapture(); else desktop.cancel();
-      return;
-    }
-    if (!controls.current.contacts.has(e.pointerId)) return;
-    clearTimer(); controls.current.cancel(); sync();
+    if (e.pointerType !== 'mouse') { scheme.cancel(e); return; }
+    if (e.type === 'lostpointercapture') desktop.lostCapture(); else desktop.cancel();
   };
+  const o = twin.overlay;
   return <>
-    <div ref={surface} className={styles.flightSurface} aria-hidden="true" data-testid="flight-surface" data-control-mode="idle" data-fire-held="false" data-trackpad-active={String(trackpadFlying)}
-      onPointerDown={start} onPointerMove={drag} onPointerUp={end} onPointerCancel={cancel} onLostPointerCapture={cancel}
+    <div ref={surface} className={styles.flightSurface} aria-hidden="true" data-testid="flight-surface" data-play-surface=""
+      data-scheme={twinOn ? 'twin' : 'classic'} data-control-mode="idle" data-fire-held="false" data-boost="false" data-cruise="false"
+      data-layout={twinOn ? o.view?.layout.variant ?? 'normal' : 'classic'} data-trackpad-active={String(trackpadFlying)}
+      onPointerDown={start} onPointerMove={move} onPointerUp={end} onPointerCancel={cancel} onLostPointerCapture={cancel}
       onPointerLeave={e => { if (e.pointerType === 'mouse') desktop.leave(); }} />
-    {[0, 1].map(i => <div key={i} ref={node => { markers.current[i] = node; }} hidden className={styles.stick} aria-hidden="true"><span /><small /></div>)}
-    {shooterOn && <FireControls onHold={hold} onRelease={unlockBlasterAudio} />}
+    {twinOn
+      ? <TwinStickOverlay {...o}>{o.view && <TouchCluster layout={o.view.layout} onChange={twin.sync} onDescend={twin.cancelCruise} />}</TwinStickOverlay>
+      : classic.overlay}
   </>;
 }

@@ -2,12 +2,16 @@ import { create } from 'zustand';
 import { START, validCheckpoint, type Vec } from './motion';
 export type CameraMode = 'third' | 'first';
 export type TrackpadProfile = 'simple' | 'free' | 'captured' | 'flow';
-/** 2: one finger + keyboard became the trackpad default. A save from before it that holds the old default ('free') moves to 'simple'. */
-export const CONTROLS_VERSION = 2;
+/**
+ * 2: one finger + keyboard became the trackpad default. A save from before it that holds the old default ('free') moves to 'simple'.
+ * 3: industry touch controls, Garo 2026-09-24 (twin stick, Aim button shown, the touch hints start over).
+ */
+export const CONTROLS_VERSION = 3;
+export type TouchScheme = 'twin' | 'classic';
 export type HintSeries = 'touch' | 'simple' | 'mouse';
 export type HintProgress = Record<HintSeries, number>;
 /** Steps per progressive hint series; progress === HINT_STEPS[series] means done. */
-export const HINT_STEPS: Readonly<HintProgress> = { touch: 2, simple: 4, mouse: 4 };
+export const HINT_STEPS: Readonly<HintProgress> = { touch: 4, simple: 4, mouse: 4 };
 /** Each field: finite → floored and clamped to [0, HINT_STEPS[k]]; otherwise 0. A non-object → all 0. */
 export function validHintProgress(raw: unknown): HintProgress {
   const o = raw !== null && typeof raw === 'object' ? raw as Record<string, unknown> : {};
@@ -22,6 +26,12 @@ type GameState = {
   lookSensitivity: number; flowIntroSeen: boolean;
   shooter: boolean; aimToggle: boolean; aimAssist: number; controlsVersion: number;
   autoFire: boolean; aimButton: boolean; hintProgress: HintProgress;
+  /** Touch controls (v3). touchLook/touchAim/controlSize/controlOpacity are multipliers clamped to TOUCH_RANGES. */
+  touchScheme: TouchScheme; touchLook: number; touchAim: number; lookAccel: boolean; invertY: boolean; flipSides: boolean;
+  controlSize: number; controlOpacity: number; flyWhereILook: boolean; homeTipSeen: boolean;
+  /** Runtime only: a landable surface is within reach below (Descend reads Land), the Leave card, the pinch-zoom note, and a held
+   *  Descend that the clearance assist stopped with no landable spot near (Descend reads "No landing"). */
+  nearGround: boolean; leavePrompt: boolean; zoomNote: boolean; descendBlocked: boolean;
   /** Runtime only (never saved): a controls hint is on screen, so other notices wait (one message at a time). */
   hintVisible: boolean;
   flying: boolean; landing: boolean; canLand: boolean; nearTerminal: boolean; boundaryNear: boolean; clearanceActive: boolean; inputEpoch: number;
@@ -35,7 +45,10 @@ export const useGame = create<GameState>((set) => ({
   trackpadSteering: 'simple', sustainedEdges: false, reverseScroll: false, cruiseSpeed: 8, heroPoses: true,
   lookSensitivity: 1, flowIntroSeen: false,
   shooter: true, aimToggle: false, aimAssist: 1, controlsVersion: CONTROLS_VERSION,
-  autoFire: true, aimButton: false, hintProgress: { touch: 0, simple: 0, mouse: 0 }, hintVisible: false,
+  autoFire: true, aimButton: true, hintProgress: { touch: 0, simple: 0, mouse: 0 }, hintVisible: false,
+  touchScheme: 'twin', touchLook: 1, touchAim: 1, lookAccel: false, invertY: false, flipSides: false,
+  controlSize: 1, controlOpacity: .85, flyWhereILook: false, homeTipSeen: false,
+  nearGround: false, leavePrompt: false, zoomNote: false, descendBlocked: false,
   flying: false, landing: false, canLand: false, nearTerminal: false, boundaryNear: false, clearanceActive: false, inputEpoch: 0,
   checkpoint: START, discovered: false, message: '', set,
 }));
@@ -43,14 +56,23 @@ const STORAGE = 'halaverga-flight-v1';
 // The single authoritative list of fields saved between sessions. persistGame
 // writes exactly these keys; tests/persistence.test.ts pins hydrateGame to
 // restore every entry and to ignore runtime-only state.
-export const PERSISTED_KEYS = ['checkpoint', 'camera', 'quality', 'reduced', 'muted', 'discovered', 'tapControls', 'desktopMode', 'trackpadSteering', 'sustainedEdges', 'reverseScroll', 'cruiseSpeed', 'heroPoses', 'lookSensitivity', 'flowIntroSeen', 'shooter', 'aimToggle', 'aimAssist', 'controlsVersion', 'autoFire', 'aimButton', 'hintProgress'] as const;
+export const PERSISTED_KEYS = ['checkpoint', 'camera', 'quality', 'reduced', 'muted', 'discovered', 'tapControls', 'desktopMode', 'trackpadSteering', 'sustainedEdges', 'reverseScroll', 'cruiseSpeed', 'heroPoses', 'lookSensitivity', 'flowIntroSeen', 'shooter', 'aimToggle', 'aimAssist', 'controlsVersion', 'autoFire', 'aimButton', 'hintProgress',
+  'touchScheme', 'touchLook', 'touchAim', 'lookAccel', 'invertY', 'flipSides', 'controlSize', 'controlOpacity', 'flyWhereILook', 'homeTipSeen'] as const;
+/** [min, max, default] for the numeric touch settings. */
+export const TOUCH_RANGES = { touchLook: [.5, 2, 1], touchAim: [.5, 1.5, 1], controlSize: [.85, 1.2, 1], controlOpacity: [.4, 1, .85] } as const;
+const ranged = (v: unknown, [lo, hi, fallback]: readonly [number, number, number]) =>
+  typeof v === 'number' && Number.isFinite(v) ? Math.max(lo, Math.min(hi, v)) : fallback;
+const strict = (v: unknown, fallback: boolean) => typeof v === 'boolean' ? v : fallback;
 export type PersistedKey = typeof PERSISTED_KEYS[number];
 export function hydrateGame() {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE) || '{}');
     const version = typeof saved.controlsVersion === 'number' && Number.isFinite(saved.controlsVersion) ? saved.controlsVersion : 0;
     // 'free' was the default before version 2, so an old 'free' is not a choice; explicit captured and Flow stay.
-    const steering = version < CONTROLS_VERSION && saved.trackpadSteering === 'free' ? 'simple' : saved.trackpadSteering;
+    const steering = version < 2 && saved.trackpadSteering === 'free' ? 'simple' : saved.trackpadSteering;
+    // Version 3 shows the Aim button and restarts the touch hints, which now teach the twin-stick controls.
+    const before3 = version < 3, hints = validHintProgress(saved.hintProgress);
+    if (before3) hints.touch = 0;
     useGame.setState({
       checkpoint: validCheckpoint(saved.checkpoint) ? saved.checkpoint : START,
       camera: saved.camera === 'first' ? 'first' : 'third',
@@ -70,8 +92,13 @@ export function hydrateGame() {
       aimAssist: typeof saved.aimAssist === 'number' && Number.isFinite(saved.aimAssist) ? Math.max(0, Math.min(1.5, saved.aimAssist)) : 1,
       // A newer build's save keeps its version, so this build never re-runs a migration that already ran.
       controlsVersion: Math.max(CONTROLS_VERSION, version),
-      autoFire: saved.autoFire !== false, aimButton: saved.aimButton === true,
-      hintProgress: validHintProgress(saved.hintProgress),
+      autoFire: saved.autoFire !== false, aimButton: before3 || strict(saved.aimButton, true),
+      hintProgress: hints,
+      touchScheme: saved.touchScheme === 'classic' ? 'classic' : 'twin',
+      touchLook: ranged(saved.touchLook, TOUCH_RANGES.touchLook), touchAim: ranged(saved.touchAim, TOUCH_RANGES.touchAim),
+      lookAccel: strict(saved.lookAccel, false), invertY: strict(saved.invertY, false), flipSides: strict(saved.flipSides, false),
+      controlSize: ranged(saved.controlSize, TOUCH_RANGES.controlSize), controlOpacity: ranged(saved.controlOpacity, TOUCH_RANGES.controlOpacity),
+      flyWhereILook: strict(saved.flyWhereILook, false), homeTipSeen: strict(saved.homeTipSeen, false),
     });
   } catch { useGame.setState({ reduced: matchMedia('(prefers-reduced-motion: reduce)').matches }); }
 }

@@ -1,5 +1,41 @@
 # First-flight verification · 2026-09-11
 
+## Industry-grade touch controls and browser protection · 2026-09-24 (emulation only)
+
+Owner request (Garo, after playing the Vercel preview on his iPhone): "Oh wow the game is terrible controls. Redo them so that they are at industry grade standards and movements/gestures dont exit the browser and/or pause the game unintentionally". Spec: twin-stick touch (floating left stick, right-thumb look, Fire / Aim / Rise / Descend cluster), level stick flight by default, a play guard (page pinned, scroll and zoom gestures swallowed only while playing), pause only on leaving the page, and a "Leave the game?" card for the back swipe.
+
+Integration (unit E): `Experience.tsx` loads `TouchControls` with a dynamic `import()` right after hydration (and warms `FireControls`), holds the loaded component in state, and Begin and Resume wait for it. `usePlayGuard()` runs always. Begin and Resume go through `onPlayGesture()`, which refuses to start while pinch-zoomed and shows "Pinch out to normal size, then tap Resume." The pause card moved into `PauseCard.tsx` (the Leave card, the zoom note, the "Screen too short" note, the Home Screen tip, a portrait-only "Best played sideways." line). `scripts/check-first-load.mjs` adds TOUCH markers (`TouchControls-module`, `rise-button`, `touch-stick`); the budget stays 636 KB.
+
+Specs added: `tests/twin-stick.spec.ts`, `tests/twin-fit.spec.ts`, `tests/play-guard.spec.ts`, `tests/webkit-gesture.spec.ts` (skips unless Playwright's own WebKit build is already cached; on this Mac only an older `webkit-2215` is cached while Playwright 1.63 expects `webkit-2359`, so it skips; nothing is installed). The legacy touch specs run the classic scheme through a seeded save (`CLASSIC` in `tests/shooter-browser.ts`); classic rotation now keeps playing with input released. `tests/accessibility.spec.ts` adds axe (WCAG 2 A and AA) on twin play in both orientations, the pause card with the tip, touch settings with the screen diagnostics, the Leave card, the zoom note, and twin play with tap controls.
+
+Merge gate (integration, 2026-09-24):
+
+- `pnpm typecheck`: 0 errors. `pnpm test`: 78 files, 806 tests pass. `pnpm build`: passes; the prerendered head has the manifest link and the Apple web-app tags, and the viewport has no zoom limit. `node scripts/check-first-load.mjs`: 9 scripts, 625.4 KB (budget 636 KB).
+- Playwright, system Chrome against `next start` on 127.0.0.1:3391: the full run gave 180 passed, 4 failed, 1 skipped (`webkit-gesture`, WebKit not cached). The 4 were `tests/simple-controls-touch.spec.ts` assertions on More controls folding (the classic seed turns Aim off, a non-default choice since controls version 3); after the fix that file passes 19/19. `play-guard`: 9 passed; the safe-area override applied, and in Chrome the zoom guard reset the zoom to 1 and showed the note.
+- Found and fixed at integration: (1) desktop trackpad regressions (13 failures across flow, flow-recovery, shooter-desktop, simple-trackpad, trackpad-comparison and simple-hints; the same 63 tests pass on a HEAD build): the touch layer again remounts per pause state, as on main, so the desktop hooks' per-session refs reset on resume; and it is held in state once loaded instead of `next/dynamic`, whose React.lazy suspended on the first mount after Begin and dropped an immediate first click. After both, the 63 pass. (2) The twin touch hint series now also mounts with the blaster off. (3) Hold Descend from about 10 m lands after about 3.35 s at 61 fps (coast-up after Rise, 9.1 m/s descent, then main's eased landing approach); the spec allows 4.5 s.
+
+All automated results above are system Chrome emulation (CDP touch). **Emulation is not iPhone validation.**
+
+NOT VALIDATED until Garo checks on his iPhone, in both orientations:
+
+- a left-edge back swipe during a stick drag (should show the Leave card, not exit);
+- a portrait stick drag near Safari's bottom bar (should not switch tabs or open the tab overview);
+- a home swipe and return (should come back paused);
+- a Control Center or Notification Center pull (should release input without pausing);
+- a two-thumb pinch in play (should not zoom) and a pinch on the pause card (should zoom);
+- zooming on the pause card, then tapping Resume (should reset the zoom or show the zoom note);
+- the toolbar showing or hiding mid-drag (should keep the stick);
+- rotation mid-drag (should keep playing, controls re-anchored);
+- a 3 s Fire hold (no loupe or callout);
+- 5 fingers held (all kept) and a sixth finger (clean cancel, no pause);
+- hold Descend to land;
+- how level flight feels;
+- tapping the edge of Pause;
+- two minutes of cruise with no auto-lock;
+- Add to Home Screen (should open full screen);
+- the Screen diagnostics values in Flight settings;
+- thumb reach and button sizes.
+
 ## Whole-body turn roll · 2026-09-19
 
 - `src/game/turnSweep.ts` (new) gathers the travel's lateral velocity change per physics step in `Player.tsx` (`runtime.turn`), clamped to 45 m/s² per step and closed for .2 s after any step in which the flight safety turned the travel; `src/world/suitRoll.ts` (new) drains it each frame and turns it into a roll; `orientSuit` applies it about the line of sight to the chase camera, weighted by t̂·ĉ; `Suit.tsx` advances it after the flight mix and writes `presentation.suitRoll`, which the telemetry samples every 350 ms as `data-suit-roll`. `CHASE_HEAD` (.65 m) is shared by `CameraRig.tsx` and the roll. The long-axis bank term is removed.

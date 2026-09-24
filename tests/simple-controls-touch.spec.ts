@@ -37,15 +37,16 @@ for (const viewport of [PORTRAIT, LANDSCAPE]) {
     test('Auto-fire is on by default; turning it off brings Fire back and survives a reload', async ({ browser }) => {
       const t = await autoTouchPage(browser, viewport), { page } = t;
       await openSettings(page);
-      await expect(page.getByLabel('Auto-fire on touch screens')).toBeChecked();
+      await expect(page.getByLabel('Auto-fire assist on touch screens')).toBeChecked();
       // Touch: the blaster section leads, above the fold, with one line about touch only.
-      const af = (await page.getByLabel('Auto-fire on touch screens').boundingBox())!, desk = (await page.getByLabel('Desktop controls').boundingBox())!;
+      const af = (await page.getByLabel('Auto-fire assist on touch screens').boundingBox())!, desk = (await page.getByLabel('Desktop controls').boundingBox())!;
       expect(af.y).toBeLessThan(desk.y); expect(af.y + af.height).toBeLessThanOrEqual(viewport.height);
       await expect(page.getByText('The suit fires when the crosshair rests on a drone. Turn off for a Fire button.')).toBeVisible();
       await expect(page.getByText(/left click fires once the mouse is captured/)).toHaveCount(0);
-      await expect(page.getByLabel('Show tap controls')).toBeHidden();
-      await expect(page.getByRole('button', { name: 'Toggle aim' })).toBeHidden();
-      await page.getByLabel('Auto-fire on touch screens').uncheck(); await closeSettings(page);
+      // The classic seed's Aim button off is a non-default choice since controls version 3, so More controls starts open here;
+      // the folded default is checked in the next test once Aim is back on.
+      await expect(page.getByTestId('more-controls')).toHaveAttribute('open', '');
+      await page.getByLabel('Auto-fire assist on touch screens').uncheck(); await closeSettings(page);
       const fire = page.getByTestId('fire-button'); await expect(fire).toBeVisible();
       await expect(actions(page)).toHaveAttribute('data-fire', 'true');
       const l = (await lift(page).boundingBox())!, f = (await fire.boundingBox())!;
@@ -59,13 +60,17 @@ for (const viewport of [PORTRAIT, LANDSCAPE]) {
     test('More controls: the opt-in Aim button sits clear of Lift and the edges', async ({ browser }) => {
       const t = await autoTouchPage(browser, viewport), { page } = t;
       await openSettings(page);
-      await page.getByText('More controls', { exact: true }).tap();
+      // The classic seed turns the Aim button off, which is not the default since controls version 3, so More controls starts open.
+      await expect(page.getByTestId('more-controls')).toHaveAttribute('open', '');
       await page.getByLabel('Show Aim button on touch screens').check(); await closeSettings(page);
       await expect(aimButton(page)).toBeVisible(); await expect(page.getByTestId('fire-button')).toHaveCount(0);
       const a = (await aimButton(page).boundingBox())!, l = (await lift(page).boundingBox())!;
       clearOfEdges(a, viewport); expect(intersects(a, l)).toBe(false);
+      // Aim on is the default again, so More controls is folded on the next open (progressive disclosure) and opens on a tap.
       await openSettings(page);
-      await expect(page.getByTestId('more-controls')).toHaveAttribute('open', '');
+      await expect(page.getByTestId('more-controls')).not.toHaveAttribute('open', /.*/);
+      await expect(page.getByLabel('Show tap controls')).toBeHidden();
+      await page.getByText('More controls', { exact: true }).tap();
       await expect(page.getByLabel('Show tap controls')).toBeVisible();
       const scan = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze();
       expect(scan.violations).toEqual([]);
@@ -99,10 +104,12 @@ for (const viewport of [PORTRAIT, LANDSCAPE]) {
       await expect(touchHint(page)).toBeVisible();
       expect(t.errors).toEqual([]); await t.context.close();
     });
-    test('finished touch hints hand over to the drag hint on the ground', async ({ browser }) => {
-      const t = await autoTouchPage(browser, viewport, { hintProgress: { touch: 2, simple: 0, mouse: 0 } }), { page } = t;
+    test('classic: the 6 s one-thumb line hands over to the drag hint on the ground', async ({ browser }) => {
+      const t = await autoTouchPage(browser, viewport), { page } = t;
       await expect(telemetry(page)).toHaveAttribute('data-flying', 'false');
-      await expect(touchHint(page)).toBeVisible();
+      await expect(page.getByTestId('controls-hint')).toHaveText('One thumb: drag to fly');
+      await expect(touchHint(page)).toBeHidden();
+      await expect(touchHint(page)).toBeVisible({ timeout: 9000 });
       expect(t.errors).toEqual([]); await t.context.close();
     });
     test('blaster off (?shooter=0) is main: no Fire, no controls hint, the drag hint shows', async ({ browser }) => {

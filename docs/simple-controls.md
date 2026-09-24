@@ -12,6 +12,8 @@ Garo asked: "how can we make them so simple that it wont intimidate people?" The
 4. Progressive hints, one at a time, replace the one-line wall of instructions. Each hint goes away once its action is done, is saved, and never repeats.
 5. At most two play buttons on a phone: Lift/Land, and Fire only when auto-fire is off.
 
+   **Superseded on touch (2026-09-24):** with the default Two thumbs scheme, Fire is always visible while the blaster is on and auto-fire is an assist (a Fire press overrides it); Rise, Descend and Aim are also shown. The One thumb (classic) scheme and tap controls keep this rule. Pending Garo's confirmation; see `docs/touch-controls.md` and the 2026-09-24 entry in `docs/DECISIONS.md`.
+
 ## Design principles
 
 - **Hick's law**: fewer visible choices mean faster decisions. The phone shows one play button by default, and only one hint shows at a time.
@@ -70,7 +72,7 @@ Blaster off: no disclosure. The tap checkbox renders in main's place with main's
 
 Q still aims on every device. Vent timing still works with a Fire button or C but is not taught.
 
-On a touch screen (`pointer: coarse`) the Suit blaster section (with Auto-fire) comes first in Flight settings, above main's desktop and trackpad sections, with a one-line caption: "The suit fires when the crosshair rests on a drone. Turn off for a Fire button." Fine pointers keep the mouse and trackpad caption.
+On a touch screen (`pointer: coarse`) the Suit blaster section (with Auto-fire) comes first in Flight settings, above main's desktop and trackpad sections, with a one-line caption: "The suit fires when the crosshair rests on a drone. Turn off for a Fire button." Fine pointers keep the mouse and trackpad caption. Since 2026-09-24 the setting reads **Auto-fire assist on touch screens**; with Two thumbs (the default) the caption ends "The Fire button is always there too.", and One thumb (classic) keeps the caption above.
 
 ## Progressive hints (`src/ui/hintSteps.ts`, `ControlsHint`, Unit C)
 
@@ -83,6 +85,8 @@ Track: blaster off → none; tap controls → `tap`; coarse pointer → `touch`;
 | mouse | "Click the scene to start" → "Move the mouse to look" → "Click to shoot" → "WASD to fly · Space lifts" |
 | tap | one line, 6 s, once per page load: "Tap pad: Fire and Aim toggle" |
 | line | one line, 6 s, once per page load: "Hold C to fire" |
+
+The touch row above was replaced on 2026-09-24 by the four-step Two thumbs series and a one-line One thumb (classic) hint (`HINT_STEPS.touch = 4`); see `docs/touch-controls.md`.
 
 Progress is `store.hintProgress` (`HINT_STEPS = { touch: 2, simple: 4, mouse: 4 }`; progress equal to the step count means done), saved through `PERSISTED_KEYS` and validated by `validHintProgress`.
 
@@ -106,6 +110,8 @@ The 5-shot fallback and the 20 s timeout are deviations from the approved plan t
 - Phone default: Lift/Land only. Auto-fire off: Lift/Land + Fire. The Aim button only after opting in under More controls. Header buttons and the Municipal record button are not play controls.
 - `.actions[data-fire]` moves Lift/Land aside only when Fire shows; otherwise it sits in main's bottom-right spot.
 - Blaster off (the setting, or `?shooter=0`): no Fire controls, Lift/Land in main's spot, main's touch hint unchanged (also with tap controls), SimpleTrackpadHud's blaster-off branch rendering main's exact output, `Shooter.tsx` unmounted (auto-fire never runs), no controls hint.
+
+  **Superseded on touch (2026-09-24), for touch flight controls only:** with the blaster off, touch uses the Two thumbs scheme by default (stick, look, Rise and Descend; no Fire or Aim) and its hint series ends on "Hold Descend to land". One thumb (classic) with the blaster off still matches main. Desktop with the blaster off still matches main. Pending Garo's confirmation.
 
 ## Accepted exception
 

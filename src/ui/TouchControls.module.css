@@ -1,0 +1,53 @@
+/* Twin-stick touch layer. Positions come from computeLayout (box-local px, written inline); this file only paints.
+   Contrast: glyph #f5f0dc on #163738 fill is 11.9:1; the 1 px #b4c9b4 edge plus 2 px #0b1e22 ring keeps >= 3:1 on bright
+   and dark scenery alike; held #142c32 on #d4f197 is 11.6:1; cue chips #f5f0dc on #0b1e22 are 15.3:1. */
+.layer{position:fixed;z-index:4;pointer-events:none;--touch-opacity:.85;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+.probe{position:fixed;inset:0;visibility:hidden;pointer-events:none;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+
+.btn{position:absolute;display:grid;place-items:center;padding:0;margin:0;border:0;border-radius:50%;background:transparent;color:#f5f0dc;
+  pointer-events:auto;opacity:var(--touch-opacity);touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent;outline:none}
+.btn::before{content:'';position:absolute;left:50%;top:50%;width:var(--vis);height:var(--vis);margin:calc(var(--vis) / -2);border-radius:50%;
+  background:#163738eb;box-shadow:0 0 0 1px #b4c9b4,0 0 0 3px #0b1e22,0 4px 14px #0b1e2255;transition:transform .08s ease-out,background-color .08s}
+.btn svg{position:relative;width:calc(var(--vis) * .5);height:calc(var(--vis) * .5);fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;pointer-events:none}
+.btn .solid{fill:currentColor;stroke:none}
+.btn[data-held]{opacity:1;color:#142c32}
+.btn[data-held]::before{background:#d4f197;transform:scale(1.08)}
+.btn[aria-pressed=true]{color:#142c32}
+.btn[aria-pressed=true]::before{background:#d4f197}
+.btn:focus-visible::before{outline:2px solid #d4f197;outline-offset:5px}
+.fire svg{width:calc(var(--vis) * .52);height:calc(var(--vis) * .52)}
+/* First-use label under each button (and a blocked Descend's "No landing"): #f5f0dc on #0b1e22 is 15.3:1; amber #f2b35e is 9.3:1. */
+.label{position:absolute;left:50%;top:calc(50% + var(--vis) / 2 + 3px);transform:translateX(-50%);padding:2px 5px;border-radius:3px;
+  background:#0b1e22;color:#f5f0dc;font:700 10px/1.2 system-ui,sans-serif;letter-spacing:.08em;text-transform:uppercase;white-space:nowrap;pointer-events:none}
+.descend[data-blocked] svg{opacity:.5}
+.descend[data-blocked] .label{color:#f2b35e}
+.fire[data-locked]{opacity:.55}
+/* Heat ring: a conic arc around Fire's disc, driven by --heat (0..1) from one rAF loop. */
+.fire::after{content:'';position:absolute;left:50%;top:50%;width:calc(var(--vis) + 10px);height:calc(var(--vis) + 10px);margin:calc((var(--vis) + 10px) / -2);
+  border-radius:50%;pointer-events:none;background:conic-gradient(#f2b35e calc(var(--heat, 0) * 360deg),transparent 0);
+  -webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 4px),#000 calc(100% - 3px));mask:radial-gradient(farthest-side,transparent calc(100% - 4px),#000 calc(100% - 3px))}
+
+.ring{position:absolute;border-radius:50%;border:2px solid #f5f0dcb3;background:#0b1e2240;box-shadow:0 0 0 1px #0b1e2299;pointer-events:none;transition:box-shadow .12s}
+.knob{position:absolute;left:50%;top:50%;border-radius:50%;background:#f5f0dce6;box-shadow:0 0 0 2px #0b1e22;pointer-events:none}
+.ring[data-boost=true]{box-shadow:0 0 0 1px #0b1e2299,0 0 0 6px #d4f19766,0 0 18px 6px #d4f19755}
+.sprint{position:absolute;left:50%;width:30px;height:25px;transform:translate(-50%,-50%);fill:none;stroke:#f5f0dc;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;opacity:.9;pointer-events:none}
+.sprintEdge{stroke:#0b1e22;stroke-width:4.6}
+.ring[data-boost=true] .sprint{stroke:#d4f197;opacity:1}
+.ghost{position:absolute;border-radius:50%;border:2px solid #f5f0dc;pointer-events:none;opacity:calc(var(--touch-opacity) * .25)}
+.layer [hidden]{display:none!important}
+.cues{position:absolute;left:0;top:0;display:flex;gap:6px;transform:translate(-50%,-100%);pointer-events:none}
+.cue{padding:3px 7px;border-radius:3px;background:#0b1e22;color:#f5f0dc;font:700 11px/1.2 system-ui,sans-serif;letter-spacing:.08em}
+
+@media (prefers-reduced-motion: reduce){.btn::before,.ring{transition:none}.btn[data-held]::before{transform:none}}
+.layer[data-reduced=true] .btn::before,.layer[data-reduced=true] .ring{transition:none}
+.layer[data-reduced=true] .btn[data-held]::before{transform:none}
+/* A mouse is in use (html[data-input] follows the last pointer type): the touch layer steps aside. No hover or fine-pointer
+   query here, so an iPad with a trackpad shows the controls again on the next touch. */
+:global(html[data-input=mouse]) .layer{display:none}
+@media (forced-colors: active){
+  .btn{color:ButtonText;opacity:1}
+  .btn::before{background:ButtonFace;box-shadow:none;border:2px solid ButtonText;forced-color-adjust:none}
+  .btn[data-held],.btn[aria-pressed=true]{color:HighlightText}
+  .btn[data-held]::before,.btn[aria-pressed=true]::before{background:Highlight}
+  .label{border:1px solid CanvasText}.ring,.ghost{border-color:CanvasText}.sprint{stroke:CanvasText}.sprintEdge{stroke:Canvas}.knob{background:CanvasText}.cue{border:1px solid CanvasText}
+}

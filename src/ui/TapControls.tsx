@@ -30,7 +30,7 @@ export default function TapControls() {
   };
   const buttons: [string, string, () => void][] = [
     ['↶','Look left',() => look(-75,0)], ['↑','Move forward',() => nudge({ forward: 1 })],
-    ['↷','Look right',() => look(75,0)], ['⇧','Rise',() => nudge({ vertical: 1 })],
+    ['↷','Look right',() => look(75,0)], ['⇧','Rise',() => { if (useGame.getState().flying) nudge({ vertical: 1 }); else runtime.lift = true; }],
     // Stop halts movement only: a latched Aim and the Fire toggle stay set for players who cannot drag.
     ['←','Move left',() => nudge({ strafe: -1 })], ['■','Stop movement',() => clearInput(true, true)],
     ['→','Move right',() => nudge({ strafe: 1 })], ['⇩','Descend',() => nudge({ vertical: -1 })],

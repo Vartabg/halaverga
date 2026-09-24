@@ -12,6 +12,7 @@ import { boundaryDistance, CLEARANCE, nearestTerminal, removeInward, softenBound
 import { sweepTurn } from './turnSweep';
 import { moveMode } from './combat';
 import { aimVelocity, hipVelocity } from './aimMotion';
+import { levelFlight, probeBelow, touchBlockedStep, touchLandStep, LAND_WINDOW } from './touchFlight';
 const direction = new Vector3();
 export default function Player() {
   const body = useRef<RapierRigidBody>(null), collider = useRef<RapierCollider>(null);
@@ -55,6 +56,11 @@ export default function Player() {
       clearInput(true); runtime.reset = false; runtime.yaw = 0; runtime.pitch = -.12; runtime.poseEpoch++; liftTime.current = 0;
       useGame.setState({ flying: false, landing: false, checkpoint: START }); persistGame(); return;
     }
+    // Held Descend: start the landing before the intent is read, so its sink is already dropped this step.
+    if (touchLandStep({ world, rapier, collider: col, safe, position: current, flying: state.flying })) landingStall.current = 0;
+    // Held Descend stopped short by the clearance assist (last step's result): land beside the obstacle, or say there is no landing.
+    if (touchBlockedStep({ world, rapier, collider: col, safe, position: current, flying: state.flying, clearance: runtime.clearance.active,
+      vy: runtime.velocity.y, dt })) landingStall.current = 0;
     const p = b.translation(), intent = readIntent();
     const k = runtime.keys;
     const pointerFlight = runtime.thumb.active || runtime.trackpad.active;
@@ -82,11 +88,13 @@ export default function Player() {
     }
     // PR #12: the one-finger 'simple' trackpad profile looks without thrusting; every other gesture still surges.
     const gestureThrust = runtime.thumb.active || (runtime.trackpad.active && state.trackpadSteering !== 'simple');
-    const mode = state.shooter ? moveMode(runtime.shooter) : 0, surge = runtime.surge || gestureThrust;
+    const mode = state.shooter ? moveMode(runtime.shooter) : 0, surge = runtime.surge || gestureThrust || runtime.stick.boost;
+    // Twin touch flies level: altitude comes only from Rise and Descend, so aiming never climbs or dives (ADS pitch lift included).
+    const fp = levelFlight(state) ? 0 : runtime.pitch;
     let v = runtime.landGoal ? landingVelocity(p, runtime.landGoal)
-      : mode === 2 ? aimVelocity(runtime.velocity, intent, runtime.yaw, runtime.pitch, flying, dt)
-      : mode === 1 ? hipVelocity(runtime.velocity, intent, runtime.yaw, runtime.pitch, flying, surge, dt)
-      : advanceVelocity(runtime.velocity, intent, runtime.yaw, runtime.pitch, flying, surge, dt);
+      : mode === 2 ? aimVelocity(runtime.velocity, intent, runtime.yaw, fp, flying, dt)
+      : mode === 1 ? hipVelocity(runtime.velocity, intent, runtime.yaw, fp, flying, surge, dt)
+      : advanceVelocity(runtime.velocity, intent, runtime.yaw, fp, flying, surge, dt);
     if (liftTime.current > 0) { v.y = 6; liftTime.current -= dt; }
     const from = { ...runtime.velocity }, chosen = v;
     runtime.clearance.active = false; runtime.clearance.boundary = boundaryDistance(p) < 12;
@@ -125,6 +133,11 @@ export default function Player() {
       runtime.landGoal = null; setVec(runtime.velocity, 0, 0, 0); flying = false;
       useGame.setState({ flying: false, landing: false, checkpoint: next, message: 'Landed. Take a moment. Look around.' }); persistGame();
     }
+    // Descend held into a landable surface the probe missed (arrived from the side, or already inside the window): land here.
+    if (flying && runtime.stick.descend && c.computedGrounded() && safe.canLand({ ...next, y: next.y - FOOT })) {
+      runtime.landGoal = null; setVec(runtime.velocity, 0, 0, 0); flying = false;
+      useGame.setState({ flying: false, landing: false, checkpoint: next, message: 'Landed. Take a moment. Look around.' }); persistGame();
+    }
     // Falling off an edge deploys the suit automatically, including over water.
     if (!flying && (!c.computedGrounded() && v.y < -5 || next.y < 1.8)) {
       runtime.velocity.y = 0; useGame.setState({ flying: true });
@@ -151,7 +164,8 @@ export default function Player() {
       const terminal = nearestTerminal(runtime.position);
       const nearTerminal = terminal !== null;
       runtime.location = terminal ? terminal.location : next.y > 50 ? 'Upper skyline' : next.y < 6 ? 'Flooded boulevard' : next.z < 15 ? 'Broken viaduct' : 'Arrival terrace';
-      useGame.setState({ canLand: !!runtime.landTarget, nearTerminal, boundaryNear: runtime.clearance.boundary, clearanceActive: runtime.clearance.active });
+      const nearGround = flying && probeBelow(world, rapier, col, safe, runtime.position, FOOT + LAND_WINDOW) !== null;
+      useGame.setState({ canLand: !!runtime.landTarget, nearTerminal, nearGround, boundaryNear: runtime.clearance.boundary, clearanceActive: runtime.clearance.active });
     }
   });
   return <RigidBody ref={body} type="kinematicPosition" colliders={false} position={[spawn.current.x, spawn.current.y, spawn.current.z]}>

@@ -7,6 +7,7 @@ import { useCruiseCapture } from './useCruiseCapture';
 import { useFlowTrackpad } from './useFlowTrackpad';
 import { useSimpleTrackpad } from './useSimpleTrackpad';
 import { recordGesture } from '@/game/gestureLog';
+import { touchMode } from '@/game/pointerMode';
 type Press = { id: number; x: number; y: number; dragged: boolean; stoppedFlight: boolean };
 const captureError = () => useGame.setState({ message: 'Mouse capture is unavailable. Choose Trackpad in Flight settings to continue.' });
 export function useTrackpad(surface: RefObject<HTMLDivElement | null>) {
@@ -34,7 +35,8 @@ export function useTrackpad(surface: RefObject<HTMLDivElement | null>) {
       if (runtime.trackpad.active) runtime.trackpad.throttle = next;
       recordGesture('wheel', e);
     };
-    const zoom = () => { if (['flow', 'simple'].includes(useGame.getState().trackpadSteering)) brakeFlow(); halt(); };
+    // Desktop only, decided when the event fires: iPhone Safari fires gesturestart for any second finger (two-thumb play).
+    const zoom = () => { if (touchMode()) return; if (['flow', 'simple'].includes(useGame.getState().trackpadSteering)) brakeFlow(); halt(); };
     const error = () => { if (useGame.getState().desktopMode === 'mouse') captureError(); };
     element.addEventListener('wheel', wheel, { passive: false });
     element.addEventListener('gesturestart', zoom);

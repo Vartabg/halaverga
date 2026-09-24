@@ -1,15 +1,19 @@
 import { useEffect } from 'react';
-import { clearInput, look, runtime, toggleSurge, readIntent } from '@/game/runtime';
+import { clearInput, look, runtime, toggleSurge, readIntent, releaseHeldInput, releaseKeys } from '@/game/runtime';
 import { moving } from '@/game/motion';
-import { useGame } from '@/game/store';
+import { persistGame, useGame } from '@/game/store';
 import { recordGesture } from '@/game/gestureLog';
+import { touchMode } from '@/game/pointerMode';
+import { isOrientationFlip, isPlaying, orientationOf } from './playLifecycle';
 export function pause() {
   recordGesture('pause');
   clearInput(true); useGame.setState({ paused: true, landing: false });
   if (document.pointerLockElement) document.exitPointerLock();
 }
 export function resume() {
-  clearInput(true); runtime.skipSample = true; useGame.setState({ started: true, paused: false, panel: false, journal: false, message: '' });
+  clearInput(true); runtime.skipSample = true;
+  // Playing again answers any "Leave the game?" prompt raised while a dialog hid it.
+  useGame.setState({ started: true, paused: false, panel: false, journal: false, message: '', leavePrompt: false });
 }
 export function useInput() {
   useEffect(() => {
@@ -39,8 +43,25 @@ export function useInput() {
         recordGesture('captured-steer', { deltaX: e.movementX, deltaY: e.movementY });
       }
     };
-    const hidden = () => { if (document.hidden) pause(); };
-    const resized = () => { clearInput(true); if (document.pointerLockElement) document.exitPointerLock(); useGame.setState(s => ({ landing: false, inputEpoch: s.inputEpoch + 1 })); };
+    // Touch or desktop is decided when each event fires (the last pointer type), so an iPad with a trackpad switches cleanly.
+    // Touch: a blur only drops keyboard keys and keeps playing; fingers keep their controls (iOS cancels them itself when the
+    // system takes the touches), and only leaving the page pauses.
+    const blur = () => { if (!touchMode()) pause(); else if (isPlaying(useGame.getState())) releaseKeys(); };
+    const liveGame = () => { const g = useGame.getState(); return g.started && !g.paused; };
+    const hidden = () => { if (document.hidden && liveGame()) pause(); };
+    // Leaving (tab switch, back swipe past the sentinel, app switch): pause and save; bfcache restores come back paused.
+    const pagehide = () => { if (liveGame()) pause(); if (useGame.getState().started) persistGame(); };
+    const pageshow = (e: PageTransitionEvent) => { if (e.persisted && liveGame()) pause(); };
+    // The layout viewport (not the visual one) so a pinch zoom never reads as a rotation.
+    const layoutOrientation = () => orientationOf(document.documentElement.clientWidth || innerWidth, document.documentElement.clientHeight || innerHeight);
+    let orientation = layoutOrientation();
+    const resized = () => {
+      const next = layoutOrientation(), flipped = isOrientationFlip(orientation, next);
+      orientation = next;
+      // Touch: Safari's toolbar resizes change nothing; a rotation releases held input and keeps playing.
+      if (touchMode()) { if (flipped) releaseHeldInput(); return; }
+      clearInput(true); if (document.pointerLockElement) document.exitPointerLock(); useGame.setState(s => ({ landing: false, inputEpoch: s.inputEpoch + 1 }));
+    };
     const lock = () => {
       if (!document.pointerLockElement) {
         const expected = runtime.trackpad.unlocking; runtime.trackpad.unlocking = false;
@@ -50,12 +71,14 @@ export function useInput() {
       }
     };
     window.addEventListener('keydown', keydown); window.addEventListener('keyup', keyup);
-    window.addEventListener('mousemove', mouse); window.addEventListener('blur', pause); window.addEventListener('resize', resized);
+    window.addEventListener('mousemove', mouse); window.addEventListener('blur', blur); window.addEventListener('resize', resized);
+    window.addEventListener('pagehide', pagehide); window.addEventListener('pageshow', pageshow);
     document.addEventListener('visibilitychange', hidden); document.addEventListener('pointerlockchange', lock);
     window.screen.orientation?.addEventListener('change', resized);
     return () => {
       window.removeEventListener('keydown', keydown); window.removeEventListener('keyup', keyup); window.removeEventListener('mousemove', mouse);
-      window.removeEventListener('blur', pause); window.removeEventListener('resize', resized);
+      window.removeEventListener('blur', blur); window.removeEventListener('resize', resized);
+      window.removeEventListener('pagehide', pagehide); window.removeEventListener('pageshow', pageshow);
       document.removeEventListener('visibilitychange', hidden); document.removeEventListener('pointerlockchange', lock);
       window.screen.orientation?.removeEventListener('change', resized); clearInput(true);
     };

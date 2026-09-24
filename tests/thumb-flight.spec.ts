@@ -1,9 +1,10 @@
 import { expect, test } from '@playwright/test';
+import { CLASSIC, seed } from './shooter-browser';
 
 for (const [side, x, camera] of [['left', 90, 'Third person'], ['right', 290, 'First person']] as const) {
   test(`one ${side} thumb lifts, aims, accelerates and brakes in ${camera}`, async ({ browser }) => {
     const context = await browser.newContext({ viewport: { width: 393, height: 852 }, isMobile: true, hasTouch: true });
-    const page = await context.newPage(), errors: string[] = [];
+    const page = await context.newPage(), errors: string[] = []; await seed(page, CLASSIC);
     page.on('pageerror', e => errors.push(e.message));
     await page.goto('/'); await page.getByRole('button', { name: 'Begin expedition' }).tap();
     if (camera === 'First person') {
@@ -45,7 +46,7 @@ for (const [side, x, camera] of [['left', 90, 'Third person'], ['right', 290, 'F
 
 test('long presses on controls and their surroundings do not select game text', async ({ browser }) => {
   const context = await browser.newContext({ viewport: { width: 393, height: 852 }, isMobile: true, hasTouch: true });
-  const page = await context.newPage(); await page.goto('/');
+  const page = await context.newPage(); await seed(page, CLASSIC); await page.goto('/');
   await page.getByRole('button', { name: 'Begin expedition' }).tap();
   const lift = page.getByRole('button', { name: 'Lift', exact: true }), bounds = (await lift.boundingBox())!;
   const cdp = await context.newCDPSession(page);
@@ -69,9 +70,9 @@ test('long presses on controls and their surroundings do not select game text', 
   await context.close();
 });
 
-test('rotation clears both thumbs without changing location or view', async ({ browser }) => {
+test('rotation releases both thumbs and keeps playing, without changing the view', async ({ browser }) => {
   const context = await browser.newContext({ viewport: { width: 393, height: 852 }, isMobile: true, hasTouch: true });
-  const page = await context.newPage(); await page.goto('/');
+  const page = await context.newPage(); await seed(page, CLASSIC); await page.goto('/');
   await page.getByRole('button', { name: 'Begin expedition' }).tap();
   const cdp = await context.newCDPSession(page), telemetry = page.getByTestId('flight-telemetry');
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: 90, y: 650, id: 1 }] });
@@ -80,12 +81,13 @@ test('rotation clears both thumbs without changing location or view', async ({ b
   await expect(page.getByTestId('flight-surface')).toHaveAttribute('data-control-mode', 'dual');
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: 100, y: 590, id: 1 }, { x: 300, y: 620, id: 2 }] });
   await page.waitForTimeout(650);
+  // Touch play: a rotation releases held input (the suit coasts to a hover) and never pauses.
   await page.setViewportSize({ width: 852, height: 393 }); await page.waitForTimeout(400);
-  const position = await telemetry.getAttribute('data-position'), heading = await telemetry.getAttribute('data-heading');
-  await page.waitForTimeout(500);
-  expect(Number(await telemetry.getAttribute('data-speed'))).toBeLessThan(.1);
-  expect(await telemetry.getAttribute('data-position')).toBe(position);
+  const heading = await telemetry.getAttribute('data-heading');
+  await expect.poll(async () => Number(await telemetry.getAttribute('data-speed')), { timeout: 1500 }).toBeLessThan(.5);
   expect(await telemetry.getAttribute('data-heading')).toBe(heading);
+  await expect(page.getByRole('button', { name: 'Resume flight' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Pause expedition' })).toBeVisible();
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchCancel', touchPoints: [] });
   await context.close();
 });
