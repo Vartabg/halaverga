@@ -70,8 +70,8 @@ describe('shot springs', () => {
     for (const hz of RATES) {
       const k = sim(hz); frame(k, true);
       for (const c of [CH.elbow, CH.shoulder, CH.clav, CH.slide]) expect(out(k, c)).toBe(1);
-      // The core jumps from the aim level (.45) to firing plus flare (about .95) on the shot frame.
-      expect(k.d.core).toBeGreaterThan(.9); expect(k.d.slide).toBeGreaterThan(0);
+      // The core jumps from the aim level (.7) to firing plus flare (.9, bold r5) on the shot frame.
+      expect(k.d.core).toBeGreaterThan(.85); expect(k.d.slide).toBeGreaterThan(0);
       const n = [CH.elbow, CH.shoulder, CH.clav, CH.slide].map(c => out(k, c)); frame(k);
       [CH.elbow, CH.shoulder, CH.clav, CH.slide].forEach((c, i) => expect(out(k, c)).toBeLessThan(n[i]));
     }

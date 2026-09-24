@@ -72,17 +72,19 @@ describe('arm cannon contract geometry', () => {
     expect(radialOf(c.divideScalar(pos.count)).length()).toBeLessThan(.002);
   });
 
-  it('is .36 m long; side-on (top to underside) at most .16 m, a 2.2-3.2 length ratio; at most .18 m across seen from behind', () => {
+  it('is .40 m long, about .19 m side-on and .20 m across from behind (bold r5), with the top capped at .092 m for the ADS crosshair', () => {
     const pts = tris.flatMap(t => [t.a, t.b, t.c]), ss = pts.map(s);
     const length = Math.max(...ss) - Math.min(...ss), across = (dir: Vector3) => { const p = pts.map(q => radialOf(q).dot(dir)); return Math.max(...p) - Math.min(...p); };
     let extent = 0;
     for (let d = 0; d < 180; d++) extent = Math.max(extent, across(U.clone().multiplyScalar(Math.cos(d * Math.PI / 180)).addScaledVector(Z, Math.sin(d * Math.PI / 180))));
-    // Side-on (the flight clips, the vent pose) the top-to-underside depth sets the gun read; from behind the chase camera sees the
-    // outer fin stack widen the outline (review r3: the rear view read as a round cuff about 11 px wide at chase portrait).
-    const side = across(Z);
-    expect(Math.abs(length - .36)).toBeLessThanOrEqual(.01);
-    expect(side).toBeLessThanOrEqual(.16); expect(extent).toBeLessThanOrEqual(.18); expect(across(U)).toBeGreaterThanOrEqual(.16);
-    expect(length / side).toBeGreaterThanOrEqual(2.2); expect(length / side).toBeLessThanOrEqual(3.2);
+    // Owner feedback after playing on his iPhone ("the cannon looks too small on my phone, make it bolder"): about twice the forearm's
+    // thickness (D_f .104 m) side-on and from behind, the outer fin stack widening the rear outline. In portrait ADS the top edge sits
+    // about 3 CSS px under the crosshair's centre third, so the top (with the pod) may grow only 10 mm: the extra girth is underneath.
+    const side = across(Z), top = Math.max(...pts.map(q => -radialOf(q).dot(Z)));
+    expect(Math.abs(length - .40)).toBeLessThanOrEqual(.01);
+    expect(side).toBeGreaterThanOrEqual(.18); expect(side).toBeLessThanOrEqual(.20); expect(extent).toBeLessThanOrEqual(.215);
+    expect(across(U)).toBeGreaterThanOrEqual(.19); expect(across(U)).toBeLessThanOrEqual(.205); expect(top).toBeLessThanOrEqual(.0925);
+    expect(length / side).toBeGreaterThanOrEqual(1.9); expect(length / side).toBeLessThanOrEqual(2.6);
   });
 
   it('places the core and the vent mouth on the top face (bind -Z)', () => {
@@ -117,7 +119,8 @@ describe('arm cannon seen from behind', () => {
     // 2000 samples for the heat set: it includes the cavity floor under the shut hatch, so fewer samples land on visible faces.
     const lens = visibility(t => t.mask[0] > 128, dir), heat = visibility(t => t.mask[1] >= 64, dir, 2000);
     expect(lens.fraction).toBeGreaterThanOrEqual(.6);
-    expect(lens.projected).toBeGreaterThanOrEqual(5e-4);
+    // Bold r5: the hexagonal lens fills the pod's rear face (measured 2.4e-3 m2 projected, 3.7x the r4 lens).
+    expect(lens.projected).toBeGreaterThanOrEqual(1.8e-3);
     expect(heat.projected).toBeGreaterThanOrEqual(8e-4);
   });
 });
@@ -160,7 +163,8 @@ describe('arm cannon encloses the rigid forearm of the real suit', () => {
 
 describe('cannon contract file', () => {
   it('is self-consistent', () => {
-    expect(v(AXIS_ORIGIN).addScaledVector(v(BARREL_AXIS), .46).distanceTo(v(MUZZLE))).toBeLessThan(1e-4);
+    expect(STATION.muzzle).toBe(.50);
+    expect(v(AXIS_ORIGIN).addScaledVector(v(BARREL_AXIS), STATION.muzzle).distanceTo(v(MUZZLE))).toBeLessThan(1e-4);
     expect(Math.abs(v(BARREL_AXIS).length() - 1)).toBeLessThan(1e-3); expect(Math.abs(v(RADIAL_Z).length() - 1)).toBeLessThan(1e-3);
     expect(Math.abs(v(BARREL_AXIS).dot(v(RADIAL_Z)))).toBeLessThan(1e-3);
     expect(rimStation(1)).toBeCloseTo(.10, 12); expect(rimStation(-1)).toBeCloseTo(STATION.cuffFlexor, 12);

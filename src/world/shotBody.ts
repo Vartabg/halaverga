@@ -12,7 +12,8 @@ export type ShotBodyEnv = { dt: number; paused: boolean; reduced: boolean; epoch
 type Spring = { x: number; v: number };
 export type ShotBody = {
   springs: ShotSprings; time: number; epoch: number; lastShots: number; lock: boolean; cursor: { last: number }; rng: () => number;
-  /** Brace, smoothed ground weight, motion gain (0 under reduced motion), the arm's aim weight. */ B: number; gw: number; m: number; aw: number;
+  /** Brace, smoothed ground weight, motion gain (0 under reduced motion), the arm's aim weight, the ADS blend. */
+  B: number; gw: number; m: number; aw: number; ads: number;
   /** This frame's snap kicks per channel, applied after the springs advance so they peak on the shot frame. */ snap: Float64Array;
   breathPhase: number; breathAmp: number; breath: number; exertion: number;
   swayP1: number; swayP2: number; swayX: number; swayY: number; killYaw: number; kill: Spring; killK: number;
@@ -32,7 +33,7 @@ const ARM = [CH.slide, CH.elbow, CH.shoulder, CH.clav] as const, BODY = [CH.tors
 export function createShotBody(seed = 2113): ShotBody {
   return {
     springs: createShotSprings(), time: 0, epoch: NaN, lastShots: 0, lock: false, cursor: { last: 0 }, rng: mulberry32(seed),
-    B: 0, gw: 1, m: 1, aw: 0, snap: new Float64Array(CHANNEL_COUNT), breathPhase: 0, breathAmp: 0, breath: 0, exertion: 0,
+    B: 0, gw: 1, m: 1, aw: 0, ads: 0, snap: new Float64Array(CHANNEL_COUNT), breathPhase: 0, breathAmp: 0, breath: 0, exertion: 0,
     swayP1: 0, swayP2: 0, swayX: 0, swayY: 0, killYaw: 0, kill: { x: 0, v: 0 }, killK: 0,
     hatchF: createFollower(8, .55, 0), headF: createFollower(3, .75, 0), ventF: createFollower(3, .75, 0), hatch: 0, headLead: 0, v: 0,
     venting: false, ventT: 0, flick: { x: 0, v: 0 }, flickK: 0, n: 0, lastShotT: -Infinity, burstStart: -Infinity, yawSign: 1,
@@ -87,7 +88,7 @@ function shoot(b: ShotBody, s: ShooterState, env: ShotBodyEnv, at: number) {
   b.shotGain = base; b.yawSign = -b.yawSign;
   if (env.reduced || b.m === 0) return;
   // ADS keeps .35 of the arm snap: at .85 the muzzle jumped 15-17 CSS px on the shot frame, about 2.5x the hip kick once scaled for the
-  // closer ADS camera (visual review r4); .35 lands near 6 px, 1.6x the ~4 px hip kick.
+  // closer ADS camera (visual review r4). The bold cannon (r5) also caps the ADS rise at POSE.adsRiseCap (shotBodyPose.ts).
   const ads = clamp(env.ads, 0, 1), land = env.pxPerM > 0 && ads < .5 ? clamp(4 / (.06 * env.pxPerM), 1, 1.6) : 1;
   const arm = base * lerp(1, .35, ads) * land, body = base * lerp(1, .8, ads), sp = b.springs;
   for (let i = 0; i < ARM.length; i++) b.snap[ARM[i]] += arm;
@@ -98,7 +99,7 @@ function shoot(b: ShotBody, s: ShooterState, env: ShotBodyEnv, at: number) {
 export function advanceShotBody(b: ShotBody, s: ShooterState, env: ShotBodyEnv) {
   if (env.paused) return;
   const w = s.weapon, aimWeight = Number.isFinite(env.aimWeight) ? clamp(env.aimWeight, 0, 1) : 0;
-  b.aw = aimWeight;
+  b.aw = aimWeight; b.ads = Number.isFinite(env.ads) ? clamp(env.ads, 0, 1) : 0;
   const ground = Number.isFinite(env.ground) ? clamp(env.ground, 0, 1) : 1;
   if (b.epoch !== env.epoch) {
     rest(b, ground, env.reduced); b.epoch = env.epoch; b.lastShots = w.shots; b.cursor.last = s.eventSerial; b.lock = w.lock > 0;

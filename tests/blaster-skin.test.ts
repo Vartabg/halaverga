@@ -7,7 +7,7 @@ import { loadSuit } from './load-suit';
 
 type Pose = { clav?: readonly number[]; upper: readonly number[]; fore?: number; hand?: number };
 const AIM_BASE: Pose = { clav: [0, .1, 0], upper: [1.571, 0, -.124], hand: 1e-3 };
-const CARRY: Pose = { clav: [0, .05, 0], upper: [.5, 0, .4], fore: .9, hand: 1e-3 };
+const CARRY: Pose = { clav: [0, .05, 0], upper: [.45, -.2, .4], fore: 1.4, hand: 1e-3 };   // src/world/aimPose.ts CARRY (bold r5)
 const FLIGHT: Pose = { clav: [0, .1, 0], upper: [2.8, 0, -.124], fore: 1.5, hand: 1e-3 };
 const GRID: Pose[] = [1.2, 1.571, 2].flatMap(x => [-.4, 0, .4].flatMap(y => [0, .52].map(f =>
   ({ clav: [0, .1, 0], upper: [x, y, -.124], fore: f, hand: 1e-3 }))));

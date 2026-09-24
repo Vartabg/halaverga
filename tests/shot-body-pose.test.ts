@@ -126,6 +126,21 @@ describe('shot body pose', () => {
       expect(worst).toBeLessThanOrEqual(POSE.riseCap + .05); expect(worst).toBeGreaterThan(3);
     }
   });
+  it('in ADS caps the combined rise at adsRiseCap and fades the torso roll (the head cancel follows it)', () => {
+    const { target } = chase(); aim(target); const base = elevation(barrel()), pose = quats();
+    const s = createShooter(), b = createShotBody(), env = { dt: 1 / 60, paused: false, reduced: false, epoch: 1, aimWeight: 1, ads: 1, ground: 1, pxPerM: 227 };
+    advanceShotBody(b, s, env); s.input.pressSerial++; let worst = 0;
+    for (let i = 0; i < 150; i++) {
+      advanceWeapon(s.weapon, true, s.input.pressSerial, 1 / 60); advanceShotBody(b, s, env);
+      joints.forEach((j, k) => j.quaternion.fromArray(pose[k])); applyShotBodyPost(joints, b); root.updateMatrixWorld(true);
+      worst = Math.max(worst, (elevation(barrel()) - base) / DEG);
+    }
+    console.info(`max cannon rise, ADS burst: ${worst.toFixed(2)} deg`);
+    expect(worst).toBeLessThanOrEqual(POSE.adsRiseCap + .05); expect(worst).toBeGreaterThan(1.5);
+    rest(); const r = body(); r.springs.x[CH.torso] = 1; r.ads = 1; applyShotBodyPre(joints, r); applyShotBodyPost(joints, r);
+    for (const k of [B.chest, B.spine, B.head]) expect(joints[k].rotation.z).toBeCloseTo(0, 12);
+    expect(joints[B.chest].rotation.y).toBeCloseTo(-POSE.chestYaw * DEG, 9);
+  });
   it('braces knees-out from the rig leg lengths: feet planted, pelvis BRACE.drop (2.1 cm) lower, the right knee bowing out at chase', () => {
     const head = (i: number) => new Vector3().setFromMatrixPosition(new Matrix4().copy(mesh.skeleton.boneInverses[i]).invert());
     expect(head(B.thigh_r).distanceTo(head(B.shin_r))).toBeCloseTo(.4828, 3); expect(head(B.shin_r).distanceTo(head(B.foot_r))).toBeCloseTo(.432, 3);

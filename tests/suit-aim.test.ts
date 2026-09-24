@@ -8,9 +8,10 @@ import { createSuitAnimation } from '../src/world/suitAnimation';
 import { cruising, flightPose, frame, measure, quats, rig, settledMix, type Rig } from './flight-harness';
 import { loadSuit } from './load-suit';
 import { VIEWS, aimMetrics, cameraRay, type Shot } from './aim-metrics';
-const DEG = Math.PI / 180, ARM = [14, 3, 7, 16], TORSO = [10, 11, 12, 1], HZ = 1 / 60, PRESS_MAX = 25, CARRY_MAX = 25, CARRY_SCREEN = 12;
-// Measured 2026-09-23 (carry upper arm .5 / 0 / .4, AIM_RATE 18, snap gated at 18-40 deg): press frame worst 23.7 deg (glb, 13 m/s,
-// view pitch -40, crosshair 5 m, inside NEAR_IK); carry worst 13.7 deg (view yaw 2.2, pitch -.4, grounded).
+const DEG = Math.PI / 180, ARM = [14, 3, 7, 16], TORSO = [10, 11, 12, 1], HZ = 1 / 60, PRESS_MAX = 25, CARRY_MAX = 40, CARRY_SCREEN = 12;
+// Measured 2026-09-23 with the bold carry (upper arm .45 / -.2 / .4, elbow 1.4; AIM_RATE 18, snap gated at 18-40 deg): press frame worst
+// 23.0 deg (plain rig, view pitch -40, crosshair 5 m, inside NEAR_IK); carry worst 33.0 deg in 3D (glb, pitch -.4, grounded: the
+// barrel lies across the view so its length reads) and 3.8 deg on screen.
 const e = new Euler();
 type Case = { speed: number; viewYaw: number; viewPitch: number; offset: number; clock?: number };
 /** One Suit.tsx frame with the body facing the view (yaw offset for the facing lag), flying along the body heading. */
@@ -90,7 +91,7 @@ describe('suit aim (arm cannon)', () => {
     expect(worst, at).toBeLessThan(.5);
     expect(solved).toBeGreaterThan(outOfReach * 9);
   }, 60000);
-  it('carries the cannon low, within CARRY_SCREEN of the crosshair line on screen (CARRY_MAX in 3D) for camera pitch -.4 to .3, grounded and hovering, body facing the view', () => {
+  it('carries the cannon out beside the body, within CARRY_SCREEN of the crosshair line on screen (CARRY_MAX in 3D) for camera pitch -.4 to .3, grounded and hovering, body facing the view', () => {
     let worst = 0, at = '', screen = 0, atScreen = '';
     for (const [name, make] of RIGS) for (const viewYaw of [0, 2.2]) for (const ground of [true, false])
       for (let pitch = -CARRY_PITCH; pitch <= .3 + 1e-9; pitch += .1) for (const view of VIEWS.slice(0, 3)) {
@@ -105,7 +106,8 @@ describe('suit aim (arm cannon)', () => {
         if (m.screen > screen) { screen = m.screen; atScreen = JSON.stringify({ name, viewYaw, pitch, ground, view: view.name }); }
       }
     console.info(`carry barrel error: worst ${worst.toFixed(1)} deg at ${at}; on screen ${screen.toFixed(1)} deg at ${atScreen}`);
-    // The abducted carry toes the barrel outward, mostly along the view line: what the player sees is the on-screen angle.
+    // The turned-out carry lays the barrel across the view (so the cannon reads side-on) while it still points at the crosshair on
+    // screen: what the player sees is the on-screen angle.
     expect(worst, at).toBeLessThan(CARRY_MAX); expect(screen, atScreen).toBeLessThan(CARRY_SCREEN);
   });
   it('blends continuously with the weight', () => {

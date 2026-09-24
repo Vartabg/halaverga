@@ -31,12 +31,14 @@ export const BRACE = { chest: -3, thigh: [12.25, -18, 4], shin: -24.5, foot: [13
  * muzzle about 10 px at chase, 15 in portrait ADS. The chest/spine roll 4 + 2 moves the head about 6 px; the off arm 9 + 12 swings
  * the left hand out. In the air the pelvis pitches back 8 and rolls 2.5 (the feet swing forward and sideways, about 12 px) and the
  * leg trail tucks the knees (thighs 18 up, knees 30 folded: the feet rise about 8 px; a knee fold alone moves them along the view
- * line and a pitch alone barely reads: review r3). Head lead 28 / 12 in the vent.
+ * line and a pitch alone barely reads: review r3). Head lead 28 / 12 in the vent. In ADS (bold cannon r5, the muzzle ring sits about 2 px
+ * under the screen's centre third in portrait) the combined rise cap blends to adsRiseCap and the torso roll fades out: the roll
+ * raises the right shoulder, which lifted the cannon about 3 px under the second shot of a burst, and the arm snap stacked on it.
  */
 export const POSE = { elbow: 5, shoulder: 2.5, shoulderYaw: 1.2, clavLift: 3, clavRetract: 2, chestPitch: 1, chestYaw: 2.5, chestRoll: 4,
   spinePitch: .5, spineRoll: 2, headNod: 1, offArmOut: 9, offElbow: 12, hoverPitch: 8, hoverRoll: 2.5, legThigh: 18, legShin: 30,
   breathChest: .5, breathSpine: .25, breathClav: .3, ventElbow: 30, ventClav: 2, flick: 8, killNod: 1.5, killExhale: 1, leadYaw: 28,
-  leadPitch: 12, leadNeck: .4, riseCap: 10 } as const;
+  leadPitch: 12, leadNeck: .4, riseCap: 10, adsRiseCap: 2.4 } as const;
 /** Upper-arm roll about its own long axis at full vent pose (rad). Sign measured: it turns the cannon's top face toward the camera. */
 export const VENT_ROLL = 12 * DEG;
 const qa = new Quaternion(), X = new Vector3(1, 0, 0), Y = new Vector3(0, 1, 0), touched = new Uint8Array(BONE_COUNT);
@@ -56,25 +58,26 @@ function limitTouched(joints: Object3D[]) {
   }
 }
 /** Channel values after the motion gain, the hover weight and the combined cannon-rise cap (module scratch, read by tests). */
-export const shotOut = { elbow: 0, shoulder: 0, yaw: 0, clav: 0, torso: 0, offArm: 0, head: 0, hover: 0, trail: 0, cap: 1 };
+export const shotOut = { elbow: 0, shoulder: 0, yaw: 0, clav: 0, torso: 0, roll: 0, offArm: 0, head: 0, hover: 0, trail: 0, cap: 1 };
 function channels(b: ShotBody) {
   const x = b.springs.x, m = b.m, air = 1 - b.gw, o = shotOut;
   o.elbow = x[CH.elbow] * m; o.shoulder = x[CH.shoulder] * m; o.yaw = x[CH.shoulderYaw] * m; o.clav = x[CH.clav] * m;
-  o.torso = x[CH.torso] * m; o.offArm = x[CH.offArm] * m; o.head = x[CH.head] * m;
+  o.torso = x[CH.torso] * m; o.roll = o.torso * (1 - b.ads); o.offArm = x[CH.offArm] * m; o.head = x[CH.head] * m;
   o.hover = air === 0 ? 0 : x[CH.hoverPitch] * m * air; o.trail = air === 0 ? 0 : x[CH.legTrail] * m * air;
   // Only the arm lifts the cannon: the body layers run before the solve, which keeps the barrel on the line.
   const rise = Math.max(0, POSE.elbow * o.elbow) + Math.max(0, POSE.shoulder * o.shoulder) + Math.max(0, 1.5 * o.clav);
-  o.cap = rise > POSE.riseCap ? POSE.riseCap / rise : 1;
+  const cap = POSE.riseCap + (POSE.adsRiseCap - POSE.riseCap) * b.ads;
+  o.cap = rise > cap ? cap / rise : 1;
   if (o.cap < 1) { o.elbow *= o.cap; o.shoulder *= o.cap; o.clav *= o.cap; }
   return o;
 }
 /** Before the aim solve: breathing, the grounded brace, the torso kick and the hover reaction. Also writes b.offset (visual only). */
 export function applyShotBodyPre(joints: Object3D[], b: ShotBody) {
-  const br = b.breath, brace = b.B * b.gw, o = channels(b), t = o.torso, hv = o.hover, tr = o.trail;
+  const br = b.breath, brace = b.B * b.gw, o = channels(b), t = o.torso, rl = o.roll, hv = o.hover, tr = o.trail;
   b.offset.x = 0; b.offset.y = brace === 0 ? 0 : -BRACE.drop * brace; b.offset.z = 0;
   if ((br === 0 && brace === 0 && t === 0 && hv === 0 && tr === 0) || joints.length < BONE_COUNT) return;
-  add(joints, B.chest, (POSE.breathChest * br + BRACE.chest * brace + POSE.chestPitch * t) * DEG, -POSE.chestYaw * t * DEG, POSE.chestRoll * t * DEG);
-  add(joints, B.spine, (POSE.breathSpine * br + POSE.spinePitch * t) * DEG, 0, POSE.spineRoll * t * DEG);
+  add(joints, B.chest, (POSE.breathChest * br + BRACE.chest * brace + POSE.chestPitch * t) * DEG, -POSE.chestYaw * t * DEG, POSE.chestRoll * rl * DEG);
+  add(joints, B.spine, (POSE.breathSpine * br + POSE.spinePitch * t) * DEG, 0, POSE.spineRoll * rl * DEG);
   add(joints, B.pelvis, POSE.hoverPitch * hv * DEG, 0, POSE.hoverRoll * hv * DEG);
   const th = BRACE.thigh, x = (th[0] * brace + POSE.legThigh * tr) * DEG, y = th[1] * brace * DEG, z = th[2] * brace * DEG;
   const s = (BRACE.shin * brace - POSE.legShin * tr) * DEG, fx = BRACE.foot[0] * brace * DEG, fy = BRACE.foot[1] * brace * DEG;
@@ -103,7 +106,7 @@ export function applyShotBodyPost(joints: Object3D[], b: ShotBody) {
   const lead = 1 - POSE.leadNeck, un = (1 - b.aw) * o.torso;
   add(joints, B.neck, -POSE.leadPitch * POSE.leadNeck * hl * DEG, -POSE.leadYaw * POSE.leadNeck * hl * DEG, 0);
   add(joints, B.head, -((POSE.chestPitch + POSE.spinePitch) * un + POSE.headNod * o.head + POSE.killNod * kill + POSE.leadPitch * lead * hl) * DEG,
-    (POSE.chestYaw * un - POSE.leadYaw * lead * hl) * DEG + b.killYaw * kill, -(POSE.chestRoll + POSE.spineRoll) * o.torso * DEG);
+    (POSE.chestYaw * un - POSE.leadYaw * lead * hl) * DEG + b.killYaw * kill, -(POSE.chestRoll + POSE.spineRoll) * o.roll * DEG);
   add(joints, B.upperarm_l, 0, 0, -POSE.offArmOut * o.offArm * DEG);
   add(joints, B.forearm_l, POSE.offElbow * o.offArm * DEG, 0, 0);
   limitTouched(joints);

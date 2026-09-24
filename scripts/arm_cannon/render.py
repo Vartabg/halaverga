@@ -20,14 +20,14 @@ B = np.array([[1, 0, 0], [0, 0, -1], [0, 1, 0.]])            # three -> Blender
 lin = lambda h: np.array([(int(h[i:i+2], 16)/255)**2.2 for i in (1, 3, 5)])
 HEAD = np.array([0, .65, 0])
 AIM = {fit.CLAV: (0, .1, 0), fit.UPPER: (1.571, 0, -.124), fit.FOREARM: (0, 0, 0)}
-CARRY = {fit.CLAV: (0, .05, 0), fit.UPPER: (.5 - .12, 0, .4), fit.FOREARM: (.9, 0, 0)}
+CARRY = {fit.CLAV: (0, .05, 0), fit.UPPER: (.45 - .12, -.2, .4), fit.FOREARM: (1.4, 0, 0)}
 VENT = {fit.FOREARM: (.52, 0, 0), fit.UPPER: (0, .21, 0), 12: (-.056, -.105, 0), 1: (-.084, -.157, 0)}
 # state: (core colour x intensity, strip colour x intensity, fin colour x intensity, vent open, slide back)
-HEAT = {'cyan': (lin('#00c8ff')*.45, lin('#00b8ff')*.45, lin('#00b8ff')*0, 0, 0),
-        'amber': (lin('#ffb347')*.45, lin('#ffb347')*.45, lin('#ffb347')*0, 0, 0),
-        'red': (lin('#ff3a10')*.45, lin('#ff3a10')*.45, lin('#ff3a10')*.3, 0, 0),
+HEAT = {'cyan': (lin('#00c8ff')*.7, lin('#00b8ff')*.45, lin('#00b8ff')*0, 0, 0),
+        'amber': (lin('#ffb347')*.7, lin('#ffb347')*.45, lin('#ffb347')*0, 0, 0),
+        'red': (lin('#ff3a10')*.7, lin('#ff3a10')*.45, lin('#ff3a10')*.3, 0, 0),
         'overheat': (lin('#ff3a10')*.3, lin('#ff3a10')*.45, lin('#ff3a10')*.45, 1, 1)}
-RING, VENT_MAX = lin('#00c8ff')*.2, float(re.search(r'VENT_MAX = (\d+) \*', fit.CONTRACT.read_text()).group(1))
+RING, VENT_MAX = lin('#00c8ff')*.55, float(re.search(r'VENT_MAX = (\d+) \*', fit.CONTRACT.read_text()).group(1))
 
 
 def material(name, rgb, rough):

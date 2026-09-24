@@ -10,17 +10,17 @@ import type { ShotBody } from './shotBody';
 
 /** Core lens level while locked: a clear red glow (at .15 the dim lens plus a sun highlight read peach, like skin: review r2). */
 export const LOCK_CORE = .3;
-/** Ring glow (muzzle lip, collar and slide coils, mask B) at rest; aim raised .3, firing .45. */
-export const RING_REST = .2;
+/** Ring glow (muzzle lip, bezel, collar and slide coils, mask B) at rest; aim raised .55, firing .65 (bold r5: was .2 / .3 / .45). */
+export const RING_REST = .45;
 /** Per-shot slide travel at unit spring value (m), the flare size and decay, and the heat-ramp thresholds (the HUD's). */
-export const DRIVE = { slide: .022, flare: .4, flareTau: .05, firing: .3, lowerRate: 9, amberAt: .6, hotAt: .85, blend: .05,
+export const DRIVE = { slide: .022, flare: .15, flareTau: .05, firing: .3, lowerRate: 9, amberAt: .6, hotAt: .85, blend: .05,
   swellHz: 1.5, swell: .25, lockSwell: [.69, .89] as const } as const;
 const clamp01 = (v: number) => v <= 0 ? 0 : v >= 1 ? 1 : v;
 const smooth = (lo: number, hi: number, v: number) => { const t = clamp01((v - lo) / (hi - lo)); return t * t * (3 - 2 * t); };
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 function mix(out: RGB, a: RGB, b: RGB, t: number) { out.r = lerp(a.r, b.r, t); out.g = lerp(a.g, b.g, t); out.b = lerp(a.b, b.b, t); }
 
-/** The per-shot core flare: .4 e^(-age / 50 ms), summed over the recent shots, times the motion gain; 0 under reduced motion. */
+/** The per-shot core flare: .15 e^(-age / 50 ms), summed over the recent shots, times the motion gain; 0 under reduced motion. */
 export function flareOf(b: ShotBody, reduced: boolean) {
   if (reduced || b.m === 0) return 0;
   let sum = 0;
@@ -46,7 +46,7 @@ export function writeCannonDrive(b: ShotBody, s: ShooterState, aimWeight: number
   d.vent = Math.max(0, b.hatch);
   // The ring set (mask B: muzzle lip, collar, slide coils) keeps a low cyan glow at rest so the barrel reads as an energy weapon
   // side-on (visual review r2).
-  d.ring = lerp(RING_REST + (.3 - RING_REST) * aw, .45, firing) + .5 * flare / DRIVE.flare;
+  d.ring = lerp(RING_REST + (.55 - RING_REST) * aw, .65, firing) + .5 * flare / DRIVE.flare;
   if (w.lock > 0) {
     const fade = Math.max(0, 1 - w.lockT / HEAT.lock), u = (w.lockT - DRIVE.lockSwell[0]) / (DRIVE.lockSwell[1] - DRIVE.lockSwell[0]);
     const bump = u > 0 && u < 1 ? Math.sin(Math.PI * u) : 0;
@@ -58,13 +58,14 @@ export function writeCannonDrive(b: ShotBody, s: ShooterState, aimWeight: number
     d.fins = glow;
     return d;
   }
-  // Relaxed .25, aim raised .45, firing .55, plus the flare (peak about 1): the lens stays a saturated cyan spot, never white.
-  d.core = lerp(.25 + .2 * aw, .55, firing) + flare;
+  // Relaxed .55, aim raised .7, firing .75, plus the flare (peak .9): brighter from behind on a phone (bold r5, was .25 / .45 / .55
+  // + .4). The peak stays a saturated cyan: the captured lens went pale on the shot frame at 1.3 (mean R 160-164 of 255) and 1.0 (145-150).
+  d.core = lerp(.55 + .15 * aw, .75, firing) + flare;
   // The core lens is the largest glow seen from behind, so it carries the heat ramp too (cyan, amber, red), like the strips.
   heatColor(h, d.coreColor, COLORS.fringe);
   const warm = heatColor(h, d.stripColor), hot = smooth(DRIVE.hotAt - DRIVE.blend, DRIVE.hotAt + DRIVE.blend, h);
   const swell = 1 + DRIVE.swell * hot * Math.sin(2 * Math.PI * DRIVE.swellHz * b.time);
-  d.strip = lerp(.2 + .25 * aw, .6, warm) * swell;
+  d.strip = lerp(.3 + .15 * aw, .6, warm) * swell;
   d.fins = .6 * clamp01((h - .8) / .2);
   return d;
 }

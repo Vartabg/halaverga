@@ -13,8 +13,8 @@ SIZE = 8
 R, G, B = (255, 0, 0), (0, 255, 0), (0, 0, 255)
 # name: (sRGB base colour, roughness, metal, emissive mask)
 SLOTS = {
-    # #434a51, one value step under the textile (#57636c): the first #373c42 read as a near-black tube side-on in flight (review r2).
-    'shell': ('#434a51', .50, 0, (0, 0, 0)),
+    # Bold r5: #6f7a85, lighter than the textile, so the cannon reads against grass (luma 53) at 2:1; graphite stays in the recesses.
+    'shell': ('#6f7a85', .50, 0, (0, 0, 0)),
     'panel': ('#2c3035', .70, 0, (0, 0, 0)),
     'steel': ('#c2bab2', .35, 1, (0, 0, 0)),
     # Stylised copper: the physical F0 #fad1c2 reflected the blue sky and read pale blue-white at chase; #d4804a keeps metal reflections

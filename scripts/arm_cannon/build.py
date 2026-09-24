@@ -18,6 +18,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 import fit  # noqa: E402
 import palette  # noqa: E402
 import parts  # noqa: E402
+import pod as core_pod  # noqa: E402
 
 OUT = fit.ROOT/'public/models/arm-cannon.glb'
 DOC = fit.ROOT/'docs/art/arm-cannon'
@@ -55,15 +56,15 @@ def build():
     bpy.ops.wm.read_factory_settings(use_empty=True)
     suit = fit.load_suit()
     weights = fit.r1(suit)
-    eo = parts.envelope(fit.hull(fit.rigid_points(suit, weights)))
-    pod, hatch, hinge, lens, mouth = parts.pod()
+    env = parts.envelope(fit.hull(fit.rigid_points(suit, weights)))
+    pod, hatch, hinge, lens, mouth = core_pod.pod()
     barrel, bore = parts.barrel()
     mat = palette.material(palette.write(tempfile.mkdtemp()))
     mat.use_backface_culling = True
     root = make_object('arm_cannon', None, None)
-    meshes = [make_object('cannon_shell', palette.node_mesh('cannon_shell', [parts.shell_lathe(eo), barrel, bore, parts.fins(eo), pod],
+    meshes = [make_object('cannon_shell', palette.node_mesh('cannon_shell', [parts.shell_lathe(env), barrel, bore, parts.fins(env[0]), pod],
                                                     flips=(2,)), root),
-              make_object('cannon_slide', palette.node_mesh('cannon_slide', [parts.slide()]), root, trs(fit.O + .38*fit.A)),
+              make_object('cannon_slide', palette.node_mesh('cannon_slide', [parts.slide()]), root, trs(fit.O + .40*fit.A)),
               make_object('cannon_vent', palette.node_mesh('cannon_vent', [hatch]), root, trs(*hinge))]
     for obj in meshes:
         obj.data.materials.append(mat)
@@ -173,6 +174,7 @@ def report(path, suit, weights):
         'vent_hinge_dot_axis': round(float(nodes['cannon_vent'][:3, 0] @ fit.A), 4),
         'length_m': round(float(np.ptp(s)), 4), 'largest_extent_m': round(float(max(widths)), 4),
         'extent_u_by_z_m': [round(float(np.ptp(u)), 4), round(float(np.ptp(z)), 4)],
+        'radial_extent_m': {k: round(float(x), 4) for k, x in (('top', -z.min()), ('outer', u.max()), ('underside', z.max()), ('inner', -u.min()))},
         'length_over_extent': round(float(np.ptp(s)/max(widths)), 3),
         'min_cuff_clearance_mm': round(min(clear)*1000, 2), 'min_cuff_clearance_station': round(float(ps[keep][np.argmin(clear)]), 3),
         'hand_head_inset_mm': round(gap(hh)*1000, 2), 'cone_min_inset_mm': round(min(gap(p) for p in cone)*1000, 2),

@@ -188,8 +188,9 @@ def skin(pos, w, heads, world):
     return out
 
 
-AIM = {14: (0, .1, 0), 3: (1.571, 0, -.124), 7: (0, 0, 0)}
-POSES = {'CARRY': {14: (0, .05, 0), 3: (.5, 0, .4), 7: (.9, 0, 0)}, 'AIM': AIM, 'VENT': {**AIM, 7: (.52, 0, 0)}, 'STRESS': {**AIM, 7: (1.55, 0, 0)}}
+AIM, CARRY = {14: (0, .1, 0), 3: (1.571, 0, -.124), 7: (0, 0, 0)}, {14: (0, .05, 0), 3: (.45, -.2, .4), 7: (1.4, 0, 0)}   # aimPose.ts
+POSES = {'CARRY': CARRY, 'CARRY_KICK': {**CARRY, 7: (1.487, 0, 0)}, 'CARRY_VENT': {**CARRY, 7: (1.924, 0, 0)},   # elbow +5 / +30 deg
+         'AIM': AIM, 'VENT': {**AIM, 7: (.52, 0, 0)}, 'STRESS': {**AIM, 7: (1.55, 0, 0)}}
 
 
 def pose(suit, weights, locals_):

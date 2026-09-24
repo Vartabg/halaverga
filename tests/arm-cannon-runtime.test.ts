@@ -91,7 +91,7 @@ describe('arm cannon drive', () => {
     Object.assign(d, { slide: NaN, vent: NaN, core: NaN, strip: NaN, fins: NaN, ring: NaN }); driveArmCannon(c, d);
     expect(c.slide.position.distanceTo(c.slideRest)).toBe(0);
     expect(c.vent.quaternion.angleTo(c.ventRest)).toBeLessThan(1e-7);
-    expect(c.uniforms.uCore.value.r).toBeCloseTo(COLORS.fringe.r * .25, 12); expect(c.uniforms.uRing.value.b).toBe(0);
+    expect(c.uniforms.uCore.value.g).toBeCloseTo(COLORS.fringe.g * .55, 12); expect(c.uniforms.uRing.value.b).toBe(0);
     expect([c.uniforms.uCore.value, c.uniforms.uHeat.value].every((v) => Number.isFinite(v.r + v.g + v.b))).toBe(true);
   });
   it('sets the uniforms to colour times intensity', () => {

@@ -20,7 +20,7 @@ const VENT_OVERSHOOT = 1.15;
 const TEXTURE_SLOTS = ['map', 'roughnessMap', 'metalnessMap', 'emissiveMap', 'normalMap', 'aoMap'] as const;
 const X_AXIS = new Vector3(1, 0, 0), hinge = new Quaternion();
 /** Rest drive (restCannonDrive) values, used when a drive value is not finite. */
-const REST_CORE = .25, REST_STRIP = .2;
+const REST_CORE = .55, REST_STRIP = .3;
 
 const clamp = (v: number, lo: number, hi: number) => (v < lo ? lo : v > hi ? hi : v);
 const fin = (v: number, rest: number) => (Number.isFinite(v) ? v : rest);

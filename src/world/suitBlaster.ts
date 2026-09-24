@@ -15,8 +15,9 @@ import { applyShotBodyPost, applyShotBodyPre } from './shotBodyPose';
 import { writeCannonDrive } from './shotDrive';
 import { BONE_COUNT } from './suitSkeleton';
 
-/** Carry weight in flight at cruise: lerp(1, CARRY_FLIGHT, flight), where flight fades in from hover (3 m/s) to 13 m/s. */
-export const CARRY_FLIGHT = .5;
+/** Carry weight in flight at cruise: lerp(1, CARRY_FLIGHT, flight), where flight fades in from hover (3 m/s) to 13 m/s. .7 (was .5)
+ * keeps the bold carry's outline readable in cruise (owner feedback 2026-09-23). */
+export const CARRY_FLIGHT = .7;
 export type BlasterRig = { root: Object3D; joints: Object3D[] };
 export type SuitBlaster = {
   aim: SuitAim; body: ShotBody; env: ShotBodyEnv; skin: BlasterSkin | null | undefined;

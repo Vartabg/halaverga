@@ -51,18 +51,19 @@ describe('cannon drive', () => {
   });
   it('drives the core: relaxed, aim raised, firing plus flare, reduced motion, and the ring', () => {
     const { s, b, d } = state(); const w = s.weapon;
-    writeCannonDrive(b, s, 0, false, d); expect(d.core).toBe(.25); expect(d.ring).toBeCloseTo(.2, 12); expect(near(d.coreColor, COLORS.fringe)).toBe(true);
-    writeCannonDrive(b, s, 1, false, d); expect(d.core).toBeCloseTo(.45, 12); expect(d.ring).toBeCloseTo(.3, 12);
-    // A shot this frame: sinceShot 0, flare .4 at age 0; the core stays the saturated cyan (no white blend).
+    writeCannonDrive(b, s, 0, false, d); expect(d.core).toBe(.55); expect(d.ring).toBeCloseTo(.45, 12); expect(near(d.coreColor, COLORS.fringe)).toBe(true);
+    writeCannonDrive(b, s, 1, false, d); expect(d.core).toBeCloseTo(.7, 12); expect(d.ring).toBeCloseTo(.55, 12);
+    // A shot this frame: sinceShot 0, flare .15 at age 0 (bold r5 levels: relaxed .55, aim .7, firing .75); the core stays the
+    // saturated cyan (no white blend).
     w.sinceShot = 0; b.shotT[0] = b.time;
     writeCannonDrive(b, s, 1, false, d);
-    expect(d.core).toBeCloseTo(.95, 12); expect(near(d.coreColor, COLORS.fringe)).toBe(true); expect(d.ring).toBeCloseTo(.95, 12);
-    b.time += .05; w.sinceShot = .05; writeCannonDrive(b, s, 1, false, d); expect(d.core).toBeCloseTo(.55 + .4 * Math.exp(-1), 12);
-    writeCannonDrive(b, s, 1, true, d); expect(d.core).toBe(.55); expect(d.ring).toBe(.45);
+    expect(d.core).toBeCloseTo(.9, 12); expect(near(d.coreColor, COLORS.fringe)).toBe(true); expect(d.ring).toBeCloseTo(1.15, 12);
+    b.time += .05; w.sinceShot = .05; writeCannonDrive(b, s, 1, false, d); expect(d.core).toBeCloseTo(.75 + .15 * Math.exp(-1), 12);
+    writeCannonDrive(b, s, 1, true, d); expect(d.core).toBe(.75); expect(d.ring).toBe(.65);
     // After firing the core eases back to the aim level instead of stepping.
     b.time += 1; w.sinceShot = .3 + 1 / 60; writeCannonDrive(b, s, 1, false, d);
-    expect(d.core).toBeLessThan(.55); expect(d.core).toBeGreaterThan(.5);
-    w.sinceShot = 3; writeCannonDrive(b, s, 1, false, d); expect(d.core).toBeCloseTo(.45, 6);
+    expect(d.core).toBeLessThan(.75); expect(d.core).toBeGreaterThan(.72);
+    w.sinceShot = 3; writeCannonDrive(b, s, 1, false, d); expect(d.core).toBeCloseTo(.7, 6);
     s.weapon.heat = 90; writeCannonDrive(b, s, 1, false, d); expect(d.fins).toBeCloseTo(.3, 12);
   });
   it('rests at the contract rest values when idle', () => {

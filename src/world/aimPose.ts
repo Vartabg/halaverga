@@ -10,14 +10,16 @@ import { createPose, mixPose } from './clipSampler';
  */
 export const AIM_BASE = { clavicle_r: [0, .1, -.1], upperarm_r: [1.571, 0, -.124], forearm_r: [0, 0, 0], hand_r: [-.2, 0, 0] } as const;
 /**
- * The carry pose while the blaster is on (third person): the cannon held low and out at the right hip with the elbow bent.
+ * The carry pose while the blaster is on (third person): the cannon held out beside the right hip-to-chest line, elbow bent 80 deg.
  * upperarm_r x also takes clamp(view pitch, +-CARRY_PITCH). The upper arm is abducted (+z, .4 rad) so the chase camera, which sees
- * the body from behind, sees the cannon beside the torso instead of behind it: 82% of the cannon's surface samples unoccluded, about
- * 21 x 26 CSS px at 390 x 844 portrait (was 25% and 6 x 21 px adducted at -.25). Upper-arm pitch .7 rests the barrel within about 11
- * deg of the crosshair line on screen, so the raise is a sideways punch-out and the recoil reads as its own upward snap on the shot frame
- * that settles back down (at .5 the unfold kept rising for four frames and swallowed the kick: visual review r3).
+ * the body from behind, sees the cannon beside the torso, and turned out (y -.2) so the barrel lies across the view instead of along it:
+ * at least 42 deg to the view ray (33 with the old .9 elbow and no turn-out), so the whole .40 m outline reads as a weapon (owner
+ * feedback 2026-09-23, "too small on my phone"; a measured sweep of 60 carry poses at 393 x 852 put every best silhouette turned out
+ * with the elbow at 1.4). Upper-arm pitch .45, not the sweep's best .7: at .7 the cannon rests so high that the press frame drops the
+ * muzzle 34 px at chase portrait (the raise must never dip before the kick; limit 12 px). Turn-out .2, not .3: at .3 the barrel drew
+ * up to 15.6 deg off the crosshair line on screen, at .2 3.8 deg (tests/suit-aim.test.ts).
  */
-export const CARRY = { clavicle_r: [0, .05, 0], upperarm_r: [.7, 0, .4], forearm_r: [.9, 0, 0], hand_r: [0, 0, 0] } as const;
+export const CARRY = { clavicle_r: [0, .05, 0], upperarm_r: [.45, -.2, .4], forearm_r: [1.4, 0, 0], hand_r: [0, 0, 0] } as const;
 export const CARRY_PITCH = .4;
 /** The arm converges on a point at least this far along the camera ray (m); nearer, it would have to reach behind the shoulder. */
 export const NEAR_IK = 8;
@@ -33,10 +35,9 @@ export const AIM_RATE = 18, CARRY_RATE = 8;
 export type SuitAim = { epoch: number; weight: number; swing: number; snap: number; carry: number; dist: number };
 export const createSuitAim = (): SuitAim => ({ epoch: NaN, weight: 0, swing: 0, snap: 0, carry: 0, dist: 30 });
 /**
- * A press snaps the barrel onto the crosshair only when the arm is far off the line (flight clips, a wide view turn): the snap
- * weight ramps in from SNAP_FROM to SNAP_FROM + SNAP_SPAN of swing correction (rad). From the grounded or hovering carry (at most
- * 14 deg off) it never engages: snapping there put the muzzle 8-9 px below its settled height on the shot frame (a dip before the
- * kick), while the unsnapped punch-out rises into the kick with the barrel 9 deg off the tracer under the flash on N, 4 by N+2.
+ * A press snaps the barrel onto the crosshair only when the arm is far off the line: the snap weight ramps in from SNAP_FROM to
+ * SNAP_FROM + SNAP_SPAN of swing correction (rad). The bold carry (r5) rests about 33 deg off the line in 3D, so a press from it
+ * snaps most of the way on the shot frame; smaller corrections (a nearly raised arm) keep the unsnapped punch-out.
  */
 export const SNAP_FROM = 18 * Math.PI / 180, SNAP_SPAN = 22 * Math.PI / 180;
 const HEAD = 1, UPPER = 3, FORE = 7, SPINE = 10, CHEST = 11, NECK = 12, CLAV = 14, HAND = 16;
