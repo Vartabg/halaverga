@@ -13,6 +13,7 @@ import FlightPresentation from '@/game/FlightPresentation';
 import { useGame } from '@/game/store';
 import { clearInput } from '@/game/runtime';
 import EnvironmentLight from './EnvironmentLight';
+import { atmosphere } from './atmospherePalette';
 function GraphicsRecovery({ onLoss }: { onLoss: () => void }) {
   const { gl, invalidate } = useThree();
   useEffect(() => {
@@ -29,11 +30,11 @@ export default function Scene({ onLoss }: { onLoss: () => void }) {
     role="img" frameloop="demand" dpr={quality === 'high' ? [1, 1.5] : 1} shadows={quality === 'high' ? 'percentage' : false}
     camera={{ position: [0, 24, 72], fov: 65, near: .1, far: 650 }}
     gl={{ antialias: true, alpha: false, powerPreference: 'high-performance', stencil: false }}
-    onCreated={({ gl }) => { gl.toneMapping = ACESFilmicToneMapping; gl.toneMappingExposure = 1.2; }}>
+    onCreated={({ gl }) => { gl.toneMapping = ACESFilmicToneMapping; gl.toneMappingExposure = 1.12; }}>
     <GraphicsRecovery onLoss={onLoss} />
-    <fog attach="fog" args={['#a9c0b8', 95, 330]} />
-    <hemisphereLight args={['#c0dbed', '#737657', 1.7]} />
-    <directionalLight position={[-65, 100, 80]} color="#ffe6b2" intensity={3.5} castShadow={quality === 'high'}
+    <fog attach="fog" args={[atmosphere.horizon, atmosphere.fogNear, atmosphere.fogFar]} />
+    <hemisphereLight args={['#b4b1c6', '#676455', 2.1]} />
+    <directionalLight position={atmosphere.sun} color={atmosphere.sunColor} intensity={2.6} castShadow={quality === 'high'}
       shadow-mapSize={[2048, 2048]} shadow-camera-left={-110} shadow-camera-right={110}
       shadow-camera-top={110} shadow-camera-bottom={-110} shadow-camera-far={380} shadow-bias={-.0002} shadow-normalBias={.09} />
     <EnvironmentLight /><Sky /><Water />
