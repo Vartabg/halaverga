@@ -4,7 +4,7 @@ export type Vec3 = { x: number; y: number; z: number };
 /** The device that is steering the view: selects the aim-assist profile and the recoil scale. */
 export type LookSource = 'touch' | 'tap' | 'trackpad' | 'mouse';
 /** Who is holding the trigger. A release only clears the hold it owns. */
-export type FireSource = 'none' | 'touch' | 'tap' | 'keys' | 'click';
+export type FireSource = 'none' | 'touch' | 'tap' | 'keys' | 'click' | 'gesture';
 export type EventKind = 'miss' | 'world' | 'water' | 'hit' | 'weak' | 'kill' | 'blocked'
   | 'overheat' | 'vent' | 'telegraph' | 'arrive' | 'break' | 'burst';
 export type ShotEvent = { serial: number; kind: EventKind; t: number; from: Vec3; point: Vec3; normal: Vec3; drone: number };
