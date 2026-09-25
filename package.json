@@ -11,7 +11,7 @@
     "test": "vitest run",
     "test:browser": "playwright test",
     "test:a11y": "playwright test tests/accessibility.spec.ts",
-    "verify": "pnpm typecheck && pnpm test && pnpm build && node scripts/check-first-load.mjs",
+    "verify": "pnpm typecheck && pnpm test && pnpm build && node scripts/check-first-load.mjs && node scripts/check-vote-build.mjs",
     "make:qr": "pnpm dlx qrcode -t svg -w 300 -o public/qr-deployment.svg https://halaverga-flight.vercel.app"
   },
   "dependencies": {
