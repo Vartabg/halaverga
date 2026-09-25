@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 test('streamlined flight shares a stable camera anchor and settles back to hover', async ({ page }) => {
-  await page.goto('/'); await page.getByRole('button', { name: 'Begin expedition' }).click();
+  await page.goto('/?shooter=0'); await page.getByRole('button', { name: 'Begin expedition' }).click();
   await page.keyboard.press('Space'); await page.keyboard.down('KeyR'); await page.waitForTimeout(1800); await page.keyboard.up('KeyR');
   await page.keyboard.down('KeyW'); await page.keyboard.press('Shift'); await page.waitForTimeout(2100);
   const telemetry = page.getByTestId('flight-telemetry');
@@ -39,7 +39,7 @@ test('rapid trackpad turns keep the human facing away from the chase camera', as
 });
 
 test('a steep climb keeps the suit pitched with the view so the chase camera still sees its back', async ({ page }) => {
-  await page.goto('/'); await page.getByRole('button', { name: 'Begin expedition' }).click();
+  await page.goto('/?shooter=0'); await page.getByRole('button', { name: 'Begin expedition' }).click();
   await page.keyboard.press('Space'); await page.keyboard.down('KeyR'); await page.waitForTimeout(1200); await page.keyboard.up('KeyR');
   await page.keyboard.down('KeyW'); await page.keyboard.press('Shift'); await page.waitForTimeout(1500);
   await page.keyboard.down('ArrowUp');

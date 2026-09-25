@@ -48,8 +48,9 @@ export function mouseUp(button: number, env: ShooterEnv, s: ShooterState) {
   if (button === 0) releaseFire(s, 'click');
   else if (button === 2 && !env.aimToggle) releaseAim(s);
 }
-export function lookSourceFor(pointerType: string, desktopMode: 'trackpad' | 'mouse'): LookSource {
-  return pointerType === 'touch' || pointerType === 'pen' ? 'touch' : desktopMode === 'mouse' ? 'mouse' : 'trackpad';
+/** Touch is always 'touch'; a pen counts as touch only on a touch-capable device (a non-touch desktop treats it as its pointer). */
+export function lookSourceFor(pointerType: string, desktopMode: 'trackpad' | 'mouse', capable = true): LookSource {
+  return pointerType === 'touch' || (pointerType === 'pen' && capable) ? 'touch' : desktopMode === 'mouse' ? 'mouse' : 'trackpad';
 }
 /** Pointers inside these elements set lookSource themselves (tap pad 'tap', Fire/Aim 'touch'). */
 export const OWN_LOOK_SELECTOR = '[aria-label="Tap flight controls"], [data-shooter-controls]';

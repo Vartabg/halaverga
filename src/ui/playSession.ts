@@ -1,6 +1,6 @@
 // Play-session browser helpers: wake lock, the back-swipe history sentinel and the zoom check at Begin/Resume.
 // On the landing first load: no three.js and no blaster markers.
-import { touchMode } from '@/game/pointerMode';
+import { touchCapable, touchMode } from '@/game/pointerMode';
 import { persistGame, useGame } from '@/game/store';
 
 type Sentinel = { released?: boolean; release: () => Promise<void>; addEventListener?: (type: 'release', fn: () => void) => void };
@@ -74,11 +74,12 @@ export function resetZoom() {
 
 /**
  * Runs synchronously inside the Begin and Resume clicks (a user gesture, which the wake lock needs). Returns false, and
- * does not start, while the page is pinch-zoomed: play blocks pinch, so a zoomed start would trap the player.
+ * does not start, while the page is pinch-zoomed on a touch-capable device: play blocks pinch there, so a zoomed start would trap
+ * the player. A desktop never blocks pinch, so browser zoom never stops it starting.
  */
 export function onPlayGesture(): boolean {
   const scale = typeof visualViewport !== 'undefined' && visualViewport ? visualViewport.scale : 1;
-  if (scale > 1.01) { resetZoom(); useGame.setState({ zoomNote: true }); return false; }
+  if (scale > 1.01 && touchCapable()) { resetZoom(); useGame.setState({ zoomNote: true }); return false; }
   if (typeof window !== 'undefined' && (window.scrollX || window.scrollY)) window.scrollTo(0, 0);
   requestWakeLock(); armHistoryGuard();
   useGame.setState({ zoomNote: false });

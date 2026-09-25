@@ -5,8 +5,9 @@ export type TrackpadProfile = 'simple' | 'free' | 'captured' | 'flow';
 /**
  * 2: one finger + keyboard became the trackpad default. A save from before it that holds the old default ('free') moves to 'simple'.
  * 3: industry touch controls, Garo 2026-09-24 (twin stick, Aim button shown, the touch hints start over).
+ * 4: the classic free trackpad is the desktop default again (Garo 2026-09-24). A save from before 4 holding 'simple' returns to 'free'.
  */
-export const CONTROLS_VERSION = 3;
+export const CONTROLS_VERSION = 4;
 export type TouchScheme = 'twin' | 'classic';
 export type HintSeries = 'touch' | 'simple' | 'mouse';
 export type HintProgress = Record<HintSeries, number>;
@@ -42,7 +43,7 @@ export const useGame = create<GameState>((set) => ({
   started: false, paused: true, ready: false, panel: false, journal: false,
   camera: 'third', quality: 'high', reduced: false, muted: true, tapControls: false,
   desktopMode: 'trackpad', trackpadFlying: false,
-  trackpadSteering: 'simple', sustainedEdges: false, reverseScroll: false, cruiseSpeed: 8, heroPoses: true,
+  trackpadSteering: 'free', sustainedEdges: false, reverseScroll: false, cruiseSpeed: 8, heroPoses: true,
   lookSensitivity: 1, flowIntroSeen: false,
   shooter: true, aimToggle: false, aimAssist: 1, controlsVersion: CONTROLS_VERSION,
   autoFire: true, aimButton: true, hintProgress: { touch: 0, simple: 0, mouse: 0 }, hintVisible: false,
@@ -68,8 +69,8 @@ export function hydrateGame() {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE) || '{}');
     const version = typeof saved.controlsVersion === 'number' && Number.isFinite(saved.controlsVersion) ? saved.controlsVersion : 0;
-    // 'free' was the default before version 2, so an old 'free' is not a choice; explicit captured and Flow stay.
-    const steering = version < 2 && saved.trackpadSteering === 'free' ? 'simple' : saved.trackpadSteering;
+    // 'simple' was the default from version 2 to 3 and cannot be told apart from a choice, so it returns to 'free'; captured and Flow stay.
+    const steering = version < 4 && saved.trackpadSteering === 'simple' ? 'free' : saved.trackpadSteering;
     // Version 3 shows the Aim button and restarts the touch hints, which now teach the twin-stick controls.
     const before3 = version < 3, hints = validHintProgress(saved.hintProgress);
     if (before3) hints.touch = 0;
@@ -81,7 +82,7 @@ export function hydrateGame() {
       muted: saved.muted !== false, discovered: saved.discovered === true,
       tapControls: saved.tapControls === true,
       desktopMode: saved.desktopMode === 'mouse' ? 'mouse' : 'trackpad',
-      trackpadSteering: ['flow', 'captured', 'free'].includes(steering) ? steering : 'simple',
+      trackpadSteering: ['simple', 'free', 'captured', 'flow'].includes(steering) ? steering : 'free',
       sustainedEdges: saved.sustainedEdges === true, reverseScroll: saved.reverseScroll === true,
       cruiseSpeed: typeof saved.cruiseSpeed === 'number' && Number.isFinite(saved.cruiseSpeed) ? Math.max(3, Math.min(34, saved.cruiseSpeed)) : 8,
       heroPoses: saved.heroPoses !== false,

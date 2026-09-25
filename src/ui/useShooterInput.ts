@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { releaseAim, releaseFire, resetShooterInput } from '@/game/combat';
 import { runtime } from '@/game/runtime';
 import { useGame } from '@/game/store';
-import { touchMode } from '@/game/pointerMode';
+import { touchCapable, touchMode } from '@/game/pointerMode';
 import { keyDown, keyUp, lockedClickFire, lookSourceFor, mouseDown, mouseUp, OWN_LOOK_SELECTOR, swallowsPress, type ShooterEnv } from './shooterKeys';
 // A separate listener set (useInput and the trackpad hooks stay untouched). Handlers write runtime.shooter.input only.
 const env: ShooterEnv = { enabled: false, started: false, paused: true, aimToggle: false, desktopMode: 'trackpad', steering: 'free', locked: false };
@@ -26,7 +26,7 @@ export function useShooterInput(options?: { unlock?: () => void }) {
       e.preventDefault(); unlock.current?.();
     };
     const keyup = (e: KeyboardEvent) => keyUp(e.code, readEnv(), s);
-    const tag = (e: PointerEvent) => { if (!ownsLook(e.target)) s.input.lookSource = lookSourceFor(e.pointerType, useGame.getState().desktopMode); };
+    const tag = (e: PointerEvent) => { if (!ownsLook(e.target)) s.input.lookSource = lookSourceFor(e.pointerType, useGame.getState().desktopMode, touchCapable()); };
     const pointerdown = (e: PointerEvent) => {
       if (!on()) return;
       tag(e);

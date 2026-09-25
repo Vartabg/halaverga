@@ -129,10 +129,14 @@ test('pointer mode follows the last pointer: after a mouse press a blur pauses, 
   await expect(page.locator('html')).toHaveAttribute('data-input', 'mouse');
   await blur(page); await expect(pauseCard(page)).toBeVisible(); await t.context.close();
 });
-test('desktop: Begin pushes no history entry and a blur still pauses', async ({ page }) => {
+test('desktop: Begin pushes no history entry, no fixed page, Back shows no Leave card, and a blur still pauses', async ({ page }) => {
   await page.goto('/'); const length = await page.evaluate(() => history.length);
   await page.getByRole('button', { name: 'Begin expedition' }).click(); await expect(pauseButton(page)).toBeVisible();
   expect(await page.evaluate(() => history.length)).toBe(length);
   expect(await page.evaluate(() => (history.state as { halavergaPlay?: number } | null)?.halavergaPlay)).toBeUndefined();
+  expect(await page.evaluate(() => document.documentElement.hasAttribute('data-playing'))).toBe(false); // no fixed page on a desktop
+  await page.evaluate(() => history.pushState({ marker: 1 }, '')); await page.evaluate(() => history.back()); await page.waitForTimeout(300);
+  await expect(page.getByRole('heading', { name: 'Leave the game?' })).toHaveCount(0);
+  await expect(pauseCard(page)).toHaveCount(0); await expect(pauseButton(page)).toBeVisible();
   await blur(page); await expect(pauseCard(page)).toBeVisible();
 });

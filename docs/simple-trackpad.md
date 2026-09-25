@@ -1,8 +1,10 @@
 # One finger + keyboard
 
+> Superseded as the desktop default on 2026-09-24 (controls version 4). Garo asked for the original free-cursor controls back; they are the default again, with a click while stopped firing and W or Space starting flight (see [DECISIONS.md](DECISIONS.md)). Saves from before version 4 that held this profile return to the free cursor. This profile is still available in Flight settings and at `/?trackpad=simple`; the rest of this page describes it.
+
 2026-09-21. The player reported that two- and three-finger trackpad actions interfered with browser and window actions. The recommended controls now require only ordinary pointer movement, primary clicks and keys. This implements the keyboard alternative; physical comfort remains to be retested.
 
-Open `/?trackpad=simple` or choose **One finger + keyboard** in Flight settings. New preferences default to this profile. Saved captured-cruise and Flow preferences remain intact; an old free-cursor save is migrated once (see below). The comparison URLs remain available.
+Open `/?trackpad=simple` or choose **One finger + keyboard** in Flight settings. Saved captured-cruise and Flow preferences remain intact. The comparison URLs remain available.
 
 | Action | Control |
 | --- | --- |

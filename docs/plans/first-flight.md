@@ -13,3 +13,7 @@ Muse independently reviews movement; Gemini independently reviews rendering. Cod
 The user uses Chrome on their phone. Chrome on iPhone is now the primary mobile review target. The original split controls and Surge button above are superseded by [the one-thumb control revision](thumb-controls.md).
 
 The user subsequently confirmed that the observed phone session was Safari. Safari is the current device-review target; Chrome remains supported.
+
+## Desktop controls · 2026-09-24
+
+Garo reported the desktop controls broken after the suit blaster work and asked for the ones he had before the gun. The desktop default is the free-cursor trackpad from 7945430 again: click the open scene to lift and cruise, move the pointer to steer, hold near an edge to keep turning, two-finger scroll changes speed, click again to brake and hover, drag while hovering to look, aim at a flat surface and click Land; WASD/arrows/R/F/Space/Shift/Escape/E on the keyboard. The one change for shooting, blaster on: while hovering or on the ground a click fires and a drag looks, so W or Space starts flying (Space from the ground). Phone twin-stick controls stay touch-only. Details: [DECISIONS.md](../DECISIONS.md) and [the shooter plan](2026-09-22-shooter.md#controls).

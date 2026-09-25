@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { CLASSIC, seed } from './shooter-browser';
 test('landing can be cancelled and then completed', async ({ page }) => {
-  await page.goto('/'); await page.getByRole('button', { name: 'Begin expedition' }).click();
+  await page.goto('/?shooter=0'); await page.getByRole('button', { name: 'Begin expedition' }).click();
   await page.keyboard.press('Space'); await page.waitForTimeout(800);
   await page.keyboard.down('ArrowDown'); await page.waitForTimeout(650); await page.keyboard.up('ArrowDown');
   await expect(page.getByText('SURFACE IN REACH · LAND')).toBeVisible();

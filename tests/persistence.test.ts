@@ -1,22 +1,21 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PERSISTED_KEYS, hydrateGame, persistGame, useGame, validHintProgress, type PersistedKey } from '../src/game/store';
 import { START } from '../src/game/motion';
-const saved: Record<string, string> = {};
-const STORAGE = 'halaverga-flight-v1';
+const saved: Record<string, string> = {}, STORAGE = 'halaverga-flight-v1';
 // Every persisted key, set away from its default. The Record type makes a new key a compile error until it is added here.
 const NON_DEFAULT: Record<PersistedKey, unknown> = {
   checkpoint: { x: 30, y: 61.415, z: -38 }, camera: 'first', quality: 'low', reduced: true, muted: false, discovered: true,
   tapControls: true, desktopMode: 'mouse', trackpadSteering: 'captured', sustainedEdges: true, reverseScroll: true,
   cruiseSpeed: 20, heroPoses: false, lookSensitivity: 1.7, flowIntroSeen: true, shooter: false, aimToggle: true, aimAssist: 1.5,
-  controlsVersion: 4, autoFire: false, aimButton: false, hintProgress: { touch: 2, simple: 3, mouse: 1 },
+  controlsVersion: 5, autoFire: false, aimButton: false, hintProgress: { touch: 2, simple: 3, mouse: 1 },
   touchScheme: 'classic', touchLook: 1.6, touchAim: .7, lookAccel: true, invertY: true, flipSides: true,
   controlSize: 1.15, controlOpacity: .5, flyWhereILook: true, homeTipSeen: true,
 };
 const DEFAULTS: Record<PersistedKey, unknown> = {
   checkpoint: START, camera: 'third', quality: 'high', reduced: false, muted: true, discovered: false,
-  tapControls: false, desktopMode: 'trackpad', trackpadSteering: 'simple', sustainedEdges: false, reverseScroll: false,
+  tapControls: false, desktopMode: 'trackpad', trackpadSteering: 'free', sustainedEdges: false, reverseScroll: false,
   cruiseSpeed: 8, heroPoses: true, lookSensitivity: 1, flowIntroSeen: false, shooter: true, aimToggle: false, aimAssist: 1,
-  controlsVersion: 3, autoFire: true, aimButton: true, hintProgress: { touch: 0, simple: 0, mouse: 0 },
+  controlsVersion: 4, autoFire: true, aimButton: true, hintProgress: { touch: 0, simple: 0, mouse: 0 },
   touchScheme: 'twin', touchLook: 1, touchAim: 1, lookAccel: false, invertY: false, flipSides: false,
   controlSize: 1, controlOpacity: .85, flyWhereILook: false, homeTipSeen: false,
 };
@@ -35,23 +34,23 @@ beforeEach(() => {
 });
 afterEach(() => { vi.unstubAllGlobals(); Object.keys(saved).forEach(key => delete saved[key]); });
 describe('persistence', () => {
-  it('defaults to simple controls while preserving an explicitly saved comparison profile', () => {
-    hydrateGame(); expect(useGame.getState().trackpadSteering).toBe('simple');
+  it('defaults to the classic free trackpad while preserving an explicitly saved v4 profile', () => {
+    hydrateGame(); expect(useGame.getState().trackpadSteering).toBe('free');
     for (const profile of ['simple', 'free', 'captured', 'flow']) {
       useGame.setState({ trackpadSteering: profile as 'simple' | 'free' | 'captured' | 'flow' });
-      persistGame(); useGame.setState({ trackpadSteering: 'simple' }); hydrateGame();
+      persistGame(); useGame.setState({ trackpadSteering: 'free' }); hydrateGame();
       expect(useGame.getState().trackpadSteering).toBe(profile);
     }
     saved[STORAGE] = JSON.stringify({ trackpadSteering: 'unknown' });
-    hydrateGame(); expect(useGame.getState().trackpadSteering).toBe('simple');
+    hydrateGame(); expect(useGame.getState().trackpadSteering).toBe('free');
   });
-  it('moves a pre-version-2 free save (the old default) to simple and keeps explicit captured and Flow', () => {
+  it('version 4: a pre-v4 simple (the PR #12 default) returns to free; free, captured and Flow stay; a v4 simple stays', () => {
     const cases: [Record<string, unknown>, string][] = [
-      [{ trackpadSteering: 'free' }, 'simple'], [{ trackpadSteering: 'free', controlsVersion: 1 }, 'simple'],
-      [{ trackpadSteering: 'free', controlsVersion: 'x' }, 'simple'], [{ trackpadSteering: 'free', controlsVersion: 2 }, 'free'],
-      [{ trackpadSteering: 'free', controlsVersion: 3 }, 'free'],
-      [{ trackpadSteering: 'captured' }, 'captured'], [{ trackpadSteering: 'flow' }, 'flow'], [{ trackpadSteering: 'simple' }, 'simple'],
-      [{ trackpadSteering: 'captured', controlsVersion: 1 }, 'captured'], [{ trackpadSteering: 'flow', controlsVersion: 1 }, 'flow'], [{}, 'simple'],
+      [{}, 'free'], [{ controlsVersion: 3 }, 'free'], [{ trackpadSteering: 7 }, 'free'], [{ trackpadSteering: 'unknown', controlsVersion: 3 }, 'free'],
+      ...[undefined, 1, 'x', 2, 3].map(v => [{ trackpadSteering: 'free', controlsVersion: v }, 'free'] as [Record<string, unknown>, string]),
+      ...[undefined, 2, 3, 4, 5].map(v => [{ trackpadSteering: 'simple', controlsVersion: v }, v === 4 || v === 5 ? 'simple' : 'free'] as [Record<string, unknown>, string]),
+      [{ trackpadSteering: 'captured' }, 'captured'], [{ trackpadSteering: 'flow' }, 'flow'],
+      [{ trackpadSteering: 'captured', controlsVersion: 1 }, 'captured'], [{ trackpadSteering: 'flow', controlsVersion: 3 }, 'flow'],
     ];
     for (const [raw, want] of cases) {
       saved[STORAGE] = JSON.stringify({ camera: 'first', ...raw });
@@ -59,15 +58,22 @@ describe('persistence', () => {
       expect([raw, useGame.getState().trackpadSteering, useGame.getState().camera]).toEqual([raw, want, 'first']);
     }
   });
-  it('writes controls version 3 after a migration, so a later explicit free choice survives', () => {
-    saved[STORAGE] = JSON.stringify({ trackpadSteering: 'free', desktopMode: 'trackpad' });
-    hydrateGame(); expect(useGame.getState().controlsVersion).toBe(3);
-    persistGame(); expect(JSON.parse(saved[STORAGE])).toMatchObject({ trackpadSteering: 'simple', controlsVersion: 3 });
-    useGame.setState({ trackpadSteering: 'free' }); persistGame();
-    hydrateGame(); expect(useGame.getState().trackpadSteering).toBe('free');
-    expect(JSON.parse(saved[STORAGE]).controlsVersion).toBe(3);
-    saved[STORAGE] = JSON.stringify({ controlsVersion: 1 }); hydrateGame(); expect(useGame.getState().controlsVersion).toBe(3);
-    saved[STORAGE] = JSON.stringify({ controlsVersion: 7 }); hydrateGame(); expect(useGame.getState().controlsVersion).toBe(7);
+  it('writes controls version 4 after a migration, so a later explicit simple choice survives', () => {
+    saved[STORAGE] = JSON.stringify({ trackpadSteering: 'simple', desktopMode: 'trackpad', controlsVersion: 3 });
+    hydrateGame(); expect(useGame.getState().controlsVersion).toBe(4);
+    persistGame(); expect(JSON.parse(saved[STORAGE])).toMatchObject({ trackpadSteering: 'free', controlsVersion: 4 });
+    useGame.setState({ trackpadSteering: 'simple' }); persistGame();
+    hydrateGame(); expect(useGame.getState().trackpadSteering).toBe('simple');
+    expect(JSON.parse(saved[STORAGE]).controlsVersion).toBe(4);
+    for (const [raw, want] of [[undefined, 4], [0, 4], [1, 4], [2, 4], [3, 4], [4, 4], [7, 7]] as const)
+      { saved[STORAGE] = JSON.stringify({ controlsVersion: raw }); hydrateGame(); expect([raw, useGame.getState().controlsVersion]).toEqual([raw, want]); }
+  });
+  it('leaves desktopMode, the touch fields and a v3 hint progress alone when simple returns to free', () => {
+    saved[STORAGE] = JSON.stringify({ trackpadSteering: 'simple', controlsVersion: 3, desktopMode: 'mouse', aimButton: false,
+      hintProgress: { touch: 3, simple: 2, mouse: 1 }, touchScheme: 'classic', flyWhereILook: true });
+    hydrateGame(); const s = useGame.getState();
+    expect([s.trackpadSteering, s.desktopMode, s.aimButton, s.hintProgress, s.touchScheme, s.flyWhereILook, s.controlsVersion])
+      .toEqual(['free', 'mouse', false, { touch: 3, simple: 2, mouse: 1 }, 'classic', true, 4]);
   });
   it('writes exactly the authoritative persisted key list', () => {
     persistGame();
@@ -146,14 +152,14 @@ describe('persistence', () => {
     saved[STORAGE] = JSON.stringify({ hintProgress: 'x' });
     hydrateGame(); expect(useGame.getState().hintProgress).toEqual(zeros);
   });
-  it('migrates a v2 save to the industry touch controls: Aim shown, touch hints restart, twin scheme, version 3', () => {
+  it('migrates a v2 save to the industry touch controls: Aim shown, touch hints restart, twin scheme, version 4', () => {
     for (const version of [2, undefined, 1]) {
       saved[STORAGE] = JSON.stringify({ controlsVersion: version, aimButton: false, hintProgress: { touch: 2, simple: 3, mouse: 4 }, camera: 'first' });
       useGame.setState({ touchScheme: 'classic' });
       hydrateGame();
       const s = useGame.getState();
       expect([version, s.aimButton, s.hintProgress, s.touchScheme, s.controlsVersion, s.camera])
-        .toEqual([version, true, { touch: 0, simple: 3, mouse: 4 }, 'twin', 3, 'first']);
+        .toEqual([version, true, { touch: 0, simple: 3, mouse: 4 }, 'twin', 4, 'first']);
     }
   });
   it('keeps every choice in a v3 save', () => {

@@ -19,7 +19,7 @@ const settings = async (page: Page, change: () => Promise<void>) => {
 test('the suit plays its authored flight clips and hands back to the ground', async ({ page }) => {
   const errors: string[] = []; page.on('pageerror', e => errors.push(e.message));
   page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
-  await page.goto('/'); await page.getByRole('button', { name: 'Begin expedition' }).click();
+  await page.goto('/?shooter=0'); await page.getByRole('button', { name: 'Begin expedition' }).click();
   // Polled every 50 ms, so no 350 ms telemetry sample slips between two checks.
   const telemetry = page.getByTestId('flight-telemetry'), clip = (name: string) =>
     expect.poll(() => telemetry.getAttribute('data-suit-clip'), { intervals: [50], timeout: 3000 }).toBe(name);

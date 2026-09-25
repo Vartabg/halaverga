@@ -1,5 +1,7 @@
 # Simple-by-default controls
 
+> Superseded as the desktop default on 2026-09-24 (controls version 4): the classic free-cursor trackpad is the desktop default again, with a click while stopped firing (see [DECISIONS.md](DECISIONS.md)). One finger + keyboard is still available in Flight settings and at `/?trackpad=simple`. Touch controls are unchanged.
+
 2026-09-23, branch `codex/shooter`. Spec: "Simple-by-default controls: implementation spec, revision 2".
 
 ## Owner question and approved answer

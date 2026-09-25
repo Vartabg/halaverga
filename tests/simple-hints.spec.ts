@@ -106,13 +106,41 @@ test('mouse mode: start, then move the mouse to look, then click to shoot', asyn
   await expect(hint(page)).toHaveText('Click to shoot', { timeout: 2000 });
 });
 
-test('free profile: one 6 s line that never touches the saved progress', async ({ page }) => {
-  await begin(page, '/?trackpad=free'); const before = await saved(page);
-  await expect(hint(page)).toHaveText('Hold C to fire'); await expect(hint(page)).toHaveAttribute('data-track', 'line');
-  await expect(hint(page)).toHaveCount(0, { timeout: 8000 });
-  // A checkpoint save during the 6 s may write the default progress for the first time; the line itself never advances it.
+// The free cursor is the desktop default again (Garo 2026-09-24): no step hints, the bottom pill states the whole mapping.
+const pill = (p: Page) => p.locator('[class*="trackpadHint"]');
+const noHintFor = async (p: Page, ms: number) => {
+  for (let t = 0; t < ms; t += 250) { expect(await hint(p).count()).toBe(0); await p.waitForTimeout(250); }
+};
+test('free profile: no controls hint; the pill states the mapping', async ({ page }) => {
+  const errors = errorsOf(page); await begin(page, '/?trackpad=free'); const before = await saved(page);
+  await expect(pill(page)).toHaveText('SPACE TO FLY · CLICK TO FIRE · DRAG TO LOOK');
+  await noHintFor(page, 3000);
+  await page.getByRole('button', { name: 'Lift', exact: true }).click();
+  await expect(pill(page)).toHaveText('W OR SPACE TO FLY · CLICK TO FIRE · DRAG TO LOOK');
+  await expect(hint(page)).toHaveCount(0);
+  // A checkpoint save may write the default progress for the first time; nothing here advances it.
   const none = { touch: 0, simple: 0, mouse: 0 };
   expect((await saved(page)) ?? none).toEqual(before ?? none);
+  expect(errors).toEqual([]);
+});
+
+test('free profile, blaster off: the classic pill', async ({ page }) => {
+  await begin(page, '/?trackpad=free&shooter=0');
+  await expect(pill(page)).toHaveText('CLICK TO FLY · DRAG TO LOOK');
+});
+
+test('free profile at 325x928: the pill stays inside the viewport with no horizontal scroll', async ({ page }) => {
+  await page.setViewportSize({ width: 325, height: 928 }); await begin(page, '/?trackpad=free');
+  for (const text of ['SPACE TO FLY · CLICK TO FIRE · DRAG TO LOOK', 'W OR SPACE TO FLY · CLICK TO FIRE · DRAG TO LOOK']) {
+    if (text.startsWith('W')) await page.getByRole('button', { name: 'Lift', exact: true }).click();
+    await expect(pill(page)).toHaveText(text);
+    const box = (await pill(page).boundingBox())!;
+    expect(box.x).toBeGreaterThanOrEqual(16); expect(box.x + box.width).toBeLessThanOrEqual(325 - 16);
+    expect(box.y).toBeGreaterThanOrEqual(0); expect(box.y + box.height).toBeLessThanOrEqual(928);
+    // At most two lines: 10 px type on a 1.6 line height plus 16 px of padding.
+    expect(box.height).toBeLessThanOrEqual(2 * 16 + 16 + 1);
+    expect(await page.evaluate(() => document.scrollingElement!.scrollWidth <= innerWidth)).toBe(true);
+  }
 });
 
 test('blaster off: no controls hint and main\'s one-finger panel', async ({ page }) => {

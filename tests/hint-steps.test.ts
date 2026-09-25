@@ -13,9 +13,18 @@ describe('hintTrack', () => {
     expect(hintTrack(env({ tapControls: true, desktopMode: 'mouse' }))).toBe('tap');
     expect(hintTrack(env({ desktopMode: 'mouse', steering: 'free' }))).toBe('mouse');
     expect(hintTrack(env())).toBe('simple');
-    for (const steering of ['free', 'captured', 'flow']) expect(hintTrack(env({ steering }))).toBe('line');
+    for (const steering of ['captured', 'flow']) expect(hintTrack(env({ steering }))).toBe('line');
     for (const tapControls of [true, false]) for (const desktopMode of ['trackpad', 'mouse']) for (const steering of ['simple', 'free', 'captured', 'flow'])
       expect(hintTrack(env({ shooter: false, tapControls, desktopMode, steering }))).toBe('none');
+  });
+  it('free cursor (the desktop default again): no hint, the trackpad pill states the mapping', () => {
+    expect(hintTrack({ shooter: true, coarse: false, tapControls: false, desktopMode: 'trackpad', steering: 'free', scheme: 'twin' })).toBe('none');
+    expect(hintTrack(env({ steering: 'free', scheme: 'classic' }))).toBe('none');
+    expect(hintTrack(env({ steering: 'captured' }))).toBe('line');
+    expect(hintTrack(env({ steering: 'flow' }))).toBe('line');
+    expect(hintTrack(env({ steering: 'simple' }))).toBe('simple');
+    expect(hintTrack(env({ steering: 'free', desktopMode: 'mouse' }))).toBe('mouse');
+    expect(hintTrack(env({ steering: 'free', tapControls: true }))).toBe('tap');
   });
   it('touch: twin sticks run the touch series with the blaster on or off; classic is one line, blaster on only', () => {
     for (const shooter of [true, false]) {

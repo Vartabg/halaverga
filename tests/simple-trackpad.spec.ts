@@ -7,7 +7,9 @@ const position = async (p: Page): Promise<number[]> => JSON.parse((await telemet
 const locked = (p: Page) => p.evaluate(() => !!document.pointerLockElement);
 // With the blaster on the one-finger panel steps aside while a progressive controls hint shows (one message at a time).
 const simpleShown = (p: Page) => expect(p.getByTestId('simple-trackpad-hud').or(p.getByTestId('controls-hint')).first()).toBeVisible();
-async function begin(p: Page, url = '/') {
+// The classic free trackpad is the default again (controls v4), so these one-finger tests pin the profile by link.
+const SIMPLE = '/?trackpad=simple';
+async function begin(p: Page, url = SIMPLE) {
   await p.goto(url); await p.getByRole('button', { name: 'Begin expedition' }).click();
   await simpleShown(p);
 }
@@ -41,7 +43,7 @@ for (const camera of ['third', 'first']) test(`one-finger look, keyboard motion 
 });
 // Blaster off: PR #12's click brake. With the blaster on the locked click fires instead (tests/shooter-desktop.spec.ts).
 test('blaster off: primary click brakes, releases the pointer and requires a fresh movement press', async ({ page }) => {
-  await begin(page, '/?shooter=0'); await expect(page.getByTestId('simple-trackpad-hud')).toContainText('CLICK THE SCENE');
+  await begin(page, `${SIMPLE}&shooter=0`); await expect(page.getByTestId('simple-trackpad-hud')).toContainText('CLICK THE SCENE');
   await page.mouse.click(720, 450);
   await expect(page.getByTestId('simple-trackpad-hud')).toContainText('CLICK TO STOP + FREE POINTER');
   await page.keyboard.down('KeyW'); await expect.poll(() => speed(page)).toBeGreaterThan(8);
@@ -103,7 +105,7 @@ test('drag and capture rejection leave keyboard and drag-to-look available witho
   await page.keyboard.press('Space'); await expect(telemetry(page)).toHaveAttribute('data-flying', 'true');
   await page.keyboard.down('KeyW'); await expect.poll(() => speed(page)).toBeGreaterThan(8); await page.keyboard.up('KeyW');
 });
-for (const url of ['/', '/?shooter=0']) test(`Escape, focus loss and resize clear movement and never auto-capture (${url})`, async ({ page }) => {
+for (const url of [SIMPLE, `${SIMPLE}&shooter=0`]) test(`Escape, focus loss and resize clear movement and never auto-capture (${url})`, async ({ page }) => {
   await begin(page, url);
   for (const interruption of ['escape', 'blur', 'resize']) {
     await page.mouse.click(720, 450); await page.keyboard.down('KeyW');
@@ -130,19 +132,23 @@ test('simple link overrides a saved Flow preference and saves the new selection'
   await page.goto('/'); await page.getByRole('button', { name: 'Begin expedition' }).click();
   await simpleShown(page);
 });
-test('an old saved free profile (the pre-version-2 default) opens in one finger + keyboard; an explicit v2 free stays', async ({ page }) => {
-  await page.addInitScript(() => {
-    if (!sessionStorage.getItem('seeded')) { sessionStorage.setItem('seeded', '1'); localStorage.setItem('halaverga-flight-v1', JSON.stringify({ trackpadSteering: 'free', camera: 'first' })); }
-  });
-  await begin(page);
-  await page.getByRole('button', { name: 'Flight settings' }).click();
-  await expect(page.getByLabel('Trackpad steering')).toHaveValue('simple');
-  await page.getByLabel('Trackpad steering').selectOption('free');
-  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('halaverga-flight-v1')!))).toMatchObject({ trackpadSteering: 'free', controlsVersion: 3, camera: 'first' });
-  await page.goto('/'); await page.getByRole('button', { name: 'Begin expedition' }).click();
+test('controls v4: an old free opens free, a v3 simple returns to free and saves v4, a v4 simple stays', async ({ page }) => {
+  // Seeds before Begin and reloads unstarted, so no pagehide save from a live game overwrites the seed.
+  const open = async (save: object) => {
+    await page.goto('/'); await page.evaluate(v => { localStorage.setItem('halaverga-flight-v1', JSON.stringify(v)); }, save);
+    await page.reload(); await page.getByRole('button', { name: 'Begin expedition' }).click();
+    await page.getByRole('button', { name: 'Flight settings' }).click();
+    const value = await page.getByLabel('Trackpad steering').inputValue();
+    await page.getByRole('button', { name: 'Close dialog' }).click();
+    return value;
+  };
+  const stored = async () => { await page.goto('/'); return page.evaluate(() => JSON.parse(localStorage.getItem('halaverga-flight-v1')!)); };
+  expect(await open({ trackpadSteering: 'free', camera: 'first' })).toBe('free');
   await expect(page.getByTestId('simple-trackpad-hud')).toHaveCount(0);
-  await page.getByRole('button', { name: 'Flight settings' }).click();
-  await expect(page.getByLabel('Trackpad steering')).toHaveValue('free');
+  expect(await open({ trackpadSteering: 'simple', controlsVersion: 3, camera: 'first' })).toBe('free');
+  expect(await stored()).toMatchObject({ trackpadSteering: 'free', controlsVersion: 4, camera: 'first' });
+  expect(await open({ trackpadSteering: 'simple', controlsVersion: 4 })).toBe('simple');
+  expect(await stored()).toMatchObject({ trackpadSteering: 'simple', controlsVersion: 4 });
 });
 for (const blaster of [true, false]) test(`on the ground after a pause, one click ${blaster ? 'restores free looking on the ground' : 'lifts into hover (PR #12)'}`, async ({ page }) => {
   const errors: string[] = []; page.on('pageerror', e => errors.push(e.message));
@@ -151,7 +157,7 @@ for (const blaster of [true, false]) test(`on the ground after a pause, one clic
   if (blaster) await page.addInitScript(() => {
     if (!sessionStorage.getItem('seeded')) { sessionStorage.setItem('seeded', '1'); localStorage.setItem('halaverga-flight-v1', JSON.stringify({ hintProgress: { touch: 0, simple: 4, mouse: 0 } })); }
   });
-  await begin(page, blaster ? '/' : '/?shooter=0');
+  await begin(page, blaster ? SIMPLE : `${SIMPLE}&shooter=0`);
   await expect(hud).toContainText(blaster ? 'CLICK THE SCENE TO LOOK FREELY' : 'CLICK THE SCENE TO LIFT INTO HOVER');
   if (blaster) { await page.mouse.click(720, 450); await expect.poll(() => locked(page)).toBe(true); }
   await expect(telemetry(page)).toHaveAttribute('data-flying', 'false');

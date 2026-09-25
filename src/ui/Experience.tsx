@@ -11,6 +11,7 @@ import { onPlayGesture } from './playSession';
 import { touchMode } from '@/game/pointerMode';
 import { unlockBlasterAudio } from './audioUnlock';
 import { useAudio } from './useAudio';
+import { trackpadPill } from './trackpadPill';
 import Boundary from './Boundary';
 import TapControls from './TapControls';
 import FieldGuide from './FieldGuide';
@@ -79,6 +80,7 @@ export default function Experience() {
   const playing = state.started && !state.paused, ready = state.ready && touchReady, twin = state.touchScheme === 'twin';
   const seriesOpen = twin && !state.tapControls && state.hintProgress.touch < HINT_STEPS.touch;
   const reticle = <Reticle />;
+  const pill = trackpadPill({ steering: state.trackpadSteering, shooter: state.shooter, cruising: state.trackpadFlying, flying: state.flying, canLand: state.canLand });
   const flightHint = state.message || (state.flying && state.canLand ? 'SURFACE IN REACH · LAND' : state.boundaryNear ? 'SURVEY LIMIT · TURN BACK' : state.flying && state.descendBlocked ? 'NO LANDING BELOW · MOVE TO OPEN GROUND' : state.clearanceActive ? 'CLEARANCE ASSIST · STEER AROUND' : '');
   useEffect(() => {
     if (!state.message) return;
@@ -121,7 +123,8 @@ export default function Experience() {
           <Telemetry />
           {/* Twin touch: the cluster's Rise/Descend replace Lift/Land, so CSS hides this under html[data-input=touch]. */}
           <div className={styles.actions} data-shooter={String(state.shooter)} data-fire={String(state.shooter && !state.autoFire)} data-twin={String(twin)}>
-            <button className={styles.action} onClick={() => { runtime.lift = true; }}><span aria-hidden="true">{state.flying ? '↓' : '↑'}</span>{state.landing ? 'Cancel landing' : state.flying ? 'Land' : 'Lift'}</button>
+            {/* A mouse click activates Lift/Land without focusing it, so the next Space still reaches flight (Tab + Space works). */}
+            <button className={styles.action} onMouseDown={e => { if (!touchMode()) e.preventDefault(); }} onClick={() => { runtime.lift = true; }}><span aria-hidden="true">{state.flying ? '↓' : '↑'}</span>{state.landing ? 'Cancel landing' : state.flying ? 'Land' : 'Lift'}</button>
           </div>
           {state.nearTerminal && <button className={styles.discovery} onClick={() => { pause(); state.set({ discovered: true, journal: true }); persistGame(); }}>◇ Municipal record <span>Read ↗</span></button>}
           {/* One instruction at a time: the drag hint waits for any controls hint and for an unfinished twin touch series; blaster-on
@@ -129,7 +132,7 @@ export default function Experience() {
           {!state.flying && !state.hintVisible && !seriesOpen && !(state.shooter && state.tapControls) && <div className={styles.touchHint} aria-hidden="true">{twin ? 'LEFT THUMB MOVES · RIGHT THUMB LOOKS' : 'ONE THUMB TO FLY · TWO TO MOVE + LOOK'}</div>}
           {state.desktopMode === 'trackpad' && state.trackpadSteering === 'flow' && <FlowHud />}
           {state.desktopMode === 'trackpad' && state.trackpadSteering === 'simple' && <SimpleTrackpadHud />}
-          {state.desktopMode === 'trackpad' && ['free', 'captured'].includes(state.trackpadSteering) && <div className={styles.trackpadHint}>{state.trackpadFlying ? `MOVE TO STEER · SCROLL FOR SPEED · CLICK TO ${state.trackpadSteering === 'captured' ? 'HOVER + RELEASE' : 'HOVER'}` : 'CLICK TO FLY · DRAG TO LOOK'}</div>}
+          {state.desktopMode === 'trackpad' && pill && <div className={styles.trackpadHint}>{pill}</div>}
         </>}
         {state.paused && !state.panel && !state.journal && !failed && <PauseCard ready={ready} onEnter={enter} />}
       </>}

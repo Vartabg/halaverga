@@ -10,12 +10,15 @@ export type HintEnv = { shooter: boolean; coarse: boolean; tapControls: boolean;
  * 'tap', 'line' and 'classic' are single 6 s lines once per page load; the series tracks are progressive and persisted.
  * Touch twin sticks teach flight too, so the touch series also runs with the blaster off; desktop keeps its order and shows
  * nothing with the blaster off. Classic one-thumb with the blaster off, and tap controls with it off, are main's own hints.
+ * The free cursor (the desktop default again, Garo 2026-09-24) gets no hint: its trackpad pill states the whole mapping.
+ * Captured and flow keep the 'Hold C to fire' line.
  */
 export function hintTrack(env: HintEnv): HintTrack {
   if (env.tapControls) return env.shooter ? 'tap' : 'none';
   if (env.coarse) return env.scheme === 'classic' ? env.shooter ? 'classic' : 'none' : 'touch';
   if (!env.shooter) return 'none';
   if (env.desktopMode === 'mouse') return 'mouse';
+  if (env.steering === 'free') return 'none';
   return env.steering === 'simple' ? 'simple' : 'line';
 }
 

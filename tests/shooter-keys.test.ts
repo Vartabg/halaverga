@@ -113,6 +113,12 @@ describe('look source and selector', () => {
     for (const mode of ['trackpad', 'mouse'] as const) { expect(lookSourceFor('touch', mode)).toBe('touch'); expect(lookSourceFor('pen', mode)).toBe('touch'); }
     expect(lookSourceFor('mouse', 'mouse')).toBe('mouse'); expect(lookSourceFor('mouse', 'trackpad')).toBe('trackpad');
   });
+  it('a pen is touch only on a touch-capable device; touch is always touch', () => {
+    expect(lookSourceFor('pen', 'trackpad', false)).toBe('trackpad');
+    expect(lookSourceFor('pen', 'mouse', false)).toBe('mouse');
+    expect(lookSourceFor('pen', 'trackpad')).toBe('touch');
+    expect(lookSourceFor('touch', 'trackpad', false)).toBe('touch');
+  });
   it('covers the tap pad and the Fire/Aim wrapper', () => {
     expect(OWN_LOOK_SELECTOR).toContain('[aria-label="Tap flight controls"]');
     expect(OWN_LOOK_SELECTOR).toContain('[data-shooter-controls]');

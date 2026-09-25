@@ -5,15 +5,16 @@ const speed = async (page: Page) => Number(await telemetry(page).getAttribute('d
 const heading = async (page: Page) => Number(await telemetry(page).getAttribute('data-heading'));
 async function begin(page: Page) {
   await page.addInitScript(() => {
+    // The blaster off keeps these the exact 7945430 click-to-fly checks (tests/desktop-blaster.spec.ts covers it on).
     const saved = JSON.parse(localStorage.getItem('halaverga-flight-v1') || '{}');
-    if (!saved.trackpadSteering) localStorage.setItem('halaverga-flight-v1', JSON.stringify({ ...saved, trackpadSteering: 'free', controlsVersion: 2 }));
+    if (!saved.trackpadSteering || saved.shooter === undefined) localStorage.setItem('halaverga-flight-v1', JSON.stringify({ trackpadSteering: 'free', controlsVersion: 2, shooter: false, ...saved }));
   });
   await page.goto('/'); await page.getByRole('button', { name: 'Begin expedition' }).click();
   await page.waitForTimeout(250);
 }
 for (const camera of ['third', 'first']) test(`trackpad-only cruise, steering, speed and hover in ${camera} person`, async ({ page }) => {
   const errors: string[] = []; page.on('pageerror', e => errors.push(e.message));
-  await page.addInitScript(camera => localStorage.setItem('halaverga-flight-v1', JSON.stringify({ camera, trackpadSteering: 'free', controlsVersion: 2 })), camera);
+  await page.addInitScript(camera => localStorage.setItem('halaverga-flight-v1', JSON.stringify({ camera, trackpadSteering: 'free', controlsVersion: 2, shooter: false })), camera);
   await begin(page); await page.mouse.click(720, 500);
   await expect(scene(page)).toHaveAttribute('data-trackpad-active', 'true');
   await expect(telemetry(page)).toHaveAttribute('data-flying', 'true');
@@ -97,7 +98,7 @@ test('optional mouse capture persists and failure offers trackpad recovery', asy
 });
 test('edge steering continues at rest; touch handover and cancelled drag stay neutral', async ({ browser }) => {
   const context = await browser.newContext({ viewport: { width: 1440, height: 1000 }, hasTouch: true });
-  await context.addInitScript(() => localStorage.setItem('halaverga-flight-v1', JSON.stringify({ sustainedEdges: true, trackpadSteering: 'free', controlsVersion: 2 })));
+  await context.addInitScript(() => localStorage.setItem('halaverga-flight-v1', JSON.stringify({ sustainedEdges: true, trackpadSteering: 'free', controlsVersion: 2, shooter: false })));
   const page = await context.newPage(); await begin(page); await page.mouse.click(720, 500);
   await page.mouse.move(1430, 500, { steps: 10 }); await page.waitForTimeout(450);
   const before = await heading(page); await page.waitForTimeout(450);

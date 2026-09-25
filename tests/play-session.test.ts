@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 // Node environment: history, navigator, matchMedia, document, visualViewport and requestAnimationFrame are stubbed.
-const mode = { touch: true };
-vi.mock('@/game/pointerMode', () => ({ touchMode: () => mode.touch, notePointer: () => false, resetPointerMode: () => {} }));
+const mode = { touch: true, capable: true };
+vi.mock('@/game/pointerMode', () => ({ touchMode: () => mode.touch, touchCapable: () => mode.capable, notePointer: () => false, resetPointerMode: () => {} }));
 vi.mock('@/game/store', async (original) => ({ ...await original<typeof import('../src/game/store')>(), persistGame: vi.fn() }));
 type Session = typeof import('../src/ui/playSession');
 type Store = typeof import('../src/game/store');
@@ -11,7 +11,7 @@ const meta = { content: 'width=device-width, initial-scale=1, viewport-fit=cover
   getAttribute: vi.fn(() => meta.content), setAttribute: vi.fn((_: string, v: string) => { meta.content = v; }) };
 const flush = () => new Promise(r => setTimeout(r, 0));
 beforeEach(async () => {
-  vi.resetModules(); mode.touch = true; frames = []; meta.content = 'width=device-width, initial-scale=1, viewport-fit=cover';
+  vi.resetModules(); mode.touch = true; mode.capable = true; frames = []; meta.content = 'width=device-width, initial-scale=1, viewport-fit=cover';
   history = { length: 2, state: null, pushState: vi.fn((s: unknown) => { history.state = s; history.length++; }), back: vi.fn() };
   doc.referrer = '';
   vi.stubGlobal('history', history);
@@ -101,6 +101,16 @@ describe('play gesture and zoom', () => {
     expect(session.onPlayGesture()).toBe(false);
     expect(meta.content).toContain('maximum-scale=1');
     expect(history.pushState).not.toHaveBeenCalled(); expect(request).not.toHaveBeenCalled();
+    expect(store.useGame.getState().zoomNote).toBe(true);
+  });
+  it('a non-touch desktop starts while browser-zoomed: no zoom note, the viewport meta untouched; a touch-capable one still refuses', () => {
+    mode.touch = false; mode.capable = false; vi.stubGlobal('visualViewport', { scale: 2 });
+    const original = meta.content; meta.setAttribute.mockClear();
+    expect(session.onPlayGesture()).toBe(true);
+    expect(store.useGame.getState().zoomNote).toBe(false);
+    expect(meta.content).toBe(original); expect(meta.setAttribute).not.toHaveBeenCalled();
+    mode.capable = true;
+    expect(session.onPlayGesture()).toBe(false);
     expect(store.useGame.getState().zoomNote).toBe(true);
   });
   it('starts at normal size: scrolls home, asks for the wake lock and arms the guard', () => {

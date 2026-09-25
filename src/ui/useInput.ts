@@ -1,10 +1,11 @@
 import { useEffect } from 'react';
-import { clearInput, look, runtime, toggleSurge, readIntent, releaseHeldInput, releaseKeys } from '@/game/runtime';
+import { clearInput, look, runtime, startTrackpad, stopTrackpad, toggleSurge, readIntent, releaseHeldInput, releaseKeys } from '@/game/runtime';
 import { moving } from '@/game/motion';
 import { persistGame, useGame } from '@/game/store';
 import { recordGesture } from '@/game/gestureLog';
 import { touchMode } from '@/game/pointerMode';
 import { isOrientationFlip, isPlaying, orientationOf } from './playLifecycle';
+import { flightKey } from './hoverPress';
 export function pause() {
   recordGesture('pause');
   clearInput(true); useGame.setState({ paused: true, landing: false });
@@ -17,6 +18,8 @@ export function resume() {
 }
 export function useInput() {
   useEffect(() => {
+    // swallowed: the key whose press started or braked the free cruise; its auto-repeats are ignored until it is released.
+    let swallowed: string | null = null;
     const controls = ['KeyW','KeyA','KeyS','KeyD','KeyR','KeyF','ArrowLeft','ArrowRight','ArrowUp','ArrowDown'];
     const keydown = (e: KeyboardEvent) => {
       const state = useGame.getState();
@@ -24,8 +27,19 @@ export function useInput() {
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       if (state.paused || /INPUT|SELECT|TEXTAREA/.test((e.target as HTMLElement).tagName)) return;
       if (runtime.trackpad.held && state.trackpadSteering === 'flow') return;
-      // A held key must be released and pressed again after a brake or interruption.
-      if (e.repeat && !runtime.keys.has(e.code)) return;
+      // One finger + keyboard, Flow and touch: a held key must be released and pressed again after a brake or interruption.
+      // The classic desktop profiles keep 7945430's auto-repeat, which re-adds a key held through a pause.
+      const repeatGuard = touchMode() || (state.desktopMode === 'trackpad' && ['flow', 'simple'].includes(state.trackpadSteering));
+      if (e.repeat && (e.code === swallowed || (repeatGuard && !runtime.keys.has(e.code)))) return;
+      if (!e.repeat && e.code === swallowed) swallowed = null;
+      // Free trackpad with the blaster: a click while stopped fires, so W (in the air) or Space starts the cruise the click used
+      // to, and Space brakes it again. The starting press is the click: it never adds forward thrust, even while held.
+      const ctx = { shooter: state.shooter, started: state.started, paused: state.paused, desktopMode: state.desktopMode, steering: state.trackpadSteering,
+        touch: touchMode(), cruising: runtime.trackpad.active, flying: state.flying, landing: state.landing, canLand: state.canLand,
+        repeat: e.repeat, targetTag: (e.target as HTMLElement).tagName ?? '' };
+      const action = flightKey(e.code, ctx);
+      if (action === 'cruise') { e.preventDefault(); swallowed = e.code; startTrackpad(); recordGesture('press'); return; }
+      if (action === 'brake') { e.preventDefault(); swallowed = e.code; stopTrackpad(); recordGesture('brake'); return; }
       if (controls.includes(e.code)) { e.preventDefault(); runtime.keys.add(e.code); }
       if (e.repeat) return;
       if (e.code === 'Space' && (e.target as HTMLElement).tagName !== 'BUTTON') { e.preventDefault(); runtime.lift = true; }
@@ -33,6 +47,7 @@ export function useInput() {
       if (e.code === 'KeyE' && state.nearTerminal) { pause(); useGame.setState({ journal: true }); }
     };
     const keyup = (e: KeyboardEvent) => {
+      if (e.code === swallowed) swallowed = null;
       runtime.keys.delete(e.code);
       if (controls.includes(e.code) && !moving(readIntent())) runtime.surge = false;
     };

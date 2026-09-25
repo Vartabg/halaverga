@@ -96,14 +96,21 @@ test('one finger + keyboard with ?shooter=0: the locked click still brakes and f
   expect(errors).toEqual([]);
 });
 
-test('free trackpad: the click still cruises while C fires, and hovering the crosshair keeps cruising', async ({ page }) => {
+test('free + blaster: W in hover cruises, C fires while cruising, a click brakes without a shot', async ({ page }) => {
   const errors = errorsOf(page); await begin(page, '/?trackpad=free');
-  await page.mouse.click(600, 450); await expect(scene(page)).toHaveAttribute('data-trackpad-active', 'true');
+  await page.getByRole('button', { name: 'Lift', exact: true }).click();
+  await expect(page.getByTestId('flight-telemetry')).toHaveAttribute('data-flying', 'true');
+  await page.mouse.move(600, 450); await page.keyboard.press('KeyW');
+  await expect(scene(page)).toHaveAttribute('data-trackpad-active', 'true');
   await page.mouse.move(720, 500, { steps: 5 });
   await page.keyboard.down('KeyC'); await expect.poll(() => shots(page)).toBeGreaterThan(2);
   await expect(scene(page)).toHaveAttribute('data-trackpad-active', 'true');
   await page.keyboard.up('KeyC'); await page.waitForTimeout(300);
   await expect(scene(page)).toHaveAttribute('data-trackpad-active', 'true');
+  const settled = await shots(page);
+  await page.mouse.click(720, 500); await expect(scene(page)).toHaveAttribute('data-trackpad-active', 'false');
+  await expect.poll(() => speed(page)).toBeLessThan(.3);
+  await page.waitForTimeout(400); expect(await shots(page)).toBe(settled);
   expect(errors).toEqual([]);
 });
 

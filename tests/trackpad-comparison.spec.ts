@@ -4,7 +4,7 @@ const surface = (p: Page) => p.getByTestId('flight-surface');
 const speed = async (p: Page) => Number(await p.getByTestId('flight-telemetry').getAttribute('data-speed'));
 async function begin(page: Page, steering = 'captured', camera = 'third') {
   await page.addInitScript(({ steering, camera }) => {
-    if (!localStorage.getItem('halaverga-flight-v1')) localStorage.setItem('halaverga-flight-v1', JSON.stringify({ trackpadSteering: steering, camera, controlsVersion: 2 }));
+    if (!localStorage.getItem('halaverga-flight-v1')) localStorage.setItem('halaverga-flight-v1', JSON.stringify({ trackpadSteering: steering, camera, controlsVersion: 2, shooter: false }));
   }, { steering, camera });
   await page.goto('/'); await page.getByRole('button', { name: 'Begin expedition' }).click();
 }

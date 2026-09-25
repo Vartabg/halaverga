@@ -10,7 +10,7 @@ const save = (patch: Patch) => { useGame.setState(patch); persistGame(); };
 // Two thumbs always shows Fire; one thumb (classic) shows it only with the assist off, as before.
 const COARSE_NOTE = { twin: 'The suit fires when the crosshair rests on a drone. The Fire button is always there too.',
   classic: 'The suit fires when the crosshair rests on a drone. Turn off for a Fire button.' };
-const FINE_NOTE = 'Mouse: left click fires once the mouse is captured. Trackpad, one finger + keyboard: click to fire; other trackpad modes: hold C. On touch screens, hold the Fire button; with the assist on, the suit also fires when the crosshair rests on a drone. Reduced camera motion also removes zoom, recoil, shake, tracers and flashes.';
+const FINE_NOTE = 'Trackpad (default): while stopped or on the ground, a click fires at the centre reticle when you let go; dragging only looks. Space starts flying (W too, once in the air) and stops it again. Hold C to fire at any time. One finger + keyboard: click to fire once the pointer is captured. Mouse: left click fires once the mouse is captured. On touch screens, hold the Fire button; with the assist on, the suit also fires when the crosshair rests on a drone. Reduced camera motion also removes zoom, recoil, shake, tracers and flashes.';
 export default function ShooterSettings({ coarse }: { coarse: boolean }) {
   const shooter = useGame(s => s.shooter), autoFire = useGame(s => s.autoFire), scheme = useGame(s => s.touchScheme);
   return <fieldset><legend>Suit blaster</legend>
