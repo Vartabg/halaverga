@@ -44,9 +44,14 @@ describe('presentation with the shooter aim', () => {
       const main = fresh(), plain = fresh(), zero = fresh();
       for (let i = 0; i < hz * 3; i++) {
         const input = script(i / hz);
+        // The script's instant yaw steps (0.4 rad in one frame) read as fast turns, which widen the facing on purpose
+        // (tests/turn-facing.test.ts pins that and the under-2 rad/s equality). Forgetting the last yaw turns the measurement off,
+        // so every field main had must stay bit for bit.
+        plain.lastYaw = zero.lastYaw = NaN;
         mainPose(main, input, 1 / hz); advanceFlightPose(plain, input, 1 / hz);
         advanceFlightPose(zero, { ...input, aim: 0, combat: false }, 1 / hz);
-        expect(plain).toEqual(main); expect(zero).toEqual(plain);
+        const { turnRate: _t, lastYaw: _l, ...shown } = plain;
+        expect(shown).toEqual(main); expect(zero).toEqual(plain);
       }
     }
   });

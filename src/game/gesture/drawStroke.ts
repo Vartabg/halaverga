@@ -1,11 +1,15 @@
 // Draw the flight, stroke to 3D (spec 4.2), the inking half of DrawPath: each screen sample becomes a control point on its own camera
 // ray, blended from the hero over the first DRAW_BLEND_M of world arc; a centripetal Catmull-Rom walk emits ring points about
-// DRAW_SPACING apart, turn-limited to DRAW_MIN_R and clamped inside the flight space. drawPath.ts adds the end ray and the sweep.
+// DRAW_SPACING apart, turn-limited to DRAW_MIN_R and clamped inside the flight space. Once the screen winding reaches 150 degrees
+// the WrapTurtle owns the controls (drawWrap.ts) and the ring turns down to WRAP_MIN_R. drawPath.ts adds the end ray and the sweep.
 import { FOOT, type Vec } from '../motion';
 import type { AimFrame } from './types';
 import { pointAt } from './screenRay';
-import { PathRing, catmullRom } from './drawRing';
-import { DRAW_BLEND_M, DRAW_D0, DRAW_D_MAX, DRAW_M_PER_PX, DRAW_MAX_PTS, FLIGHT_SPEED, FOLLOW_BASE, SURGE_SPEED, SWEEP_RADIUS } from './tuning';
+import { PathRing, catmullRom, clampInside, turnMax } from './drawRing';
+import { WRAP_MIN_R, WrapTurtle, headingOf } from './drawWrap';
+import { wrapAngle } from './strokeBuffer';
+import { DRAW_BLEND_M, DRAW_D0, DRAW_D_MAX, DRAW_M_PER_PX, DRAW_MAX_PTS, DRAW_MIN_R, DRAW_SPACING, FLIGHT_SPEED, FOLLOW_BASE,
+  SURGE_SPEED, SWEEP_RADIUS } from './tuning';
 
 const FACTOR_MIN = FLIGHT_SPEED / FOLLOW_BASE, FACTOR_MAX = SURGE_SPEED / FOLLOW_BASE;
 /** Controls closer than this are skipped (pointer jitter); the spline walk samples every SUBSTEP_M. */
@@ -25,6 +29,12 @@ export const vec = (): Vec => ({ x: 0, y: 0, z: 0 });
 
 export class DrawStroke {
   readonly ring = new PathRing();
+  /** The wrap turtle: it takes the controls over once the stroke has wound WRAP_ENTER_DEG on the screen. */
+  readonly turtle = new WrapTurtle();
+  /** The pen is down and the turtle owns the controls. */
+  get wrapping() { return this.inking && this.turtle.on; }
+  /** This stroke wrapped: true for the rest of the stroke and its flight, until the next begin or reset. */
+  get wrapped() { return this.turtle.on; }
   /** The pen is down and extending the path. */
   inking = false;
   /** No further ink is taken for this path (scrubbed, cancelled, blocked or braked). */
@@ -52,7 +62,7 @@ export class DrawStroke {
   reset() {
     this.ring.reset(); this.inking = this.dead = this.wantsLand = this.blocked = this.full = false;
     this.pendingEnd = this.flyPending = false; this.sweptArc = this.sweeps = this.keepFrom = 0;
-    this.samples = this.nCtl = 0; this.arcPx = this.worldArc = 0; this.floorY = -Infinity; this.floorHold = false;
+    this.samples = this.nCtl = 0; this.arcPx = this.worldArc = 0; this.floorY = -Infinity; this.floorHold = false; this.turtle.reset();
   }
   /** A new stroke: the path restarts at the hero (chained strokes append from where the hero is now). ground: ctx.groundBelow. */
   begin(hero: Vec, ground = Infinity) {
@@ -66,23 +76,30 @@ export class DrawStroke {
   /** One screen sample through its frame. Returns false when it adds nothing (dead, or under half a pixel of travel). */
   append(px: number, py: number, t: number, f: AimFrame): boolean {
     if (!this.inking || this.dead) return false;
-    const o = f.origin, d = f.dir;
+    const o = f.origin, d = f.dir, tu = this.turtle;
+    let step = 0;
     if (this.samples === 0) {
       this.dHero = (this.anchor.x - o.x) * d.x + (this.anchor.y - o.y) * d.y + (this.anchor.z - o.z) * d.z; this.t0 = t;
       for (let i = this.ring.first; i < this.ring.count; i++) this.ring.time[i % DRAW_MAX_PTS] = t;
     } else {
-      const step = Math.hypot(px - this.lastPx, py - this.lastPy), dt = t - this.lastT;
+      step = Math.hypot(px - this.lastPx, py - this.lastPy); const dt = t - this.lastT;
       if (step < 0.5) return false;
       this.arcPx += step;
       if (dt > 0) this.penSpeed += (step / dt - this.penSpeed) * Math.min(1, dt / PEN_TAU_MS);
     }
-    this.depth = Math.min(DRAW_D_MAX, this.dHero + DRAW_D0 + DRAW_M_PER_PX * this.arcPx);
-    const r = pointAt(f, px, py, this.depth, this.ray), l = this.lastRay;
-    if (this.samples > 0) this.worldArc += Math.hypot(r.x - l.x, r.y - l.y, r.z - l.z);
-    l.x = r.x; l.y = r.y; l.z = r.z;
-    const w = smooth(this.worldArc / DRAW_BLEND_M), c = this.control, an = this.anchor;
-    c.x = an.x + (r.x - an.x) * w; c.y = an.y + (r.y - an.y) * w; c.z = an.z + (r.z - an.z) * w;
-    const floor = this.floorY > -Infinity ? an.y + (this.floorY - an.y) * w : -Infinity;
+    tu.feed(px, py);
+    const c = this.control, an = this.anchor;
+    if (tu.on) this.worldArc += tu.advance(step, py, c, clampInside);
+    else {
+      this.depth = Math.min(DRAW_D_MAX, this.dHero + DRAW_D0 + DRAW_M_PER_PX * this.arcPx);
+      const r = pointAt(f, px, py, this.depth, this.ray), l = this.lastRay;
+      if (this.samples > 0) this.worldArc += Math.hypot(r.x - l.x, r.y - l.y, r.z - l.z);
+      l.x = r.x; l.y = r.y; l.z = r.z;
+      const u = smooth(this.worldArc / DRAW_BLEND_M);
+      c.x = an.x + (r.x - an.x) * u; c.y = an.y + (r.y - an.y) * u; c.z = an.z + (r.z - an.z) * u;
+      if (tu.ready && this.ring.count >= 2) this.enterWrap(c, py);
+    }
+    const w = smooth(this.worldArc / DRAW_BLEND_M), floor = this.floorY > -Infinity ? an.y + (this.floorY - an.y) * w : -Infinity;
     if (c.y < floor) c.y += (floor - c.y) * (this.floorHold ? 1 : 1 - smooth((this.worldArc - DRAW_BLEND_M) / DRAW_BLEND_M));
     const mean = this.arcPx / Math.max(1, t - this.t0);
     this.factorNow = mean > 1e-6 ? clamp(this.penSpeed / mean, FACTOR_MIN, FACTOR_MAX) : 1;
@@ -92,6 +109,13 @@ export class DrawStroke {
     return true;
   }
 
+  /** Hands the controls to the turtle at c: psiStart is the ring's first segment, psiEntry its current end tangent. */
+  private enterWrap(c: Vec, py: number) {
+    const rg = this.ring, T = this.tg;
+    if (!rg.tangent(rg.first, T)) return;
+    const psiStart = headingOf(T.x, T.z);
+    if (rg.tangent(rg.count - 2, T)) this.turtle.enter(c, py, psiStart, headingOf(T.x, T.z));
+  }
   private addControl(c: Vec) {
     const g = this.ctl;
     if (this.nCtl >= 4) g.copyWithin(0, 3);
@@ -112,5 +136,23 @@ export class DrawStroke {
     const len = Math.hypot(q[6] - q[3], q[7] - q[4], q[8] - q[5]), m = clamp(Math.ceil(len / SUBSTEP_M), 1, 32);
     for (let j = 1; j <= m; j++) this.emitToward(catmullRom(q, j / m, this.s));
   }
-  protected emitToward(t: Vec, exact = false) { if (!this.ring.emitToward(t, exact, this.factorNow, this.keepFrom)) this.full = true; }
+  /**
+   * Release of a wrapped stroke: the turn the turtle still owes (up to one revolution) flies on as a WRAP_MIN_R arc from the ring's
+   * end, so a circle drawn once still turns you all the way round. The debt is counted from the ring's own end heading (it trails
+   * the turtle slightly), still the way the finger circled.
+   */
+  protected completeWrap() {
+    const rg = this.ring, T = this.b, E = this.a, t = this.s, tm = turnMax(WRAP_MIN_R), tu = this.turtle;
+    if (!rg.tangent(rg.count - 2, T)) return;
+    let owe = clamp(tu.owed + wrapAngle(tu.heading - headingOf(T.x, T.z)), -2 * Math.PI, 2 * Math.PI);
+    for (let n = 0; n < 24 && Math.abs(owe) > 1e-3 && !this.full && rg.tangent(rg.count - 2, T); n++) {
+      const th = clamp(owe, -tm, tm), c = Math.cos(th), sn = Math.sin(th), x = T.x * c + T.z * sn, z = T.z * c - T.x * sn;
+      rg.last(E); t.x = E.x + x * DRAW_SPACING; t.y = E.y + T.y * DRAW_SPACING; t.z = E.z + z * DRAW_SPACING;
+      const k = rg.count; this.emitToward(t, true); owe -= th; if (rg.count === k) break;
+    }
+  }
+  protected emitToward(t: Vec, exact = false) {
+    const w = this.turtle.on;
+    if (!this.ring.emitToward(t, exact, this.factorNow, this.keepFrom, w ? WRAP_MIN_R : DRAW_MIN_R, w)) this.full = true;
+  }
 }

@@ -32,6 +32,7 @@ function brushHost(): BrushHost {
   return {
     flying, yaw: () => runtime.yaw, pitch: () => runtime.pitch, clearance: () => runtime.clearance.active,
     clearanceNormal: () => runtime.clearance.normal, landTarget: () => runtime.landTarget, guide: ev => { reportGuide(ev); },
+    width: () => labAimFrame.width || innerWidth, reduced: () => useGame.getState().reduced,
     landAt(x, y) {
       const t = runtime.landTarget, f = frame();
       return !!t && !!f && project(f, t, screen) && Math.hypot(screen.x - x, screen.y - y) <= LAND_AT_PX;

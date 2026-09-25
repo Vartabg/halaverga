@@ -46,6 +46,10 @@ export interface BrushHost {
   lockNearest(): boolean;
   /** A recognised stroke did its step's action (onboarding). */
   guide?(ev: BrushGuide): void;
+  /** Play-surface width, CSS px: a full-strength swipe is 45% of it (whirl.turnMaxPx). Default 852. */
+  width?(): number;
+  /** Reduced motion: the whirl and stacked turns stretch so their yaw rate stays within 2.5 rad/s. Default false. */
+  reduced?(): boolean;
 }
 /** What the ink and guides read (U2/U7). Mutated in place. */
 export interface BrushView {

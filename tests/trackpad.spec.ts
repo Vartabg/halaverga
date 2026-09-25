@@ -45,10 +45,15 @@ test('cursor-only takeoff, hover look and assisted landing', async ({ page }) =>
   await expect(telemetry(page)).toHaveAttribute('data-flying', 'false', { timeout: 10000 });
   expect(await page.evaluate(() => document.pointerLockElement)).toBeNull();
 });
-test('HUD access, resize, pause and zoom clear cruise without re-engaging it', async ({ page }) => {
+test('HUD hover keeps the cruise; a click, resize, pause and zoom clear it without re-engaging it', async ({ page }) => {
   await begin(page); await page.mouse.click(720, 500);
   await expect.poll(() => speed(page)).toBeGreaterThan(7);
-  await page.getByRole('button', { name: 'Flight settings' }).hover();
+  // Turn-360 spec 1.5: the header no longer counts as leaving, so hovering its buttons keeps cruising (and steering).
+  await page.getByRole('button', { name: 'Flight settings' }).hover(); await page.waitForTimeout(400);
+  await expect(scene(page)).toHaveAttribute('data-trackpad-active', 'true');
+  // hover() jumps the cursor about 560 px right in one move, a roughly 100 deg steer: speed dips in that turn, then recovers.
+  await expect.poll(() => speed(page)).toBeGreaterThan(7);
+  await page.mouse.click(720, 500);
   await expect(scene(page)).toHaveAttribute('data-trackpad-active', 'false');
   await expect.poll(() => speed(page)).toBeLessThan(.3);
   await page.mouse.click(720, 500); await page.setViewportSize({ width: 1200, height: 900 });
@@ -114,5 +119,39 @@ test('edge steering continues at rest; touch handover and cancelled drag stay ne
   await page.mouse.click(720, 500); await expect(scene(page)).toHaveAttribute('data-trackpad-active', 'true');
   await scene(page).dispatchEvent('pointercancel', { pointerType: 'mouse', pointerId: 1 });
   await expect(scene(page)).toHaveAttribute('data-trackpad-active', 'false');
+  await context.close();
+});
+// Turn-360 spec 1.5 (Chromium on this Mac; not trackpad hardware, not a windowed-browser check on a real display).
+const surfaceOut = (page: Page, x: number, y: number) => page.evaluate(([cx, cy]) => {
+  document.elementFromPoint(Math.min(cx, innerWidth - 1), Math.min(cy, innerHeight - 1))!
+    .dispatchEvent(new PointerEvent('pointerout', { bubbles: true, clientX: cx, clientY: cy, pointerType: 'mouse', pointerId: 1, relatedTarget: null }));
+}, [x, y]);
+test('turning 360: the pointer held at the right edge turns 300 deg or more in 2.5 s', async ({ browser }) => {
+  const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+  const page = await context.newPage(); await begin(page); await page.mouse.click(720, 450);
+  await expect(scene(page)).toHaveAttribute('data-trackpad-active', 'true');
+  const before = await heading(page);
+  await page.mouse.move(1438, 450, { steps: 8 });
+  await expect.poll(() => heading(page), { timeout: 2500, intervals: [200] }).toBeLessThan(before - 300 * Math.PI / 180);
+  await expect(scene(page)).toHaveAttribute('data-trackpad-active', 'true');
+  await context.close();
+});
+test('a side exit keeps turning, a top exit flies straight after about 1 s, and a click brakes', async ({ browser }) => {
+  const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+  const page = await context.newPage(); await begin(page); await page.mouse.click(720, 450);
+  await page.mouse.move(1430, 450, { steps: 8 }); await surfaceOut(page, 1440, 450);
+  await page.waitForTimeout(400);
+  const a = await heading(page); await page.waitForTimeout(1200);
+  expect(await heading(page)).toBeLessThan(a - 2.5);
+  await expect(scene(page)).toHaveAttribute('data-trackpad-active', 'true');
+  // Back inside: steering is live again; then out through the top near the right corner (a partial edge turn, classified top).
+  await page.mouse.move(720, 300, { steps: 6 }); await page.mouse.move(1400, 2, { steps: 6 }); await surfaceOut(page, 1400, 0);
+  await page.waitForTimeout(1700);
+  const b = await heading(page); await page.waitForTimeout(1000);
+  expect(Math.abs(await heading(page) - b)).toBeLessThan(.02);
+  await expect(scene(page)).toHaveAttribute('data-trackpad-active', 'true');
+  await page.mouse.click(720, 450);
+  await expect(scene(page)).toHaveAttribute('data-trackpad-active', 'false');
+  await expect.poll(() => speed(page)).toBeLessThan(.3);
   await context.close();
 });

@@ -1,4 +1,4 @@
-/* Gesture Lab chrome: picker, header chip, rating and fallback buttons. Every control is at least 44 px. */
+/* Gesture Lab chrome: picker, rating and fallback buttons (the header bar has its own LabBar.module.css). Every control is at least 44 px. */
 .picker{border:0;padding:0;margin:20px 0;display:grid;gap:6px}
 .picker legend{font-size:14px;margin-bottom:10px}
 .option{display:flex;align-items:center;gap:12px;min-height:52px;padding:6px 10px;border:1px solid transparent;border-radius:4px;cursor:pointer}
@@ -16,10 +16,6 @@
 .glyph[data-reduced=true] .glyphInk{animation:none;stroke-dasharray:3 4}
 @media(prefers-reduced-motion:reduce){.glyphInk{animation:none;stroke-dasharray:3 4}}
 @keyframes labInk{from{stroke-dashoffset:100}to{stroke-dashoffset:0}}
-
-.chip{min-width:44px;min-height:44px;padding:0 14px;border:1px solid #58e1ff99;background:#142d34c9;border-radius:22px;color:var(--ink);
-  font:12px 'Courier New',monospace;letter-spacing:.06em;backdrop-filter:blur(8px)}
-.chip:hover{background:#305058}
 
 .rate{margin:16px 0;padding:14px 0;border-top:1px solid var(--line)}
 .rate p{margin:0 0 8px;font-size:14px}

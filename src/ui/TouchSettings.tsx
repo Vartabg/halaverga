@@ -24,6 +24,7 @@ export default function TouchSettings() {
   const touchLook = useGame(s => s.touchLook), touchAim = useGame(s => s.touchAim), lookAccel = useGame(s => s.lookAccel);
   const invertY = useGame(s => s.invertY), flipSides = useGame(s => s.flipSides), flyWhereILook = useGame(s => s.flyWhereILook);
   const controlSize = useGame(s => s.controlSize), controlOpacity = useGame(s => s.controlOpacity);
+  const edgeRest = useGame(s => s.edgeRest), reduced = useGame(s => s.reduced);
   const twin = scheme !== 'classic';
   return <fieldset data-testid="touch-settings"><legend>Touch controls</legend>
     <div className={styles.segment} role="group" aria-label="Touch scheme">
@@ -36,7 +37,9 @@ export default function TouchSettings() {
         onChange={v => save({ touchLook: v })} />
       {shooter && <Range label="Aim sensitivity" value={touchAim} min={.5} max={1.5} step={.05} shown={`${touchAim.toFixed(2)}x`}
         onChange={v => save({ touchAim: v })} />}
-      <Check checked={lookAccel} onChange={v => save({ lookAccel: v })}>Look acceleration</Check>
+      <Check checked={lookAccel} onChange={v => save({ lookAccel: v })}>Look acceleration (fast swipes turn further)</Check>
+      {reduced && <p className={styles.muted}>Look acceleration is off while Reduce motion is on.</p>}
+      <Check checked={edgeRest} onChange={v => save({ edgeRest: v })}>Edge turning (rest your look thumb at an edge to keep turning)</Check>
       <Check checked={invertY} onChange={v => save({ invertY: v })}>Invert look up and down</Check>
       <Check checked={flipSides} onChange={v => save({ flipSides: v })}>Left-handed (swap sides)</Check>
       <Check checked={flyWhereILook} onChange={v => save({ flyWhereILook: v })}>Fly where I look (climb by aiming up)</Check>

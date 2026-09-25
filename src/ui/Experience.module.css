@@ -40,9 +40,9 @@
 .tapPad button[aria-pressed=true]{background:#d4f197;color:#142c32}
 /* Shooter on: flight messages leave the centre column (crosshair, muzzle, suit) for the band under the header, below the
    blaster's 6 s controls hint (header top + 56px, about 28px tall). Offsets follow the header's own top values. */
-.flightHint[data-shooter=true]{top:calc(max(28px,env(safe-area-inset-top)) + 92px);width:max-content;max-width:min(88vw,52ch);text-wrap:balance}
-@media(max-width:600px){.flightHint[data-shooter=true]{top:calc(max(20px,env(safe-area-inset-top)) + 88px)}}
-@media(max-height:550px) and (orientation:landscape){.flightHint[data-shooter=true]{top:calc(max(12px,env(safe-area-inset-top)) + 84px);max-width:min(60vw,52ch)}}
+.flightHint[data-shooter=true]{top:calc(max(28px,env(safe-area-inset-top)) + 92px + var(--lab-row,0px));width:max-content;max-width:min(88vw,52ch);text-wrap:balance}
+@media(max-width:600px){.flightHint[data-shooter=true]{top:calc(max(20px,env(safe-area-inset-top)) + 88px + var(--lab-row,0px))}}
+@media(max-height:550px) and (orientation:landscape){.flightHint[data-shooter=true]{top:calc(max(12px,env(safe-area-inset-top)) + 84px + var(--lab-row,0px));max-width:min(60vw,52ch)}}
 @media(forced-colors:active){.vignette{display:none}.header,.intro,.introFooter,.telemetry{background:Canvas;color:CanvasText}.primary,.action,.secondary,.headerActions button{background:ButtonFace!important;color:ButtonText!important}.tapPad button[aria-pressed=true]{background:Highlight;color:HighlightText}.reticle{border-color:CanvasText}}
 
 .districtMap{display:block;width:100%;height:auto;margin:18px 0;border:1px solid var(--line);border-radius:6px}
@@ -56,19 +56,20 @@
 :global(html[data-input=touch]) .actions[data-twin=true]{display:none}
 :global(html[data-input=mouse]) .touchHint{display:none}
 /* Touch: the Municipal record moves top-left, under the header and above the stick zone (the header's own top + 56px). */
-:global(html[data-input=touch]) .discovery{left:max(24px,calc(env(safe-area-inset-left) + 24px));right:auto;bottom:auto;top:calc(max(28px,env(safe-area-inset-top)) + 56px);transform:none}
-@media(max-width:600px){:global(html[data-input=touch]) .discovery{top:calc(max(20px,env(safe-area-inset-top)) + 56px)}}
-@media(max-height:550px) and (orientation:landscape){:global(html[data-input=touch]) .discovery{top:calc(max(12px,env(safe-area-inset-top)) + 56px)}}
+:global(html[data-input=touch]) .discovery{left:max(24px,calc(env(safe-area-inset-left) + 24px));right:auto;bottom:auto;top:calc(max(28px,env(safe-area-inset-top)) + 56px + var(--lab-row,0px));transform:none}
+@media(max-width:600px){:global(html[data-input=touch]) .discovery{top:calc(max(20px,env(safe-area-inset-top)) + 56px + var(--lab-row,0px))}}
+@media(max-height:550px) and (orientation:landscape){:global(html[data-input=touch]) .discovery{top:calc(max(12px,env(safe-area-inset-top)) + 56px + var(--lab-row,0px))}}
 /* Touch: the altitude readout leaves the left thumb's stick zone. Landscape: top right under the header, over the look area and
    clear of the centred hints. Portrait: left, below the hint bands and above the stick zone (which starts at 45% of the height). */
 :global(html[data-input=touch]) .telemetry{gap:2px;bottom:auto}
 :global(html[data-input=touch]) .telemetry>span:last-child{font-size:18px}
-@media(orientation:landscape){:global(html[data-input=touch]) .telemetry{left:auto;right:max(16px,env(safe-area-inset-right));top:calc(max(28px,env(safe-area-inset-top)) + 56px);align-items:flex-end}}
-@media(orientation:landscape) and (max-height:550px){:global(html[data-input=touch]) .telemetry{top:calc(max(12px,env(safe-area-inset-top)) + 56px)}}
+@media(orientation:landscape){:global(html[data-input=touch]) .telemetry{left:auto;right:max(16px,env(safe-area-inset-right));top:calc(max(28px,env(safe-area-inset-top)) + 56px + var(--lab-row,0px));align-items:flex-end}}
+@media(orientation:landscape) and (max-height:550px){:global(html[data-input=touch]) .telemetry{top:calc(max(12px,env(safe-area-inset-top)) + 56px + var(--lab-row,0px))}}
 @media(orientation:portrait){:global(html[data-input=touch]) .telemetry{left:max(16px,env(safe-area-inset-left));top:calc(max(20px,env(safe-area-inset-top)) + 136px)}}
 /* The pause card always fits: it scrolls inside itself instead of clipping (Resume comes before the tip). */
 .pauseCard{max-height:calc(100dvh - max(12px,env(safe-area-inset-top)) - max(12px,env(safe-area-inset-bottom)) - 16px);overflow:auto;overscroll-behavior:contain}
 .pauseCard .note:empty{margin:0}
+.pauseCard .voteOpen{margin-top:10px}
 .insetProbe{position:fixed;left:0;top:0;width:0;height:0;visibility:hidden;pointer-events:none;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
 .homeTip{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;margin-top:12px;border-top:1px solid #738c85;padding-top:10px}.homeTip p{flex:1 1 180px;margin:0;font-size:13px}.pauseCard .homeTip .secondary{width:auto;flex:none;min-width:88px}
 .portraitLine{display:none;font-size:12px}
@@ -76,3 +77,14 @@
 @media(max-height:420px) and (orientation:landscape){.pauseCard{padding:12px 18px;width:min(460px,88%)}.pauseCard .eyebrow{margin:0}.pauseCard h2{font-size:22px;margin:4px 0}.pauseCard p{margin:4px 0}.pauseCard .primary{margin:8px 0 6px;min-height:44px}.homeTip{flex-wrap:nowrap;margin-top:8px;padding-top:6px}.homeTip p{font-size:12px}}
 /* Gesture Lab: no crosshair (the finger aims); the lab surface replaces the flight surface. */
 :global(html[data-controls]) .reticle{display:none}
+/* Lab bar (spec 2): once play starts the header is a grid, "brand bar actions", with the one-tap Standard · Draw · Conduct · Brush
+   switcher in the middle. Up to 839 px wide it takes a second row under the brand and buttons, and --lab-row (52 px: the 44 px bar
+   plus the 8 px row gap) moves every band under the header down with it. Landscape phones keep one row and drop the brand text (the
+   logo stays): 812 x 375 is about 539 px of content in 712. html[data-lab-bar] is set by Experience while the bar shows. */
+.header[data-bar]{display:grid;grid-template-columns:auto 1fr auto;grid-template-areas:"brand bar actions";column-gap:16px;row-gap:0;align-items:center}
+.header[data-bar] .brand{grid-area:brand;min-width:0}
+.header[data-bar] .headerActions{grid-area:actions;justify-self:end}
+.barSlot{grid-area:bar;display:flex;justify-content:center;min-width:0}
+:global(html[data-lab-bar]) .experience{--lab-row:0px}
+@media(max-width:839px){.header[data-bar]{grid-template-columns:1fr auto;grid-template-areas:"brand actions" "bar bar";row-gap:8px}:global(html[data-lab-bar]) .experience{--lab-row:52px}}
+@media(max-height:550px) and (orientation:landscape) and (min-width:640px){.header[data-bar]{grid-template-columns:auto 1fr auto;grid-template-areas:"brand bar actions";row-gap:0;column-gap:12px}.header[data-bar] .brand span{display:none}:global(html[data-lab-bar]) .experience{--lab-row:0px}}

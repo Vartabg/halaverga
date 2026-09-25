@@ -28,6 +28,14 @@ describe('trackpad cruise', () => {
     expect(runtime.trackpad.edgeTurn).toBe(0); expect(runtime.trackpad.edgePitch).toBe(0);
     expect(useGame.getState().trackpadFlying).toBe(false);
   });
+  it('resets the window-exit state on start and stop, and clearInput drops the twin edge rest', () => {
+    startTrackpad(); Object.assign(runtime.trackpad, { outside: 1, outsideAge: 3 });
+    stopTrackpad(); expect([runtime.trackpad.outside, runtime.trackpad.outsideAge]).toEqual([0, 0]);
+    Object.assign(runtime.trackpad, { outside: 2, outsideAge: 1 }); startTrackpad();
+    expect([runtime.trackpad.outside, runtime.trackpad.outsideAge]).toEqual([0, 0]);
+    runtime.stick.edgeTurn = -.9; clearInput(); expect(runtime.stick.edgeTurn).toBe(0);
+  });
+  it('defaults to sustained edges (v5)', () => expect(useGame.getInitialState().sustainedEdges).toBe(true));
   it('clears cruise on global interruption and starts the next flight at gentle speed', () => {
     startTrackpad(); runtime.trackpad.throttle = 1; clearInput(true);
     expect(runtime.trackpad.active).toBe(false); expect(readIntent().forward).toBe(0);

@@ -2,10 +2,10 @@ import { expect, test, type Page } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 const surface = (p: Page) => p.getByTestId('flight-surface');
 const speed = async (p: Page) => Number(await p.getByTestId('flight-telemetry').getAttribute('data-speed'));
-async function begin(page: Page, steering = 'captured', camera = 'third') {
-  await page.addInitScript(({ steering, camera }) => {
-    if (!localStorage.getItem('halaverga-flight-v1')) localStorage.setItem('halaverga-flight-v1', JSON.stringify({ trackpadSteering: steering, camera, controlsVersion: 2, shooter: false }));
-  }, { steering, camera });
+async function begin(page: Page, steering = 'captured', camera = 'third', extra: Record<string, unknown> = {}) {
+  await page.addInitScript(({ steering, camera, extra }) => {
+    if (!localStorage.getItem('halaverga-flight-v1')) localStorage.setItem('halaverga-flight-v1', JSON.stringify({ trackpadSteering: steering, camera, controlsVersion: 2, shooter: false, ...extra }));
+  }, { steering, camera, extra });
   await page.goto('/'); await page.getByRole('button', { name: 'Begin expedition' }).click();
 }
 for (const camera of ['first', 'third']) test(`captured trackpad cruises, steers, scrolls and releases without a keyboard in ${camera} person`, async ({ page }) => {
@@ -32,7 +32,8 @@ for (const camera of ['first', 'third']) test(`captured trackpad cruises, steers
   expect(errors).toEqual([]);
 });
 test('momentum is ignored and recent edge turns stop; classic and reverse settings persist', async ({ page }) => {
-  await begin(page, 'free'); await page.mouse.click(720, 500); await expect.poll(() => speed(page)).toBeGreaterThan(7);
+  // Since 2026-09-25 (controls version 5) edge holds keep turning by default (tests/trackpad.spec.ts); this checks the opt-out.
+  await begin(page, 'free', 'third', { controlsVersion: 5, sustainedEdges: false }); await page.mouse.click(720, 500); await expect.poll(() => speed(page)).toBeGreaterThan(7);
   await surface(page).evaluate(el => {
     const e = new WheelEvent('wheel', { deltaY: -500, bubbles: true, cancelable: true });
     Object.defineProperty(e, 'momentum', { value: true }); el.dispatchEvent(e);

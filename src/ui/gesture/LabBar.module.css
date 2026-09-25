@@ -1,0 +1,25 @@
+/* Spec 2: the header lab switcher. A pill of four radio segments, each at least 44x44. AA: ink #f5f0dc on the #142d34 pill
+   (over any scene the 79% pill keeps it above 6:1); checked #1a3029 on lime #d4f197 (about 11:1). */
+.bar{display:inline-flex;align-items:center;gap:2px;padding:2px;border:1px solid #58e1ff66;border-radius:24px;background:#142d34c9;
+  -webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);max-width:100%;justify-self:center}
+.seg{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-width:44px;min-height:44px;padding:0 10px;margin:0;
+  border:0;border-radius:22px;background:transparent;color:var(--ink);font:12px/1 system-ui,-apple-system,'Segoe UI',Arial,sans-serif;
+  letter-spacing:.02em;white-space:nowrap;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+.seg:hover{background:#305058}
+.seg[aria-checked=true]{background:var(--lime);color:#1a3029;font-weight:600}
+.seg:focus-visible{outline:2px solid var(--lime);outline-offset:2px}
+.seg[aria-checked=true]:focus-visible{outline-color:#f5f0dc;box-shadow:0 0 0 4px #1a3029}
+
+/* Key hints only for a fine pointer driving the page (html[data-input=mouse]) on screens wider than 600 px. */
+.kbd{display:none;min-width:16px;padding:1px 4px;border:1px solid currentColor;border-radius:4px;font:inherit;font-size:11px;line-height:1.2}
+@media (pointer:fine) and (min-width:601px){:global(html[data-input=mouse]) .kbd{display:inline-block}}
+
+@media (prefers-reduced-motion:no-preference){.bar:not([data-reduced=true]) .seg{transition:background-color .15s ease,color .15s ease}}
+
+@media (forced-colors:active){
+  .bar{border-color:CanvasText;background:Canvas}
+  .seg{color:ButtonText;background:ButtonFace;forced-color-adjust:none}
+  .seg[aria-checked=true]{background:Highlight;color:HighlightText}
+  .seg:focus-visible{outline:2px solid Highlight;box-shadow:none}
+  .seg[aria-checked=true]:focus-visible{outline-color:CanvasText}
+}

@@ -7,9 +7,9 @@ import styles from './Lab.module.css';
 // description and a small looping glyph of the motion; the glyph holds still under reduced motion (setting or system).
 export const LAB_LINES: Record<LabId, string> = {
   standard: 'Keys, sticks and trackpad, as before.',
-  draw: 'Draw a line. The hero flies along it.',
+  draw: 'Draw a line to fly it. Draw a circle to turn around.',
   conduct: 'Rest a finger to steer. Stir to speed up.',
-  brush: 'Swipe to turn, soar and dive. Circle drones to lock on.',
+  brush: 'Swipe to turn, loop big to whirl around. Circle drones to lock on.',
 };
 const GLYPHS: Record<LabId, string> = {
   standard: 'M6 12h12M12 6v12M30 12a5 5 0 1 0 10 0a5 5 0 1 0 -10 0',

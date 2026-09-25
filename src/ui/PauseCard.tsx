@@ -47,6 +47,8 @@ export default function PauseCard({ ready, onEnter }: Props) {
     <button className={styles.primary} disabled={!ready} onClick={onEnter}>{ready ? 'Resume flight' : 'Restoring your suit…'} <span aria-hidden="true">↗</span></button>
     <LabSwitch name="control-lab-pause" />
     <button className={styles.secondary} onClick={() => useGame.setState({ panel: true })}>Adjust flight settings</button>
+    {/* The vote card (VoteLayer) opens over the paused game; this card hides while it shows and returns after Skip. */}
+    <button className={`${styles.secondary} ${styles.voteOpen}`} data-testid="vote-open" onClick={() => useGame.setState({ voteOpen: true })}>Vote on the controls</button>
     <p className={styles.portraitLine}>Best played sideways.</p>
     {tip && !tipSeen && <div className={styles.homeTip}><p>Tip: Share › Add to Home Screen for full screen.</p><button className={styles.secondary} onClick={gotIt}>Got it</button></div>}
   </section>;

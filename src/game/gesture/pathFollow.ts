@@ -5,9 +5,9 @@ import { FOOT, type Vec } from '../motion';
 import { gesture, LIFT_REQUEST } from './bus';
 import type { DrawPath } from './drawPath';
 import type { GestureCtx } from './types';
-import { ABORT_CLEAR_S, ABORT_DEV_M, ABORT_DEV_S, ABORT_SLOW_FRAC, ABORT_SLOW_S, ACCEL, CURVE_K, DASH_S, DRAW_LAG_M, DRAW_MAX_PTS,
-  DRAW_PITCH_K, DRAW_PITCH_MAX, DRAW_PITCH_MIN, EXIT_DECAY_S, EXIT_SPEED, FOLLOW_BASE, FOLLOW_LOOKAHEAD_K, FOLLOW_LOOKAHEAD_MIN,
-  HEADING_EASE, LAND_HANDOFF_M, OFFSET_JERK, SURGE_SPEED } from './tuning';
+import { ABORT_CLEAR_S, ABORT_DEV_M, ABORT_DEV_S, ABORT_SLOW_FRAC, ABORT_SLOW_S, ACCEL, CURVE_K, DASH_S, DRAW_EASE_CAP, DRAW_LAG_M,
+  DRAW_MAX_PTS, DRAW_PITCH_K, DRAW_PITCH_MAX, DRAW_PITCH_MIN, EXIT_DECAY_S, EXIT_SPEED, FOLLOW_BASE, FOLLOW_LOOKAHEAD_K,
+  FOLLOW_LOOKAHEAD_MIN, HEADING_EASE, LAND_HANDOFF_M, OFFSET_JERK, SURGE_SPEED, WRAP_HEADING_EASE, YAW_GAIN_WRAP } from './tuning';
 
 export type AbortReason = 'none' | 'deviation' | 'clearance' | 'slow' | 'override' | 'scrub' | 'cancel' | 'brake';
 export const PATH_BLOCKED = 'Path blocked';
@@ -138,7 +138,7 @@ export class PathFollow {
     // Hard stop at the lag point while inking (the pen paused): never fly past (drawn arc - lag).
     if (inking && this.gapOpen && sp * dt > Math.max(0, gap)) { const k = Math.max(0, gap) / dt / sp; v.x *= k; v.y *= k; v.z *= k; }
     this.out(true, inking);
-    if (inking) { gesture.yawRate = gesture.pitchRate = 0; } else if (rg.tangent(this.seg, dir)) this.ease(dir);
+    if (inking && !path.wrapping) { gesture.yawRate = gesture.pitchRate = 0; } else if (rg.tangent(this.seg, dir)) this.ease(dir);
     gesture.spin = rg.spinAt(this.s);
   }
 
@@ -170,11 +170,12 @@ export class PathFollow {
     if (u >= 1) { this.mode = IDLE; this.idle(); return; }
     this.out(true, false); this.ease(d); gesture.spin = 0;
   }
-  /** Heading eases toward d at <= HEADING_EASE; pitch toward clamp(0.8 x its pitch, -0.9, 0.7). */
+  /** Heading eases toward d at <= DRAW_EASE_CAP (a wrapped stroke: gain 8, <= 6 rad/s); pitch toward clamp(0.8 x its pitch). */
   private ease(d: Vec) {
-    const yawErr = wrap(Math.atan2(-d.x, -d.z) - this.view.yaw);
+    const yawErr = wrap(Math.atan2(-d.x, -d.z) - this.view.yaw), wr = this.path.wrapped;
+    const cap = wr ? WRAP_HEADING_EASE : Math.min(HEADING_EASE, DRAW_EASE_CAP);
     const goal = clamp(DRAW_PITCH_K * Math.atan2(d.y, Math.hypot(d.x, d.z)), DRAW_PITCH_MIN, DRAW_PITCH_MAX);
-    gesture.yawRate = clamp(YAW_GAIN * yawErr, -HEADING_EASE, HEADING_EASE);
+    gesture.yawRate = clamp((wr ? YAW_GAIN_WRAP : YAW_GAIN) * yawErr, -cap, cap);
     gesture.pitchRate = clamp(PITCH_GAIN * (goal - this.view.pitch), -HEADING_EASE, HEADING_EASE);
   }
   private stepNudge(dt: number) {

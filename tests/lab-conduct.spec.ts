@@ -53,3 +53,20 @@ test('phone: a resting finger right of centre steers and moves, and lifting it g
   expect((await tel(page)).flying).toBe(true);
   expect(t.errors).toEqual([]); await t.context.close();
 });
+
+test('phone portrait: a finger resting near the right edge turns 180 deg or more within 1 s (spec 1.6)', async ({ browser }) => {
+  const t = await labPage(browser, 'conduct', { touch: true, viewport: { width: 393, height: 852 }, saved: { autoFire: false } });
+  const { page, finger } = t;
+  await lift(page, true);
+  const a = await tel(page), at = { x: 372, y: 426 }; // 0.45 of the width right of centre, mid-height, clear of the HUD
+  const t0 = Date.now();
+  await finger.down(at); await finger.move({ x: at.x + 2, y: at.y });
+  await page.waitForTimeout(Math.max(0, 1000 - (Date.now() - t0)));
+  await finger.up(); // lifting stops the steering, so the heading after this is the turn made while resting (about 1 s)
+  const held = Date.now() - t0;
+  await page.waitForTimeout(450); // telemetry stamps every 350 ms
+  const b = await tel(page), turned = a.heading - b.heading;
+  test.info().annotations.push({ type: 'conduct-turn', description: `turned ${(turned * 180 / Math.PI).toFixed(0)} deg in ${held} ms of rest (emulation)` });
+  expect(turned).toBeGreaterThanOrEqual(Math.PI);
+  expect(t.errors).toEqual([]); await t.context.close();
+});

@@ -42,12 +42,16 @@ describe('drawPath: stroke to 3D', () => {
     expect(checked).toBeGreaterThan(10);
   });
 
-  it('keeps depth monotonic and capped at DRAW_D_MAX', () => {
+  // Scoped to strokes that stay on the rays: a wrap (150 degrees of screen winding, drawWrap.ts) stops using depth. The zigzag's
+  // reversals are cusps, which add no winding.
+  it('keeps depth monotonic and capped at DRAW_D_MAX (a non-wrap stroke)', () => {
     const p = new DrawPath(), f = frameAt(CAM);
     p.begin(HERO);
     let last = -Infinity;
     for (let i = 0; i <= 200; i++) {
-      p.append(400 + 300 * Math.cos(i / 9), 300 + 200 * Math.sin(i / 13), i * 8, f);
+      const u = (i % 16) / 8, x = u <= 1 ? u : 2 - u;
+      p.append(100 + 600 * x, 300 + 200 * Math.sin(i / 13), i * 8, f);
+      expect(p.wrapped).toBe(false);
       expect(p.depth).toBeGreaterThanOrEqual(last);
       expect(p.depth).toBeLessThanOrEqual(DRAW_D_MAX);
       last = p.depth;

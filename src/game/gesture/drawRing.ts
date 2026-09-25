@@ -3,12 +3,15 @@
 // centripetal Catmull-Rom evaluator drawPath walks. Pure: plain numbers and {x,y,z}, no three.js, nothing allocates after load.
 import { WORLD, type Vec } from '../motion';
 import { DRAW_AMBER_M, DRAW_BOUNDS_PAD, DRAW_MAX_PTS, DRAW_MIN_R, DRAW_SPACING, DRAW_Y_MAX, DRAW_Y_MIN, SPIN_TURN_DEG } from './tuning';
+import { WRAP_MIN_R } from './drawWrap';
 
 const N = DRAW_MAX_PTS, SPINS = 4, STRAIGHT = 1e6;
 /** A bend below this per point ends a spin stretch (the path is running straight again). */
 const STRAIGHT_RAD = 1.5 * Math.PI / 180, SPIN_RAD = SPIN_TURN_DEG * Math.PI / 180;
-/** Largest turn between successive DRAW_SPACING segments that keeps the curvature radius at DRAW_MIN_R or more. */
-const H = DRAW_SPACING, TURN_MAX = 2 * Math.asin(H / (2 * DRAW_MIN_R));
+/** Largest turn between successive DRAW_SPACING segments that keeps the curvature radius at r or more (5 m, and 2.5 m wrapping). */
+const H = DRAW_SPACING;
+export const turnMax = (r: number) => (r === DRAW_MIN_R ? TURN_5 : r === WRAP_MIN_R ? TURN_25 : 2 * Math.asin(Math.min(1, H / (2 * r))));
+const TURN_5 = 2 * Math.asin(H / (2 * DRAW_MIN_R)), TURN_25 = 2 * Math.asin(H / (2 * WRAP_MIN_R));
 const clamp = (v: number, lo: number, hi: number) => (v < lo ? lo : v > hi ? hi : v);
 /** Clamps p in place to DRAW_BOUNDS_PAD inside the district and y in [DRAW_Y_MIN, DRAW_Y_MAX]. */
 export function clampInside(p: Vec) {
@@ -42,23 +45,27 @@ export class PathRing {
   get(i: number, out: Vec): Vec { const k = i % N; out.x = this.x[k]; out.y = this.y[k]; out.z = this.z[k]; return out; }
   last(out: Vec): Vec { return this.get(this.count - 1, out); }
 
-  push(px: number, py: number, pz: number, factor: number, amber: boolean) {
+  /** Appends a point; track = false (a wrap) skips the spin-stretch accounting. */
+  push(px: number, py: number, pz: number, factor: number, amber: boolean, track = true) {
     const k = this.count % N;
     let a = 0;
     if (this.count > 0) { const j = (this.count - 1) % N; a = this.arc[j] + Math.hypot(px - this.x[j], py - this.y[j], pz - this.z[j]); }
     this.x[k] = px; this.y[k] = py; this.z[k] = pz; this.arc[k] = a;
     this.factor[k] = factor; this.amber[k] = amber ? 1 : 0; this.radius[k] = STRAIGHT; this.time[k] = this.stamp;
     this.count++;
-    if (this.count >= 3) this.bend(this.count - 2, true);
+    if (this.count >= 3) this.bend(this.count - 2, track);
+    if (!track) { this.turnAcc = 0; this.spinFrom = a; }
   }
 
   /**
    * Emits points DRAW_SPACING apart toward t (clamped in place; amber when that moved it more than DRAW_AMBER_M), each turn
-   * slerped down to TURN_MAX. exact also lands a final shorter step on t. False when the ring is full ahead of keepFrom.
+   * slerped down to turnMax(minR). exact also lands a final shorter step on t. The orbit guard skips a target behind the path
+   * (over 90 degrees off its tangent) and closer than 2 minR: it lies inside the turning circle, and chasing it would loop round
+   * it (a hairpin or a knot). noSpin (a wrap) skips the spin stretches. False when the ring is full ahead of keepFrom.
    */
-  emitToward(t: Vec, exact: boolean, factor: number, keepFrom: number): boolean {
+  emitToward(t: Vec, exact: boolean, factor: number, keepFrom: number, minR = DRAW_MIN_R, noSpin = false): boolean {
     const ox = t.x, oy = t.y, oz = t.z; clampInside(t);
-    const amber = Math.hypot(t.x - ox, t.y - oy, t.z - oz) > DRAW_AMBER_M, L = this.L, P = this.P;
+    const amber = Math.hypot(t.x - ox, t.y - oy, t.z - oz) > DRAW_AMBER_M, L = this.L, P = this.P, TURN_MAX = turnMax(minR);
     for (let n = 0; n < 8; n++) {
       this.last(L);
       let dx = t.x - L.x, dy = t.y - L.y, dz = t.z - L.z;
@@ -68,6 +75,7 @@ export class PathRing {
       dx /= dist; dy /= dist; dz /= dist;
       if (this.count >= 2 && this.tangent(this.count - 2, P)) {
         const th = Math.acos(clamp(dx * P.x + dy * P.y + dz * P.z, -1, 1)), sn = Math.sin(th);
+        if (th > Math.PI / 2 && dist < 2 * minR) return true;
         if (th > TURN_MAX && sn > 1e-6) {
           const wa = Math.sin(th - TURN_MAX) / sn, wb = Math.sin(TURN_MAX) / sn;
           dx = P.x * wa + dx * wb; dy = P.y * wa + dy * wb; dz = P.z * wa + dz * wb;
@@ -75,7 +83,7 @@ export class PathRing {
       }
       const step = exact ? Math.min(dist, H) : H;
       P.x = L.x + dx * step; P.y = L.y + dy * step; P.z = L.z + dz * step; clampInside(P);
-      this.push(P.x, P.y, P.z, factor, amber);
+      this.push(P.x, P.y, P.z, factor, amber, !noSpin);
     }
     return true;
   }

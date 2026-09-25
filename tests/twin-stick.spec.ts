@@ -65,8 +65,9 @@ for (const viewport of [{ width: 852, height: 393 }, { width: 393, height: 852 }
     expect(await alt(page)).toBeGreaterThan(before + 2); expect(Math.abs(await heading(page) - h0)).toBeGreaterThan(.3);
     await t.touch.up(4); expect(t.errors).toEqual([]); await t.context.close();
   });
-  test('a 100 px look-pad drag turns .52 rad (aim assist off); a touch in the side band is ignored', async ({ browser }) => {
-    const t = await twinTouchPage(browser, viewport, { aimAssist: 0 }), { page, touch } = t;
+  test('a 100 px look-pad drag turns .52 rad (aim assist and look acceleration off); a touch in the side band is ignored', async ({ browser }) => {
+    // v5 saves keep their choices: look acceleration off pins the exact 1:1 gain (fast swipes turn further with it on).
+    const t = await twinTouchPage(browser, viewport, { aimAssist: 0, lookAccel: false, controlsVersion: 5 }), { page, touch } = t;
     await page.waitForTimeout(400); const h0 = await heading(page);
     await touch.down(2, t.lookPoint); await expect(t.surface).toHaveAttribute('data-control-mode', 'look');
     await touch.drag(2, 100, 0); await touch.up(2); await page.waitForTimeout(450);

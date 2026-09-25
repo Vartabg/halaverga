@@ -71,3 +71,30 @@ test('a 250 ms hold shows the guide without braking; holding on to 900 ms brakes
   expect(await guideShown(page)).toBe(false);
   expect(t.errors).toEqual([]); await t.context.close();
 });
+
+test('a large loop in empty sky whirls: the view turns 300 deg or more within 1.6 s', async ({ browser }) => {
+  // The blaster is off, so there are no drones and the loop can never be a lasso lock. With drones up, the red-blob screenshot
+  // check missed drones the lasso still enclosed (it locked and fired 3 shots). Lock-before-whirl is pinned in tests/brush-whirl.
+  const t = await labPage(browser, 'brush', { touch: true, saved: { autoFire: false, shooter: false } }), { page, finger } = t;
+  await lift(page, true);
+  // Turn-360 spec 1.7c. The whirl starts on release; telemetry is stamped every 350 ms, so it gets that long past the 1.6 s.
+  const R = 100, N = 26, c = { x: 426, y: 215 };
+  const at = (i: number) => ({ x: c.x + R * Math.cos(i / N * 2 * Math.PI), y: c.y + R * Math.sin(i / N * 2 * Math.PI) });
+  const h0 = (await tel(page)).heading;
+  await finger.down(at(0));
+  for (let i = 1; i <= N + 2; i++) await finger.move(at(i)); // clockwise on screen, a little past closed: a right whirl
+  await finger.up();
+  const t0 = Date.now(), end = t0 + 1600 + 350;
+  let last = h0, turned = 0, at300 = NaN;
+  while (Date.now() < end) {
+    const h = (await tel(page)).heading, d = Math.atan2(Math.sin(h - last), Math.cos(h - last));
+    turned += d; last = h;
+    if (Number.isNaN(at300) && Math.abs(turned) >= 300 * Math.PI / 180) at300 = Date.now() - t0;
+    await page.waitForTimeout(50);
+  }
+  const deg = Math.abs(turned) * 180 / Math.PI;
+  test.info().annotations.push({ type: 'whirl', description: `turned ${deg.toFixed(0)} deg (sign ${Math.sign(turned)}); 300 deg seen at ${at300} ms after release (telemetry lags up to 350 ms)` });
+  expect(deg).toBeGreaterThanOrEqual(300);
+  expect(turned).toBeLessThan(0); // clockwise loop turns right (yaw decreases)
+  expect(t.errors).toEqual([]); await t.context.close();
+});

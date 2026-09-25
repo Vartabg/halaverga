@@ -32,7 +32,8 @@ test('rapid trackpad turns keep the human facing away from the chase camera', as
     await page.mouse.move(x, 500, { steps: 3 }); await page.waitForTimeout(370);
     const body = Number(await telemetry.getAttribute('data-suit-heading'));
     const camera = Number(await telemetry.getAttribute('data-view-heading'));
-    expect(Math.abs(Math.atan2(Math.sin(body - camera), Math.cos(body - camera)))).toBeLessThan(.42);
+    // Turn-360 (2026-09-25): a view turn over 2 rad/s widens the body facing to FACING_PATH (0.6 rad), still back-to-camera.
+    expect(Math.abs(Math.atan2(Math.sin(body - camera), Math.cos(body - camera)))).toBeLessThan(.62);
   }
   await page.mouse.click(720, 500);
   await expect.poll(() => page.evaluate(() => document.pointerLockElement)).toBeNull();

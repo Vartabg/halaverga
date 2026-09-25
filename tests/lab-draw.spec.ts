@@ -1,7 +1,8 @@
 import { expect, test } from '@playwright/test';
 import { labPage, lift, said, tel } from './lab-browser';
 // Draw the flight on a phone (spec 4; touch emulation in system Chrome, landscape 852 x 393). Live follow, the real wall, the
-// rooftop landing and chained strokes. Auto-fire is off so no stray shot moves the hero's arm or the view. Emulation, not an iPhone.
+// rooftop landing, chained strokes and a loop that wraps all the way round. Auto-fire is off so no stray shot moves the hero's arm or the view.
+// Emulation, not an iPhone.
 const saved = { autoFire: false };
 
 test('live follow: the hero flies along the ink while the finger is still down, and the view does not turn', async ({ browser }) => {
@@ -85,5 +86,46 @@ test('chained strokes: each new stroke continues from the hero, which never stop
   await sample(500);
   test.info().annotations.push({ type: 'chain speeds', description: speeds.map(s => s.toFixed(1)).join(' ') });
   expect(Math.min(...speeds)).toBeGreaterThan(6);
+  expect(t.errors).toEqual([]); await t.context.close();
+});
+
+test('a drawn loop turns the view all the way round (turn-360 spec 1.8: 270 degrees or more within 2.5 s of the turn starting)', async ({ browser }) => {
+  const t = await labPage(browser, 'draw', { touch: true, saved }), { page, finger } = t;
+  await lift(page, true);
+  // Record the view heading every frame in the page itself, so no sample is lost while the finger draws.
+  await page.evaluate(() => {
+    const w = window as unknown as { __hs: [number, number][] }, t0 = performance.now();
+    w.__hs = [];
+    const tick = () => {
+      const el = document.querySelector<HTMLElement>('[data-testid=flight-telemetry]');
+      if (el) w.__hs.push([performance.now() - t0, Number(el.dataset.heading)]);
+      if (performance.now() - t0 < 7000) requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  });
+  // A counter-clockwise loop from its bottom (up and right first, into open sky), 1.25 turns of radius 75 px: it should turn left.
+  const cx = 430, cy = 205, R = 75, n = 60;
+  await finger.down({ x: cx, y: cy + R });
+  for (let i = 1; i <= n; i++) {
+    const a = i / n * 1.25 * 2 * Math.PI;
+    await finger.move({ x: cx + R * Math.sin(a), y: cy + R * Math.cos(a) });
+    await page.waitForTimeout(8);
+  }
+  await finger.up();
+  await page.waitForTimeout(7200);
+  const hs = await page.evaluate(() => (window as unknown as { __hs: [number, number][] }).__hs);
+  // Unwrap: the view turns at most 6 rad/s, far under PI per frame.
+  let turned = 0, t20 = -1, t270 = -1, reach = 0;
+  for (let i = 1; i < hs.length; i++) {
+    const d = hs[i][1] - hs[i - 1][1];
+    turned += Math.atan2(Math.sin(d), Math.cos(d));
+    if (t20 < 0 && turned >= 20 * Math.PI / 180) t20 = hs[i][0];
+    if (t270 < 0 && turned >= 270 * Math.PI / 180) t270 = hs[i][0];
+    if (t20 >= 0 && hs[i][0] <= t20 + 2500) reach = Math.max(reach, turned);
+  }
+  test.info().annotations.push({ type: 'draw loop turn', description: `turned ${(turned * 180 / Math.PI).toFixed(0)} deg left; 20 deg at ${(t20 / 1000).toFixed(2)} s, 270 deg at ${(t270 / 1000).toFixed(2)} s after pen-down; ${(reach * 180 / Math.PI).toFixed(0)} deg within 2.5 s of the turn starting (emulation, not an iPhone)` });
+  expect(t20).toBeGreaterThan(0);
+  expect(reach).toBeGreaterThanOrEqual(270 * Math.PI / 180);
+  expect(await said(page)).not.toContain('Path blocked');
   expect(t.errors).toEqual([]); await t.context.close();
 });

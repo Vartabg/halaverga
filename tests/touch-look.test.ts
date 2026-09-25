@@ -4,7 +4,7 @@ import { runtime } from '../src/game/runtime';
 import { useGame } from '../src/game/store';
 import { ADS_GAIN } from '../src/game/combat';
 beforeEach(() => {
-  useGame.setState({ touchLook: 1, touchAim: 1, lookAccel: false, invertY: false, aimAssist: 0 });
+  useGame.setState({ touchLook: 1, touchAim: 1, lookAccel: false, reduced: false, invertY: false, aimAssist: 0 });
   runtime.yaw = 0; runtime.pitch = 0; runtime.stick.lookTravel = 0;
   const s = runtime.shooter; s.aim.blend = 0; s.assist.slow = 0; s.assist.engaged = false;
 });
@@ -29,18 +29,25 @@ describe('touch look', () => {
       expect(runtime.yaw).toBeCloseTo(-.0052 * k * 10, 12);
     }
   });
-  it('keeps acceleration off by default and bounds it to 1..1.5 when on', () => {
-    const p = { touchLook: 1, touchAim: 1, lookAccel: false };
+  it('acceleration: 1 below .35 px/ms, smoothstep up to 2.75x at 1.6 px/ms, off when disabled or under reduced motion', () => {
+    const p = { touchLook: 1, touchAim: 1, lookAccel: false, reduced: false };
     const base = touchLookGain(p, 0, 0);
     expect(touchLookGain(p, 5, 0)).toBe(base);
     const on = { ...p, lookAccel: true };
-    expect(touchLookGain(on, 0, 0)).toBe(base); expect(touchLookGain(on, .4, 0)).toBe(base);
-    expect(touchLookGain(on, 1, 0)).toBeCloseTo(base * 1.25, 12);
-    expect(touchLookGain(on, 1.6, 0)).toBeCloseTo(base * 1.5, 12); expect(touchLookGain(on, 99, 0)).toBeCloseTo(base * 1.5, 12);
+    expect(touchLookGain(on, 0, 0)).toBe(base); expect(touchLookGain(on, .35, 0)).toBe(base);
+    expect(touchLookGain(on, .35 + 1.25 / 2, 0)).toBeCloseTo(base * (1 + 1.75 / 2), 12);
+    expect(touchLookGain(on, 1.6, 0)).toBeCloseTo(base * 2.75, 12); expect(touchLookGain(on, 99, 0)).toBeCloseTo(base * 2.75, 12);
     expect(touchLookGain(on, NaN, 0)).toBe(base);
+    expect(touchLookGain({ ...on, reduced: true }, 99, 0)).toBe(base);
+    expect(useGame.getInitialState().lookAccel).toBe(true);
+  });
+  it('gives pitch 40% of the extra gain', () => {
+    useGame.setState({ lookAccel: true });
+    touchLook(0, -10, 1.6);
+    expect(runtime.pitch).toBeCloseTo(.0052 * .8 * 10 * (1 + 1.75 * .4), 12);
   });
   it('blends the ADS multiplier in with the aim blend, on top of look()\'s zoom-matched gain', () => {
-    const p = { touchLook: 1, touchAim: .5, lookAccel: false };
+    const p = { touchLook: 1, touchAim: .5, lookAccel: false, reduced: false };
     expect(touchLookGain(p, 0, 0)).toBeCloseTo(.0052 / .003, 12);
     expect(touchLookGain(p, 0, .5)).toBeCloseTo(.0052 / .003 * .75, 12);
     useGame.setState({ touchAim: .5 }); runtime.shooter.aim.blend = 1;

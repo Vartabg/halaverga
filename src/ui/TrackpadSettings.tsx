@@ -5,7 +5,7 @@ import styles from './Experience.module.css';
 export default function TrackpadSettings() {
   const state = useGame(), [recording, setRecording] = useState(gestureLog.enabled);
   const save = (patch: Parameters<typeof state.set>[0]) => { state.set(patch); persistGame(); };
-  const edge = state.sustainedEdges ? 'Turning continues while the pointer stays at an edge.' : 'Edge turns fade when pointer movement stops.';
+  const edge = state.sustainedEdges ? 'Turning continues while the pointer stays at an edge, or after it slides off the side of the window (default).' : 'Edge turns fade when pointer movement stops.';
   // Free cursor with the blaster on (Garo 2026-09-24): the classic flight plus one change, a click while stopped fires.
   const freeShooter = 'Space starts flying; in the air W does too. Move the pointer to steer, hold near an edge to keep turning, and scroll for speed. Click or press Space to stop and hover. While stopped or on the ground, a click fires at the centre reticle when you let go, and dragging only looks. Hold C to fire and ' + (state.aimToggle ? 'press Q to toggle aim' : 'hold Q to aim') + ' at any time. Blaster sound starts off; turn on Suit and wind audio below. ' + edge + ' Escape pauses.';
   return <fieldset><legend>Trackpad controls</legend>

@@ -36,12 +36,14 @@ export const gesture = {
   step: null as GestureStep | null,
   /** Bumped by clearGesture; a scheme holding an older epoch drops its stroke. */
   epoch: 0,
+  /** Reduce motion, mirrored from the store by Player before each gestureBefore; clearGesture keeps it. */
+  reduced: false,
 };
 export type GestureBus = typeof gesture;
 
 export const LIFT_REQUEST = { kind: 'lift' } as const;
 
-/** Zeroes every live output. Keeps scheme, step and exemptHip; bumps epoch. */
+/** Zeroes every live output. Keeps scheme, step, exemptHip and reduced; bumps epoch. */
 export function clearGesture() {
   const g = gesture;
   g.live = false; g.surge = false; g.velocityOn = false; g.override = false; g.landArmed = false;

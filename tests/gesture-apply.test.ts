@@ -6,6 +6,7 @@ import { gestureBase, gestureBefore, gestureIntent, gestureOffset, gestureVeloci
   type GestureHost, type GestureIntentOut } from '../src/game/gesture/applyGesture';
 import type { GestureCtx } from '../src/game/gesture/types';
 import { OFFSET_JERK, SNAP_INTENT } from '../src/game/gesture/tuning';
+import { MAX_YAW_RATE, MAX_YAW_RATE_RM } from '../src/game/gesture/tuningCore';
 
 const dt = 1 / 60, cruise: Intent = { forward: 1, strafe: 0, vertical: 0 };
 const len = (v: Vec) => Math.hypot(v.x, v.y, v.z);
@@ -78,9 +79,24 @@ describe('applyGesture', () => {
     let seen = -1;
     gesture.step = (_dt, _p, c) => { seen = (c as GestureCtx).clock; gesture.yawRate = 9; gesture.pitchRate = 9; };
     gestureBefore(dt, { x: 0, y: 0, z: 0 }, ctx, host);
-    expect(seen).toBeCloseTo(dt); expect(host.yaw).toBeCloseTo(2.5 * dt); expect(host.pitch).toBeCloseTo(.9);
+    expect(seen).toBeCloseTo(dt); expect(host.yaw).toBeCloseTo(MAX_YAW_RATE * dt); expect(host.pitch).toBeCloseTo(.9);
     host.pitch = 1.1; gestureBefore(dt, { x: 0, y: 0, z: 0 }, ctx, host);
     expect(host.pitch).toBeCloseTo(1.1);
+  });
+  it('the yaw cap is 7 rad/s (whirl headroom) and 2.5 under reduced motion; clearGesture keeps reduced', () => {
+    expect([MAX_YAW_RATE, MAX_YAW_RATE_RM]).toEqual([7, 2.5]);
+    const host: GestureHost = { yaw: 0, pitch: 0, lift: false }, { ctx } = ctxOf(true);
+    const yawAfter = (rate: number) => { host.yaw = 0; gesture.yawRate = rate; gestureBefore(dt, { x: 0, y: 0, z: 0 }, ctx, host); return host.yaw; };
+    expect(yawAfter(6.5)).toBeCloseTo(6.5 * dt, 12);
+    expect(yawAfter(9)).toBeCloseTo(7 * dt, 12);
+    expect(yawAfter(-9)).toBeCloseTo(-7 * dt, 12);
+    gesture.reduced = true;
+    try {
+      expect(yawAfter(6.5)).toBeCloseTo(2.5 * dt, 12);
+      expect(yawAfter(-6.5)).toBeCloseTo(-2.5 * dt, 12);
+      expect(yawAfter(1.2)).toBeCloseTo(1.2 * dt, 12);
+      clearGesture(); expect(gesture.reduced).toBe(true);
+    } finally { gesture.reduced = false; }
   });
   it('gestureIntent is zero in a non-live decay tail while landGoal is set, and below 0.02', () => {
     const out: GestureIntentOut = { forward: 9, strafe: 9, vertical: 9, precise: true }, goal = { x: 0, y: 0, z: 0 };

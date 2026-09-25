@@ -6,16 +6,17 @@ import { gesture, LIFT_REQUEST } from './bus';
 import { ACCEL, BRAKE_HOLD_MS, DIVE_FLOOR_M, HOLD_MS, TAP_SLOP_MOUSE, TAP_SLOP_TOUCH } from './tuning';
 import { straightFast } from './strokeFeatures';
 import {
-  cancelManeuver, createManeuver, createManeuverOut, setRollBlocked, startDive, startNudge, startRoll, startSoar, startTurn,
-  stepManeuver, swipeMag, type CancelReason,
+  cancelManeuver, createManeuver, createManeuverOut, extendTurn, setRollBlocked, startDive, startNudge, startRoll, startSoar,
+  startWhirl, stepManeuver, swipeMag, type CancelReason,
 } from './maneuvers';
+import { whirlAngle } from './whirl';
 import { BRUSH_LAND_LOW_M, BRUSH_PULLOUT_M, NO_DRONE, SWIPE_COMMIT_WIND_DEG, cardinalOf, closedStroke as closed, type BrushHost,
   type BrushScheme, type BrushView } from './brushHost';
 export { BRUSH_LAND_LOW_M, BRUSH_PULLOUT_M, NO_DRONE, SWIPE_COMMIT_WIND_DEG, cardinalOf, type BrushHost, type BrushScheme,
   type BrushView } from './brushHost';
 
 /** Lateral reach checked with pathClear before a roll sidesteps (ROLL_OFFSET_M plus a margin). */
-const ROLL_CHECK_M = 3.5, FALLBACK_MAG = 0.5;
+const ROLL_CHECK_M = 3.5, FALLBACK_MAG = 0.5, FULL_TURN = Math.PI * 2;
 /** Under clearance, a program is cancelled only when its push points this far into the obstacle (dot with the surface normal). */
 const INTO = -0.3;
 
@@ -29,6 +30,9 @@ export function createBrushScheme(host: BrushHost): BrushScheme {
   let active = false, real = false, braked = false, lastT = 0, lastY = NaN, vy = 0;
   /** The host ctx, remembered from step so the lock fallback can announce a miss. */
   let ctxRef: GestureCtx | null = null;
+  const width = () => host.width?.() ?? 852, reduced = () => !!host.reduced?.();
+  /** The stroke so far heads sideways the way the running turn goes, so it may stack onto it instead of cancelling it. */
+  const sameTurn = (dx: number, dy: number) => m.id === 'turn' && Math.abs(dx) >= Math.abs(dy) && (dx < 0 ? 1 : -1) === m.sign;
 
   function cancel(reason: CancelReason) {
     const r = cancelManeuver(m, reason);
@@ -45,25 +49,28 @@ export function createBrushScheme(host: BrushHost): BrushScheme {
     i.vertical = out.vertical - (i.forward > 0 && holds() ? Math.sin(host.pitch?.() ?? 0) * i.forward : 0);
     g.surge = out.surge; g.yawRate = out.yawRate; g.pitchRate = out.pitchRate; g.spin = out.spin;
     g.offset.x = Math.cos(yaw) * out.right; g.offset.y = out.up; g.offset.z = -Math.sin(yaw) * out.right;
-    g.velocityOn = false; g.facing = 0;
+    g.velocityOn = false; g.facing = m.id === 'whirl' ? 1 : 0;
   }
   function brake() { cancel('brake'); cruise = false; write(); }
   function recognized(speed: number) { view.recognized++; view.speed = speed; view.grey = false; }
   /**
-   * Replaces any running program (turn, soar, dive, roll) and resumes cruise, lifting off when grounded. A swipe down while
-   * flying low, or ending on the land target (ex, ey), lands instead; standing, a swipe down lifts and dives.
+   * Replaces any running program (turn, soar, dive, roll, whirl) and resumes cruise, lifting off when grounded; a sideways swipe
+   * stacks onto a same-direction turn instead. A swipe down while flying low, or ending on the land target (ex, ey), lands
+   * instead; standing, a swipe down lifts and dives. value: the swipe tier, the roll's winding or the whirl's signed angle.
    */
-  function run(kind: Cardinal | 'roll', value: number, ex = NaN, ey = NaN) {
-    cancel('stroke');
+  function run(kind: Cardinal | 'roll' | 'whirl', value: number, ex = NaN, ey = NaN) {
+    const side = kind === 'left' ? 1 : kind === 'right' ? -1 : 0;
+    if (!side || m.id !== 'turn' || m.sign !== side) cancel('stroke');
     const lt = host.landTarget();
-    if (kind !== 'roll') host.guide?.(kind === 'left' || kind === 'right' ? 'turn' : kind);
+    if (kind !== 'roll') host.guide?.(side || kind === 'whirl' ? 'turn' : kind as 'up' | 'down');
     if (kind === 'down' && flying && lt && (ground < BRUSH_LAND_LOW_M || (ex === ex && !!host.landAt?.(ex, ey)))) {
       cruise = false; landReq.x = lt.x; landReq.y = lt.y; landReq.z = lt.z; g.request = landReq; g.landArmed = true;
     } else {
       if (kind === 'roll') startRoll(m, value >= 0 ? 1 : -1);
+      else if (kind === 'whirl') startWhirl(m, value, reduced());
       else if (kind === 'down') startDive(m, value);
       else if (kind === 'up') startSoar(m, value);
-      else startTurn(m, kind === 'left' ? 1 : -1, value);
+      else extendTurn(m, side === 1 ? 1 : -1, value, reduced());
       cruise = true;
       if (!flying) g.request = LIFT_REQUEST;
     }
@@ -94,13 +101,13 @@ export function createBrushScheme(host: BrushHost): BrushScheme {
       lastT = s.lastT;
       if (!real && s.travel > (s.kind === 'mouse' ? TAP_SLOP_MOUSE : TAP_SLOP_TOUCH)) {
         real = true; view.guide = false; view.ring = 0;
-        cancel('stroke');
+        if (!sameTurn(s.lastX - s.startX, s.lastY - s.startY)) cancel('stroke');
         if (!flying) g.request = LIFT_REQUEST;
         write();
       }
       if (real && !view.committed && view.locks === 0 && Math.abs(s.winding) <= SWIPE_COMMIT_WIND_DEG && straightFast(s)) {
         view.committed = true; recognized(s.speed150);
-        run(cardinalOf(s.lastX - s.startX, s.lastY - s.startY), swipeMag(s.chord), s.lastX, s.lastY);
+        run(cardinalOf(s.lastX - s.startX, s.lastY - s.startY), swipeMag(s.chord, width()), s.lastX, s.lastY);
       }
     },
     up(s: StrokeView, c: StrokeClass) {
@@ -109,10 +116,13 @@ export function createBrushScheme(host: BrushHost): BrushScheme {
       endStroke();
       if (!wasReal || view.committed) { write(); return; }
       view.locks = host.lassoEnd(c.kind === 'circle' || c.kind === 'lasso' || closed(s));
+      // Grammar: a loop around drones is always Lock; then a big loop or spiral whirls; a small circle rolls; swipes; else a nudge.
+      const whirl = view.locks > 0 ? 0 : whirlAngle(s);
       if (view.locks > 0) { host.lockBurst(); recognized(c.speed); host.guide?.('lasso'); }
+      else if (whirl !== 0) { recognized(c.speed); run('whirl', whirl); }
       else if (c.kind === 'circle' || c.kind === 'lasso') { recognized(c.speed); run('roll', c.winding); }
       else if ((c.kind === 'swipe' || c.kind === 'flick') && c.dir) {
-        recognized(c.speed); run(c.dir, swipeMag(Math.hypot(c.chordX, c.chordY)), s.lastX, s.lastY);
+        recognized(c.speed); run(c.dir, swipeMag(Math.hypot(c.chordX, c.chordY), width()), s.lastX, s.lastY);
       } else if (c.kind !== 'tap' && c.kind !== 'hold') { cancel('stroke'); startNudge(m, c.chordX, c.chordY); view.grey = true; }
       write();
     },
@@ -156,6 +166,8 @@ export function createBrushScheme(host: BrushHost): BrushScheme {
       else if (a === 'turn-left') run('left', FALLBACK_MAG);
       else if (a === 'turn-right') run('right', FALLBACK_MAG);
       else if (a === 'roll') run('roll', 1);
+      else if (a === 'whirl-left') run('whirl', FULL_TURN);
+      else if (a === 'whirl-right') run('whirl', -FULL_TURN);
       else if (a === 'lock-burst' && !host.lockNearest()) ctxRef?.say(NO_DRONE);
     },
   };

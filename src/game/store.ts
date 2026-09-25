@@ -6,8 +6,10 @@ export type TrackpadProfile = 'simple' | 'free' | 'captured' | 'flow';
  * 2: one finger + keyboard became the trackpad default. A save from before it that holds the old default ('free') moves to 'simple'.
  * 3: industry touch controls, Garo 2026-09-24 (twin stick, Aim button shown, the touch hints start over).
  * 4: the classic free trackpad is the desktop default again (Garo 2026-09-24). A save from before 4 holding 'simple' returns to 'free'.
+ * 5: easier 360 turns (Garo 2026-09-25). A save from before 5 turns look acceleration and sustained edges on and gains edge rest on;
+ *    a save at 5 or later keeps its own choices.
  */
-export const CONTROLS_VERSION = 4;
+export const CONTROLS_VERSION = 5;
 export type TouchScheme = 'twin' | 'classic';
 export type HintSeries = 'touch' | 'simple' | 'mouse';
 /** The Gesture Lab (docs: gesture lab spec 8). 'standard' is the restored desktop + twin-stick controls and stays the default. */
@@ -33,6 +35,8 @@ type GameState = {
   autoFire: boolean; aimButton: boolean; hintProgress: HintProgress;
   /** Touch controls (v3). touchLook/touchAim/controlSize/controlOpacity are multipliers clamped to TOUCH_RANGES. */
   touchScheme: TouchScheme; touchLook: number; touchAim: number; lookAccel: boolean; invertY: boolean; flipSides: boolean;
+  /** Twin look thumb: a fast swipe that rests at an edge keeps turning (v5, on by default). */
+  edgeRest: boolean;
   controlSize: number; controlOpacity: number; flyWhereILook: boolean; homeTipSeen: boolean;
   /** Gesture Lab scheme, and 'Shots slow me down' (off: lab shots skip the hip-fire speed clamp, gesture.exemptHip). */
   controlLab: ControlLab; labShotsSlow: boolean;
@@ -41,6 +45,8 @@ type GameState = {
   nearGround: boolean; leavePrompt: boolean; zoomNote: boolean; descendBlocked: boolean;
   /** Runtime only (never saved): a controls hint is on screen, so other notices wait (one message at a time). */
   hintVisible: boolean;
+  /** Runtime only (never saved): the vote card is open (the lab keys and auto-open wait). */
+  voteOpen: boolean;
   flying: boolean; landing: boolean; canLand: boolean; nearTerminal: boolean; boundaryNear: boolean; clearanceActive: boolean; inputEpoch: number;
   checkpoint: Vec; discovered: boolean; message: string;
   set: (patch: Partial<Omit<GameState, 'set'>>) => void;
@@ -49,13 +55,13 @@ export const useGame = create<GameState>((set) => ({
   started: false, paused: true, ready: false, panel: false, journal: false,
   camera: 'third', quality: 'high', reduced: false, muted: true, tapControls: false,
   desktopMode: 'trackpad', trackpadFlying: false,
-  trackpadSteering: 'free', sustainedEdges: false, reverseScroll: false, cruiseSpeed: 8, heroPoses: true,
+  trackpadSteering: 'free', sustainedEdges: true, reverseScroll: false, cruiseSpeed: 8, heroPoses: true,
   lookSensitivity: 1, flowIntroSeen: false,
   shooter: true, aimToggle: false, aimAssist: 1, controlsVersion: CONTROLS_VERSION,
   autoFire: true, aimButton: true, hintProgress: { touch: 0, simple: 0, mouse: 0 }, hintVisible: false,
-  touchScheme: 'twin', touchLook: 1, touchAim: 1, lookAccel: false, invertY: false, flipSides: false,
+  touchScheme: 'twin', touchLook: 1, touchAim: 1, lookAccel: true, edgeRest: true, invertY: false, flipSides: false,
   controlSize: 1, controlOpacity: .85, flyWhereILook: false, homeTipSeen: false, controlLab: 'standard', labShotsSlow: false,
-  nearGround: false, leavePrompt: false, zoomNote: false, descendBlocked: false,
+  nearGround: false, leavePrompt: false, zoomNote: false, descendBlocked: false, voteOpen: false,
   flying: false, landing: false, canLand: false, nearTerminal: false, boundaryNear: false, clearanceActive: false, inputEpoch: 0,
   checkpoint: START, discovered: false, message: '', set,
 }));
@@ -64,7 +70,7 @@ const STORAGE = 'halaverga-flight-v1';
 // writes exactly these keys; tests/persistence.test.ts pins hydrateGame to
 // restore every entry and to ignore runtime-only state.
 export const PERSISTED_KEYS = ['checkpoint', 'camera', 'quality', 'reduced', 'muted', 'discovered', 'tapControls', 'desktopMode', 'trackpadSteering', 'sustainedEdges', 'reverseScroll', 'cruiseSpeed', 'heroPoses', 'lookSensitivity', 'flowIntroSeen', 'shooter', 'aimToggle', 'aimAssist', 'controlsVersion', 'autoFire', 'aimButton', 'hintProgress',
-  'touchScheme', 'touchLook', 'touchAim', 'lookAccel', 'invertY', 'flipSides', 'controlSize', 'controlOpacity', 'flyWhereILook', 'homeTipSeen', 'controlLab', 'labShotsSlow'] as const;
+  'touchScheme', 'touchLook', 'touchAim', 'lookAccel', 'edgeRest', 'invertY', 'flipSides', 'controlSize', 'controlOpacity', 'flyWhereILook', 'homeTipSeen', 'controlLab', 'labShotsSlow'] as const;
 /** [min, max, default] for the numeric touch settings. */
 export const TOUCH_RANGES = { touchLook: [.5, 2, 1], touchAim: [.5, 1.5, 1], controlSize: [.85, 1.2, 1], controlOpacity: [.4, 1, .85] } as const;
 const ranged = (v: unknown, [lo, hi, fallback]: readonly [number, number, number]) =>
@@ -79,6 +85,8 @@ export function hydrateGame() {
     const steering = version < 4 && saved.trackpadSteering === 'simple' ? 'free' : saved.trackpadSteering;
     // Version 3 shows the Aim button and restarts the touch hints, which now teach the twin-stick controls.
     const before3 = version < 3, hints = validHintProgress(saved.hintProgress);
+    // Version 5 turns the turning aids on for every older save; from 5 on the saved choice holds (missing or invalid: on).
+    const before5 = version < 5;
     if (before3) hints.touch = 0;
     useGame.setState({
       checkpoint: validCheckpoint(saved.checkpoint) ? saved.checkpoint : START,
@@ -89,7 +97,7 @@ export function hydrateGame() {
       tapControls: saved.tapControls === true,
       desktopMode: saved.desktopMode === 'mouse' ? 'mouse' : 'trackpad',
       trackpadSteering: ['simple', 'free', 'captured', 'flow'].includes(steering) ? steering : 'free',
-      sustainedEdges: saved.sustainedEdges === true, reverseScroll: saved.reverseScroll === true,
+      sustainedEdges: before5 || strict(saved.sustainedEdges, true), reverseScroll: saved.reverseScroll === true,
       cruiseSpeed: typeof saved.cruiseSpeed === 'number' && Number.isFinite(saved.cruiseSpeed) ? Math.max(3, Math.min(34, saved.cruiseSpeed)) : 8,
       heroPoses: saved.heroPoses !== false,
       lookSensitivity: typeof saved.lookSensitivity === 'number' && Number.isFinite(saved.lookSensitivity) ? Math.max(.5, Math.min(2, saved.lookSensitivity)) : 1,
@@ -103,7 +111,7 @@ export function hydrateGame() {
       hintProgress: hints,
       touchScheme: saved.touchScheme === 'classic' ? 'classic' : 'twin',
       touchLook: ranged(saved.touchLook, TOUCH_RANGES.touchLook), touchAim: ranged(saved.touchAim, TOUCH_RANGES.touchAim),
-      lookAccel: strict(saved.lookAccel, false), invertY: strict(saved.invertY, false), flipSides: strict(saved.flipSides, false),
+      lookAccel: before5 || strict(saved.lookAccel, true), edgeRest: before5 || strict(saved.edgeRest, true), invertY: strict(saved.invertY, false), flipSides: strict(saved.flipSides, false),
       controlSize: ranged(saved.controlSize, TOUCH_RANGES.controlSize), controlOpacity: ranged(saved.controlOpacity, TOUCH_RANGES.controlOpacity),
       flyWhereILook: strict(saved.flyWhereILook, false), homeTipSeen: strict(saved.homeTipSeen, false),
       // No migration: a save without a lab choice (every save before the lab) plays the standard controls.

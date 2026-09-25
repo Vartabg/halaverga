@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { FOOT, type Vec } from '../src/game/motion';
 import { clearGesture, gesture, LIFT_REQUEST } from '../src/game/gesture/bus';
-import { steerRates } from '../src/game/gesture/conduct';
+import { steerRates, YAW_MAX, yawFromScreen } from '../src/game/gesture/conduct';
 import { createConductScheme, type ConductCue, type ConductScheme } from '../src/game/gesture/conductScheme';
 import { OFFSET_JERK, STEER_PITCH_MAX, STEER_YAW_MAX } from '../src/game/gesture/tuning';
 import type { AimFrame, ArbiterOut, GestureCtx, PointerKind, StrokeClass, StrokeView } from '../src/game/gesture/types';
@@ -79,6 +79,16 @@ describe('conduct steering', () => {
     run(r, 0.1); expect(gesture.yawRate).toBe(0);
     run(r, 0.4); const a = gesture.yawRate;
     run(r, 1); expect(a).toBeLessThan(-0.5); expect(gesture.yawRate).toBeCloseTo(a, 6);
+  });
+
+  it('touch yaw follows the screen-fraction curve of the centroid: dead centre band, then up to YAW_MAX at the edges', () => {
+    for (const [fx, want] of [[0.5, 0], [0.54, 0], [0.7, yawFromScreen(frame, 0.7 * W)], [0.95, -YAW_MAX], [0.05, YAW_MAX]] as const) {
+      clearGesture(); gesture.scheme = 'conduct';
+      const r = rig(); down(r, fx * W, CY); run(r, 0.8);
+      expect(gesture.yawRate, `x ${fx}`).toBeCloseTo(want, 6);
+    }
+    expect(yawFromScreen(frame, 0.7 * W)).toBeLessThan(-0.5); // right of centre turns right (negative yaw)
+    expect(-yawFromScreen(frame, 0.7 * W)).toBeLessThan(YAW_MAX);
   });
 });
 

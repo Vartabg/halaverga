@@ -24,7 +24,8 @@ export class DrawPath extends DrawStroke {
   /** Pen up: completes the spline to the last control and queues the end ray for DrawProbe (castShot then finish). */
   release(f: AimFrame | null, px: number, py: number) {
     if (!this.inking) return;
-    if (this.nCtl >= 2) { this.walk(true); const t = this.tg, c = this.control; t.x = c.x; t.y = c.y; t.z = c.z; this.emitToward(t, true); }
+    if (this.nCtl >= 2) { this.walk(true); const t = this.tg, c = this.control; t.x = c.x; t.y = c.y; t.z = c.z; this.emitToward(t, !this.wrapped); }
+    if (this.wrapped) this.completeWrap();   // no short exact step first: the arc goes on from a full segment
     this.inking = false;
     if (!f) { this.finish(null); return; }
     this.endO.x = f.origin.x; this.endO.y = f.origin.y; this.endO.z = f.origin.z;

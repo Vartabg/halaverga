@@ -1,7 +1,7 @@
 // Every Gesture Lab threshold from the spec, by section. Units: px = CSS px, ms, s, m, m/s, rad unless the name says DEG.
 // Plain numbers only, so any lab module and the Player graph may read them. The few the landing graph needs live in tuningCore.ts
 // and are re-exported here.
-export { FACING_AIM, FACING_PATH, GOAL_PITCH_MAX, GOAL_PITCH_MIN, MAX_PITCH_RATE, MAX_YAW_RATE, PITCH_MAX, PITCH_MIN, SNAP_INTENT } from './tuningCore';
+export { FACING_AIM, FACING_PATH, GOAL_PITCH_MAX, GOAL_PITCH_MIN, MAX_PITCH_RATE, MAX_YAW_RATE, MAX_YAW_RATE_RM, PITCH_MAX, PITCH_MIN, SNAP_INTENT } from './tuningCore';
 
 // 1. Flight envelope
 export const FLIGHT_SPEED = 13, SURGE_SPEED = 34;
@@ -61,6 +61,8 @@ export const DRAW_LAG_M = 4;
 export const INK_WORLD_MS = 150, SCRUB_FRAC = 0.3, SCRUB_MS = 300;
 /** Heading easing toward the tangent after release, rad/s. */
 export const HEADING_EASE = 3.5;
+/** Draw's yaw easing cap on normal strokes (the effective cap before turn-360), and the gain and cap once a stroke wrapped. */
+export const DRAW_EASE_CAP = 2.5, WRAP_HEADING_EASE = 6.0, YAW_GAIN_WRAP = 8;
 export const LAND_NORMAL_Y = 0.75, LAND_RETARGET_FRAC = 0.2, LAND_LIFT_M = 1.2, LAND_HANDOFF_M = 8;
 export const SWEEP_RADIUS = 1.05, SWEEP_STEP_M = 2, SWEEP_MAX_FRAME = 4, SWEEP_MAX_PATH = 60, SWEEP_LAND_EXCLUDE_M = 3;
 export const FOLLOW_LOOKAHEAD_MIN = 3, FOLLOW_LOOKAHEAD_K = 0.35, FOLLOW_BASE = 18;

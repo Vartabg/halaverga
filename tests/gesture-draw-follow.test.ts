@@ -7,7 +7,8 @@ import { createDrawScheme } from '../src/game/gesture/drawScheme';
 import { EXIT, FOLLOW, IDLE, LANDING, PATH_BLOCKED, PathFollow } from '../src/game/gesture/pathFollow';
 import { createStrokeBuffer } from '../src/game/gesture/strokeBuffer';
 import type { GestureCtx, StrokeClass } from '../src/game/gesture/types';
-import { ACCEL, CURVE_K, DRAW_LAG_M, DRAW_MAX_PTS, FLIGHT_SPEED } from '../src/game/gesture/tuning';
+import { ACCEL, CURVE_K, DRAW_EASE_CAP, DRAW_LAG_M, DRAW_MAX_PTS, FLIGHT_SPEED, WRAP_HEADING_EASE } from '../src/game/gesture/tuning';
+import { WRAP_MIN_R } from '../src/game/gesture/drawWrap';
 import { CAM, HERO, frameAt, line } from './draw-harness';
 
 const DT = 1 / 60;
@@ -54,7 +55,10 @@ beforeEach(() => { clearGesture(); gesture.scheme = 'draw'; gesture.override = f
 afterEach(() => { clearGesture(); gesture.scheme = 'off'; });
 
 describe('pathFollow: speed', () => {
-  it('holds at least flight speed along a 150 px circle stroke (curvature cap about 22 m/s)', () => {
+  // A 150 px circle wraps (turn-360 spec 1.8): the ring turns at WRAP_MIN_R (2.5 m), so the curvature cap is about 9.2 m/s, not the
+  // 13 m/s floor the 5 m radius gave. The hero flies it without stalling or aborting; while the centripetal share takes most of the
+  // 42 m/s^2 ramp it dips to about 7 m/s.
+  it('flies a 150 px circle stroke (a wrap) through its 2.5 m turn without stalling, under SURGE', () => {
     const r = rig(v(0, 0, -FLIGHT_SPEED)), ctx = makeCtx(), f = frameAt(CAM);
     r.path.begin(HERO); r.follow.start(r.vel);
     let min = Infinity, max = 0;
@@ -70,8 +74,9 @@ describe('pathFollow: speed', () => {
       r.step(ctx);
       if (r.follow.mode === FOLLOW) { min = Math.min(min, len(r.vel)); max = Math.max(max, len(r.vel)); }
     }
-    expect(r.follow.s).toBeGreaterThan(80);
-    expect(min).toBeGreaterThanOrEqual(13);
+    expect(r.path.wrapped).toBe(true); expect(r.follow.lastAbort).toBe('none');
+    expect(r.follow.s).toBeGreaterThan(60);
+    expect(min).toBeGreaterThanOrEqual(0.7 * Math.sqrt(CURVE_K * WRAP_MIN_R));
     expect(max).toBeLessThanOrEqual(34);
   });
 
@@ -106,6 +111,40 @@ describe('pathFollow: speed', () => {
     expect(r.follow.s).toBeGreaterThan(10);
     expect(gesture.yawRate).toBe(0); expect(gesture.pitchRate).toBe(0);   // the view never turns under the finger
     expect(gesture.facing).toBe(1); expect(gesture.live).toBe(true);
+  });
+});
+
+describe('pathFollow: heading easing (M4)', () => {
+  /** Flies a stroke drawn live, then its release, and returns the largest |yawRate| commanded at any step. */
+  const peakYaw = (draw: (r: ReturnType<typeof rig>, f: ReturnType<typeof frameAt>, after: () => void) => void) => {
+    const r = rig(v(0, 0, -FLIGHT_SPEED)), ctx = makeCtx(), f = frameAt(CAM);
+    let peak = 0;
+    const after = () => { r.step(ctx); peak = Math.max(peak, Math.abs(gesture.yawRate)); };
+    r.path.begin(HERO); r.follow.start(r.vel);
+    draw(r, f, after);
+    r.path.release(null, 0, 0);
+    for (let i = 0; i < 900 && r.follow.mode !== IDLE; i++) after();
+    return { peak, wrapped: r.path.wrapped };
+  };
+  const sample = (r: ReturnType<typeof rig>, f: ReturnType<typeof frameAt>, after: () => void, x: number, y: number, i: number) => {
+    r.path.append(x, y, i * 1000 / 60, f); after();
+  };
+  it('a non-wrap swoop and a hairpin never command |yawRate| > 2.5 at any step, during inking or after', () => {
+    const swoop = peakYaw((r, f, after) => {
+      for (let i = 0; i <= 40; i++) { const a = Math.PI * (0.9 - 0.7 * i / 40); sample(r, f, after, 400 + 180 * Math.cos(a), 360 - 180 * Math.sin(a), i); }
+    });
+    const hairpin = peakYaw((r, f, after) => {
+      for (let i = 0; i <= 20; i++) sample(r, f, after, 400 + i * 12, 320 - i * 2, i);
+      for (let i = 1; i <= 20; i++) sample(r, f, after, 640 - i * 12, 280 - i * 2, 20 + i);
+    });
+    for (const k of [swoop, hairpin]) { expect(k.wrapped).toBe(false); expect(k.peak).toBeGreaterThan(0.2); expect(k.peak).toBeLessThanOrEqual(DRAW_EASE_CAP); }
+  });
+  it('a wrapped stroke may whip faster through its exit, up to 6 rad/s', () => {
+    const loop = peakYaw((r, f, after) => {
+      for (let i = 0; i <= 60; i++) { const a = -Math.PI / 2 + i / 48 * 2 * Math.PI; sample(r, f, after, 400 + 70 * Math.cos(a), 300 + 70 * Math.sin(a), i); }
+    });
+    expect(loop.wrapped).toBe(true);
+    expect(loop.peak).toBeGreaterThan(DRAW_EASE_CAP); expect(loop.peak).toBeLessThanOrEqual(WRAP_HEADING_EASE);
   });
 });
 

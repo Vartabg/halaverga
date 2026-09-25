@@ -6,7 +6,8 @@ import { useGame, persistGame } from './store';
 import { runtime, readIntent, clearInput, arrowLook } from './runtime';
 import { advanceVelocity, boundMovement, landingVelocity, moving, setVec, START, FOOT } from './motion';
 import { presentation } from './presentation';
-import { edgeFreshness } from './trackpadFlight';
+import { applyEdgeTurns } from './edgeTurn';
+import { carve } from './carve';
 import { FlightSafety } from './FlightSafety';
 import { boundaryDistance, CLEARANCE, nearestTerminal, removeInward, softenBounds } from './navigation';
 import { sweepTurn } from './turnSweep';
@@ -68,17 +69,11 @@ export default function Player() {
     if (touchBlockedStep({ world, rapier, collider: col, safe, position: current, flying: state.flying, clearance: runtime.clearance.active,
       vy: runtime.velocity.y, dt })) landingStall.current = 0;
     // The lab scheme steps first (its request, lift or land, and its turn rates), so readIntent sees this step's gesture intent.
-    const p = b.translation(); gestureBefore(dt, p, gctx, runtime);
+    const p = b.translation(); gesture.reduced = state.reduced; gestureBefore(dt, p, gctx, runtime);
     const intent = readIntent();
     const k = runtime.keys;
     const pointerFlight = runtime.thumb.active || runtime.trackpad.active;
-    if (pointerFlight) {
-      const pointer = runtime.trackpad.active ? runtime.trackpad : runtime.thumb;
-      runtime.trackpad.edgeAge += dt;
-      const gain = runtime.trackpad.active && !state.sustainedEdges ? edgeFreshness(runtime.trackpad.edgeAge) : 1;
-      runtime.yaw -= pointer.edgeTurn * dt * 1.5 * gain;
-      runtime.pitch = Math.max(-1.3, Math.min(1.25, runtime.pitch + pointer.edgePitch * dt * gain));
-    }
+    applyEdgeTurns(dt, state); // cursor, classic thumb and twin look rest (edgeTurn.ts)
     // Blaster on: arrows get a fine first step and the ADS gain (arrowLook). Off: main's exact lines, bit for bit.
     if (state.shooter) arrowLook(dt);
     else {
@@ -102,6 +97,8 @@ export default function Player() {
     const fp = levelFlight(state) ? 0 : runtime.pitch;
     // The branches build on the velocity without last step's lab offset (gestureBase), so offsets never compound.
     const vb = gestureBase(runtime.velocity, baseScratch);
+    // A fast steered turn carves: travel follows the view instead of skidding (carve.ts). A look flick while coasting keeps its drift.
+    carve(vb, runtime.yaw, dt, flying && !runtime.landGoal && (moving(intent) || surge || gesture.live), runtime.poseEpoch);
     let v = runtime.landGoal ? landingVelocity(p, runtime.landGoal)
       : mode === 2 ? aimVelocity(vb, intent, runtime.yaw, fp, flying, dt)
       : mode === 1 ? hipVelocity(vb, intent, runtime.yaw, fp, flying, surge, dt)

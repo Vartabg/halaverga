@@ -17,6 +17,8 @@ export const presentation = {
   spin: 0,
   /** The facing bounds in force (FACING, FACING_PATH or FACING_AIM): they widen at once and narrow smoothly. */
   bound: { yaw: .3, up: .4, down: .15 },
+  /** Settled view turn rate (rad/s) and the view yaw it was last measured from: a fast turn widens the facing and the bank. */
+  turnRate: 0, lastYaw: NaN,
 };
 /** Third-person boom in the view frame: right, up and behind the head. */
 export const CHASE_BOOM: Vec = { x: .85, y: .7, z: 5.3 };
@@ -43,7 +45,7 @@ export function aimDemand(s: Pick<ShooterState, 'aim' | 'input' | 'weapon'>) {
 }
 export type FacingBound = { yaw: number; up: number; down: number };
 export type Pose = Pick<typeof presentation, 'viewYaw' | 'viewPitch' | 'yaw' | 'pitch' | 'lean' | 'bank' | 'speed' | 'flight' | 'power' | 'brake'>
-  & { aim?: number; spin?: number; bound?: FacingBound };
+  & { aim?: number; spin?: number; bound?: FacingBound; turnRate?: number; lastYaw?: number };
 /**
  * `aim`: body aim weight 0..1 (squares the chest to the crosshair); `combat`: the view settles faster while shooting. Gesture Lab:
  * `facing` 1 (a drawn path) or 2 (an aimed burst) widens the facing bounds; `aimYaw`/`aimPitch` offset the aimed shot from the view
@@ -52,6 +54,7 @@ export type Pose = Pick<typeof presentation, 'viewYaw' | 'viewPitch' | 'yaw' | '
 export type PoseInput = { yaw: number; pitch: number; speed: number; velocity: Vec; flying: boolean; reduced: boolean; aim?: number; combat?: boolean;
   facing?: 0 | 1 | 2; aimYaw?: number; aimPitch?: number; spin?: number };
 const widen = (from: number, to: number, snap: boolean, dt: number) => to >= from || snap ? to : settle(from, to, 4, dt);
+const smooth = (x: number) => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x));
 export function advanceFlightPose(pose: Pose, input: PoseInput, elapsed: number) {
   const dt = Math.min(elapsed, .05), aim = input.aim ?? 0, viewRate = input.combat ? 40 : 15;
   pose.viewYaw = input.reduced ? input.yaw : settleAngle(pose.viewYaw, input.yaw, viewRate, dt);
@@ -63,10 +66,16 @@ export function advanceFlightPose(pose: Pose, input: PoseInput, elapsed: number)
   const travelPitch = travelling ? Math.atan2(input.velocity.y, horizontalSpeed) : input.pitch;
   // Aiming blends the body toward the view yaw (strafe-aim), so the chest squares to the crosshair.
   const bodyYaw = aim > 0 ? travelYaw + angleDelta(travelYaw, input.yaw + (input.aimYaw ?? 0)) * aim : travelYaw;
-  const f = input.facing === 1 ? FACING_PATH : input.facing === 2 ? FACING_AIM : FACING, b = pose.bound;
+  // A fast view turn (over 2 rad/s) widens the facing to FACING_PATH and lets the body bank further; slower turns are unchanged.
+  // Jumps over 1 rad (resets, snaps) are not turns. Reduced motion never widens or banks.
+  const last = pose.lastYaw, d = last !== undefined && Number.isFinite(last) ? angleDelta(last, input.yaw) : 0;
+  pose.lastYaw = input.yaw;
+  pose.turnRate = settle(pose.turnRate ?? 0, elapsed > 0 && Math.abs(d) < 1 ? Math.abs(d) / elapsed : 0, 10, dt);
+  const fast = input.reduced ? 0 : smooth((pose.turnRate - 2) / 1.5), reach = .3 + .3 * fast;
+  const f = input.facing === 1 || (!input.facing && fast > .5) ? FACING_PATH : input.facing === 2 ? FACING_AIM : FACING, b = pose.bound;
   if (b) { b.yaw = widen(b.yaw, f.yaw, input.reduced, dt); b.up = widen(b.up, f.pitchUp, input.reduced, dt); b.down = widen(b.down, f.pitchDown, input.reduced, dt); }
   const bYaw = b ? b.yaw : f.yaw, bUp = b ? b.up : f.pitchUp, bDown = b ? b.down : f.pitchDown;
-  const turn = Math.max(-.3, Math.min(.3, angleDelta(pose.yaw, bodyYaw) * .55));
+  const turn = Math.max(-reach, Math.min(reach, angleDelta(pose.yaw, bodyYaw) * (.55 + .45 * fast)));
   pose.yaw = settleAngle(pose.yaw, bodyYaw, 7 + 13 * aim, dt);
   // The player reads the back in chase view, even while velocity catches a sharp turn.
   const facingLag = angleDelta(pose.viewYaw, pose.yaw);

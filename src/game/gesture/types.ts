@@ -52,7 +52,7 @@ export interface StrokeClass {
 
 /** Fallback buttons under More controls (spec section 9), dispatched to Scheme.fallback. */
 export type Action = 'fly-to' | 'brake' | 'faster' | 'slower' | 'dash' | 'roll-left' | 'roll-right'
-  | 'soar' | 'dive' | 'turn-left' | 'turn-right' | 'roll' | 'lock-burst';
+  | 'soar' | 'dive' | 'turn-left' | 'turn-right' | 'roll' | 'lock-burst' | 'whirl-left' | 'whirl-right';
 
 /**
  * The camera frame a screen point is projected through: runtime.shooter.aim (published by CameraRig) plus the cached canvas

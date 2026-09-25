@@ -55,10 +55,10 @@ for (const viewport of [{ width: 852, height: 393 }, { width: 393, height: 852 }
     expect(t.errors).toEqual([]); await t.context.close();
   });
 }
-// Gesture Lab (spec 7-9): the chip, the pickers, the rating, the fallback buttons and the announcements. Reduced motion, so the
+// Gesture Lab (spec 7-9, bar 2026-09-25): the header bar, the pickers, the rating, the fallback buttons and the announcements. Reduced motion, so the
 // picker glyphs hold still. System Chrome; automated checks are a floor, not a screen-reader session.
 const wcag = async (page: Page) => expect((await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze()).violations).toEqual([]);
-test('Gesture Lab on a desktop: chip by keyboard, picker radios, rating, fallback buttons and announcements', async ({ page }) => {
+test('Gesture Lab on a desktop: the bar by keyboard, picker radios, rating, fallback buttons and announcements', async ({ page }) => {
   const errors: string[] = []; page.on('pageerror', e => errors.push(e.message));
   await page.emulateMedia({ reducedMotion: 'reduce' }); await page.goto('/?controls=draw');
   await page.getByRole('button', { name: 'Begin expedition' }).click();
@@ -67,11 +67,23 @@ test('Gesture Lab on a desktop: chip by keyboard, picker radios, rating, fallbac
   await expect(page.locator('main > div.sr-only[aria-live="polite"]').last()).toHaveText(/ink a curve/i);
   expect(await page.getByTestId('lab-surface').getAttribute('aria-hidden')).toBe('true');
   await wcag(page);
-  // The chip: its visible text starts its accessible name (2.5.3), at least 44 px, and it pauses and opens settings from the keyboard.
-  const chip = page.getByTestId('lab-chip');
-  await expect(chip).toHaveAccessibleName(/^Lab: Draw/);
-  expect((await chip.boundingBox())!.height).toBeGreaterThanOrEqual(44);
-  await chip.focus(); await page.keyboard.press('Enter');
+  // The bar: one radio group named "Controls", segments named by their visible text (2.5.3) and at least 44 x 44. APG radios:
+  // only the checked one is in the tab order, arrows move and select (wrapping), Home and End jump, and nothing pauses.
+  const bar = page.getByTestId('lab-bar');
+  await expect(bar).toHaveRole('radiogroup'); await expect(bar).toHaveAccessibleName('Controls');
+  const seg = (name: string) => bar.getByRole('radio', { name, exact: true });
+  for (const r of await bar.getByRole('radio').all()) { const b = (await r.boundingBox())!; expect(b.height).toBeGreaterThanOrEqual(44); expect(b.width).toBeGreaterThanOrEqual(44); }
+  await expect(seg('Draw')).toHaveAttribute('aria-checked', 'true');
+  await expect(seg('Draw')).toHaveAttribute('tabindex', '0'); await expect(seg('Conduct')).toHaveAttribute('tabindex', '-1');
+  await seg('Draw').focus(); await page.keyboard.press('ArrowRight');
+  await expect(seg('Conduct')).toHaveAttribute('aria-checked', 'true'); await expect(seg('Conduct')).toBeFocused();
+  await page.keyboard.press('End'); await expect(seg('Brush')).toHaveAttribute('aria-checked', 'true');
+  await page.keyboard.press('ArrowRight'); await expect(seg('Standard')).toHaveAttribute('aria-checked', 'true'); await expect(seg('Standard')).toBeFocused();
+  await page.keyboard.press('Home'); await page.keyboard.press('ArrowRight'); await expect(seg('Draw')).toHaveAttribute('aria-checked', 'true');
+  await expect(page.getByRole('button', { name: 'Pause expedition' })).toBeVisible();
+  await wcag(page);
+  // Flight settings keeps the full picker (the bar never opens it).
+  await page.getByRole('button', { name: 'Flight settings' }).focus(); await page.keyboard.press('Enter');
   const dialog = page.locator('dialog[open]');
   await expect(dialog).toHaveCount(1);
   await expect(page.getByRole('button', { name: 'Pause expedition' })).toHaveCount(0);
@@ -96,7 +108,7 @@ test('Gesture Lab on a desktop: chip by keyboard, picker radios, rating, fallbac
   await expect(dialog.getByRole('region', { name: 'Control lab measurements table' })).toHaveAttribute('tabindex', '0');
   await wcag(page);
   await page.getByRole('button', { name: 'Close dialog' }).click();
-  await expect(page.getByTestId('lab-chip')).toHaveText('Lab: Conduct');
+  await expect(seg('Conduct')).toHaveAttribute('aria-checked', 'true');
   expect(errors).toEqual([]);
 });
 test('Gesture Lab on a phone: play, and the pause card with its picker and rating, satisfy AA checks', async ({ browser }) => {
@@ -120,6 +132,12 @@ test('Gesture Lab on a phone: play, and the pause card with its picker and ratin
   await rating.getByRole('button', { name: 'Save rating' }).tap();
   await expect(rating).toHaveCount(0);
   await card.getByRole('button', { name: 'Resume flight' }).tap();
-  await expect(page.getByTestId('lab-chip')).toHaveText('Lab: Draw');
+  const bar = page.getByTestId('lab-bar');
+  await expect(bar.getByRole('radio', { name: 'Draw', exact: true })).toHaveAttribute('aria-checked', 'true');
+  // A tap on the bar switches at once and keeps playing.
+  await bar.getByRole('radio', { name: 'Conduct', exact: true }).tap();
+  await expect(bar.getByRole('radio', { name: 'Conduct', exact: true })).toHaveAttribute('aria-checked', 'true');
+  await expect(page.getByRole('button', { name: 'Pause expedition' })).toBeVisible();
+  await aa(page);
   expect(errors).toEqual([]); await context.close();
 });

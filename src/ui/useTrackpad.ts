@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, type PointerEvent, type RefObject } from 'react';
 import { brakeFlow, look, runtime, startTrackpad, stopTrackpad } from '@/game/runtime';
-import { thumbEdge } from '@/game/thumbFlight';
 import { ScrollStroke } from '@/game/trackpadFlight';
 import { useGame } from '@/game/store';
 import { useCruiseCapture } from './useCruiseCapture';
@@ -11,6 +10,7 @@ import { touchMode } from '@/game/pointerMode';
 import { tapShot } from '@/game/combat';
 import { unlockBlasterAudio } from './audioUnlock';
 import { HOVER, hoverFires } from './hoverPress';
+import { useTrackpadWindow } from './trackpadWindow';
 /** fire: a free-trackpad press while stopped (blaster on) that fires once on release unless it drags (a drag only looks). */
 type Press = { id: number; x: number; y: number; dragged: boolean; stoppedFlight: boolean; fire: boolean };
 type Live = ReturnType<typeof useGame.getState>;
@@ -20,6 +20,8 @@ export function useTrackpad(surface: RefObject<HTMLDivElement | null>) {
   // seen: last holds the real cursor position (false after the pointer leaves or play resumes, so the first move only seeds it).
   const press = useRef<Press | null>(null), last = useRef({ x: 0, y: 0 }), seen = useRef(false);
   const stroke = useRef(new ScrollStroke()), capture = useCruiseCapture(surface);
+  // While cruising the window listeners own the cursor (steering, edges, exits); the surface handlers below only press and brake.
+  useTrackpadWindow(last, seen);
   const flow = useFlowTrackpad(surface, capture);
   const simple = useSimpleTrackpad(surface, capture);
   const isFlow = () => useGame.getState().desktopMode === 'trackpad' && useGame.getState().trackpadSteering === 'flow';
@@ -90,22 +92,18 @@ export function useTrackpad(surface: RefObject<HTMLDivElement | null>) {
     if (isFlow()) { flow.move(e); return; }
     if (useGame.getState().desktopMode !== 'trackpad' || useGame.getState().paused) return;
     if (document.pointerLockElement === e.currentTarget) return;
+    if (runtime.trackpad.active) return; // the window listener steers the cruise (trackpadWindow.ts)
     if (!seen.current) { seen.current = true; last.current = { x: e.clientX, y: e.clientY }; }
-    const p = press.current, cruising = runtime.trackpad.active;
-    if (!p && !cruising) { last.current = { x: e.clientX, y: e.clientY }; return; }
+    const p = press.current;
+    if (!p) { last.current = { x: e.clientX, y: e.clientY }; return; }
     if (e.clientX < 0 || e.clientY < 0 || e.clientX > innerWidth || e.clientY > innerHeight) { halt(); return; }
-    if (p && !p.dragged && Math.hypot(e.clientX - p.x, e.clientY - p.y) >= HOVER.dragPx) {
+    if (!p.dragged && Math.hypot(e.clientX - p.x, e.clientY - p.y) >= HOVER.dragPx) {
       // A drag only ever looks: the press no longer fires on release.
       p.dragged = true; p.fire = false;
     }
-    if (cruising || p?.dragged) look(e.clientX - last.current.x, e.clientY - last.current.y);
+    if (p.dragged) look(e.clientX - last.current.x, e.clientY - last.current.y);
     recordGesture('steer', { deltaX: e.clientX - last.current.x, deltaY: e.clientY - last.current.y });
     last.current = { x: e.clientX, y: e.clientY };
-    if (cruising) {
-      runtime.trackpad.edgeTurn = thumbEdge(e.clientX, innerWidth);
-      runtime.trackpad.edgePitch = -thumbEdge(e.clientY, innerHeight);
-      runtime.trackpad.edgeAge = 0;
-    }
   };
   const end = (e: PointerEvent<HTMLDivElement>) => {
     if (isSimple()) { simple.end(e); return; }
@@ -118,8 +116,13 @@ export function useTrackpad(surface: RefObject<HTMLDivElement | null>) {
     }
     if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
   };
-  // Releasing a completed click loses capture too; that must not cancel its new cruise.
-  return { start, move, end, leave: () => { seen.current = false; if (!document.pointerLockElement && !isFlow() && !isSimple()) halt(); },
+  // Releasing a completed click loses capture too; that must not cancel its new cruise. Leaving the scene while cruising (the header,
+  // or off the window) never brakes: the window listener keeps steering. A press (drag-look) that leaves still halts.
+  const leave = () => {
+    if (runtime.trackpad.active && !press.current) return;
+    seen.current = false; if (!document.pointerLockElement && !isFlow() && !isSimple()) halt();
+  };
+  return { start, move, end, leave,
     cancel: () => { if (isSimple()) simple.cancel(); else if (isFlow()) flow.cancel(); else halt(); },
     lostCapture: () => { if (isSimple()) simple.lostCapture(); else if (isFlow()) flow.lostCapture(); else if (press.current) halt(); } };
 }

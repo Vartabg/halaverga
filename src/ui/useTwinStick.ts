@@ -4,6 +4,7 @@ import { useGame } from '@/game/store';
 import { computeLayout, routeTouch, type TouchLayout } from '@/game/touchLayout';
 import { createStick, knobOffset, stickCancel, stickDown, stickMove, stickTick, stickUp } from '@/game/twinStick';
 import { touchLook } from '@/game/touchLook';
+import { EdgeRest } from '@/game/lookEdgeRest';
 import { headerBand, readInsets, viewportBox, type ViewBox } from './touchInsets';
 import { unlockBlasterAudio } from './audioUnlock';
 import type { OverlayProps, TwinRefs } from './TwinStickOverlay';
@@ -21,6 +22,9 @@ export function useTwinStick(surface: RefObject<HTMLDivElement | null>, enabled:
   const ring = useRef<HTMLDivElement>(null), knob = useRef<HTMLDivElement>(null), ghost = useRef<HTMLDivElement>(null);
   const cues = useRef<HTMLDivElement>(null), boost = useRef<HTMLSpanElement>(null), cruise = useRef<HTMLSpanElement>(null);
   const layer = useRef<HTMLDivElement>(null);
+  // The look thumb's edge rest (lookEdgeRest.ts): one instance, owned by the live look contact's pointerId.
+  const rest = useRef<EdgeRest | null>(null), restId = useRef<number | null>(null);
+  if (!rest.current) rest.current = new EdgeRest();
   const refs: TwinRefs = { ring, knob, ghost, cues, boost, cruise, layer };
   const opacity = useGame(s => s.controlOpacity), reduced = useGame(s => s.reduced);
   const measure = useCallback((): View | null => {
@@ -30,7 +34,8 @@ export function useTwinStick(surface: RefObject<HTMLDivElement | null>, enabled:
     const insets = readInsets(probeEl.current), g = useGame.getState();
     const layout = computeLayout(box.w, box.h, insets, headerBand(box, insets.top), { size: g.controlSize, flip: g.flipSides,
       fire: g.shooter, aim: g.shooter && g.aimButton && !g.tapControls, tapPad: g.tapControls });
-    const next = { box, layout };
+    const next = { box, layout }, z = layout.stickZone, flip = g.flipSides;
+    rest.current!.configure(flip ? 0 : box.w, flip ? 1 : -1, z ? (flip ? z.l : z.r) : null, flip ? -1 : 1);
     viewRef.current = next; setView(next);
     if (surface.current) surface.current.dataset.layout = layout.variant;
     return next;
@@ -67,17 +72,18 @@ export function useTwinStick(surface: RefObject<HTMLDivElement | null>, enabled:
     if (boost.current) boost.current.hidden = !s.boost;
     if (cruise.current) cruise.current.hidden = !s.cruise;
   }, [surface]);
+  const endRest = useCallback(() => { restId.current = null; rest.current!.reset(); runtime.stick.edgeTurn = 0; }, []);
   /** Held input was released elsewhere since the last look: every current contact dies until it lifts. */
   const sweep = useCallback(() => {
     if (epoch.current === runtime.touchEpoch) return false;
     epoch.current = runtime.touchEpoch;
     for (const c of contacts.current.values()) c.dead = true;
-    stickCancel(stick.current); writeStick(); paint();
+    stickCancel(stick.current); writeStick(); endRest(); paint();
     return true;
-  }, [writeStick, paint]);
+  }, [writeStick, paint, endRest]);
   const drop = useCallback(() => {
-    contacts.current.clear(); stickCancel(stick.current); writeStick(); paint();
-  }, [writeStick, paint]);
+    contacts.current.clear(); stickCancel(stick.current); writeStick(); endRest(); paint();
+  }, [writeStick, paint, endRest]);
   useEffect(() => {
     if (!enabled) return;
     schedule();
@@ -93,6 +99,8 @@ export function useTwinStick(surface: RefObject<HTMLDivElement | null>, enabled:
       sweep();
       const s = stick.current, was = s.boost;
       if (s.id !== null) { stickTick(s, now); if (s.boost !== was) { writeStick(); paint(); } }
+      // A resting thumb sends no pointermove: the dwell and the held turn are timed here (performance clock, as down/move use).
+      if (restId.current !== null) runtime.stick.edgeTurn = useGame.getState().edgeRest ? rest.current!.tick(now) : 0;
       raf = requestAnimationFrame(loop);
     };
     raf = requestAnimationFrame(loop);
@@ -102,7 +110,7 @@ export function useTwinStick(surface: RefObject<HTMLDivElement | null>, enabled:
       unsubscribe(); cancelAnimationFrame(raf); cancelAnimationFrame(frame.current); frame.current = 0;
     };
   }, [enabled, schedule, sweep, drop, writeStick, paint]);
-  useEffect(() => () => { stickCancel(stick.current); writeStick(); }, [writeStick]);
+  useEffect(() => () => { stickCancel(stick.current); writeStick(); endRest(); }, [writeStick, endRest]);
   const start = (e: PointerEvent<HTMLDivElement>) => {
     sweep();
     const v = viewRef.current ?? measure();
@@ -122,7 +130,7 @@ export function useTwinStick(surface: RefObject<HTMLDivElement | null>, enabled:
     if (role === 'stick') {
       stickDown(stick.current, e.pointerId, e.clientX - v.box.x, e.clientY - v.box.y, e.timeStamp, v.layout.R, v.layout.stickZone!, useGame.getState().flying);
       writeStick();
-    }
+    } else { restId.current = e.pointerId; rest.current!.down(e.clientX - v.box.x, performance.now()); }
     runtime.shooter.input.lookSource = 'touch';
     paint();
   };
@@ -139,6 +147,7 @@ export function useTwinStick(surface: RefObject<HTMLDivElement | null>, enabled:
       for (const p of list.length ? list : [e.nativeEvent]) { path += Math.hypot(p.clientX - px, p.clientY - py); px = p.clientX; py = p.clientY; }
       const dx = e.clientX - c.lastX, dy = e.clientY - c.lastY, dt = Math.max(1, e.timeStamp - c.lastT);
       if (dx || dy) touchLook(dx, dy, path / dt);
+      if (restId.current === e.pointerId) runtime.stick.edgeTurn = useGame.getState().edgeRest ? rest.current!.move(e.clientX - c.ox, performance.now()) : 0;
     }
     c.lastX = e.clientX; c.lastY = e.clientY; c.lastT = e.timeStamp;
   };
@@ -147,6 +156,7 @@ export function useTwinStick(surface: RefObject<HTMLDivElement | null>, enabled:
     const c = contacts.current.get(e.pointerId);
     if (!c) return;
     contacts.current.delete(e.pointerId);
+    if (restId.current === e.pointerId) endRest();
     if (e.currentTarget.hasPointerCapture?.(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
     if (!c.dead && c.role === 'stick') {
       if (lifted) stickUp(stick.current, e.pointerId, e.timeStamp, useGame.getState().flying);

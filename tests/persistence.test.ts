@@ -6,18 +6,18 @@ const saved: Record<string, string> = {}, STORAGE = 'halaverga-flight-v1';
 // Every persisted key, set away from its default. The Record type makes a new key a compile error until it is added here.
 const NON_DEFAULT: Record<PersistedKey, unknown> = {
   checkpoint: { x: 30, y: 61.415, z: -38 }, camera: 'first', quality: 'low', reduced: true, muted: false, discovered: true,
-  tapControls: true, desktopMode: 'mouse', trackpadSteering: 'captured', sustainedEdges: true, reverseScroll: true,
+  tapControls: true, desktopMode: 'mouse', trackpadSteering: 'captured', sustainedEdges: false, reverseScroll: true,
   cruiseSpeed: 20, heroPoses: false, lookSensitivity: 1.7, flowIntroSeen: true, shooter: false, aimToggle: true, aimAssist: 1.5,
-  controlsVersion: 5, autoFire: false, aimButton: false, hintProgress: { touch: 2, simple: 3, mouse: 1 },
-  touchScheme: 'classic', touchLook: 1.6, touchAim: .7, lookAccel: true, invertY: true, flipSides: true,
+  controlsVersion: 6, autoFire: false, aimButton: false, hintProgress: { touch: 2, simple: 3, mouse: 1 },
+  touchScheme: 'classic', touchLook: 1.6, touchAim: .7, lookAccel: false, edgeRest: false, invertY: true, flipSides: true,
   controlSize: 1.15, controlOpacity: .5, flyWhereILook: true, homeTipSeen: true, controlLab: 'brush', labShotsSlow: true,
 };
 const DEFAULTS: Record<PersistedKey, unknown> = {
   checkpoint: START, camera: 'third', quality: 'high', reduced: false, muted: true, discovered: false,
-  tapControls: false, desktopMode: 'trackpad', trackpadSteering: 'free', sustainedEdges: false, reverseScroll: false,
+  tapControls: false, desktopMode: 'trackpad', trackpadSteering: 'free', sustainedEdges: true, reverseScroll: false,
   cruiseSpeed: 8, heroPoses: true, lookSensitivity: 1, flowIntroSeen: false, shooter: true, aimToggle: false, aimAssist: 1,
-  controlsVersion: 4, autoFire: true, aimButton: true, hintProgress: { touch: 0, simple: 0, mouse: 0 },
-  touchScheme: 'twin', touchLook: 1, touchAim: 1, lookAccel: false, invertY: false, flipSides: false,
+  controlsVersion: 5, autoFire: true, aimButton: true, hintProgress: { touch: 0, simple: 0, mouse: 0 },
+  touchScheme: 'twin', touchLook: 1, touchAim: 1, lookAccel: true, edgeRest: true, invertY: false, flipSides: false,
   controlSize: 1, controlOpacity: .85, flyWhereILook: false, homeTipSeen: false, controlLab: 'standard', labShotsSlow: false,
 };
 const expectAll = (table: Record<PersistedKey, unknown>) => {
@@ -59,14 +59,14 @@ describe('persistence', () => {
       expect([raw, useGame.getState().trackpadSteering, useGame.getState().camera]).toEqual([raw, want, 'first']);
     }
   });
-  it('writes controls version 4 after a migration, so a later explicit simple choice survives', () => {
+  it('writes controls version 5 after a migration, so a later explicit simple choice survives', () => {
     saved[STORAGE] = JSON.stringify({ trackpadSteering: 'simple', desktopMode: 'trackpad', controlsVersion: 3 });
-    hydrateGame(); expect(useGame.getState().controlsVersion).toBe(4);
-    persistGame(); expect(JSON.parse(saved[STORAGE])).toMatchObject({ trackpadSteering: 'free', controlsVersion: 4 });
+    hydrateGame(); expect(useGame.getState().controlsVersion).toBe(5);
+    persistGame(); expect(JSON.parse(saved[STORAGE])).toMatchObject({ trackpadSteering: 'free', controlsVersion: 5 });
     useGame.setState({ trackpadSteering: 'simple' }); persistGame();
     hydrateGame(); expect(useGame.getState().trackpadSteering).toBe('simple');
-    expect(JSON.parse(saved[STORAGE]).controlsVersion).toBe(4);
-    for (const [raw, want] of [[undefined, 4], [0, 4], [1, 4], [2, 4], [3, 4], [4, 4], [7, 7]] as const)
+    expect(JSON.parse(saved[STORAGE]).controlsVersion).toBe(5);
+    for (const [raw, want] of [[undefined, 5], [0, 5], [1, 5], [2, 5], [3, 5], [4, 5], [5, 5], [7, 7]] as const)
       { saved[STORAGE] = JSON.stringify({ controlsVersion: raw }); hydrateGame(); expect([raw, useGame.getState().controlsVersion]).toEqual([raw, want]); }
   });
   it('leaves desktopMode, the touch fields and a v3 hint progress alone when simple returns to free', () => {
@@ -74,7 +74,7 @@ describe('persistence', () => {
       hintProgress: { touch: 3, simple: 2, mouse: 1 }, touchScheme: 'classic', flyWhereILook: true });
     hydrateGame(); const s = useGame.getState();
     expect([s.trackpadSteering, s.desktopMode, s.aimButton, s.hintProgress, s.touchScheme, s.flyWhereILook, s.controlsVersion])
-      .toEqual(['free', 'mouse', false, { touch: 3, simple: 2, mouse: 1 }, 'classic', true, 4]);
+      .toEqual(['free', 'mouse', false, { touch: 3, simple: 2, mouse: 1 }, 'classic', true, 5]);
   });
   it('writes exactly the authoritative persisted key list', () => {
     persistGame();
@@ -153,14 +153,14 @@ describe('persistence', () => {
     saved[STORAGE] = JSON.stringify({ hintProgress: 'x' });
     hydrateGame(); expect(useGame.getState().hintProgress).toEqual(zeros);
   });
-  it('migrates a v2 save to the industry touch controls: Aim shown, touch hints restart, twin scheme, version 4', () => {
+  it('migrates a v2 save to the industry touch controls: Aim shown, touch hints restart, twin scheme, version 5', () => {
     for (const version of [2, undefined, 1]) {
       saved[STORAGE] = JSON.stringify({ controlsVersion: version, aimButton: false, hintProgress: { touch: 2, simple: 3, mouse: 4 }, camera: 'first' });
       useGame.setState({ touchScheme: 'classic' });
       hydrateGame();
       const s = useGame.getState();
       expect([version, s.aimButton, s.hintProgress, s.touchScheme, s.controlsVersion, s.camera])
-        .toEqual([version, true, { touch: 0, simple: 3, mouse: 4 }, 'twin', 4, 'first']);
+        .toEqual([version, true, { touch: 0, simple: 3, mouse: 4 }, 'twin', 5, 'first']);
     }
   });
   it('keeps every choice in a v3 save', () => {
@@ -178,7 +178,7 @@ describe('persistence', () => {
       ['controlSize', 2, 1.2], ['controlSize', .2, .85], ['controlSize', '1.1', 1],
       ['controlOpacity', 5, 1], ['controlOpacity', 0, .4], ['controlOpacity', [], .85],
       ['touchScheme', 'thumbs', 'twin'], ['touchScheme', 'classic', 'classic'],
-      ['lookAccel', 'yes', false], ['invertY', 1, false], ['flipSides', 'true', false], ['flyWhereILook', 0, false], ['homeTipSeen', {}, false],
+      ['invertY', 1, false], ['flipSides', 'true', false], ['flyWhereILook', 0, false], ['homeTipSeen', {}, false],
     ];
     for (const [key, raw, want] of table) {
       saved[STORAGE] = JSON.stringify({ controlsVersion: 3, [key]: raw });
@@ -186,11 +186,32 @@ describe('persistence', () => {
       expect([key, raw, useGame.getState()[key as PersistedKey]]).toEqual([key, raw, want]);
     }
   });
+  it('version 5: an older save turns look acceleration, sustained edges and edge rest on; a v5 save keeps its choices', () => {
+    for (const version of [undefined, 3, 4]) {
+      saved[STORAGE] = JSON.stringify({ controlsVersion: version, lookAccel: false, sustainedEdges: false, camera: 'first' });
+      useGame.setState({ lookAccel: false, sustainedEdges: false, edgeRest: false });
+      hydrateGame(); const s = useGame.getState();
+      expect([version, s.lookAccel, s.sustainedEdges, s.edgeRest, s.camera, s.controlsVersion]).toEqual([version, true, true, true, 'first', 5]);
+    }
+    saved[STORAGE] = JSON.stringify({ controlsVersion: 5, lookAccel: false, sustainedEdges: false, edgeRest: false });
+    hydrateGame();
+    expect([useGame.getState().lookAccel, useGame.getState().sustainedEdges, useGame.getState().edgeRest]).toEqual([false, false, false]);
+    saved[STORAGE] = JSON.stringify({ controlsVersion: 5, lookAccel: 'no', sustainedEdges: 0, edgeRest: null });
+    hydrateGame();
+    expect([useGame.getState().lookAccel, useGame.getState().sustainedEdges, useGame.getState().edgeRest]).toEqual([true, true, true]);
+  });
+  it('never saves the vote card state', () => {
+    useGame.setState({ voteOpen: true }); persistGame();
+    expect(JSON.parse(saved[STORAGE])).not.toHaveProperty('voteOpen');
+    expect(PERSISTED_KEYS as readonly string[]).not.toContain('voteOpen');
+    saved[STORAGE] = JSON.stringify({ voteOpen: true }); useGame.setState({ voteOpen: false }); hydrateGame();
+    expect(useGame.getState().voteOpen).toBe(false);
+  });
   it('never saves the runtime-only touch state', () => {
     useGame.setState({ nearGround: true, leavePrompt: true, zoomNote: true });
     persistGame();
     const written = JSON.parse(saved[STORAGE]);
-    for (const key of ['nearGround', 'leavePrompt', 'zoomNote', 'descendBlocked', 'hintVisible', 'landing']) expect(written).not.toHaveProperty(key);
+    for (const key of ['nearGround', 'leavePrompt', 'zoomNote', 'descendBlocked', 'hintVisible', 'landing', 'voteOpen']) expect(written).not.toHaveProperty(key);
     useGame.setState({ nearGround: false, leavePrompt: false, zoomNote: false });
     saved[STORAGE] = JSON.stringify({ ...written, nearGround: true, leavePrompt: true, zoomNote: true });
     hydrateGame();

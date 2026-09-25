@@ -16,7 +16,7 @@ async function lift(page: Page) {
   await page.waitForTimeout(600); await expect.poll(() => speed(page)).toBeLessThan(.3);
 }
 
-test('fresh page: free is saved as v4, clicks fire once on the ground and in hover, a long still press fires once, nothing locks, the cursor shows', async ({ page }) => {
+test('fresh page: free is saved as v5, clicks fire once on the ground and in hover, a long still press fires once, nothing locks, the cursor shows', async ({ page }) => {
   const errors: string[] = []; page.on('pageerror', e => errors.push(e.message));
   await page.addInitScript(() => document.addEventListener('pointerlockchange', () => {
     if (document.pointerLockElement) (window as unknown as { locked: boolean }).locked = true;
@@ -40,7 +40,7 @@ test('fresh page: free is saved as v4, clicks fire once on the ground and in hov
   expect(await page.evaluate(() => (window as unknown as { locked?: boolean }).locked ?? false)).toBe(false);
   // A reload saves on pagehide (the game was started), so the stored profile is readable afterwards.
   await page.reload();
-  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('halaverga-flight-v1')!))).toMatchObject({ trackpadSteering: 'free', controlsVersion: 4 });
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('halaverga-flight-v1')!))).toMatchObject({ trackpadSteering: 'free', controlsVersion: 5 });
   expect(errors).toEqual([]);
 });
 
@@ -67,19 +67,22 @@ test('drags only look: a quick drag, a slow start and a drag after a still pause
   }
 });
 
-test('starting flight by key never jumps the view: W from hover, and Space after the pointer visits the Land button', async ({ page }) => {
+test('starting flight by key never jumps the view: W from hover, and again with the pointer on the Land button', async ({ page }) => {
   await begin(page); await lift(page);
   await page.mouse.move(200, 500); await settle(page);
   let before = await heading(page);
   await page.keyboard.press('KeyW'); await expect(scene(page)).toHaveAttribute('data-trackpad-active', 'true');
   await page.mouse.move(205, 500); await settle(page);
   expect(await turned(page, before)).toBeLessThan(.05);
-  // Over the button the pointer has left the scene (the cruise stops, as at 7945430); back on the scene its first move only seeds.
+  // Turn-360 (2026-09-25): over a HUD button the cruise keeps going and steering (it no longer counts as leaving the scene).
   await page.getByRole('button', { name: /^(Land|Lift|Cancel landing)$/ }).hover();
+  await expect(scene(page)).toHaveAttribute('data-trackpad-active', 'true');
+  // Space brakes to a hover; W then starts the cruise with the pointer still on the button, and the view does not jump.
+  await page.keyboard.press('Space');
   await expect(scene(page)).toHaveAttribute('data-trackpad-active', 'false'); await settle(page);
   before = await heading(page);
-  await page.keyboard.press('Space');
-  await page.mouse.move(720, 500); await settle(page);
+  await page.keyboard.press('KeyW');
+  await expect(scene(page)).toHaveAttribute('data-trackpad-active', 'true'); await settle(page);
   expect(await turned(page, before)).toBeLessThan(.05);
 });
 

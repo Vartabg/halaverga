@@ -4,7 +4,7 @@
 import { flowSpeed } from '../flowFlight';
 import type { Vec } from '../motion';
 import { gesture, LIFT_REQUEST } from './bus';
-import { ConductMotion, HoverTrail, Pulse, deskYaw, pitchRate, steerRates } from './conduct';
+import { ConductMotion, HoverTrail, Pulse, pitchRate, yawFromScreen } from './conduct';
 import { OneEuro2 } from './oneEuro';
 import { labAimFrame, unproject } from './screenRay';
 import type { Action, AimFrame, ArbiterOut, GestureCtx, StrokeClass, StrokeView } from './types';
@@ -16,6 +16,8 @@ export { DESK_FLOOR, EDGE_PX, SWIPE_DASH, releasePointerLock, type ConductCue, t
   type ConductScheme } from './conductApi';
 
 const labFrame = () => (labAimFrame.t > 0 ? labAimFrame : null);
+/** Desktop: after the pointer leaves the surface, the last hover point keeps steering this long (physics time, spec 1.6). */
+export const LEAVE_GRACE_S = 1.0;
 
 export function createConductScheme(opts: ConductOptions = {}): ConductScheme {
   releasePointerLock();
@@ -24,7 +26,7 @@ export function createConductScheme(opts: ConductOptions = {}): ConductScheme {
   const m = new ConductMotion(), euro = new OneEuro2(), dash = new Pulse(), side = new Pulse(), trail = new HoverTrail();
   const rates = { yaw: 0, pitch: 0 }, off = { x: 0, y: 0, z: 0 }, probe = { x: 0, y: 0, z: 0 }, ray = { x: 0, y: 0, z: 0 };
   const told: Partial<Record<ConductGuide, true>> = {};
-  let hovered = false, gain = 1, hx = 0, hy = 0, ht = 0, seenT = -Infinity;
+  let hovered = false, gain = 1, hx = 0, hy = 0, ht = 0, seenT = -Infinity, leaveT = 0;
   let touching = false, cruising = false, braked = false, lifted = true, now = 0, downAt = 0, epoch = gesture.epoch;
   let u = 0, fwd = 0, lastDash = -Infinity, spinT = 0, spinDir = 0, pendRoll = 0, pendDash = 0, dashX = 0, dashY = 0;
   const live = () => touching || cruising;
@@ -41,7 +43,7 @@ export function createConductScheme(opts: ConductOptions = {}): ConductScheme {
   function stopMotion() { dash.stop(); side.stop(); spinT = 0; spinDir = 0; pendRoll = pendDash = 0; }
   function brake() { u = fwd = 0; cruising = false; braked = touching; stopMotion(); rates.yaw = rates.pitch = 0; }
   function reset() {
-    touching = cruising = hovered = false; u = fwd = 0; seenT = -Infinity; stopMotion(); m.reset(); euro.reset(); trail.reset();
+    touching = cruising = hovered = false; u = fwd = 0; seenT = -Infinity; leaveT = 0; stopMotion(); m.reset(); euro.reset(); trail.reset();
   }
   /** Release speed 0.9..3 px/ms -> 6..14 m/s (times scale), along screen direction (cx right, cy up); cooldown 0.6 s. */
   function queueDash(speed: number, cx: number, cy: number, peak = -1, scale = 1) {
@@ -74,6 +76,7 @@ export function createConductScheme(opts: ConductOptions = {}): ConductScheme {
     if (gesture.epoch !== epoch) { epoch = gesture.epoch; reset(); }
     if (gesture.override) { brake(); touching = false; }
     now += dt; m.advance(dt);
+    if (leaveT > 0 && (leaveT -= dt) <= 1e-9) { leaveT = 0; hovered = false; }
     const on = live(), since = (now - downAt) * 1000, f = frame();
     if (on && !lifted && since >= STEER_GRACE_MS) {
       lifted = true;
@@ -90,13 +93,13 @@ export function createConductScheme(opts: ConductOptions = {}): ConductScheme {
     }
     if (pendRoll) beginRoll(p, ctx, f);
     if (pendDash && f) beginDash(f);
-    // Touch steers from the centroid (yaw by angle, spec 5); desktop cruise from the 1-euro hover point (a steady screen-offset
-    // yaw). Pitch follows the steer point's height (position control); a glide with no steer point levels the view.
+    // Touch steers from the centroid, desktop cruise from the 1-euro hover point: both by screen offset (yawFromScreen, an expo
+    // curve that reaches a fast wrap at the edges). Pitch follows the steer point's height; a glide with no steer point levels.
     const src = touching ? 1 : cruising && hovered ? 2 : 0;
     if (!src || since < STEER_GRACE_MS || !f) { rates.yaw = 0; rates.pitch = !src && fwd > 0 && f ? pitchRate(f, NaN, viewPitch(f)) : 0; }
     else if (!m.frozen && !spinDir) {
       const sx = src === 1 ? m.cx : euro.x, sy = src === 1 ? m.cy : euro.y;
-      rates.yaw = src === 1 ? steerRates(f, sx, sy, p, rates).yaw : deskYaw(f, sx);
+      rates.yaw = yawFromScreen(f, sx);
       rates.pitch = pitchRate(f, sy, viewPitch(f));
       if (Math.abs(rates.yaw) > 0.05) tell('rest-steer');
     }
@@ -138,14 +141,15 @@ export function createConductScheme(opts: ConductOptions = {}): ConductScheme {
     },
     cancel() { touching = false; u = fwd = 0; stopMotion(); m.reset(); },
     hover(x: number, y: number, t: number) {
-      hx = x; hy = y; ht = t; hovered = true; euro.filter(x, y, t); trail.push(x, y, t);
+      hx = x; hy = y; ht = t; hovered = true; leaveT = 0; euro.filter(x, y, t); trail.push(x, y, t);
       if (!cruising || touching || nearEdge(frame(), x, y)) return;
       feed(x * gain, y * gain, t);
       const sp = trail.flick(gain);
       if (sp > 0) queueDash(sp, trail.dx, trail.dy);
     },
-    // Off the surface the last hover point would keep steering at full rate: stop steering, keep the throttle.
-    leave() { hovered = false; trail.reset(); },
+    // Off the surface: the trail and stir reset at once; the last hover point keeps steering for LEAVE_GRACE_S (so a turn at the
+    // window edge carries on), then steering stops. The throttle holds; a new hover cancels the grace.
+    leave() { trail.reset(); if (!touching) m.reset(); if (hovered && leaveT === 0) leaveT = LEAVE_GRACE_S; },
     clickStarts(x: number, y: number) {
       const f = frame();
       return !cruising && !!f && unproject(f, x, y, ray).y < 0;

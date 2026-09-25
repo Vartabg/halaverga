@@ -38,11 +38,13 @@ const ControlsHint = dynamic(() => import('./ControlsHint'), { ssr: false, loadi
 // Flight settings open only after Begin, so they are a chunk warmed then: settings copy never grows the landing first load.
 const loadPanel = () => import('./TestPanel');
 // The Gesture Lab (Draw, Conduct, Brush) replaces the standard controls only while chosen. Its surface is held in state like the
-// touch controls (loaded when a lab scheme is on, and Begin/Resume waits for it); its chip is a chunk too. The landing first load
-// carries no lab module: a failed chunk returns the session to the standard controls.
+// touch controls (loaded when a lab scheme is on, and Begin/Resume waits for it). The header's one-tap switcher (LabBar) and the
+// in-game vote (VoteLayer) are chunks mounted after Begin. The landing first load carries no lab or vote module: a failed lab
+// chunk returns the session to the standard controls, and a failed bar or vote chunk only leaves the header or card out.
 type LabProps = { scheme: 'draw' | 'conduct' | 'brush'; onError?: (error: unknown) => void };
 const loadLab = () => import('./gesture/LabControls');
-const LabChip = dynamic(() => import('./gesture/LabChip'), { ssr: false, loading: () => null });
+const LabBar = dynamic(() => import('./gesture/LabBar'), { ssr: false, loading: () => null });
+const VoteLayer = dynamic(() => import('./vote/VoteLayer'), { ssr: false, loading: () => null });
 const LAB_LOAD_FAILED = 'The Gesture Lab could not load. Standard controls are on.', LAB_FAILED = 'The Gesture Lab stopped. Standard controls are on.';
 const TestPanel = dynamic(loadPanel, { ssr: false, loading: () => null });
 export default function Experience() {
@@ -77,6 +79,13 @@ export default function Experience() {
     if (lab === 'standard') delete html.dataset.controls; else html.dataset.controls = lab;
     return () => { delete html.dataset.controls; };
   }, [lab]);
+  // html dataset.labBar: while the header bar shows, the bands under the header move down by --lab-row (Experience.module.css).
+  const bar = state.started && !failed;
+  useEffect(() => {
+    const html = document.documentElement;
+    if (bar) html.dataset.labBar = ''; else delete html.dataset.labBar;
+    return () => { delete html.dataset.labBar; };
+  }, [bar]);
   useInput(); useAudio(); useShooterInput({ unlock: unlockBlasterAudio }); usePlayGuard();
   const failure = useCallback(() => { setFailed(true); pause(); }, []);
   // Begin/Resume is an activation gesture: it unlocks blaster audio (a no-op while the blaster is off or muted), and it refuses to
@@ -115,11 +124,11 @@ export default function Experience() {
         {hydrated && !failed && <Boundary key={sceneKey} fallback={null} onError={failure}><Scene onLoss={failure} /></Boundary>}
       </div>
       <div className={`${styles.vignette} ${!state.started ? styles.introVignette : ''}`} aria-hidden="true" />
-      <header className={styles.header}>
+      <header className={styles.header} data-bar={bar ? '' : undefined}>
         <div className={styles.brand}><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M5 26V6h5v8h12V6h5v20h-5v-8H10v8Z" fill="currentColor" /></svg><span>HALAVERGA<small>RETURN TO EARTH</small></span></div>
+        {bar && <div className={styles.barSlot}><LabBar /></div>}
         <div className={styles.headerActions}>
           <button id="field-guide" onClick={() => { pause(); state.set({ journal: true }); }}>Field guide</button>
-          {state.started && !standard && <LabChip scheme={lab} />}
           {state.started && <button onClick={() => { pause(); state.set({ panel: true }); }} aria-label="Flight settings">⚙</button>}
           {playing && <button onClick={pause} aria-label="Pause expedition">Ⅱ</button>}
         </div>
@@ -158,7 +167,8 @@ export default function Experience() {
           {standard && state.desktopMode === 'trackpad' && state.trackpadSteering === 'simple' && <SimpleTrackpadHud />}
           {state.desktopMode === 'trackpad' && pill && <div className={styles.trackpadHint}>{pill}</div>}
         </>}
-        {state.paused && !state.panel && !state.journal && !failed && <PauseCard ready={ready} onEnter={enter} />}
+        {state.paused && !state.panel && !state.journal && !failed && !state.voteOpen && <PauseCard ready={ready} onEnter={enter} />}
+        {!failed && <VoteLayer onResume={enter} />}
       </>}
       <div className="sr-only" aria-live="polite">{state.message}</div>
       {state.journal && <FieldGuide onClose={closeGuide} />}

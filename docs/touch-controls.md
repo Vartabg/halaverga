@@ -20,10 +20,10 @@ Desktop controls (trackpad, mouse and keyboard) are unchanged.
 | Scheme | Setting | What it does |
 | --- | --- | --- |
 | Two thumbs (default) | `touchScheme: 'twin'` | A touch's role is fixed at touch-down. In the stick zone it is the move stick. On a cluster button it is that button, and it also look-drags. Anywhere else inside the bands it is look. |
-| One thumb (classic) | `touchScheme: 'classic'` | Main's adaptive thumbs, moved verbatim into `useClassicThumbs`. Kept for one-handed play. |
+| One thumb (classic) | `touchScheme: 'classic'` | Main's adaptive thumbs, moved verbatim into `useClassicThumbs`. Kept for one-handed play. Since 2026-09-25 a thumb held near the side edge keeps turning at 3.5 rad/s (smoothstep over min(64, 0.12 × width) px, full in the last 16 px; 1.80 s per 360 after a drag to 25 px in (node math), was 8.4 s). It has no arming step: it is a deliberate edge-steer control. |
 | Tap controls | `tapControls` | The no-drag alternative (WCAG 2.5.1). The stick zone and ghost are off and the left side looks. The cluster keeps Rise (lift off, climb) and Descend (land), which need no drag; only Aim moves to the pad. The pad's Rise also lifts off on the ground. |
 
-Settings live in Flight settings › Touch controls on any touch screen (`any-pointer: coarse`), with the blaster on or off: Look sensitivity (0.5–2), Aim sensitivity (0.5–1.5, blaster on), Look acceleration, Invert look up and down, Left-handed (swap sides), Fly where I look, Control size (85–120 %) and Control opacity (40–100 %).
+Settings live in Flight settings › Touch controls on any touch screen (`any-pointer: coarse`), with the blaster on or off: Look sensitivity (0.5–2), Aim sensitivity (0.5–1.5, blaster on), Look acceleration (on by default since 2026-09-25), Edge turning (on by default), Invert look up and down, Left-handed (swap sides), Fly where I look, Control size (85–120 %) and Control opacity (40–100 %).
 
 ## Layout (`src/game/touchLayout.ts`)
 
@@ -35,7 +35,7 @@ Settings live in Flight settings › Touch controls on any touch screen (`any-po
 | --- | --- |
 | left | 12 |
 | right | w − 12 |
-| top | header bottom − box.y + 8 (fallback max(44, insetTop + 44) + 8) |
+| top | header bottom − box.y + 8 (fallback max(44, insetTop + 44) + 8). The header is measured, so the lab bar's second row (portrait, up to 839 px wide) moves this band down by itself |
 | bottom | h − max(12, insets.bottom − 8) |
 
 **Anchor** (the corner the cluster is measured from): landscape (w − 12, h − max(12, insets.bottom)), ignoring the side inset, because the Dynamic Island or notch is vertically centred and the corner is free; portrait (w − 12 − insets.right, h − max(12, insets.bottom)). In landscape, a hit circle that would reach into the side inset within 70 px + r of mid-height (beside the island) moves the whole cluster inward, so gaps hold.
@@ -102,7 +102,10 @@ Pause stays in the header, above the top band. On touch, the Municipal record bu
 
 - Coalesced pointer deltas are summed; `touchLook` calls `look()`, so CameraRig stays the only camera writer.
 - 1:1 relative, no smoothing, no slop, no inertia. 0.0052 rad/px (0.298°/px); pitch at 0.8×. The degree value is a design choice, not a published number.
-- Gain = (0.0052/0.003) × Look sensitivity × (1 + (Aim sensitivity − 1) × ADS blend) × acceleration. Acceleration (off by default) = 1 + 0.5 × clamp((v − 0.4)/1.2, 0, 1). Invert look flips pitch.
+- Gain = (0.0052/0.003) × Look sensitivity × (1 + (Aim sensitivity − 1) × ADS blend) × acceleration. Invert look flips pitch.
+- **Look acceleration (on by default since 2026-09-25, `lookAccel`).** Yaw acceleration g(v) = 1 + 1.75 × smoothstep((v − 0.35)/1.25), with v the finger speed in px/ms; pitch uses 1 + (g − 1) × 0.4. Below 0.35 px/ms g is exactly 1, so slow aiming is unchanged (30 px at 0.1 px/ms is still 8.9°). A fast 350 px swipe in 200 ms turns about 270° (was 104°); a 250 px portrait swipe in 180 ms about 190° (node math, min-jerk swipe at 60 Hz). **Look acceleration is off while Reduce motion is on** (g = 1, the Fixed Speed gain), and the setting says so.
+- **Edge turning (on by default, `edgeRest`, `src/game/lookEdgeRest.ts`).** The look side has two rest bands, each 56 px wide (full strength in the last 16 px): the outer physical edge, which turns toward that edge, and an inner band at the stick-zone boundary, which turns the other way. So a thumb can keep turning left or right. A band arms only when the thumb enters it moving toward that edge at 0.6 px/ms or faster and then stays in it for 80 ms; moving back out by more than 8 px disarms it. While armed, a still thumb keeps turning at 3.5 rad/s (2.5 under Reduce motion), eased in over 0.15 s. A slow aim that ends near an edge never arms, so it gives no turn. Turn it off in Touch controls › Edge turning. Tap controls have no stick zone, so only the outer band exists there.
+- Saves from before controls version 5 get Look acceleration and sustained edges switched on, and gain Edge turning on. A version 5 save keeps its own choices.
 - Applied travel adds to `runtime.stick.lookTravel`, which the hints read.
 
 ## Buttons
@@ -195,6 +198,10 @@ Automated checks are emulation only (system Chrome CDP touch; Playwright WebKit 
 - holding Descend over trees lands beside them or reads "No landing";
 - the first-use labels are readable and go away after each button's first use;
 - a fresh tab (opened from a QR code) edge swipe does nothing; a tab opened from a link shows the Leave card;
-- default look speed feels right (0.298°/px; Look sensitivity goes 0.5–2).
+- default look speed feels right (0.298°/px; Look sensitivity goes 0.5–2);
+- a full 360 in flight: a fast swipe that ends in a rest band keeps turning, to the right (outer band) and to the left (inner band), in both orientations (node math: 0.75 s landscape, 1.08-1.15 s portrait);
+- a slow aim near the edge never starts an edge turn; Edge turning off stops it;
+- the one-thumb scheme: a thumb resting about 25 px from the edge turns all the way round in about 2 s (node math 1.80 s);
+- the lab bar at the top does not crowd the look pad or the cluster in either orientation.
 
 Recommendation, pending Garo's OK (a project setting): turn the Vercel Toolbar off for Preview. Automated preview runs send `x-vercel-skip-toolbar: 1`.

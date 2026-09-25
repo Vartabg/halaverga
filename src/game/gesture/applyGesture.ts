@@ -3,7 +3,7 @@
 import type { Vec } from '../motion';
 import type { GestureCtx } from './types';
 import { gesture } from './bus';
-import { GOAL_PITCH_MAX, GOAL_PITCH_MIN, MAX_PITCH_RATE, MAX_YAW_RATE, PITCH_MAX, PITCH_MIN, SNAP_INTENT } from './tuningCore';
+import { GOAL_PITCH_MAX, GOAL_PITCH_MIN, MAX_PITCH_RATE, MAX_YAW_RATE, MAX_YAW_RATE_RM, PITCH_MAX, PITCH_MIN, SNAP_INTENT } from './tuningCore';
 
 /** The runtime fields gestureBefore writes (runtime satisfies it structurally). */
 export interface GestureHost { yaw: number; pitch: number; lift: boolean }
@@ -34,7 +34,8 @@ export function gestureBefore(dt: number, p: Vec, ctx: GestureCtx, host: Gesture
     else if (ctx.canLand(r)) ctx.land(r);
     else { gesture.landArmed = false; ctx.say(NO_LANDING); }
   }
-  const yr = clamp(gesture.yawRate, -MAX_YAW_RATE, MAX_YAW_RATE), pr = clamp(gesture.pitchRate, -MAX_PITCH_RATE, MAX_PITCH_RATE);
+  const yawCap = gesture.reduced ? MAX_YAW_RATE_RM : MAX_YAW_RATE;
+  const yr = clamp(gesture.yawRate, -yawCap, yawCap), pr = clamp(gesture.pitchRate, -MAX_PITCH_RATE, MAX_PITCH_RATE);
   if (yr !== 0) host.yaw += yr * dt;
   if (pr !== 0) {
     const from = host.pitch;

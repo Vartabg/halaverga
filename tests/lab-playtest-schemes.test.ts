@@ -7,8 +7,8 @@ import { clearGesture, gesture } from '../src/game/gesture/bus';
 import { aimed, queueAimedBurst, resetAimed } from '../src/game/gesture/aimedShot';
 import { labFacing } from '../src/game/gesture/aimFacing';
 import { createBrushScheme, type BrushHost } from '../src/game/gesture/brushScheme';
-import { DESK_YAW_MAX, PITCH_REACH, PITCH_REST } from '../src/game/gesture/conduct';
-import { createConductScheme, DESK_FLOOR, SWIPE_DASH } from '../src/game/gesture/conductScheme';
+import { PITCH_REACH, PITCH_REST, YAW_MAX } from '../src/game/gesture/conduct';
+import { createConductScheme, DESK_FLOOR, LEAVE_GRACE_S, SWIPE_DASH } from '../src/game/gesture/conductScheme';
 import { createStrokeBuffer } from '../src/game/gesture/strokeBuffer';
 import { classify } from '../src/game/gesture/strokeFeatures';
 import { releaseSpeed } from '../src/game/gesture/releaseSpeed';
@@ -74,22 +74,30 @@ describe('Conduct on the Mac (1440 x 900)', () => {
     };
     return { s, run, view, t: () => t };
   }
-  it('pointing at the right third turns steadily (at most DESK_YAW_MAX) at about the Standard cruise speed, never spinning in place', () => {
+  it('pointing at the right third turns steadily (at most YAW_MAX) at about the Standard cruise speed', () => {
     const m = mac(); m.s.hover(W / 2, H / 2, 0); m.s.toggleCruise();
     m.run(1.5, [1070, H / 2]);
-    expect(gesture.yawRate).toBeLessThan(0); expect(-gesture.yawRate).toBeLessThanOrEqual(DESK_YAW_MAX);
+    const a = gesture.yawRate; m.run(0.5, [1070, H / 2]);
+    expect(a).toBeLessThan(0); expect(-a).toBeLessThanOrEqual(YAW_MAX); expect(gesture.yawRate).toBeCloseTo(a, 6);
     expect(m.s.state.throttle).toBeGreaterThanOrEqual(DESK_FLOOR - 1e-9);
     expect(gesture.intent.forward * SURGE_SPEED).toBeGreaterThan(8);
     expect(flowSpeed(DESK_FLOOR)).toBeGreaterThan(8); expect(flowSpeed(DESK_FLOOR)).toBeLessThan(13);
-    const r = 13 / DESK_YAW_MAX; expect(r).toBeGreaterThan(10); // turn radius at most rate: a curve, not a pirouette
+    expect(13 / YAW_MAX).toBeGreaterThan(3); // even the edge rate is a tight curve at cruise speed, not a spin in place
   });
-  it('a pointer that leaves the window stops steering, holds the throttle, and its exit sweep never dashes or stirs', () => {
+  it('a pointer that leaves the window stops after the 1 s grace, holds the throttle, and never dashes or stirs', () => {
     const m = mac(); m.s.hover(W / 2, H / 2, 0); m.s.toggleCruise(); m.run(0.5, [W / 2, H / 2]);
     const u = m.s.state.throttle;
     for (let i = 1; i <= 8; i++) m.s.hover(W / 2 + i * 90, H / 2 - i * 56, m.t() + i * 8); // a fast sweep out through the corner
-    m.s.hover(W - 3, 3, m.t() + 72); m.s.leave(); m.run(1);
-    expect(gesture.yawRate).toBe(0); expect(Math.hypot(gesture.offset.x, gesture.offset.y, gesture.offset.z)).toBe(0);
-    expect(m.s.state.throttle).toBeCloseTo(u, 6); expect(Math.abs(m.view.pitch + 0.12)).toBeLessThan(0.05);
+    m.s.hover(W - 3, 3, m.t() + 72); m.s.leave();
+    let off = 0;
+    const each = (sec: number) => { for (let i = 0, n = Math.round(sec / DT); i < n; i++) {
+      m.run(DT); off = Math.max(off, Math.hypot(gesture.offset.x, gesture.offset.y, gesture.offset.z));
+      expect(m.s.state.throttle).toBeCloseTo(u, 6);
+    } };
+    each(LEAVE_GRACE_S - 2 * DT); expect(gesture.yawRate).toBeLessThan(-3); // the last hover point (the corner) still steers
+    each(3 * DT); expect(gesture.yawRate).toBe(0);
+    each(2); expect(gesture.yawRate).toBe(0); expect(off).toBe(0);
+    expect(Math.abs(m.view.pitch + 0.12)).toBeLessThan(0.05); // with no steer point the glide levels back to rest
   });
   it('a click below the horizon starts the cruise even over a drone (stopped only); the arbiter asks before it arms the burst', () => {
     const m = mac();

@@ -14,6 +14,8 @@ export const runtime = {
   clearance: { active: false, boundary: false, point: { x: 0, y: 0, z: 0 }, normal: { x: 0, y: 1, z: 0 } },
   thumb: { active: false, throttle: 0, strafe: 0, edgeTurn: 0, edgePitch: 0, bank: 0 }, keys: new Set<string>(),
   trackpad: { active: false, throttle: 8 / SPEED.surge, edgeTurn: 0, edgePitch: 0, edgeAge: 0, unlocking: false,
+    /** How the cursor left the window while cruising: 0 inside, 1 through a side (keeps turning), 2 top or bottom; outsideAge in s. */
+    outside: 0 as 0 | 1 | 2, outsideAge: 0,
     capture: 'idle' as CaptureState, held: false, selectedSpeed: 0, brakeEpoch: 0, brakedAt: -Infinity, cancelEpoch: 0, captureFailed: false },
   flowPractice: { step: 'idle' as 'idle' | 'look' | 'glide' | 'brake' | 'done', yaw: 0, pitch: 0 },
   tap: { forward: 0, strafe: 0, vertical: 0 },
@@ -24,9 +26,10 @@ export const runtime = {
   shooter: createShooter(),
   /** Seconds each arrow axis has been held in one direction (physics clock), and that direction. Blaster only. */
   keyHold: { yaw: 0, pitch: 0, yawSign: 0, pitchSign: 0 },
-  /** Twin-stick touch input, written by the touch controls. rise/descend are 0 or 1; moves, climbs and lookTravel only count up. */
+  /** Twin-stick touch input, written by the touch controls. rise/descend are 0 or 1; moves, climbs and lookTravel only count up.
+   *  edgeTurn: the look thumb's edge rest, a signed yaw direction x depth (+ turns left), applied by edgeTurn.ts. */
   stick: { forward: 0, strafe: 0, rise: 0, descend: 0, descendUsed: false, active: false, boost: false, cruise: false,
-    moves: 0, climbs: 0, lookTravel: 0 },
+    moves: 0, climbs: 0, lookTravel: 0, edgeTurn: 0 },
   /** Bumped by clearInput and releaseHeldInput: a touch control whose stored epoch differs is dead until its finger lifts. */
   touchEpoch: 0,
 };
@@ -91,7 +94,7 @@ export function clearInput(stop = false, keepShooter = false) {
 /** Zeroes the live stick values; the counters (moves, climbs, lookTravel) are kept. */
 function zeroStick() {
   const st = runtime.stick;
-  st.forward = st.strafe = st.rise = st.descend = 0; st.descendUsed = st.active = st.boost = st.cruise = false;
+  st.forward = st.strafe = st.rise = st.descend = st.edgeTurn = 0; st.descendUsed = st.active = st.boost = st.cruise = false;
 }
 /**
  * Touch-mode blur, rotation or a lost gesture: lets go of everything held without pausing. Velocity, a latched Aim, the trackpad
@@ -128,13 +131,13 @@ export function releaseThumb() {
 }
 export function startTrackpad() {
   releaseThumb();
-  Object.assign(runtime.trackpad, { active: true, throttle: useGame.getState().cruiseSpeed / SPEED.surge, edgeTurn: 0, edgePitch: 0, edgeAge: 0 });
+  Object.assign(runtime.trackpad, { active: true, throttle: useGame.getState().cruiseSpeed / SPEED.surge, edgeTurn: 0, edgePitch: 0, edgeAge: 0, outside: 0, outsideAge: 0 });
   useGame.setState({ trackpadFlying: true });
 }
 export function stopTrackpad() {
   runtime.trackpad.cancelEpoch++;
   if (runtime.trackpad.capture !== 'idle') runtime.trackpad.brakeEpoch++;
-  Object.assign(runtime.trackpad, { active: false, edgeTurn: 0, edgePitch: 0, capture: 'idle', held: false, selectedSpeed: 0 });
+  Object.assign(runtime.trackpad, { active: false, edgeTurn: 0, edgePitch: 0, outside: 0, outsideAge: 0, capture: 'idle', held: false, selectedSpeed: 0 });
   runtime.trackpad.brakedAt = performance.now();
   if (useGame.getState().trackpadFlying) useGame.setState({ trackpadFlying: false });
 }

@@ -220,7 +220,7 @@ describe('brushScheme', () => {
     expect(r.b.view.guide).toBe(false);
     expect(gesture.intent.forward).toBe(0);
   });
-  it('a lasso locks mid-stroke and bursts on release; an empty-sky circle rolls', () => {
+  it('a lasso locks mid-stroke and bursts on release; a small empty-sky circle rolls, a big one whirls', () => {
     let r = rig(); r.st.locks = 2; r.st.endLocks = 2;
     const s = circle(r, true);
     expect(r.b.view.locks).toBe(2);
@@ -237,7 +237,7 @@ describe('brushScheme', () => {
     r = rig(); const big = circle(r, true, 220);
     expect(r.b.view.committed).toBe(false);
     r.b.up(big, cls('circle', big, big.winding)); r.step();
-    expect(r.b.view.program).toBe('roll');
+    expect(r.b.view.program).toBe('whirl'); // radius 220 px: over WHIRL_R_MIN, so the loop spins the flyer around (turn-360 1.7c)
     r = rig(); r.st.clear = false; const c = circle(r, true);
     r.b.up(c, cls('circle', c, 360));
     const d = flyOffset(r);

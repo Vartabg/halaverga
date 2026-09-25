@@ -13,13 +13,15 @@ With the blaster on, every lab scheme uses **Tap to Blast**: tap a drone to shoo
 
 | Where | How | Saved? |
 |---|---|---|
-| Header chip `Lab: Draw` (only in a lab scheme) | Tap or click it. The game pauses and Flight settings opens with the picker. | yes |
-| Pause card | Use the **Control lab** radios under Resume. Arrow keys also work. | yes |
+| Lab bar at the top of the screen, **Standard · Draw · Conduct · Brush** (during play, in every scheme) | One tap or click switches at once. It never pauses: a paused game stays paused, a running one keeps flying. A mouse click takes no focus, so Space and the arrows keep flying. By keyboard it is one radio group named "Controls": Tab to it, then the arrow keys (wrapping), Home and End. | yes |
+| Keys 1-4 (desktop only) | 1 Standard, 2 Draw, 3 Conduct, 4 Brush. Ignored on touch devices, with a modifier, on key repeat, while typing in a field, and while Flight settings, the Field guide or the vote card is open. Works while paused. The bar shows the numbers only for a fine pointer on screens over 600 px wide. | yes |
+| Pause card | Use the **Control lab** radios under Resume, with a line on each scheme and the rating. Arrow keys also work. | yes |
 | Flight settings | The same radios, plus **Shots slow me down** (lab schemes only). | yes |
 | URL | `?controls=standard`, `draw`, `conduct` or `brush` | no, this visit only |
 
 - Any switch releases every held input: keys, the stick, a held blast and the lab's cruise. The controls then remount, so nothing carries over from the scheme you left. The browser test `lab-switch.spec.ts` checks this in the middle of a cruise and in the middle of a sustained blast.
-- After a switch you can rate the scheme you just left from 1 to 5 on "How beautiful?" and "How in control?". Both questions can be skipped.
+- The bar sits between the brand and the header buttons. Up to 839 px wide it takes a second row under them, and the hints under the header move down with it. Landscape phones keep one row and hide the brand text (the logo stays).
+- After a switch from the pause card or Flight settings you can rate the scheme you just left from 1 to 5 on "How beautiful?" and "How in control?". Both questions can be skipped.
 - If a lab part fails to load or crashes, the game goes back to Standard for this visit and tells you. Your saved choice stays as it was.
 
 ## Player guide
@@ -41,13 +43,15 @@ With the blaster on, every lab scheme uses **Tap to Blast**: tap a drone to shoo
 | Shoot | Tap a drone for a 3-shot burst. Hold on it for sustained fire. | Click a drone (while not inking). |
 | Fallback | More controls: **Fly to where I tap**, **Brake**. | Same. |
 
-Limits: a drawn line always moves away from the camera. You can make swoops, dives, carved curves and corkscrews, but not a true loop or a U-turn in one line. Chain lines after the view turns instead. A line into a wall is cut short, the game says "Path blocked", and an amber stub shows where it was cut for 1.5 s. Pressing Land (or Space) while a path is flying drops the path and lands.
+**Turn around**: draw a circle to turn around; a spring drawn upward climbs as it turns. Once a line has wound 150° or more, the rest of it stops mapping into the view and flies as a turtle (0.035 m per px along the drawn heading, radius 2.5 m or more), so the hero can wrap all the way round. A finger circle of radius 70 px gives the tightest 2.5 m turn, about 1.7 s per 360 (node math). The view eases after a wrapped line faster (up to 6 rad/s) only through its exit; ordinary swoops ease at 2.5 rad/s or less, as before.
+
+Limits: a line that winds less than 150° moves away from the camera, as before (swoops, dives, carved curves and corkscrews). A line into a wall is cut short, the game says "Path blocked", and an amber stub shows where it was cut for 1.5 s. Pressing Land (or Space) while a path is flying drops the path and lands.
 
 ### Conduct
 
 | | Phone | Mac |
 |---|---|---|
-| Steer | Rest a finger off centre. The further left or right, the faster the turn. Height follows the finger: above the centre band climbs, below it descends, and the band itself (12% of the screen height either side) flies level. Lifting the finger levels the view again. Nothing steers for the first 120 ms. | While cruising, point where you want to go. Turns are steady (at most 0.8 rad/s) and the centre 8% flies straight. Leaving the window stops steering and keeps the speed. |
+| Steer | Rest a finger off centre. The further left or right, the faster the turn: the centre 12% is still, then the rate grows on a curve (u^1.8) to 4.2 rad/s at 40% from the centre, so a finger in the outer 10% turns all the way round in about 1.6 s and keeps going. Height follows the finger: above the centre band climbs, below it descends, and the band itself (12% of the screen height either side) flies level. Lifting the finger levels the view again. Nothing steers for the first 120 ms. | While cruising, point where you want to go. Same curve as the phone (0.1, 0.2, 0.3 and 0.4 of the width from the centre give 0.09, 0.84, 2.24 and 4.2 rad/s). Leaving the window keeps steering from the last point for 1 s, then flies straight at the same speed. |
 | Speed | Stir in small circles. Faster stirring means more speed, and resting holds your speed. | The cruise rests at about 9 m/s (the Standard cruise). Stir the pointer for more. |
 | Start / stop | Touch to start. Lift the finger to glide down to a hover. A second-finger tap brakes. | Click below the horizon to start (even over a drone), click empty space again to stop. Right-click also stops it. |
 | Dash | Flick in any direction; the dash follows the flick. A quick straight release dashes a little less. | Flick the pointer. |
@@ -63,13 +67,14 @@ Check on the phone: your finger may cover the hero near the centre of the screen
 | | Phone | Mac |
 |---|---|---|
 | Cruise | After Lift, the hero cruises ahead at 13 m/s and holds its height. Near a wall or the ground, a stroke that steers away (soar off the floor, turn away from the wall) still runs; one that pushes into it stops. | Same. |
-| Turn | Swipe left or right. A longer swipe turns further, from 20 to 90 degrees. | Click, then sweep left or right. It acts during the sweep, with no second click. |
+| Turn | Swipe left or right. A longer swipe turns further, from 20 to 90 degrees (full length is 45% of the screen width, 180-300 px). Another swipe the same way while turning adds to the turn (up to 360°), so four quick swipes turn all the way round in about 1.9 s. An opposite swipe starts a new turn. | Click, then sweep left or right. It acts during the sweep, with no second click. |
+| Whirl | Draw a big loop or spiral (at least 150° of winding, radius 85 px or more): the hero spins round, 180° per half loop, up to 720°. Clockwise turns right. A 360 takes about 1.3 s, and the body banks into the spiral and rises a little. A loop around drones is still Lock on. | Same with the pointer. |
 | Soar / Dive | Swipe up or down. A dive pulls out early enough to level off 8 m or more above the ground. A swipe down lands only when you fly low (under 5 m) over a landing spot, or when it ends on the landing spot. Standing, a swipe down lifts off. | Click, then sweep up or down. |
-| Roll | Circle empty sky. | Same. |
+| Roll | Circle empty sky with a small circle (radius under 85 px). | Same. |
 | Lock on | Circle one to three drones. Each locked drone gets a 3-shot burst. | Same. |
 | Guide | Hold still 0.25 s to see the guide paths. Keep holding to 0.9 s to brake. | Ink less than 60 px, then rest. |
 | Shoot | Tap a drone. | Click a drone. |
-| Fallback | Soar, Dive, Turn left, Turn right, Roll, Lock and burst nearest drone, Brake. | Same. |
+| Fallback | Soar, Dive, Turn left, Turn right, Whirl left, Whirl right (each a 360), Roll, Lock and burst nearest drone, Brake. | Same. |
 
 A stroke the game does not recognise turns grey, and the hero nudges a little in that direction. A slow drag (over 0.4 s) is not a swipe.
 
@@ -83,6 +88,34 @@ A stroke the game does not recognise turns grey, and the hero nudges a little in
 - Reduced motion turns off the trail and the spin. Offsets are scaled to 60% and the guides stand still.
 - Tips: the first tip starts 1 s after flight begins and plays three times, then replays every 8 s until you do it. Doing the step moves on to the next tip. In Draw and Brush the tip hides while you are drawing. In portrait the tip moves clear of the Lift/Land button.
 - Ink: Draw's screen ink hands over to the world ribbon after 150 ms, Conduct leaves a short comet tail (320 ms), and Brush keeps the whole stroke.
+
+## Turning all the way around (2026-09-25)
+
+Garo found a full 360 hard in every mode. Each mode now has a way to keep turning without lifting a finger.
+
+| Mode | Gesture | Before | Target | Measured (node math, `tests/turn-360.test.ts`) |
+|---|---|---|---|---|
+| Phone twin sticks | fast look swipe that ends in a rest band, then hold | 3-4 swipes | 1.4 s or less, left and right | landscape 0.75 s, portrait 1.08-1.15 s, both directions |
+| Phone one thumb | thumb dragged to 25 px from the edge, then held | 8.4 s | 2.1 s or less | 1.80 s |
+| Desktop Standard | cursor from the centre to the edge, then hold it there or slide off the side | stopped at 17.5° | 2.0 s or less | 1.47 s (hold and side exit alike) |
+| Conduct | finger in the outer 10% | 4.2 s landscape, 9.8 s portrait | 1.8 s or less | 1.62 s in both orientations |
+| Brush | whirl (timed from the release) / 4 stacked swipes (from the first touch) | 4.0 s or more | 1.4 s / 2.1 s or less | 1.30 s / 2.07 s |
+| Draw | circle of radius 70 px (timed from when the hero reaches the wrap on the path) | impossible | 2.3 s or less | 1.70 s; 3.3-3.6 s from pen-down, because the first 150° of the line are flown as before |
+
+- Travel lag when the 360 completes was 25° or less in every case (worst: Draw 20.9°, one thumb 17.8°), the body stayed within its facing bound, and bank stayed at 0.6 or less.
+- Reduced motion, rate-driven parts only: no step turned faster than 2.5 rad/s, and a 360 took 2.58 s (desktop edge hold) to 3.9 s (stacked swipes). A twin 360 under reduced motion is 2.15-2.32 s, because the swipe is a direct drag at the Fixed Speed gain and only the rest is rate-capped.
+- **Travel follows the view** (`src/game/carve.ts`): once a turn runs faster than 2 rad/s while you steer, the travel direction bends with it (up to 60 m/s² sideways), so the hero does not skid sideways at the end of a fast turn. Turns under 2 rad/s, and a pure look flick while coasting, are exactly as before. At surge speed carve allows only about 1.8 rad/s, which is why fast turns slow Surge and the whirl.
+- **Body**: in fast turns (over 2 rad/s) the body may face up to 0.6 rad from the view and bank up to 0.6. The chest never shows. Slower turns look exactly as before.
+- **Lab turn cap**: 7.0 rad/s (was 2.5), so each scheme has its own real limit: Conduct 4.2, the whirl 6.44 at its peak, Draw 2.5 outside a wrap and 6.0 inside one.
+- **Reduced motion**: every rate-driven turn (edge rests, Conduct, Brush turns and whirl, Draw, the lab cap) stays at 2.5 rad/s or less, so a 360 takes 2.5 s or more. Direct drags (twin look, desktop cursor look) still follow the finger 1:1, but twin look acceleration is off. Bank, the whirl spin and the fast-turn facing are off.
+- **Not built**: snap turns. They are a follow-up that needs Garo on the device.
+- **What these numbers are**: every time above comes from `tests/turn-360.test.ts`, which chains the real modules (the lab cap, carve, the velocity blend, the body pose, the edge turns and the edge rest bands) at 60 steps per second in node. None of it is iPhone, trackpad or windowed-browser validation. The device rows below are not done.
+
+## The vote
+
+After you have played about 3 minutes and tried at least 2 styles for 30 s or more, landing opens a small card once per page load: which style did you like, and an optional 1-5 rating for each style you tried, plus an optional note. You can also open it any time from the pause card (**Vote on the controls**). It is anonymous: no sign-in, no cookies.
+
+**The vote card is the one thing that leaves the device, and only when you press Send.** The lab measurements above never leave it. Results are at `/results`. Backend, privacy, retention and setup: [voting.md](voting.md).
 
 ## Input table (spec 2.6)
 
@@ -117,7 +150,8 @@ Every threshold is in [`src/game/gesture/tuning.ts`](../src/game/gesture/tuning.
 - Draw depth and speed (`DRAW_D0`, `DRAW_M_PER_PX`, `FOLLOW_BASE`);
 - Conduct gain and tempo (`STEER_GAIN`, `STIR_FULL_MMS`, `THROTTLE_FLOOR`);
 - Brush turn and soar sizes (`TURN_*`, `SOAR_*`);
-- the start filter (`EDGE_STRIP`, `BOTTOM_BAND`).
+- the start filter (`EDGE_STRIP`, `BOTTOM_BAND`);
+- turning (2026-09-25): the lab cap `MAX_YAW_RATE` and `MAX_YAW_RATE_RM` (`tuningCore.ts`), Conduct's `YAW_DEAD`, `YAW_SPAN`, `YAW_EXPO` and `YAW_MAX` (`conduct.ts`), the whirl thresholds (`whirl.ts`), the Draw wrap (`drawWrap.ts`, `WRAP_HEADING_EASE`, `YAW_GAIN_WRAP`), carve (`carve.ts`) and the edge turns (`edgeTurn.ts`, `lookEdgeRest.ts`).
 
 ## Local measurements
 
@@ -144,7 +178,7 @@ The Standard column stays empty, because Standard is the baseline you rate. The 
 - **Accessibility.**
   - Every gesture has a 44 px button under More controls.
   - A stroke can be cancelled before it takes effect (WCAG 2.5.2 Pointer Cancellation).
-  - The chip's visible text starts its accessible name (2.5.3 Label in Name).
+  - The lab bar is a radio group named "Controls" whose buttons are named by their visible text (2.5.3 Label in Name); each segment is at least 44 x 44 px with a 2 px focus ring.
   - Flashes stay under the existing flash gate (2.3.1).
   - Announcements go through the polite live region, and the ink canvas is hidden from assistive technology.
 - **Phone safety.** Stroke starts are filtered away from the screen edges and the home-indicator band, and a pointercancel (iOS taking the touch) drops the stroke with no command.
@@ -153,14 +187,18 @@ The Standard column stays empty, because Standard is the baseline you rate. The 
 
 | Spec | What it checks |
 |---|---|
-| `lab-switch.spec.ts` | Standard is the default; `?controls=` is not saved; the chip pauses and opens the picker; radios work by keyboard and save; the rating is optional; a switch mid-cruise or mid-blast leaves no stuck movement or fire |
-| `lab-draw.spec.ts` (phone) | live follow with the view held; "Path blocked", and the real wall stops the hero outside it; landing on the arrival terrace; chained strokes never stop the hero |
-| `lab-conduct.spec.ts` | Mac: an empty click toggles the cruise with no shot, hover steers, a drone click fires without toggling. Phone: a resting finger steers, and lifting it glides to a hover |
-| `lab-brush.spec.ts` (phone) | a swipe up climbs 5 m or more (measured 6.1 m); a lasso from a hover locks and fires; a 250 ms hold shows the guide without braking, and 900 ms brakes |
+| `lab-switch.spec.ts` | Standard is the default; `?controls=` is not saved; the bar shows in every scheme and switches without pausing; the pause card keeps the full picker and rating; radios work by keyboard and save; the rating is optional; a switch mid-cruise or mid-blast leaves no stuck movement or fire |
+| `lab-bar.spec.ts` | a click switches mid-flight with no pause, no focus taken and no stuck movement; key 3 (ignored while typing in a field); arrow keys select without turning the view; Standard to Draw mounts within 500 ms; no overlaps and 44 px segments at every tested size; axe AA |
+| `vote.spec.ts` | the pause card opens the card; a 200 thanks and shows the tally and sends only the answers; 429 "too many" keeps the answers; 503 "not open"; one retry; Skip and Escape return to the pause card; an eligible landing auto-opens it with the tap guard; a pause you opened never auto-opens it; axe AA. `/api/vote` and `/api/results` are mocked with `page.route`, never a real database |
+| `lab-draw.spec.ts` (phone) | live follow with the view held; "Path blocked", and the real wall stops the hero outside it; landing on the arrival terrace; chained strokes never stop the hero; a drawn loop turns the view 270° or more within 2.5 s of the turn starting |
+| `lab-conduct.spec.ts` | Mac: an empty click toggles the cruise with no shot, hover steers, a drone click fires without toggling. Phone: a resting finger steers, and lifting it glides to a hover; in portrait a finger resting near the edge for about 1 s turns 180° or more |
+| `lab-brush.spec.ts` (phone) | a swipe up climbs 5 m or more (measured 6.1 m); a lasso from a hover locks and fires; a 250 ms hold shows the guide without braking, and 900 ms brakes; a big loop whirls 300° or more within 1.6 s (blaster off, so no drone can turn it into a lasso) |
 | `lab-desktop.spec.ts` | click-to-ink in Draw and Brush; the rest commit; Escape cancel; no phone UI, pause or pointer lock at 1440 and 325 px; the renderer budget |
 | `lab-touch-guard.spec.ts` | edge-strip and bottom-band starts are ignored; no navigation or pause; pointercancel leaves no movement in all three schemes |
 | `lab-look-source.spec.ts` | touches on the lab surface never arm auto-fire, even with the view centre on a drone |
-| `accessibility.spec.ts` | axe AA scans of the lab UI on the Mac and the phone; chip by keyboard; radios; fallback buttons of 44 px or more; the status note; the live region |
+| `accessibility.spec.ts` | axe AA scans of the lab UI on the Mac and the phone; the bar by keyboard (one radio group named "Controls"); radios; fallback buttons of 44 px or more; the status note; the live region |
+
+Run on 2026-09-25 against a production build (`next start` on port 3391, system Chrome): every spec file in `tests/` was run, 255 tests passed and 1 was skipped (`webkit-gesture.spec.ts`, WebKit is not installed here). These checks were changed to match the new behaviour and passed on rerun: the phone rows of the `lab-bar` layout (the twin cluster's Lift off, not the hidden header Lift); the `vote` auto-open (Land needs a surface under the reticle, so it looks down first); the Brush whirl (blaster off); the HUD-hover speed in `trackpad` (polled, since hover() jumps the cursor into a sharp steer); the controls version 5 save in `desktop-restore` and `desktop-blaster`; the Land-button visit in `desktop-blaster` (the cruise now continues over HUD buttons); the fade check in `trackpad-comparison` (now the sustained-edges opt-out); and the facing bound in `composition` (0.6 rad during turns over 2 rad/s). This is emulation, not the iPhone or a Mac trackpad.
 
 Emulation is not iPhone validation. These specs prove the wiring and the visible behaviour, not how a scheme feels. CDP touch events take tens of milliseconds each, so fast strokes in the specs use few samples.
 
@@ -180,7 +218,7 @@ These came from an emulated playtest of all four schemes (phone 852 x 393 and 39
 - On touch, a window blur no longer drops a lab stroke or cruise (as in Standard); iOS cancels the pointers itself.
 - Desktop hover ink commits after a 650 ms rest (was 350 ms).
 
-What emulation cannot judge, and the iPhone and trackpad must: stir tempo (`STIR_FULL_MMS`), flick speed (`FLICK_SPEED` and the release measure), Brush swipe speed, the Conduct pitch band on a short landscape screen (`PITCH_DEAD`, `PITCH_REACH`), the desktop Conduct turn rate and cruise floor (`DESK_YAW_MAX`, `DESK_FLOOR`), and the 650 ms rest on a trackpad.
+What emulation cannot judge, and the iPhone and trackpad must: stir tempo (`STIR_FULL_MMS`), flick speed (`FLICK_SPEED` and the release measure), Brush swipe speed, the Conduct pitch band on a short landscape screen (`PITCH_DEAD`, `PITCH_REACH`), the Conduct turn curve on both phone and desktop (`YAW_DEAD`, `YAW_SPAN`, `YAW_EXPO`, `YAW_MAX` in `conduct.ts`) and the desktop cruise floor (`DESK_FLOOR`), and the 650 ms rest on a trackpad.
 
 ## Device checklist (record honestly)
 
@@ -188,7 +226,17 @@ Nothing below has been done yet. Fill it in after playing on the devices.
 
 | Check | iPhone 15, portrait | iPhone 15, landscape | Mac trackpad |
 |---|---|---|---|
-| Switch all four live (chip, pause card, settings) | not done | not done | not done |
+| Switch all four live (bar, keys 1-4, pause card, settings) | not done | not done | not done |
+| Lab bar in both orientations: fits, never covers the look pad, cluster, hints or Pause | not done | not done | not done |
+| 360 in Standard: twin swipe then rest band, right (outer) and left (inner) | not done | not done | n/a |
+| 360 in Standard: one-thumb edge hold | not done | not done | n/a |
+| 360 in Standard: desktop edge hold, fullscreen | n/a | n/a | not done |
+| Windowed Mac browser: side exit keeps turning, top/bottom exit flies straight | n/a | n/a | not done |
+| 360 in Conduct (finger or pointer in the outer 10%) | not done | not done | not done |
+| 360 in Draw (circle; spring climbs) | not done | not done | not done |
+| 360 in Brush: whirl recognised at a natural loop size; 4 stacked swipes | not done | not done | not done |
+| Reduced motion: turns feel slower (2.5 rad/s), no bank or whirl spin | not done | not done | not done |
+| Vote card on a phone: opens after a landing, Send and Skip, results page | not done | not done | not done |
 | Frame time p50 / p95 per scheme (lab table) | not done | not done | not done |
 | Finger hides the hero (Conduct near centre, Draw start) | not done | not done | n/a |
 | Ink latency: ink keeps up with the finger, the hero starts without delay | not done | not done | not done |

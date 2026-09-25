@@ -133,13 +133,24 @@ export function steerRates(f: AimFrame, sx: number, sy: number, hero: Vec, out: 
  * resting finger holds a pitch instead of winding it up. With no steer point the view levels back to PITCH_REST.
  */
 export const PITCH_REST = -0.12, PITCH_REACH = 0.6, PITCH_DEAD = 0.12, PITCH_FULL = 0.45, PITCH_EASE = 2.5;
-/** Desktop yaw: dead within DESK_DEAD of the width around the centre, up to DESK_YAW_MAX rad/s at DESK_FULL (fractions of width). */
-export const DESK_DEAD = 0.08, DESK_FULL = 0.42, DESK_YAW_MAX = 0.8;
+/**
+ * Screen-offset yaw (touch centroid and desktop hover, spec 1.6): dead within YAW_DEAD of the width around the centre, then an
+ * expo curve up to YAW_MAX rad/s at YAW_DEAD + YAW_SPAN (0.4 of the width) and beyond. Offsets of 0.1 / 0.2 / 0.3 / 0.4 of the
+ * width give about 0.09 / 0.84 / 2.24 / 4.2 rad/s: fine aim near the centre, and a finger resting in the outer tenth turns a
+ * 360 in about 1.6 s. A fraction of the width, so portrait and landscape turn alike. Rate control, so it wraps without limit.
+ */
+export const YAW_DEAD = 0.06, YAW_SPAN = 0.34, YAW_EXPO = 1.8, YAW_MAX = 4.2;
 const band = (off: number, dead: number, full: number) => { const a = Math.abs(off) - dead; return a > 0 ? Math.sign(off) * Math.min(1, a / (full - dead)) : 0; };
 /** Pitch rate (+ climbs) easing viewPitch toward the goal for screen y; y NaN levels toward PITCH_REST. */
 export function pitchRate(f: AimFrame, sy: number, viewPitch: number): number {
   const goal = sy === sy && f.height > 0 ? PITCH_REST - PITCH_REACH * band((sy - f.top - f.height / 2) / f.height, PITCH_DEAD, PITCH_FULL) : PITCH_REST;
   return clamp(PITCH_EASE * (goal - viewPitch), -STEER_PITCH_MAX, STEER_PITCH_MAX);
 }
-/** Desktop yaw rate (+ turns left) from the pointer's horizontal offset: a steady turn, never a spin in place. */
-export const deskYaw = (f: AimFrame, sx: number) => (f.width > 0 ? 0 - DESK_YAW_MAX * band((sx - f.left - f.width / 2) / f.width, DESK_DEAD, DESK_FULL) : 0);
+/** Yaw rate (+ turns left, as runtime.yaw) from screen x: right of centre turns right. Pure, allocation-free. */
+export function yawFromScreen(f: AimFrame, sx: number): number {
+  if (!(f.width > 0) || sx !== sx) return 0;
+  const off = (sx - f.left - f.width / 2) / f.width, u = clamp((Math.abs(off) - YAW_DEAD) / YAW_SPAN, 0, 1);
+  return u > 0 ? -Math.sign(off) * YAW_MAX * u ** YAW_EXPO : 0;
+}
+/** The old desktop name, kept for callers. */
+export const deskYaw = yawFromScreen;

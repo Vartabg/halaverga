@@ -111,10 +111,12 @@ for (const viewport of [{ width: 1440, height: 900 }, { width: 325, height: 928 
     await resume(page);
     await expect(pill(page)).toHaveText(flying ? HOVER : GROUND);
 
-    // The save moved to the free cursor at controls version 4 (written on pagehide).
+    // The save moved to the free cursor (controls version 4) and on to version 5, which turns look acceleration, sustained
+    // edges and edge rest on (turn-360, 2026-09-25). Written on pagehide.
     await page.reload(); await expect(page.getByRole('button', { name: 'Begin expedition' })).toBeVisible();
     const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('halaverga-flight-v1') || '{}'));
-    expect(saved.trackpadSteering).toBe('free'); expect(saved.controlsVersion).toBe(4);
+    expect(saved.trackpadSteering).toBe('free'); expect(saved.controlsVersion).toBe(5);
+    expect(saved.sustainedEdges).toBe(true); expect(saved.lookAccel).toBe(true);
     expect(errors).toEqual([]);
   });
 });
