@@ -24,7 +24,6 @@ import { instrumentScheme, strokeLog } from './strokeLog';
 type Props = { scheme: LabScheme; onError?: (error: unknown) => void };
 type Built = { scheme: Scheme; error: null } | { scheme: null; error: unknown };
 const SAVE_MS = 10000;
-const say = (message: string) => useGame.setState({ message });
 
 function build(id: LabScheme): Built {
   try {
@@ -98,6 +97,6 @@ export default function LabControls({ scheme: id, onError }: Props) {
   return <Boundary fallback={null} onError={renderFailed}>
     <GestureSurface scheme={scheme} hold={hold} onAction={onAction} />
     <HoldGuide model={hold} scheme={id} />
-    <GhostGuide scheme={id} touch={touch} reduced={reduced} announce={say} />
+    <GhostGuide scheme={id} touch={touch} reduced={reduced} />
   </Boundary>;
 }

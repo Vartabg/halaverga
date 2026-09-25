@@ -121,11 +121,12 @@ describe('twin: a fast swipe, then an armed rest (1.2c)', () => {
     it(`${w}x${h} ${flip ? 'flipped' : 'right-handed'} turning ${dir > 0 ? 'right' : 'left'}: 360 in 1.4 s or less`, () => {
       const layout = computeLayout(w, h, { top: 0, right: 0, bottom: 0, left: 0 }, 56, { size: 1, flip, fire: true, aim: true, tapPad: false });
       const z = layout.stickZone!, rest = new EdgeRest();
-      rest.configure(flip ? 0 : w, flip ? 1 : -1, flip ? z.l : z.r, flip ? -1 : 1);
-      // Right-handed geometry, mirrored when flipped: turning toward the outer edge (right) or toward the stick boundary (left).
+      rest.fit(w, w > h, z, flip);
+      // Right-handed geometry, mirrored when flipped: turning toward the outer edge (right), or the other way: onto the landscape
+      // stick line's thin strip (8 px in), or to the opposite physical edge in portrait (EdgeRest.fit).
       const toOuter = (dir > 0) !== flip;
-      const inner = flip ? w - z.l : z.r;
-      const [a, b] = toOuter ? [w - 20 - px, w - 20] : [inner + 20 + px, inner + 20];
+      const inner = w > h ? (flip ? w - z.l : z.r) + 8 : 20;
+      const [a, b] = toOuter ? [w - 20 - px, w - 20] : [inner + px, inner];
       const X = (u: number) => flip ? w - u : u;
       let t = 1000, k = 0, x = X(a);
       const n = Math.round(ms / (DT * 1000));
@@ -134,7 +135,7 @@ describe('twin: a fast swipe, then an armed rest (1.2c)', () => {
         t += DT * 1000; k++;
         if (k <= n) {
           const nx = X(a + (b - a) * minJerk(k / n)), dx = nx - x;
-          touchLook(dx, 0, Math.abs(dx) / (DT * 1000)); x = nx;
+          touchLook(dx, 0, Math.abs(dx) / (DT * 1000), w); x = nx;
           runtime.stick.edgeTurn = rest.move(x, t);
         } else runtime.stick.edgeTurn = rest.tick(t);
       });

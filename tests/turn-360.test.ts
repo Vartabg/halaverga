@@ -89,10 +89,14 @@ beforeEach(() => {
 });
 afterAll(() => { gesture.scheme = 'off'; gesture.step = null; clearGesture(); if (rows.length) console.info('turn-360 (node math):\n  ' + rows.join('\n  ')); });
 
-/** Twin sticks: a min-jerk look swipe of D px in T ms that ends in a rest band (landscape 350 px / 200 ms, portrait 250 / 180). */
+/**
+ * Twin sticks: a min-jerk look swipe of D px in T ms that ends in a rest band (landscape 350 px / 200 ms, portrait 250 / 180).
+ * Right turns end 20 px from the right edge; left turns end on the landscape stick line's strip (8 px in) or, in portrait, 20 px
+ * from the left edge (EdgeRest.fit).
+ */
 function swipe([w, h]: readonly [number, number], dir: 1 | -1, each: (x: number, ms: number) => void, start?: (x0: number) => void) {
-  const D = w > h ? 350 : 250, T = w > h ? 200 : 180, inner = Math.round(w > h ? .45 * w : .5 * w), n = Math.round(T / MS);
-  const x1 = dir < 0 ? w - 20 : Math.min(inner + 20, w - 20 - D), x0 = dir < 0 ? x1 - D : x1 + D;
+  const D = w > h ? 350 : 250, T = w > h ? 200 : 180, inner = Math.round(.45 * w), n = Math.round(T / MS);
+  const x1 = dir < 0 ? w - 20 : w > h ? inner + 8 : 20, x0 = dir < 0 ? x1 - D : x1 + D;
   let x = x0, yaw = 0;
   start?.(x0);
   for (let k = 1; k <= n; k++) {
@@ -105,7 +109,7 @@ function swipe([w, h]: readonly [number, number], dir: 1 | -1, each: (x: number,
 function twin(view: readonly [number, number], dir: 1 | -1, reduced: boolean) {
   useGame.setState({ reduced });
   const rest = new EdgeRest(), f = new Flight(reduced), [w, h] = view;
-  rest.configure(w, -1, Math.round(w > h ? .45 * w : .5 * w), 1);
+  rest.fit(w, w > h, { l: 12, r: Math.round(.45 * w) }, false);
   const s = swipe(view, dir, (x, ms) => { runtime.stick.edgeTurn = rest.move(x, ms); f.step(1, false, { rated: false }); }, x0 => rest.down(x0, 0));
   let ms = s.T;
   while (f.t < 5 && f.done === Infinity) { ms += MS; runtime.stick.edgeTurn = rest.tick(ms); f.step(1, false); }

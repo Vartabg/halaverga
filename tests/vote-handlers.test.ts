@@ -68,6 +68,31 @@ describe('handleVote', () => {
     expect(await json(await handleVote(req(), deps))).toEqual({ status: 429, body: { ok: false, error: 'too-many' } });
   });
 
+  it('counts one IPv6 /64 as one address: rotating through a /64 hits too-many after 20 (review 2026-09-25)', async () => {
+    const { deps } = setup();
+    for (let i = 0; i < IP_LIMIT; i++) expect((await handleVote(req(good, { ip: `2001:db8:1:2::${(i + 1).toString(16)}` }), deps)).status).toBe(200);
+    expect(await json(await handleVote(req(good, { ip: '2001:db8:1:2:abcd::99' }), deps))).toEqual({ status: 429, body: { ok: false, error: 'too-many' } });
+    expect((await handleVote(req(good, { ip: '2001:db8:1:3::1' }), deps)).status).toBe(200); // a neighbouring /64 still votes
+  });
+
+  it('a retried Send (same nonce) is counted once; a failed write frees the nonce so the retry counts (review 2026-09-25)', async () => {
+    const { deps, redis } = setup(), nonce = '0f8fad5b-d9cb-469f-a165-70867728950e';
+    expect((await handleVote(req({ ...good, nonce }), deps)).status).toBe(200);
+    expect(await json(await handleVote(req({ ...good, nonce }), deps))).toEqual({ status: 200, body: { ok: true } });
+    const total = async () => (await readResults(redis, NS, VOTE_ROUND)).total;
+    expect(await total()).toBe(1);
+    expect((await handleVote(req({ ...good, nonce: nonce.replace('0f', '1f') }), deps)).status).toBe(200);
+    expect(await total()).toBe(2);
+    expect(JSON.stringify(redis.log)).not.toContain('"nonce"'); // the nonce is a key, never stored with the vote
+    // The tally write fails after the nonce was taken: the nonce is released, so the client's retry is counted.
+    const n2 = 'aaaaaaaaaaaaaaaaaaaa', flaky = setup(), real = flaky.redis.exec.bind(flaky.redis);
+    let calls = 0;
+    flaky.redis.exec = async (cmds) => { if (cmds.some(c => c[0] === 'HINCRBY') && calls++ === 0) throw new Error('down'); return real(cmds); };
+    expect((await handleVote(req({ ...good, nonce: n2 }), flaky.deps)).status).toBe(502);
+    expect((await handleVote(req({ ...good, nonce: n2 }), flaky.deps)).status).toBe(200);
+    expect((await readResults(flaky.redis, NS, VOTE_ROUND)).total).toBe(1);
+  });
+
   it('checks the per-IP limit in Upstash too, for other instances (no shared memo)', async () => {
     const { deps, redis } = setup();
     for (let i = 0; i < IP_LIMIT; i++) await handleVote(req(), { ...deps, memo: new MemoLimit() });

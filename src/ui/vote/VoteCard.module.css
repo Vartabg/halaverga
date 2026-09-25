@@ -40,7 +40,10 @@
 .skip{flex:0 1 110px;min-height:48px;padding:10px 15px;background:transparent;border:1px solid #829b92;border-radius:3px;color:var(--ink);font-size:14px}
 .skip:hover:not(:disabled){background:#2b4747}
 .send:focus-visible,.skip:focus-visible{outline:3px solid var(--lime);outline-offset:3px}
-@media(max-height:500px) and (orientation:landscape){.card{padding:14px 18px}.card h2{font-size:21px;margin-bottom:8px}.form{gap:8px}}
+@media(max-height:500px) and (orientation:landscape){.card{padding:14px 18px}.card h2{font-size:21px;margin-bottom:8px}.form{gap:8px}
+  /* Short landscape: the card scrolls, so Send and Skip stay pinned at the bottom with a shadow as the scroll cue (review 2026-09-25). */
+  .buttons{position:sticky;bottom:0;z-index:1;margin:12px -18px -14px;padding:10px 18px max(10px,env(safe-area-inset-bottom));
+    background:#132a30;box-shadow:0 -12px 14px -8px #071a24}}
 @media(prefers-reduced-motion:reduce){.scrim,.card,.card *{transition:none!important;animation:none!important;scroll-behavior:auto}}
 @media(forced-colors:active){.scrim{background:Canvas}.card{border-color:CanvasText}
   .choice:has(input:checked),.step:has(input:checked){background:Highlight;color:HighlightText;forced-color-adjust:none}

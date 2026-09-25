@@ -67,11 +67,11 @@ Check on the phone: your finger may cover the hero near the centre of the screen
 | | Phone | Mac |
 |---|---|---|
 | Cruise | After Lift, the hero cruises ahead at 13 m/s and holds its height. Near a wall or the ground, a stroke that steers away (soar off the floor, turn away from the wall) still runs; one that pushes into it stops. | Same. |
-| Turn | Swipe left or right. A longer swipe turns further, from 20 to 90 degrees (full length is 45% of the screen width, 180-300 px). Another swipe the same way while turning adds to the turn (up to 360°), so four quick swipes turn all the way round in about 1.9 s. An opposite swipe starts a new turn. | Click, then sweep left or right. It acts during the sweep, with no second click. |
-| Whirl | Draw a big loop or spiral (at least 150° of winding, radius 85 px or more): the hero spins round, 180° per half loop, up to 720°. Clockwise turns right. A 360 takes about 1.3 s, and the body banks into the spiral and rises a little. A loop around drones is still Lock on. | Same with the pointer. |
+| Turn | Swipe left or right. A longer swipe turns further, from 20 to 90 degrees (full length is 45% of the screen width, 160-240 px; the cap was 300 px until the 2026-09-25 review, when four landscape swipes stacked to only 290°). Another swipe the same way while turning adds to the turn (up to 360°), so four quick 240 px swipes turn all the way round in about 2 s on a phone in either orientation and on a desktop. An opposite swipe starts a new turn. | Click, then sweep left or right. It acts during the sweep, with no second click. |
+| Whirl | Draw a big loop or spiral (at least 150° of winding, radius 70 px or more; was 85 px): the hero spins round, 180° per half loop, up to 720°. Clockwise turns right. A 360 takes about 1.3 s, and the body banks into the spiral and rises a little. While you draw, the ink turns pink once the loop is big enough to whirl. A whirl-size loop always whirls, even around drones (review 2026-09-25: in a city of drones a loop that big nearly always enclosed one, so Lock stole about half the whirls). | Same with the pointer, but the whirl starts as soon as the loop closes (330°), without waiting for the hover ink's 0.65 s rest. So a mouse whirl is one turn; use the Whirl fallback buttons for more. |
 | Soar / Dive | Swipe up or down. A dive pulls out early enough to level off 8 m or more above the ground. A swipe down lands only when you fly low (under 5 m) over a landing spot, or when it ends on the landing spot. Standing, a swipe down lifts off. | Click, then sweep up or down. |
-| Roll | Circle empty sky with a small circle (radius under 85 px). | Same. |
-| Lock on | Circle one to three drones. Each locked drone gets a 3-shot burst. | Same. |
+| Roll | Circle empty sky with a small circle (radius under 70 px). | Same. |
+| Lock on | Circle one to three drones with a small loop (radius under 70 px, the ink stays blue). Each locked drone gets a 3-shot burst. | Same. |
 | Guide | Hold still 0.25 s to see the guide paths. Keep holding to 0.9 s to brake. | Ink less than 60 px, then rest. |
 | Shoot | Tap a drone. | Click a drone. |
 | Fallback | Soar, Dive, Turn left, Turn right, Whirl left, Whirl right (each a 360), Roll, Lock and burst nearest drone, Brake. | Same. |
@@ -95,12 +95,12 @@ Garo found a full 360 hard in every mode. Each mode now has a way to keep turnin
 
 | Mode | Gesture | Before | Target | Measured (node math, `tests/turn-360.test.ts`) |
 |---|---|---|---|---|
-| Phone twin sticks | fast look swipe that ends in a rest band, then hold | 3-4 swipes | 1.4 s or less, left and right | landscape 0.75 s, portrait 1.08-1.15 s, both directions |
+| Phone twin sticks | fast look swipe that ends in a rest band, then hold | 3-4 swipes | 1.4 s or less, left and right | landscape 0.73-0.75 s, portrait 1.15 s, both directions. The emulated review measured portrait about 0.5 s slower than this node math (1.57-1.61 s) |
 | Phone one thumb | thumb dragged to 25 px from the edge, then held | 8.4 s | 2.1 s or less | 1.80 s |
 | Desktop Standard | cursor from the centre to the edge, then hold it there or slide off the side | stopped at 17.5° | 2.0 s or less | 1.47 s (hold and side exit alike) |
 | Conduct | finger in the outer 10% | 4.2 s landscape, 9.8 s portrait | 1.8 s or less | 1.62 s in both orientations |
-| Brush | whirl (timed from the release) / 4 stacked swipes (from the first touch) | 4.0 s or more | 1.4 s / 2.1 s or less | 1.30 s / 2.07 s |
-| Draw | circle of radius 70 px (timed from when the hero reaches the wrap on the path) | impossible | 2.3 s or less | 1.70 s; 3.3-3.6 s from pen-down, because the first 150° of the line are flown as before |
+| Brush | whirl (timed from the release) / 4 stacked swipes (from the first touch) | 4.0 s or more | 1.4 s / 2.1 s or less | 1.30 s / 2.07 s (300 px swipes; 240 px swipes on 852 and 1440 px surfaces also reach 360°, `tests/brush-whirl.test.ts`) |
+| Draw | circle of radius 70 px (timed from when the hero reaches the wrap on the path) | impossible | 2.3 s or less | 1.70 s from the wrap. **From pen-down, what the player feels, it is 3.3-3.6 s** (node math); the emulated review measured 180° at 2.9-3.0 s and 360° at 3.6-3.7 s after pen-down (1.8-1.9 s after lifting), because the hero flies the first 150° of the line as before and the view follows the hero. Not changed yet: an open issue (see Known findings) |
 
 - Travel lag when the 360 completes was 25° or less in every case (worst: Draw 20.9°, one thumb 17.8°), the body stayed within its facing bound, and bank stayed at 0.6 or less.
 - Reduced motion, rate-driven parts only: no step turned faster than 2.5 rad/s, and a 360 took 2.58 s (desktop edge hold) to 3.9 s (stacked swipes). A twin 360 under reduced motion is 2.15-2.32 s, because the swipe is a direct drag at the Fixed Speed gain and only the rest is rate-capped.
@@ -192,7 +192,7 @@ The Standard column stays empty, because Standard is the baseline you rate. The 
 | `vote.spec.ts` | the pause card opens the card; a 200 thanks and shows the tally and sends only the answers; 429 "too many" keeps the answers; 503 "not open"; one retry; Skip and Escape return to the pause card; an eligible landing auto-opens it with the tap guard; a pause you opened never auto-opens it; axe AA. `/api/vote` and `/api/results` are mocked with `page.route`, never a real database |
 | `lab-draw.spec.ts` (phone) | live follow with the view held; "Path blocked", and the real wall stops the hero outside it; landing on the arrival terrace; chained strokes never stop the hero; a drawn loop turns the view 270° or more within 2.5 s of the turn starting |
 | `lab-conduct.spec.ts` | Mac: an empty click toggles the cruise with no shot, hover steers, a drone click fires without toggling. Phone: a resting finger steers, and lifting it glides to a hover; in portrait a finger resting near the edge for about 1 s turns 180° or more |
-| `lab-brush.spec.ts` (phone) | a swipe up climbs 5 m or more (measured 6.1 m); a lasso from a hover locks and fires; a 250 ms hold shows the guide without braking, and 900 ms brakes; a big loop whirls 300° or more within 1.6 s (blaster off, so no drone can turn it into a lasso) |
+| `lab-brush.spec.ts` (phone) | a swipe up climbs 5 m or more (measured 6.1 m); a lasso from a hover locks and fires; a 250 ms hold shows the guide without braking, and 900 ms brakes; a big loop whirls 300° or more within 1.6 s (blaster off); with the blaster on and drones in view, a radius 120 px loop whirls both ways and fires no shot |
 | `lab-desktop.spec.ts` | click-to-ink in Draw and Brush; the rest commit; Escape cancel; no phone UI, pause or pointer lock at 1440 and 325 px; the renderer budget |
 | `lab-touch-guard.spec.ts` | edge-strip and bottom-band starts are ignored; no navigation or pause; pointercancel leaves no movement in all three schemes |
 | `lab-look-source.spec.ts` | touches on the lab surface never arm auto-fire, even with the view centre on a drone |
@@ -257,3 +257,18 @@ Nothing below has been done yet. Fill it in after playing on the devices.
 - **Tapping Lift/Land turns auto-fire back on in a lab scheme** (touch devices). Lift/Land is not in `OWN_LOOK_SELECTOR`, so the capture-phase tag in `useShooterInput` sets `lookSource` to `'touch'`. Auto-fire (on by default) then fires at any drone near the view centre until the finger next touches the lab surface. The spec `lab-look-source.spec.ts` "tapping Lift…" reproduces it: 0 → 3 shots. It is marked `test.fail` until fixed.
 - **A lasso drawn on the ground locks less reliably.** On the terrace, the first stroke lifts the hero, so the view moves up while the circle is still being drawn. In emulation that lasso failed to lock in 6 of about 16 tries: no lock and no shot, with the same drone and the same 50 px circle. From a hover it locked 6 of 6 times, including circles drawn in about 1 s. The spec now lassos from a hover. Check this on the iPhone. If it happens there too, suspect how the drone screen history (GestureTrack) follows a camera that is moving.
 - **On touch screens, Flight settings no longer opens on the blaster section.** U9 put the lab picker (LabPanel) at the top of Flight settings, which pushes Auto-fire below the fold on a landscape phone (checkbox bottom at 640 px on a 393 px screen). The existing spec `simple-controls-touch.spec.ts` "Auto-fire is on by default…" now fails for this reason. The lead has to choose where the picker goes, for example after the touch blaster and touch settings on coarse pointers, or only at the top while a lab scheme is on.
+
+## Turn and switch review (2026-09-25, emulation)
+
+Fixed, each with node tests and a browser check (system Chrome emulation, not the iPhone or a Mac trackpad):
+
+- **Brush whirl vs Lock.** A whirl-size loop (radius 70 px or more, 150° or more of winding) always whirls, even around drones; a smaller loop around drones is Lock. The live ink turns pink once the loop is whirl-size, and shows no lock count. A mouse loop whirls as soon as it closes (330°). A natural 80 px loop now whirls (it was a silent Roll under the old 85 px limit).
+- **Brush stacked swipes.** A full-strength swipe is 240 px at most (was 300), so four natural swipes make 360° in landscape and on a desktop too.
+- **Lab tips.** A tip shows once, at the bottom with Skip tip, and is announced through the guide's own live region; it no longer also shows as the top toast. The portrait altitude block moves under the lab bar's row, clear of a two-line toast, and the toast sits above the ink.
+- **Vote card.** A modal dialog: while it shows, the rest of the page is inert and the bar cannot switch behind it. In short landscape Send and Skip stay pinned at the bottom. An eligible player who never lands gets the ask at the top of the pause card.
+
+Still open:
+
+- **Draw's view lag.** A circle wraps, but the view turns with the hero, which first flies the opening 150° of the line: 180° shows about 3 s after pen-down and 360° about 3.6 s. Easing the view toward the wrapped heading while the ink is still being drawn would change who leads the camera during a stroke, so it needs Garo's call and an iPhone check first.
+- **Switching styles mid-flight stops the cruise** (spec: any switch releases every held input). Comparing styles in the air means starting again each time.
+- Device rows below are still owed for all of this.

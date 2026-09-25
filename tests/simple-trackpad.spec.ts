@@ -132,7 +132,7 @@ test('simple link overrides a saved Flow preference and saves the new selection'
   await page.goto('/'); await page.getByRole('button', { name: 'Begin expedition' }).click();
   await simpleShown(page);
 });
-test('controls v4: an old free opens free, a v3 simple returns to free and saves v4, a v4 simple stays', async ({ page }) => {
+test('controls v5: an old free opens free, a v3 simple returns to free, a v4 simple stays with turning aids back on, a v5 save keeps its choices', async ({ page }) => {
   // Seeds before Begin and reloads unstarted, so no pagehide save from a live game overwrites the seed.
   const open = async (save: object) => {
     await page.goto('/'); await page.evaluate(v => { localStorage.setItem('halaverga-flight-v1', JSON.stringify(v)); }, save);
@@ -146,9 +146,12 @@ test('controls v4: an old free opens free, a v3 simple returns to free and saves
   expect(await open({ trackpadSteering: 'free', camera: 'first' })).toBe('free');
   await expect(page.getByTestId('simple-trackpad-hud')).toHaveCount(0);
   expect(await open({ trackpadSteering: 'simple', controlsVersion: 3, camera: 'first' })).toBe('free');
-  expect(await stored()).toMatchObject({ trackpadSteering: 'free', controlsVersion: 4, camera: 'first' });
-  expect(await open({ trackpadSteering: 'simple', controlsVersion: 4 })).toBe('simple');
-  expect(await stored()).toMatchObject({ trackpadSteering: 'simple', controlsVersion: 4 });
+  expect(await stored()).toMatchObject({ trackpadSteering: 'free', controlsVersion: 5, camera: 'first' });
+  // v4 -> v5: the steering choice holds, and the turning aids (sustained edges, edge rest, look acceleration) come back on.
+  expect(await open({ trackpadSteering: 'simple', controlsVersion: 4, sustainedEdges: false, edgeRest: false, lookAccel: false })).toBe('simple');
+  expect(await stored()).toMatchObject({ trackpadSteering: 'simple', controlsVersion: 5, sustainedEdges: true, edgeRest: true, lookAccel: true });
+  expect(await open({ trackpadSteering: 'simple', controlsVersion: 5, sustainedEdges: false, edgeRest: false, lookAccel: false })).toBe('simple');
+  expect(await stored()).toMatchObject({ trackpadSteering: 'simple', controlsVersion: 5, sustainedEdges: false, edgeRest: false, lookAccel: false });
 });
 for (const blaster of [true, false]) test(`on the ground after a pause, one click ${blaster ? 'restores free looking on the ground' : 'lifts into hover (PR #12)'}`, async ({ page }) => {
   const errors: string[] = []; page.on('pageerror', e => errors.push(e.message));

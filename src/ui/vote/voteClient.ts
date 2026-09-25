@@ -1,5 +1,5 @@
-// Sending the in-game vote (spec 3.2). Only the card's answers, touch or desktop, and the build stamp leave the device, and only
-// when the player presses Send. Lab measurements, strokes and timings never do. Only a 200 marks the device as voted (B1).
+// Sending the in-game vote (spec 3.2). Only the card's answers, touch or desktop, the build stamp and a random send code (so a
+// retry is not counted twice) leave the device, and only when the player presses Send. Lab measurements, strokes and timings never do. Only a 200 marks the device as voted (B1).
 import { cleanNote, isVoteLab, VOTE_LABS, type VoteDevice, type VoteLab, type VotePayload, type VoteRating, type VoteResults } from '@/lib/vote/shape';
 import { BUILD_STAMP } from '@/ui/buildInfo';
 import { markVoted, type VoteStorage } from './voteTracker';
@@ -56,10 +56,21 @@ async function postOnce(body: string, f: FetchLike, timeoutMs: number): Promise<
   } catch { return null; } finally { d.done(); }
 }
 
-/** 200 ok (marks voted) · 429 later (no mark, no retry) · 503 closed · 4xx invalid · network error/timeout/5xx: one retry, then network. */
+/** A fresh id for one Send (crypto.randomUUID where there is one; else random hex). */
+export function newNonce(): string {
+  try { if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID(); } catch { /* fall through */ }
+  let s = '';
+  for (let i = 0; i < 32; i++) s += Math.floor(Math.random() * 16).toString(16);
+  return s;
+}
+
+/**
+ * 200 ok (marks voted) · 429 later (no mark, no retry) · 503 closed · 4xx invalid · network error/timeout/5xx: one retry, then
+ * network. Both tries carry the same nonce, so a first try the server counted before its reply was lost is not counted again.
+ */
 export async function submitVote(payload: VotePayload, opts: SubmitOptions = {}): Promise<VoteOutcome> {
   const f = opts.fetch ?? ((url, init) => fetch(url, init)), timeoutMs = opts.timeoutMs ?? 6000;
-  const body = JSON.stringify(payload);
+  const body = JSON.stringify(payload.nonce ? payload : { ...payload, nonce: newNonce() });
   let status = await postOnce(body, f, timeoutMs);
   if (retryable(status)) { await wait(opts.retryDelayMs ?? 1000); status = await postOnce(body, f, timeoutMs); }
   const outcome = outcomeOf(status);

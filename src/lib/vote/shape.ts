@@ -21,6 +21,9 @@ export interface VotePayload {
   device: VoteDevice;
   build: string;
   note?: string;
+  /** One random id per Send (the client's single retry reuses it), so a vote the server counted before the reply was lost is
+   *  never counted twice. Checked once, then forgotten; never stored with the vote. */
+  nonce?: string;
 }
 export type VoteParse = { ok: true; vote: VotePayload } | { ok: false; status: 400 | 413 };
 
@@ -37,7 +40,8 @@ export interface VoteResults {
   stale: number;
 }
 
-const KEYS = new Set(['favorite', 'ratings', 'tried', 'device', 'build', 'note']);
+const KEYS = new Set(['favorite', 'ratings', 'tried', 'device', 'build', 'note', 'nonce']);
+export const NONCE_RE = /^[0-9a-f-]{16,64}$/;
 export const isVoteLab = (v: unknown): v is VoteLab => typeof v === 'string' && (VOTE_LABS as readonly string[]).includes(v);
 const isDevice = (v: unknown): v is VoteDevice => v === 'touch' || v === 'desktop';
 const isPlainObject = (v: unknown): v is Record<string, unknown> =>
@@ -77,7 +81,8 @@ function codePoints(s: string): number {
 function validate(v: unknown): VotePayload | null {
   if (!isPlainObject(v)) return null;
   for (const k of Object.keys(v)) if (!KEYS.has(k)) return null;
-  const { favorite, ratings, tried, device, build, note } = v;
+  const { favorite, ratings, tried, device, build, note, nonce } = v;
+  if (nonce !== undefined && (typeof nonce !== 'string' || !NONCE_RE.test(nonce))) return null;
   if (!isVoteLab(favorite) || !isDevice(device)) return null;
   if (!Array.isArray(tried) || tried.length < 1 || tried.length > VOTE_LABS.length) return null;
   if (!tried.every(isVoteLab) || new Set(tried).size !== tried.length || !tried.includes(favorite)) return null;
@@ -91,6 +96,7 @@ function validate(v: unknown): VotePayload | null {
     out[k] = r as VoteRating;
   }
   const vote: VotePayload = { favorite, ratings: out, tried: [...labs], device, build };
+  if (typeof nonce === 'string') vote.nonce = nonce;
   if (note !== undefined) {
     if (typeof note !== 'string' || note.length > NOTE_RAW_MAX * 2 || codePoints(note) > NOTE_RAW_MAX) return null;
     const clean = cleanNote(note);

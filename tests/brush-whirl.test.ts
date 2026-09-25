@@ -71,7 +71,8 @@ describe('whirlAngle', () => {
   it('reads loops, half loops and spirals by winding, in half-turn steps; small loops and swipes are not whirls', () => {
     expect(whirlAngle(arc(100, 360))).toBeCloseTo(-TAU, 9); // clockwise turns right
     expect(whirlAngle(arc(100, -360))).toBeCloseTo(TAU, 9);
-    expect(whirlAngle(arc(60, 360))).toBe(0); // radius under 85 px: a Roll circle
+    expect(whirlAngle(arc(60, 360))).toBe(0); // radius under 70 px: a Roll circle
+    expect(whirlAngle(arc(80, 360))).toBeCloseTo(-TAU, 9); // a natural 80 px thumb loop whirls (review 2026-09-25; was a Roll)
     expect(Math.abs(whirlAngle(arc(110, 180, 24)))).toBeCloseTo(Math.PI, 9);
     expect(Math.abs(whirlAngle(arc(100, 540, 72, 150)))).toBeCloseTo(3 * Math.PI, 9);
     expect(whirlAngle(line(300, 0))).toBe(0);
@@ -117,9 +118,43 @@ describe('Brush whirl stroke and stacked turns', () => {
     r.step(120);
     expect(r.b.view.program).toBe('none'); expect(gesture.facing).toBe(0);
     expect(r.yaw()).toBeCloseTo(-TAU, 1);
-    r = rig(); r.st.endLocks = 1;
-    feed(r, arc(110, 360));
+  });
+  it('a whirl-size loop whirls even around drones; a smaller loop around drones is Lock (review 2026-09-25)', () => {
+    // Drones inside the loop, both directions: the lasso would lock (live and at the close), but the whirl wins.
+    for (const sweep of [360, -360, 400]) {
+      const r = rig({ lassoAdd: () => 2 }); r.st.endLocks = 2;
+      feed(r, arc(110, sweep));
+      expect(r.st.bursts, `sweep ${sweep}`).toBe(0); expect(r.b.view.program).toBe('whirl');
+      r.step(120); expect(Math.abs(r.yaw())).toBeCloseTo(TAU, 1);
+    }
+    const r = rig({ lassoAdd: () => 1 }); r.st.endLocks = 1;
+    feed(r, arc(50, 360));
     expect(r.st.bursts).toBe(1); expect(r.b.view.program).toBe('none');
+  });
+  it('shows the whirl live: view.whirl turns on once the loop is whirl-size, with no lock count, and clears at the end', () => {
+    const r = rig({ lassoAdd: () => 2 }), src = arc(110, 360), s = createStrokeBuffer().begin(1, 'touch', src.x(0), src.y(0), src.t(0));
+    r.b.down(s);
+    const seen: boolean[] = [];
+    for (let i = 1; i < src.count; i++) { s.push(src.x(i), src.y(i), src.t(i)); r.b.move(s); seen.push(r.b.view.whirl); if (r.b.view.whirl) expect(r.b.view.locks).toBe(0); }
+    expect(seen[5]).toBe(false); expect(seen[seen.length - 1]).toBe(true);
+    r.b.up(s, classify(s, 'brush'));
+    expect(r.b.view.whirl).toBe(false);
+    const small = rig({ lassoAdd: () => 1 }), a = arc(50, 360), t = createStrokeBuffer().begin(1, 'touch', a.x(0), a.y(0), a.t(0));
+    small.b.down(t);
+    for (let i = 1; i < a.count; i++) { t.push(a.x(i), a.y(i), a.t(i)); small.b.move(t); expect(small.b.view.whirl).toBe(false); }
+    expect(small.b.view.locks).toBe(1);
+  });
+  it('a mouse loop whirls as soon as it closes (330 deg), without waiting for the hover-ink rest', () => {
+    const r = rig(), src = arc(110, 400, 60), s = createStrokeBuffer().begin(1, 'mouse', src.x(0), src.y(0), src.t(0));
+    r.b.down(s);
+    let at = -1;
+    for (let i = 1; i < src.count && at < 0; i++) { s.push(src.x(i), src.y(i), src.t(i)); r.b.move(s); if (r.b.view.committed) at = i; }
+    expect(at).toBeGreaterThan(0);
+    expect(Math.abs(s.winding)).toBeGreaterThanOrEqual(330); expect(Math.abs(s.winding)).toBeLessThan(345);
+    expect(r.b.view.program).toBe('whirl');
+    r.b.up(s, classify(s, 'brush')); expect(r.b.view.program).toBe('whirl'); // the commit already ran it; the release adds nothing
+    // Touch keeps the release: the same loop by finger is not committed mid-stroke.
+    const t = rig(); feed(t, src); expect(t.b.view.program).toBe('whirl');
   });
   it('the whirl fallbacks spin a full circle each way', () => {
     for (const [a, sign] of [['whirl-left', 1], ['whirl-right', -1]] as const) {
@@ -165,9 +200,17 @@ describe('Brush whirl stroke and stacked turns', () => {
     feed(r, line(-300, 0), 5);
     expect(r.b.view.lastCancel).toBe('stroke'); r.step(10); expect(gesture.yawRate).toBeGreaterThan(0);
   });
-  it('a full-strength swipe is 45% of the surface width (160-300 px)', () => {
+  it('a full-strength swipe is 45% of the surface width (160-240 px)', () => {
     expect(swipeMag(177, 393)).toBe(1);
-    expect(swipeMag(300)).toBe(1); expect(swipeMag(299)).toBeLessThan(1);
+    expect(swipeMag(240)).toBe(1); expect(swipeMag(239)).toBeLessThan(1); expect(swipeMag(240, 1440)).toBe(1);
+  });
+  it('four natural 240 px swipes make a 360 on a landscape phone and on a desktop (review 2026-09-25: 290 deg)', () => {
+    for (const w of [852, 1440]) {
+      const r = rig({ width: () => w });
+      for (let k = 0; k < 4; k++) { feed(r, line(240, 0), 5); r.step(15); }
+      r.step(Math.round(2.4 / dt));
+      expect(Math.abs(r.yaw() + TAU), `width ${w}`).toBeLessThan(TAU * 0.02);
+    }
   });
   it('allocates nothing per step or per whirl check', () => {
     const names = ['Float32Array', 'Float64Array', 'Array', 'Object', 'Map', 'Set'] as const;

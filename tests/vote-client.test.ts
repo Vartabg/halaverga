@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { buildPayload, submitVote, VOTE_URL } from '@/ui/vote/voteClient';
+import { NONCE_RE, parseVote } from '@/lib/vote/shape';
 import { readMark, type VoteStorage } from '@/ui/vote/voteTracker';
 
 function memory(): VoteStorage { const d: Record<string, string> = {}; return { getItem: k => d[k] ?? null, setItem: (k, v) => { d[k] = v; } }; }
@@ -91,7 +92,19 @@ describe('submitVote', () => {
     expect(calls[0].url).toBe('/api/vote');
     expect(calls[0].init?.method).toBe('POST');
     expect(new Headers(calls[0].init?.headers).get('content-type')).toBe('application/json');
-    expect(JSON.parse(String(calls[0].init?.body))).toEqual(payload);
+    const { nonce, ...rest } = JSON.parse(String(calls[0].init?.body));
+    expect(rest).toEqual(payload); expect(nonce).toMatch(NONCE_RE);
+  });
+
+  it('the retry carries the same nonce as the first try; each Send gets a new one (review 2026-09-25)', async () => {
+    const { f, calls } = fakeFetch(['throw', 200]);
+    await submitVote(payload, { ...fast, fetch: f, storage: memory() });
+    const [a, b] = calls.map(c => JSON.parse(String(c.init?.body)).nonce);
+    expect(a).toMatch(NONCE_RE); expect(b).toBe(a);
+    const again = fakeFetch([200]);
+    await submitVote(payload, { ...fast, fetch: again.f, storage: memory() });
+    expect(JSON.parse(String(again.calls[0].init?.body)).nonce).not.toBe(a);
+    expect(parseVote(String(again.calls[0].init?.body)).ok).toBe(true); // the server shape accepts it
   });
 });
 

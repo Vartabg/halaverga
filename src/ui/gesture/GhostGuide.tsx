@@ -38,12 +38,16 @@ const LABEL = { font: '600 14px system-ui, sans-serif', color: '#fff', textShado
 const SKIP = { pointerEvents: 'auto', minWidth: 44, minHeight: 44, padding: '0 14px', borderRadius: 22, border: '1px solid #ffffff66',
   background: '#0b1d24b3', color: '#fff', font: '600 13px system-ui, sans-serif' } as const;
 
+/** announce: an extra listener for each tip as it first shows (the guide announces it through its own live region). */
 export type GhostGuideProps = { scheme: LabScheme; touch: boolean; reduced: boolean; announce?: (text: string) => void };
 
 export default function GhostGuide({ scheme, touch, reduced, announce }: GhostGuideProps) {
   const [runner] = useState(() => createRunner(scheme, loadGuideProgress()[scheme], performance.now() + FIRST_GHOST_MS));
   const [shown, setShown] = useState<{ step: number; visible: boolean }>({ step: -1, visible: false });
   const [view, setView] = useState(() => ({ w: 390, h: 844, avoid: null as AvoidRect | null }));
+  // The tip's own polite live region (always mounted, so the first tip is announced too). The tip used to go to the store message
+  // as well, which showed it a second time as the top toast (review 2026-09-25); it is only announced here now.
+  const [spoken, setSpoken] = useState('');
   const trail = useRef<SVGPathElement>(null), tip = useRef<SVGCircleElement>(null), pulse = useRef<SVGCircleElement>(null);
   const length = useRef(1), say = useRef(announce);
   say.current = announce;
@@ -64,7 +68,9 @@ export default function GhostGuide({ scheme, touch, reduced, announce }: GhostGu
       if (runner.dirty) { runner.dirty = false; saveGuideProgress(scheme, progressToSave(runner)); }
       if (runner.step !== lastStep || frame.visible !== lastVisible) {
         // Announce a step the first time it shows: it may become visible after its step began (the first tip's delay, NEXT_MS).
-        if (frame.visible && runner.step !== announced && frame.step) { announced = runner.step; say.current?.(touch ? frame.step.label : frame.step.desk); }
+        if (frame.visible && runner.step !== announced && frame.step) {
+          announced = runner.step; const text = touch ? frame.step.label : frame.step.desk; setSpoken(text); say.current?.(text);
+        }
         lastStep = runner.step; lastVisible = frame.visible; setShown({ step: runner.step, visible: frame.visible });
       }
       const p = trail.current;
@@ -100,11 +106,12 @@ export default function GhostGuide({ scheme, touch, reduced, announce }: GhostGu
     try { length.current = p.getTotalLength() || 1; } catch { length.current = 1; }
     if (!reduced) p.style.strokeDasharray = String(length.current);
   }, [stepDef?.shape, reduced]);
-  if (!stepDef) return null;
+  const live = <div className="sr-only" aria-live="polite" data-testid="lab-tip-live">{spoken}</div>;
+  if (!stepDef) return live;
   const shape = GHOST_SHAPES[stepDef.shape], box = ghostAnchor(touch, view.w, view.h, 0, { x: 0, y: 0, size: 0 }, view.avoid);
   const style = { ...BOX, left: box.x - box.size / 2, top: box.y - box.size / 2,
     transform: touch ? 'translateY(calc(-1 * env(safe-area-inset-bottom, 0px)))' : undefined };
-  return <div style={style} data-testid="lab-ghost" data-step={stepDef.id}>
+  return <>{live}<div style={style} data-testid="lab-ghost" data-step={stepDef.id}>
     <svg aria-hidden="true" focusable="false" width={box.size} height={box.size} viewBox="-1.1 -1.1 2.2 2.2" overflow="visible">
       <defs><marker id="lab-ghost-arrow" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="4" markerHeight="4" orient="auto-start-reverse">
         <path d="M0 0L10 5L0 10z" fill="#e8fbff" /></marker></defs>
@@ -117,5 +124,5 @@ export default function GhostGuide({ scheme, touch, reduced, announce }: GhostGu
     </svg>
     <span style={LABEL}>{touch ? stepDef.label : stepDef.desk}</span>
     <button type="button" style={SKIP} onClick={() => skip(runner, performance.now())}>Skip tip</button>
-  </div>;
+  </div></>;
 }

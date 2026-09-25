@@ -7,8 +7,8 @@ import VoteRatings, { VoteFavorite } from './VoteRatings';
 import styles from './VoteCard.module.css';
 
 export const PRIVACY_LINE = 'Anonymous. No sign-in, no cookies. We save only your answers, your note if you write one, touch or desktop, '
-  + 'and the game version. Notes are deleted after about 90 days. To stop repeat votes, a scrambled form of your network address is '
-  + 'kept for one hour, then deleted. Your lab measurements stay on this device.';
+  + 'and the game version. Notes are deleted after about 90 days. To stop repeat votes, a scrambled form of your network address and '
+  + 'a random send code are kept for one hour, then deleted. Your lab measurements stay on this device.';
 export const NOTE_LABEL = 'Anything else? (optional, please leave out your name or contact details)';
 export const ALREADY_TEXT = 'Your vote for this version is in. Thanks!';
 export type CloseKind = 'skip' | 'done';
@@ -57,7 +57,8 @@ export default function VoteCard({ current, tried, device, already = false, guar
   };
   const offered = favoriteOptions(tried, current), rated = ratingLabs(tried, current), length = noteLength(note);
   const status = already ? ALREADY_TEXT : outcome ? STATUS_TEXT[outcome] : '';
-  return <section className={styles.card} aria-labelledby={`${id}-h`} data-testid="vote-card" data-guard={guard ? '' : undefined}
+  // A modal dialog: VoteLayer makes everything else inert while it shows, so Tab and screen readers stay inside it.
+  return <section role="dialog" aria-modal="true" className={styles.card} aria-labelledby={`${id}-h`} data-testid="vote-card" data-guard={guard ? '' : undefined}
     data-outcome={outcome ?? undefined} onKeyDown={keys}>
     <h2 id={`${id}-h`} ref={heading} tabIndex={-1}>Which controls did you like?</h2>
     {!finished && <form id={`${id}-form`} className={styles.form} onSubmit={send} aria-busy={busy}>

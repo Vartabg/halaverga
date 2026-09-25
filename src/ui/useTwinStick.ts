@@ -34,8 +34,8 @@ export function useTwinStick(surface: RefObject<HTMLDivElement | null>, enabled:
     const insets = readInsets(probeEl.current), g = useGame.getState();
     const layout = computeLayout(box.w, box.h, insets, headerBand(box, insets.top), { size: g.controlSize, flip: g.flipSides,
       fire: g.shooter, aim: g.shooter && g.aimButton && !g.tapControls, tapPad: g.tapControls });
-    const next = { box, layout }, z = layout.stickZone, flip = g.flipSides;
-    rest.current!.configure(flip ? 0 : box.w, flip ? 1 : -1, z ? (flip ? z.l : z.r) : null, flip ? -1 : 1);
+    const next = { box, layout };
+    rest.current!.fit(box.w, layout.orientation === 'landscape', layout.stickZone, g.flipSides);
     viewRef.current = next; setView(next);
     if (surface.current) surface.current.dataset.layout = layout.variant;
     return next;
@@ -146,7 +146,7 @@ export function useTwinStick(surface: RefObject<HTMLDivElement | null>, enabled:
       let path = 0, px = c.lastX, py = c.lastY;
       for (const p of list.length ? list : [e.nativeEvent]) { path += Math.hypot(p.clientX - px, p.clientY - py); px = p.clientX; py = p.clientY; }
       const dx = e.clientX - c.lastX, dy = e.clientY - c.lastY, dt = Math.max(1, e.timeStamp - c.lastT);
-      if (dx || dy) touchLook(dx, dy, path / dt);
+      if (dx || dy) touchLook(dx, dy, path / dt, viewRef.current?.box.w ?? NaN);
       if (restId.current === e.pointerId) runtime.stick.edgeTurn = useGame.getState().edgeRest ? rest.current!.move(e.clientX - c.ox, performance.now()) : 0;
     }
     c.lastX = e.clientX; c.lastY = e.clientY; c.lastT = e.timeStamp;

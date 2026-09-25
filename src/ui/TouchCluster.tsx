@@ -98,7 +98,7 @@ export default function TouchCluster({ layout, onChange, onDescend }: Props) {
     for (const c of list.length ? list : [e.nativeEvent]) { path += Math.hypot(c.clientX - px, c.clientY - py); px = c.clientX; py = c.clientY; }
     const dx = e.clientX - h.x, dy = e.clientY - h.y, dt = Math.max(1, e.timeStamp - h.t);
     h.x = e.clientX; h.y = e.clientY; h.t = e.timeStamp; h.travel += path;
-    if (dx || dy) touchLook(dx, dy, path / dt);
+    if (dx || dy) touchLook(dx, dy, path / dt, innerWidth);
   };
   const up = (b: TouchButton, e: PointerEvent<HTMLButtonElement>) => {
     const h = holds.current[b];

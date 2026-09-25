@@ -1,6 +1,7 @@
 // POST /api/vote logic (spec 3.1), kept out of the route file so tests can inject every dependency. Checks run in a fixed
 // order: setup, origin, content type, size, shape, the per-IP limit (instance memo, then Upstash), the global hourly limit
-// (only for requests that passed the per-IP check), then one write transaction. Nothing here logs or echoes an IP, a body,
+// (only for requests that passed the per-IP check), the Send nonce (a retry already counted answers ok), then one write
+// transaction. IPv6 callers are limited per /64 (hash.ipNetwork). Nothing here logs or echoes an IP, a body,
 // a note, a build or a token.
 import { parseVote, mediaType, VOTE_MAX_BYTES, VOTE_ROUND, type VotePayload } from '@/lib/vote/shape';
 import { BUILD_STAMP } from '@/ui/buildInfo';
@@ -12,6 +13,8 @@ export const IP_LIMIT = 20;
 export const GLOBAL_LIMIT = 600;
 export const NOTE_TTL_S = 7_776_000; // 90 days
 export const NOTES_KEEP = 200;
+/** How long a Send's nonce is remembered, s: far longer than the client's retry window. */
+export const NONCE_TTL_S = 3600;
 const HOUR_MS = 3_600_000;
 
 export interface VoteDeps {
@@ -124,7 +127,13 @@ export async function handleVote(req: Request, deps: VoteDeps): Promise<Response
   try {
     if (await bump(store, `${deps.ns}:rl:${key}`, 3600) > IP_LIMIT) return fail(429, 'too-many');
     if (await bump(store, `${deps.ns}:rlg:${stamp(now, 10)}`, 7200) > GLOBAL_LIMIT) return fail(429, 'busy');
-    await store.exec(voteWrites(parsed.vote, deps.ns, deps.serverBuild, now));
+    // A retried Send whose first try was already counted (the reply was lost or late) answers ok without counting again.
+    const seen = parsed.vote.nonce ? `${deps.ns}:seen:${parsed.vote.nonce}` : null;
+    if (seen && (await store.exec([['SET', seen, 1, 'EX', NONCE_TTL_S, 'NX']]))[0] === null) return Response.json({ ok: true }, { headers: NO_STORE });
+    try { await store.exec(voteWrites(parsed.vote, deps.ns, deps.serverBuild, now)); } catch (e) {
+      if (seen) await store.exec([['DEL', seen]]).catch(() => {}); // not counted: let the retry count it
+      throw e;
+    }
   } catch {
     console.error('[vote] store request failed');
     return fail(502, 'store-failed');

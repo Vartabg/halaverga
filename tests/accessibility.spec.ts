@@ -63,8 +63,10 @@ test('Gesture Lab on a desktop: the bar by keyboard, picker radios, rating, fall
   await page.emulateMedia({ reducedMotion: 'reduce' }); await page.goto('/?controls=draw');
   await page.getByRole('button', { name: 'Begin expedition' }).click();
   await expect(page.getByTestId('lab-surface')).toHaveCount(1);
-  // The ghost tip is announced through the polite live region; the ink canvas and surface stay out of the accessibility tree.
-  await expect(page.locator('main > div.sr-only[aria-live="polite"]').last()).toHaveText(/ink a curve/i);
+  // The ghost tip is announced through its own polite live region (not the store message, which showed it twice); the ink canvas
+  // and surface stay out of the accessibility tree.
+  await expect(page.getByTestId('lab-tip-live')).toHaveText(/ink a curve/i);
+  await expect(page.locator('main > div.sr-only[aria-live="polite"]').last()).not.toHaveText(/ink a curve/i);
   expect(await page.getByTestId('lab-surface').getAttribute('aria-hidden')).toBe('true');
   await wcag(page);
   // The bar: one radio group named "Controls", segments named by their visible text (2.5.3) and at least 44 x 44. APG radios:

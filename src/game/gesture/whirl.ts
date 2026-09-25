@@ -5,9 +5,13 @@ import type { StrokeView } from './types';
 
 /**
  * A whirl needs this mean loop radius (px), this much signed winding (deg), and a curved path: straightness (chord / arc) at most
- * this. A half circle is 2/PI = 0.64, so a half loop counts; a flatter arc (under about 165 deg) does not.
+ * this. A half circle is 2/PI = 0.64, so a half loop counts; a flatter arc (under about 165 deg) does not. The radius was 85 px
+ * until the 2026-09-25 review: a natural 80 px thumb loop read as a Roll with no feedback. A smaller loop is a Roll, or a Lock
+ * around drones; a whirl-size loop always whirls, drones or not (brushScheme).
  */
-export const WHIRL_R_MIN = 85, WHIRL_ENTER_DEG = 150, WHIRL_STRAIGHT_MAX = 0.68;
+export const WHIRL_R_MIN = 70, WHIRL_ENTER_DEG = 150, WHIRL_STRAIGHT_MAX = 0.68;
+/** Mouse strokes whirl as soon as the loop closes this far (deg), without waiting for the 650 ms rest that ends hover ink. */
+export const WHIRL_CLOSE_DEG = 330;
 /** Peak yaw rate the duration allows, rad/s, and under reduced motion (the lab cap there). */
 export const WHIRL_PEAK = 6.5, WHIRL_PEAK_RM = 2.5;
 /** Body bank at full envelope (rad), forward intent cut, and the gentle rise (vertical intent at mid-program). */
@@ -51,5 +55,8 @@ export function whirlRate(u: number, A: number, dur: number): number {
 /** Bank and slow-down envelope: eases in over the first 20% and back out over the last 20%, 0 at both ends. */
 export const whirlEnvelope = (u: number) => smooth(u / 0.2) * (1 - smooth((u - 0.8) / 0.2));
 
-/** The swipe length that gives a full (90 deg) turn on a surface this wide: 45% of the width, 160-300 px. */
-export const turnMaxPx = (w: number) => Math.min(300, Math.max(160, 0.45 * (Number.isFinite(w) && w > 0 ? w : 852)));
+/**
+ * The swipe length that gives a full (90 deg) turn on a surface this wide: 45% of the width, 160-240 px. Capped at 240 px (was 300)
+ * so four natural 240 px swipes make a 360 in landscape and on a desktop too (review 2026-09-25: landscape stacked to only 290 deg).
+ */
+export const turnMaxPx = (w: number) => Math.min(240, Math.max(160, 0.45 * (Number.isFinite(w) && w > 0 ? w : 852)));

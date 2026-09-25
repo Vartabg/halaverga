@@ -13,6 +13,8 @@ export class InkCanvas {
   /** Screen-ink tail in ms: INK_WORLD_MS where a world ribbon takes over (Draw); Infinity keeps the whole stroke (Brush). */
   tailMs = INK_WORLD_MS;
   reduced = false;
+  /** Brush: the live stroke is a whirl-size loop (BrushView.whirl), drawn in INK_WHIRL_COLOR. */
+  whirl = false;
   private readonly ctx: CanvasRenderingContext2D | null;
   private readonly pts = new Float32Array(CAP * 4); // x, y, t, width
   private readonly pred = new Float32Array(PRED * 2);
@@ -39,7 +41,7 @@ export class InkCanvas {
     this.flush();
   };
   begin(x: number, y: number, t: number) {
-    this.head = this.count = this.predN = 0; this.phase = 'live';
+    this.head = this.count = this.predN = 0; this.phase = 'live'; this.whirl = false;
     this.push(x, y, t, INK_W_SLOW);
   }
   point(x: number, y: number, t: number) {
@@ -113,7 +115,7 @@ export class InkCanvas {
     while (first < this.count && ref - p[this.at(first) * 4 + 2] >= tail) first++;
     const n = this.count - first;
     if (n <= 0) return false;
-    c.strokeStyle = c.fillStyle = inkColor(this.phase, gain); c.lineCap = 'round';
+    c.strokeStyle = c.fillStyle = inkColor(this.phase, gain, this.whirl); c.lineCap = 'round';
     const base = Math.min(1, gain);
     if (n === 1) {
       const o = this.at(first) * 4;

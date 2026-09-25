@@ -77,6 +77,14 @@ describe('pickLab', () => {
     g = useGame.getState();
     expect([g.message, g.inputEpoch]).toEqual(['', epoch + 1]);
   });
+  it('does nothing while the vote card is open (arrow keys on a radio behind the modal card, review 2026-09-25)', () => {
+    useGame.setState({ started: true, paused: true, controlLab: 'standard', voteOpen: true, message: '' });
+    const epoch = useGame.getState().inputEpoch;
+    expect(pickLab('draw')).toBe(false);
+    const g = useGame.getState();
+    expect([g.controlLab, g.message, g.inputEpoch]).toEqual(['standard', '', epoch]);
+    useGame.setState({ voteOpen: false });
+  });
   it('keeps a paused game paused', () => {
     useGame.setState({ started: true, paused: true, controlLab: 'standard' });
     pickLab('conduct');

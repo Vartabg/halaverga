@@ -64,6 +64,10 @@ export class FakeRedis implements VoteStore {
         if (e?.kind === 'list') e.v.splice(Number(args[1]) + 1);
         return 'OK';
       }
+      case 'DEL':
+        if (!e) return 0;
+        this.data.delete(k); this.expires.delete(k);
+        return 1;
       case 'LLEN':
         return e?.kind === 'list' ? e.v.length : 0;
       case 'EXPIRE':

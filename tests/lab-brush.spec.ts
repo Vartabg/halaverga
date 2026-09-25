@@ -98,3 +98,32 @@ test('a large loop in empty sky whirls: the view turns 300 deg or more within 1.
   expect(turned).toBeLessThan(0); // clockwise loop turns right (yaw decreases)
   expect(t.errors).toEqual([]); await t.context.close();
 });
+
+test('with the blaster on (drones in view), a whirl-size loop whirls both ways and never locks or fires', async ({ browser }) => {
+  // Review 2026-09-25: with the default save the lasso took half the whirls (0 deg and a 3-shot burst). Whirl-size loops now always
+  // whirl; the small-loop lasso is the test above. Emulation only (CDP touch, telemetry every 350 ms), not an iPhone check.
+  const t = await labPage(browser, 'brush', { touch: true, saved: { autoFire: false } }), { page, finger } = t;
+  await lift(page, true);
+  const R = 120, N = 26, c = { x: 426, y: 215 }, notes: string[] = [];
+  for (const dir of [1, -1]) {
+    const before = await shots(page), h0 = (await tel(page)).heading;
+    const at = (i: number) => ({ x: c.x + R * Math.cos(dir * i / N * 2 * Math.PI), y: c.y + R * Math.sin(dir * i / N * 2 * Math.PI) });
+    await finger.down(at(0));
+    for (let i = 1; i <= N + 2; i++) await finger.move(at(i));
+    await finger.up();
+    const end = Date.now() + 1600 + 350;
+    let last = h0, turned = 0;
+    while (Date.now() < end) {
+      const h = (await tel(page)).heading; turned += Math.atan2(Math.sin(h - last), Math.cos(h - last)); last = h;
+      await page.waitForTimeout(50);
+    }
+    const deg = turned * 180 / Math.PI, fired = await shots(page) - before;
+    notes.push(`${dir > 0 ? 'clockwise' : 'counter-clockwise'}: ${deg.toFixed(0)} deg, ${fired} shots`);
+    expect(Math.abs(deg)).toBeGreaterThanOrEqual(300);
+    expect(Math.sign(turned)).toBe(-dir); // clockwise on screen turns right
+    expect(fired).toBe(0);
+    await page.waitForTimeout(400);
+  }
+  test.info().annotations.push({ type: 'whirl with drones', description: notes.join('; ') });
+  expect(t.errors).toEqual([]); await t.context.close();
+});

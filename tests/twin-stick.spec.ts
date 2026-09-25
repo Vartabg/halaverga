@@ -184,3 +184,41 @@ test('iPhone 15 landscape insets: thumbs resting near the edges still start the 
   expect(852 - f.x).toBeGreaterThanOrEqual(110); expect(852 - f.x).toBeLessThanOrEqual(130);
   expect(t.errors).toEqual([]); await page.context().close();
 });
+
+// Review 2026-09-25: a quick flick left that stopped mid-pad and rested started a non-stop spin (portrait 330->200: 344 deg,
+// landscape 600->425: 258 deg), because the second rest band covered most of the portrait pad. The flick's own turn is the look
+// swipe (fast, so accelerated); what matters is the rest after it: under 10 deg over 1.5 s of a still thumb. A flick onto the far
+// edge must still keep turning while it rests. CDP touch, telemetry every 350 ms (so the rest is timed from 500 ms): emulation.
+async function flickRest(t: T, a: { x: number; y: number }, bx: number) {
+  const { page, touch } = t;
+  const h0 = await heading(page);
+  await touch.down(2, a); await touch.move(2, { x: (a.x + bx) / 2, y: a.y }); await touch.move(2, { x: bx, y: a.y });
+  await page.waitForTimeout(500);
+  const h1 = await heading(page);
+  let last = h1, rest = 0;
+  for (const end = Date.now() + 1500; Date.now() < end;) {
+    await page.waitForTimeout(100);
+    const h = await heading(page); rest += Math.atan2(Math.sin(h - last), Math.cos(h - last)); last = h;
+  }
+  await touch.up(2); await page.waitForTimeout(500);
+  const deg = (r: number) => Math.abs(r) * 180 / Math.PI;
+  return { flick: deg(Math.atan2(Math.sin(h1 - h0), Math.cos(h1 - h0))), rest: deg(rest) };
+}
+for (const [viewport, y, flicks, edge] of [
+  [{ width: 393, height: 852 }, 260, [[330, 200], [300, 120], [330, 240]], [300, 8]],
+  [{ width: 852, height: 393 }, 170, [[600, 460], [600, 425]], [520, 845]],
+] as const) {
+  test(`twin ${viewport.width}x${viewport.height}: a quick flick that stops mid-pad and rests does not keep turning; the edge still holds a turn`, async ({ browser }) => {
+    const t = await twinTouchPage(browser, viewport), { page } = t;
+    await liftOff(t); await settle(page);
+    const notes: string[] = [];
+    for (const [a, b] of flicks) {
+      const r = await flickRest(t, { x: a, y }, b); notes.push(`${a}->${b}: flick ${r.flick.toFixed(0)}, rest ${r.rest.toFixed(0)} deg`);
+      expect(r.rest, `${a}->${b}`).toBeLessThan(10);
+    }
+    const r = await flickRest(t, { x: edge[0], y }, edge[1]); notes.push(`edge ${edge[0]}->${edge[1]}: flick ${r.flick.toFixed(0)}, rest ${r.rest.toFixed(0)} deg`);
+    expect(r.rest).toBeGreaterThan(90);
+    test.info().annotations.push({ type: 'flick and rest', description: notes.join('; ') });
+    expect(t.errors).toEqual([]); await t.context.close();
+  });
+}

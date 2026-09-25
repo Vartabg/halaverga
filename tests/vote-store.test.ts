@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { createUpstashStore, storeFromEnv } from '@/server/vote/store';
-import { ipKey } from '@/server/vote/hash';
+import { createUpstashStore, STORE_TIMEOUT_MS, storeFromEnv } from '@/server/vote/store';
+import { ipKey, ipNetwork } from '@/server/vote/hash';
 import { MEMO_CAP, MemoLimit } from '@/server/vote/memoLimit';
 import { depsFromEnv } from '@/server/vote/handlers';
 
@@ -27,6 +27,16 @@ describe('Upstash store', () => {
     expect(headers.Authorization).toBe('Bearer tok-123');
     expect(headers['Content-Type']).toBe('application/json');
     expect(JSON.parse(String(calls[0].init.body))).toEqual([['SET', 'k', 0, 'EX', 3600, 'NX'], ['INCR', 'k']]);
+  });
+
+  it('gives up on a hung store after its timeout (under the client 6 s), without leaking the token', async () => {
+    let signal: AbortSignal | undefined;
+    const hang = (_: string, init: RequestInit) => { signal = init.signal ?? undefined; return new Promise<Response>((_, reject) => init.signal?.addEventListener('abort', () => reject(new Error('aborted')))); };
+    const store = createUpstashStore('https://x.upstash.io', 'tok-secret', hang, 30);
+    const err = await store.exec([['INCR', 'a']]).catch((e: Error) => e);
+    expect(err).toBeInstanceOf(Error); expect(String(err)).not.toContain('tok-secret');
+    expect(signal?.aborted).toBe(true);
+    expect(STORE_TIMEOUT_MS).toBeLessThan(6000);
   });
 
   it('throws on an error entry or a non-2xx status, without leaking the token', async () => {
@@ -77,6 +87,25 @@ describe('ipKey', () => {
     expect(ipKey('203.0.113.9', 'pepper', day1)).not.toBe(k);
     expect(ipKey('203.0.113.10', 'salt', day1)).not.toBe(k);
     expect(k).not.toContain('203');
+  });
+  it('keys IPv6 by its /64, so one home or VPS network cannot mint a fresh key per request (review 2026-09-25)', () => {
+    const a = ipKey('2001:db8:85a3:12::1', 'salt', day1);
+    expect(ipKey('2001:db8:85a3:12:ffff:ffff:ffff:fffe', 'salt', day1)).toBe(a);
+    expect(ipKey('2001:0DB8:85A3:0012:0:0:0:9', 'salt', day1)).toBe(a); // case and leading zeros
+    expect(ipKey('[2001:db8:85a3:12::7]', 'salt', day1)).toBe(a);
+    expect(ipKey('fe80::1%eth0', 'salt', day1)).toBe(ipKey('fe80::2', 'salt', day1));
+    expect(ipKey('2001:db8:85a3:13::1', 'salt', day1)).not.toBe(a); // the next /64 is another network
+  });
+  it('reads networks: IPv4 as is, IPv6 as its /64, mapped IPv4 as IPv4, junk as given', () => {
+    expect(ipNetwork('203.0.113.9')).toBe('203.0.113.9');
+    expect(ipNetwork('2001:db8::1')).toBe('2001:db8:0:0::/64');
+    expect(ipNetwork('::1')).toBe('0:0:0:0::/64');
+    expect(ipNetwork('::')).toBe('0:0:0:0::/64');
+    expect(ipNetwork('1:2:3:4:5:6:7:8')).toBe('1:2:3:4::/64');
+    expect(ipNetwork('::ffff:203.0.113.9')).toBe('203.0.113.9');
+    expect(ipNetwork('::FFFF:cb00:7109')).toBe('203.0.113.9');
+    expect(ipNetwork('64:ff9b::203.0.113.9')).toBe('64:ff9b:0:0::/64');
+    for (const bad of ['unknown', '1::2::3', '1:2:3', 'zz::1', '::ffff:300.1.1.1', '1:2:3:4:5:6:7:8:9']) expect(ipNetwork(bad)).toBe(bad);
   });
 });
 

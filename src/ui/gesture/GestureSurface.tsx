@@ -39,7 +39,7 @@ export interface GestureSurfaceProps {
   tailMs?: number;
 }
 const tailFor = (p: GestureSurfaceProps) => inkTailMs(p.scheme.id, p.tailMs);
-type Extras = { handle?(o: ArbiterOut): boolean; view?: { committed?: boolean }; clickStarts?(x: number, y: number): boolean };
+type Extras = { handle?(o: ArbiterOut): boolean; view?: { committed?: boolean; whirl?: boolean }; clickStarts?(x: number, y: number): boolean };
 const kindOf = (t: string): PointerKind => t === 'mouse' ? 'mouse' : t === 'pen' ? 'pen' : 'touch';
 const tagLook = () => { runtime.shooter.input.lookSource = 'tap'; };
 const defaultPick = (x: number, y: number, t: number) => pickDrone(x, y, t, runtime.shooter.targets, runtime.shooter.drones.count);
@@ -89,7 +89,7 @@ export default function GestureSurface(props: GestureSurfaceProps) {
         const o = a.out[i], ty = o.type;
         if (ty === 'begin') { s.begin(o.id, ev.kind, o.x, o.y, o.t); sc.down(s); ink.begin(o.x, o.y, o.t); continue; }
         if (ty === 'extend') {
-          s.push(o.x, o.y, o.t); sc.move(s); ink.point(o.x, o.y, o.t);
+          s.push(o.x, o.y, o.t); sc.move(s); ink.whirl = !!sc.view?.whirl; ink.point(o.x, o.y, o.t);
           if (hold?.active) holdTrack(hold, o.x, o.y, s.arc);
           if (sc.view?.committed && arbiterLive(a)) commitQueued = true;
           continue;

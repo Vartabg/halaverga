@@ -144,3 +144,25 @@ test('a bar switch mid-cruise stops the cruise; keys 1-4 switch while playing an
   expect(await controls(page)).toBeNull();
   expect(t.errors).toEqual([]); await t.context.close();
 });
+
+// Review 2026-09-25: in portrait the top toast (the switch note, blaster on) overlapped the MERIDIAN / altitude block, and each lab
+// tip showed twice (the bottom ghost with Skip tip, and again as the top toast). Emulated phones; layout only, not an iPhone.
+for (const viewport of [{ width: 393, height: 852 }, { width: 375, height: 667 }, { width: 852, height: 393 }]) {
+  test(`${viewport.width}x${viewport.height}: the switch toast clears the telemetry, and a lab tip shows once`, async ({ browser }) => {
+    const t = await labPage(browser, 'standard', { touch: true, viewport }), { page } = t;
+    await page.getByTestId('lab-bar').getByRole('radio', { name: 'Draw' }).tap();
+    const hint = page.locator('[class*="flightHint"]'), telemetry = page.getByTestId('flight-telemetry');
+    await expect(hint).toHaveText('Draw controls');
+    const a = (await hint.boundingBox())!, b = (await telemetry.boundingBox())!;
+    const overlap = Math.max(0, Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x)) * Math.max(0, Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y));
+    expect(overlap, `toast ${JSON.stringify(a)} vs telemetry ${JSON.stringify(b)}`).toBe(0);
+    // The first tip appears at the bottom with Skip tip and is announced, but never as the top toast.
+    const ghost = page.getByTestId('lab-ghost');
+    await expect(ghost).toBeVisible({ timeout: 8000 });
+    const tip = (await ghost.locator('span').first().textContent())!.trim();
+    await expect(page.getByTestId('lab-tip-live')).toHaveText(tip);
+    await page.waitForTimeout(300);
+    expect(await hint.count() ? await hint.textContent() : '').not.toBe(tip);
+    expect(t.errors).toEqual([]); await t.context.close();
+  });
+}

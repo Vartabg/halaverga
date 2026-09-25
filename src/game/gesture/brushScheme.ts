@@ -9,7 +9,7 @@ import {
   cancelManeuver, createManeuver, createManeuverOut, extendTurn, setRollBlocked, startDive, startNudge, startRoll, startSoar,
   startWhirl, stepManeuver, swipeMag, type CancelReason,
 } from './maneuvers';
-import { whirlAngle } from './whirl';
+import { WHIRL_CLOSE_DEG, whirlAngle } from './whirl';
 import { BRUSH_LAND_LOW_M, BRUSH_PULLOUT_M, NO_DRONE, SWIPE_COMMIT_WIND_DEG, cardinalOf, closedStroke as closed, type BrushHost,
   type BrushScheme, type BrushView } from './brushHost';
 export { BRUSH_LAND_LOW_M, BRUSH_PULLOUT_M, NO_DRONE, SWIPE_COMMIT_WIND_DEG, cardinalOf, type BrushHost, type BrushScheme,
@@ -24,7 +24,7 @@ export function createBrushScheme(host: BrushHost): BrushScheme {
   const m = createManeuver(), out = createManeuverOut(), g = gesture;
   const landReq = { kind: 'land' as const, x: 0, y: 0, z: 0 };
   const probeA = { x: 0, y: 0, z: 0 }, probeB = { x: 0, y: 0, z: 0 };
-  const view: BrushView = { guide: false, ring: 0, locks: 0, committed: false, recognized: 0, speed: 0, grey: false,
+  const view: BrushView = { guide: false, ring: 0, locks: 0, whirl: false, committed: false, recognized: 0, speed: 0, grey: false,
     program: 'none', lastCancel: null };
   let cruise = false, flying = false, wasFlying: boolean | null = null, ground = Infinity, epoch = g.epoch;
   let active = false, real = false, braked = false, lastT = 0, lastY = NaN, vy = 0;
@@ -76,7 +76,7 @@ export function createBrushScheme(host: BrushHost): BrushScheme {
     }
     write();
   }
-  const endStroke = () => { active = false; real = false; view.guide = false; view.ring = 0; };
+  const endStroke = () => { active = false; real = false; view.guide = false; view.ring = 0; view.whirl = false; };
   /** Whether the running program pushes into the obstacle whose surface normal (out of it) is n. */
   function into(n: Vec) {
     const yaw = host.yaw(), rx = Math.cos(yaw), rz = -Math.sin(yaw), side = rx * n.x + rz * n.z;
@@ -99,6 +99,9 @@ export function createBrushScheme(host: BrushHost): BrushScheme {
       while (i > 0 && s.t(i - 1) > lastT) i--;
       for (; i < s.count; i++) if (s.t(i) > lastT) view.locks = host.lassoAdd(s.x(i), s.y(i), s.t(i));
       lastT = s.lastT;
+      // A whirl-size loop always whirls, so it shows no lock rings, and the ink takes the whirl tone while it is being drawn.
+      view.whirl = whirlAngle(s) !== 0;
+      if (view.whirl) view.locks = 0;
       if (!real && s.travel > (s.kind === 'mouse' ? TAP_SLOP_MOUSE : TAP_SLOP_TOUCH)) {
         real = true; view.guide = false; view.ring = 0;
         if (!sameTurn(s.lastX - s.startX, s.lastY - s.startY)) cancel('stroke');
@@ -108,6 +111,9 @@ export function createBrushScheme(host: BrushHost): BrushScheme {
       if (real && !view.committed && view.locks === 0 && Math.abs(s.winding) <= SWIPE_COMMIT_WIND_DEG && straightFast(s)) {
         view.committed = true; recognized(s.speed150);
         run(cardinalOf(s.lastX - s.startX, s.lastY - s.startY), swipeMag(s.chord, width()), s.lastX, s.lastY);
+      } else if (real && !view.committed && view.whirl && s.kind === 'mouse' && Math.abs(s.winding) >= WHIRL_CLOSE_DEG) {
+        // Desktop: whirl once the loop closes; hover ink would otherwise wait for its rest commit (about 0.65 s late).
+        view.committed = true; recognized(s.speed150); run('whirl', whirlAngle(s));
       }
     },
     up(s: StrokeView, c: StrokeClass) {
@@ -115,11 +121,13 @@ export function createBrushScheme(host: BrushHost): BrushScheme {
       const wasReal = real;
       endStroke();
       if (!wasReal || view.committed) { write(); return; }
-      view.locks = host.lassoEnd(c.kind === 'circle' || c.kind === 'lasso' || closed(s));
-      // Grammar: a loop around drones is always Lock; then a big loop or spiral whirls; a small circle rolls; swipes; else a nudge.
-      const whirl = view.locks > 0 ? 0 : whirlAngle(s);
-      if (view.locks > 0) { host.lockBurst(); recognized(c.speed); host.guide?.('lasso'); }
-      else if (whirl !== 0) { recognized(c.speed); run('whirl', whirl); }
+      // Grammar (review 2026-09-25): a whirl-size loop or spiral always whirls, even around drones (in a city of drones a loop that
+      // big nearly always encloses one, so Lock stole half the whirls); a smaller loop around drones is Lock; a small empty circle
+      // rolls; swipes; else a nudge.
+      const whirl = whirlAngle(s);
+      view.locks = whirl !== 0 ? 0 : host.lassoEnd(c.kind === 'circle' || c.kind === 'lasso' || closed(s));
+      if (whirl !== 0) { recognized(c.speed); run('whirl', whirl); }
+      else if (view.locks > 0) { host.lockBurst(); recognized(c.speed); host.guide?.('lasso'); }
       else if (c.kind === 'circle' || c.kind === 'lasso') { recognized(c.speed); run('roll', c.winding); }
       else if ((c.kind === 'swipe' || c.kind === 'flick') && c.dir) {
         recognized(c.speed); run(c.dir, swipeMag(Math.hypot(c.chordX, c.chordY), width()), s.lastX, s.lastY);

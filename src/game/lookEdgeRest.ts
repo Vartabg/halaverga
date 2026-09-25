@@ -1,9 +1,11 @@
 // Twin-stick look edge rest (turn-360 spec 1.2c). A look thumb that swipes fast toward an edge and then rests there keeps turning
-// until it moves back out. Two bands: the outer physical edge (turns toward that side) and an inner band at the move-stick zone's
-// boundary (turns toward the stick side), so both directions work with one thumb. Arming needs intent: the thumb must enter a band
-// moving toward its edge at armSpeed or faster, then stay dwellMs. A slow aim that ends near an edge never arms. Pure and
-// allocation-free after construction; x is in the touch box's own coordinates, t in ms (event.timeStamp / rAF time).
-export const REST = { band: 56, full: 16, innerBand: 56, innerFull: 16, armSpeed: .6, dwellMs: 80, hyst: 8, tauMs: 40 } as const;
+// until it moves back out. Two bands, so both directions work with one thumb: the outer physical edge (turns toward that side) and
+// a second band that turns the other way (fit): in landscape a thin strip on the move-stick zone's line, in portrait (where the look
+// pad spans the full width above the stick zone) the opposite physical edge. Arming needs intent: the thumb must enter a band moving
+// toward its edge at armSpeed or faster, then stay dwellMs. A slow aim that ends near an edge never arms, and a quick flick that
+// stops mid-pad is outside every band. Pure and allocation-free after construction; x is in the touch box's own coordinates, t in
+// ms (event.timeStamp / rAF time).
+export const REST = { band: 56, full: 16, innerBand: 32, innerFull: 10, armSpeed: .6, dwellMs: 80, hyst: 8, tauMs: 40 } as const;
 const IDLE = 0, PENDING = 1, ARMED = 2;
 type Band = { on: boolean; edge: number; sign: number; toward: number; width: number; full: number; state: number; since: number };
 const band = (width: number, full: number): Band => ({ on: false, edge: 0, sign: 0, toward: 0, width, full, state: IDLE, since: 0 });
@@ -21,6 +23,17 @@ export class EdgeRest {
     this.set(this.outer, outerX, outerSign);
     if (innerX === null || !Number.isFinite(innerX)) { this.inner.on = false; this.inner.state = IDLE; }
     else this.set(this.inner, innerX, innerSign);
+  }
+  /**
+   * The twin-stick geometry for a touch box w px wide. zone: the stick zone's x span (null with tap controls: outer band only).
+   * Landscape: the second band is a REST.innerBand strip on the zone's inner line (the thumb past it, over the stick zone, counts
+   * fully). Portrait: the look pad lies above the stick zone across the full width, so the zone line would put most of the pad in
+   * the band (review 2026-09-25: an ordinary left flick spun the view); the second band is the opposite physical edge instead.
+   */
+  fit(w: number, landscape: boolean, zone: { l: number; r: number } | null, flip: boolean): void {
+    const inner = !zone ? null : landscape ? (flip ? zone.l : zone.r) : (flip ? w : 0);
+    this.inner.width = landscape ? REST.innerBand : REST.band; this.inner.full = landscape ? REST.innerFull : REST.full;
+    this.configure(flip ? 0 : w, flip ? 1 : -1, inner, flip ? -1 : 1);
   }
   down(x: number, t: number): void { this.reset(); this.x = x; this.t = t; }
   /** A look move; returns the signed rest factor (yaw direction x depth), or 0 while not armed. */

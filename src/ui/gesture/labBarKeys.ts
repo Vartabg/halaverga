@@ -43,9 +43,10 @@ export function rovingNext(i: number, key: string, n = LAB_IDS.length): number |
   }
 }
 
-/** Switch to `id` (clears input, saves, remounts; never pauses) and announce it. The current scheme does nothing. */
+/** Switch to `id` (clears input, saves, remounts; never pauses) and announce it. The current scheme, or an open vote card, does nothing. */
 export function pickLab(id: LabId): boolean {
-  if (useGame.getState().controlLab === id) return false;
+  const g = useGame.getState();
+  if (g.controlLab === id || g.voteOpen) return false; // the vote card is modal: nothing behind it switches
   switchLab(id);
   useGame.setState({ message: `${LAB_NAMES[id]} controls` });
   return true;

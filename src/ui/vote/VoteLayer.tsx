@@ -61,6 +61,15 @@ export default function VoteLayer({ onResume }: { onResume: () => void }) {
     return () => { clearTimeout(a); clearTimeout(b); };
   }, [guard, recheck]);
 
+  // A pause the player opened never opens the card, but when they are eligible the pause card leads with the vote (voteNudge):
+  // a player who never lands (over water, or always in the air) still gets asked. Re-checked on each pause, off after a vote.
+  useEffect(() => useGame.subscribe((s, prev) => {
+    if (s.paused && !prev.paused) {
+      const nudge = !s.voteOpen && eligible(playNow(), readMark(), Date.now());
+      if (nudge !== s.voteNudge) useGame.setState({ voteNudge: nudge });
+    }
+  }), []);
+
   // Auto-open: at most once per page load, only on a landing (flying true -> false while started and not paused), when eligible.
   // A pause the player opened never opens it (that path is the pause card's "Vote on the controls").
   useEffect(() => useGame.subscribe((s, prev) => {
@@ -83,14 +92,25 @@ export default function VoteLayer({ onResume }: { onResume: () => void }) {
     if (origin === 'auto') { openedAt.current = performance.now(); setGuard(true); }
   }, [open]);
 
+  // Modal (review 2026-09-25): while the card shows, the rest of the page (the header's lab bar and buttons, the controls, the skip
+  // link) is inert, so the keyboard cannot reach or switch anything behind it. Only what this effect made inert is restored.
+  const scrim = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = scrim.current, main = el?.parentElement;
+    if (!open || !session || !el || !main) return;
+    const others = [...main.children, ...document.querySelectorAll('a.skip')].filter(n => n !== el && !n.hasAttribute('inert'));
+    for (const n of others) n.setAttribute('inert', '');
+    return () => { for (const n of others) n.removeAttribute('inert'); };
+  }, [open, session]);
+
   const close = (kind: CloseKind) => {
     const origin = session?.origin;
     if (kind === 'skip') markSkipped();
-    setOpen(false);
+    useGame.setState({ voteOpen: false, voteNudge: false });
     if (origin === 'auto') onResume();
   };
   if (!open || !session) return null;
-  return <div className={styles.scrim} data-testid="vote-layer">
+  return <div ref={scrim} className={styles.scrim} data-testid="vote-layer">
     <VoteCard current={session.current} tried={session.tried} device={touchMode() ? 'touch' : 'desktop'} already={session.already}
       guard={guard} onClose={close} />
   </div>;

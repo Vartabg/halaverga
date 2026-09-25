@@ -10,6 +10,8 @@ export const INK_SPEED_SLOW = 0.1, INK_SPEED_FAST = 1.5;
 /** How long a recognised stroke stays after its flash, ms (reduced motion uses RM_INK_FADE_MS for the whole fade). */
 export const SET_FADE_MS = 250;
 export const INK_SET_COLOR = '#c4f6ff', INK_REJECT_COLOR = '#8f9aa1', RING_COLOR = '#e9fbff', BRAKE_COLOR = '#ffd36b';
+/** Brush: a loop big enough to whirl turns the live ink this colour before release, so Whirl reads apart from Roll and Lock. */
+export const INK_WHIRL_COLOR = '#ffa3e6';
 export const SPARKLE_MS = 420, SPARKLE_COUNT = 10, SPARKLE_REACH = 34;
 
 /**
@@ -60,9 +62,9 @@ export function phaseGain(phase: InkPhase, sinceMs: number, reduced: boolean): n
   return clamp01(1 - (sinceMs - SET_MS) / SET_FADE_MS);
 }
 
-export function inkColor(phase: InkPhase, gain: number): string {
+export function inkColor(phase: InkPhase, gain: number, whirl = false): string {
   if (phase === 'reject') return INK_REJECT_COLOR;
-  return gain > 1 ? INK_SET_COLOR : INK_COLOR;
+  return gain > 1 ? INK_SET_COLOR : whirl ? INK_WHIRL_COLOR : INK_COLOR;
 }
 
 /** Ring radius in CSS px: the arm ring breathes in as it arms, lock rings are tight, the brake ring is wide. */

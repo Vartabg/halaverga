@@ -36,10 +36,11 @@ test('while flying, a click on Brush switches at once: no pause, no focus taken,
   await expect.poll(async () => (await tel(page)).speed, { timeout: 6000 }).toBeLessThan(.3);
   expect((await tel(page)).flying).toBe(true);
   // Picking the current scheme again does nothing.
-  const said0 = (await said(page)).length;
+  // (Only the switch notes count: the first Brush tip may be announced meanwhile, through the guide's own live region.)
+  const notes = async () => (await said(page)).filter(s => / controls$/.test(s)).length, said0 = await notes();
   await bar.getByRole('radio', { name: 'Brush' }).click();
   await page.waitForTimeout(300);
-  expect(await controls(page)).toBe('brush'); expect((await said(page)).length).toBe(said0);
+  expect(await controls(page)).toBe('brush'); expect(await notes()).toBe(said0);
   expect(t.errors).toEqual([]); await t.context.close();
 });
 
@@ -177,3 +178,29 @@ for (const touch of [false, true]) {
     expect(t.errors).toEqual([]); await t.context.close();
   });
 }
+
+test('cruising on a desktop, resting the pointer on the lab bar or the Pause button holds the view still', async ({ browser }) => {
+  // Review 2026-09-25: the bar and the header buttons sit inside the 72 px top pitch band, and the window listener kept steering over
+  // them, so reaching for Brush tipped the view into the sky and reaching for Pause turned it. Over any control the look and the edge
+  // turn and pitch now freeze. (Travel across the world on the way still steers: that is the free cursor.) Mouse, not a trackpad.
+  const t = await labPage(browser, 'standard'), { page } = t, bar = page.getByTestId('lab-bar');
+  await expect(bar).toBeVisible();
+  // Seeded 250 px under the header, so the travel up leaves the pitch short of its 1.25 rad clamp and a sustained edge pitch shows.
+  await page.mouse.move(720, 300);
+  await page.keyboard.press('Space');
+  await expect.poll(async () => (await tel(page)).speed, { timeout: 6000 }).toBeGreaterThan(5);
+  for (const target of [bar.getByRole('radio', { name: 'Brush' }), page.getByRole('button', { name: 'Pause expedition' })]) {
+    const box = (await target.boundingBox())!, x = box.x + box.width / 2, y = box.y + box.height / 2;
+    await page.mouse.move(x, y, { steps: 25 });
+    await page.waitForTimeout(450); // telemetry is stamped every 350 ms
+    const a = await tel(page);
+    await page.waitForTimeout(1000);
+    const b = await tel(page);
+    test.info().annotations.push({ type: 'rest on control', description: `pitch ${a.pitch.toFixed(3)} -> ${b.pitch.toFixed(3)}, heading ${a.heading.toFixed(3)} -> ${b.heading.toFixed(3)}, speed ${b.speed.toFixed(1)}` });
+    expect(Math.abs(b.pitch - a.pitch)).toBeLessThan(.02);
+    expect(turned(a.heading, b.heading)).toBeLessThan(.02);
+    expect(b.speed).toBeGreaterThan(5); // still cruising: resting on a control is not a brake
+    await page.mouse.move(720, 300, { steps: 10 });
+  }
+  expect(t.errors).toEqual([]); await t.context.close();
+});

@@ -5,8 +5,11 @@ export interface VoteStore { exec(cmds: Command[]): Promise<unknown[]> }
 export type VoteEnv = Record<string, string | undefined>;
 type FetchLike = (input: string, init: RequestInit) => Promise<Response>;
 
-/** One atomic MULTI/EXEC round trip. Returns each command's result; throws on a non-2xx status or any error entry. */
-export function createUpstashStore(url: string, token: string, fetchImpl: FetchLike = fetch): VoteStore {
+/** Each store round trip gives up after this long, well inside the client's 6 s, so a hung store never holds the function open. */
+export const STORE_TIMEOUT_MS = 2500;
+
+/** One atomic MULTI/EXEC round trip. Returns each command's result; throws on a non-2xx status, any error entry or a timeout. */
+export function createUpstashStore(url: string, token: string, fetchImpl: FetchLike = fetch, timeoutMs = STORE_TIMEOUT_MS): VoteStore {
   const endpoint = `${url.replace(/\/+$/, '')}/multi-exec`;
   return {
     async exec(cmds) {
@@ -14,6 +17,7 @@ export function createUpstashStore(url: string, token: string, fetchImpl: FetchL
         method: 'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify(cmds),
+        signal: AbortSignal.timeout(timeoutMs),
       });
       if (!res.ok) throw new Error(`vote store http ${res.status}`);
       const data: unknown = await res.json();

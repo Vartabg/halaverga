@@ -56,7 +56,8 @@ test("the pause card's Vote on the controls opens the card; a 200 shows thanks a
   await expect(card(page).getByRole('status')).toHaveText('Thanks, your vote is counted.');
   await expect(card(page).getByTestId('vote-tally')).toHaveText('Favorites so far: Draw 3 · Standard 1 · Brush 1');
   expect(bodies).toHaveLength(1);
-  expect(Object.keys(bodies[0] as object).sort()).toEqual(['build', 'device', 'favorite', 'ratings', 'tried']);
+  expect(Object.keys(bodies[0] as object).sort()).toEqual(['build', 'device', 'favorite', 'nonce', 'ratings', 'tried']);
+  expect((bodies[0] as { nonce: string }).nonce).toMatch(/^[0-9a-f-]{16,64}$/); // a random send code, nothing about the player
   expect(bodies[0]).toMatchObject({ favorite: 'standard', ratings: { standard: 4 }, device: 'desktop' });
   await card(page).getByRole('button', { name: 'Done' }).click();
   await expect(paused(page)).toBeVisible();
@@ -153,6 +154,9 @@ test('opening the pause card yourself never auto-opens the vote, even when eligi
   await expect(paused(page)).toBeVisible();
   await page.waitForTimeout(1500);
   await expect(card(page)).toHaveCount(0);
+  // Eligible without a landing (review 2026-09-25: over water a player may never land): the pause card leads with the ask.
+  await expect(paused(page).getByText('You tried more than one style. Which did you like?')).toBeVisible();
+  await expect(page.getByTestId('vote-open')).toHaveAttribute('data-nudge', '');
   expect(t.errors).toEqual([]); await t.context.close();
 });
 
@@ -166,3 +170,35 @@ for (const [name, viewport, touch] of [['393x852 touch', PHONE_PORTRAIT, true], 
     expect(t.errors).toEqual([]); await t.context.close();
   });
 }
+
+test('the card is a modal dialog: the keyboard cannot leave it or switch styles behind it, and Skip restores the page', async ({ browser }) => {
+  // Review 2026-09-25: Shift+Tab from the heading reached the header's lab bar, and an arrow key there switched the scheme.
+  const t = await labPage(browser, 'standard', { viewport: DESK }), { page } = t;
+  await mock(page, [200]);
+  await openFromPause(page);
+  await expect(page.getByRole('dialog', { name: 'Which controls did you like?' })).toBeVisible();
+  await expect(page.locator('header')).toHaveAttribute('inert', '');
+  for (let i = 0; i < 6; i++) {
+    await page.keyboard.press('Shift+Tab');
+    expect(await page.evaluate(() => !!document.activeElement?.closest('[data-testid=vote-card]') || document.activeElement === document.body)).toBe(true);
+  }
+  await page.keyboard.press('ArrowRight');
+  expect(await page.evaluate(() => document.documentElement.dataset.controls ?? null)).toBeNull();
+  await card(page).getByRole('button', { name: 'Skip' }).click();
+  await expect(card(page)).toHaveCount(0);
+  await expect(page.locator('header')).not.toHaveAttribute('inert', '');
+  await expect(paused(page)).toBeVisible();
+  expect(t.errors).toEqual([]); await t.context.close();
+});
+
+test('667x375: Send vote stays on screen while the card scrolls (sticky, with a shadow as the scroll cue)', async ({ browser }) => {
+  const t = await labPage(browser, 'standard', { viewport: { width: 667, height: 375 }, touch: true }), { page } = t;
+  await mock(page, [200]);
+  await openFromPause(page, true);
+  const send = card(page).getByRole('button', { name: 'Send vote' });
+  const inView = async () => { const b = (await send.boundingBox())!; return b.y >= 0 && b.y + b.height <= 375; };
+  expect(await inView()).toBe(true);
+  await page.getByTestId('vote-layer').evaluate(e => { e.scrollTop = e.scrollHeight; });
+  expect(await inView()).toBe(true);
+  expect(t.errors).toEqual([]); await t.context.close();
+});

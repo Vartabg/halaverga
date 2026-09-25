@@ -59,6 +59,12 @@ describe('vote shape', () => {
     expect(status(v)).toBe(400);
   });
 
+  it('accepts an optional Send nonce of 16-64 hex or dash characters and rejects anything else', () => {
+    const id = '0f8fad5b-d9cb-469f-a165-70867728950e';
+    expect(parse({ ...good, nonce: id })).toEqual({ ok: true, vote: { ...good, nonce: id } });
+    for (const bad of [42, '', 'short', 'X'.repeat(20), 'a'.repeat(65), '0f8fad5b d9cb']) expect(status({ ...good, nonce: bad })).toBe(400);
+  });
+
   it('rejects bad JSON with 400', () => {
     expect(parseVote('{"favorite":')).toEqual({ ok: false, status: 400 });
   });

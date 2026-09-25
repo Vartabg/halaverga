@@ -6,12 +6,15 @@ import { exitKind } from '@/game/trackpadFlight';
 import { recordGesture } from '@/game/gestureLog';
 import { touchMode } from '@/game/pointerMode';
 // Desktop free cursor while cruising (turn-360 spec 1.5): the cursor is tracked by window listeners, so the header and its buttons
-// no longer count as leaving and a windowed browser keeps steering. A side exit keeps the full edge turn (edgeTurn.ts holds it up to
+// no longer count as leaving and a windowed browser keeps steering; over them it holds the heading still (onChrome). A side exit keeps the full edge turn (edgeTurn.ts holds it up to
 // 6 s); a top or bottom exit flies straight after 1 s. A blur or a hidden page drops the edge turn and the cruise flies straight.
 // Braking stays with a click, Space, Escape or pause, or a lab switch (clearInput). Every handler does nothing unless cruising.
 type Point = { x: number; y: number };
 const clamp = (v: number, hi: number) => Math.max(0, Math.min(hi, v));
 const cruising = () => runtime.trackpad.active && !document.pointerLockElement && !touchMode();
+/** The header (brand, lab bar, Field guide, settings, Pause) and any other control: the cursor is reaching for it, not steering. */
+const CHROME = 'header, button, a, input, select, [role="radiogroup"], [role="dialog"], dialog';
+const onChrome = (t: EventTarget | null) => t instanceof Element && !!t.closest(CHROME);
 /** last/seen are shared with useTrackpad: last is the latest cursor point, seen false until a move seeds it (no jump on re-entry). */
 export function useTrackpadWindow(last: RefObject<Point>, seen: RefObject<boolean>) {
   const paused = useGame(s => s.paused), mode = useGame(s => s.desktopMode), steering = useGame(s => s.trackpadSteering);
@@ -20,6 +23,10 @@ export function useTrackpadWindow(last: RefObject<Point>, seen: RefObject<boolea
     const tp = runtime.trackpad;
     const move = (e: PointerEvent) => {
       if (!cruising() || e.pointerType === 'touch') return;
+      // Review 2026-09-25: the lab bar and the header buttons sit inside the 72 px top pitch band, so reaching for them flipped the
+      // view into the sky. Over any control the look and the edge turn and pitch freeze; back over the world, the next move re-seeds
+      // (no jump). Keys 1-4 switch styles without moving the cursor at all.
+      if (onChrome(e.target)) { tp.edgeTurn = tp.edgePitch = 0; tp.edgeAge = 0; tp.outside = 0; tp.outsideAge = 0; seen.current = false; return; }
       const x = clamp(e.clientX, innerWidth), y = clamp(e.clientY, innerHeight), p = last.current;
       if (seen.current) {
         const dx = x - p.x, dy = y - p.y;

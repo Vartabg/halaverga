@@ -45,8 +45,9 @@ type GameState = {
   nearGround: boolean; leavePrompt: boolean; zoomNote: boolean; descendBlocked: boolean;
   /** Runtime only (never saved): a controls hint is on screen, so other notices wait (one message at a time). */
   hintVisible: boolean;
-  /** Runtime only (never saved): the vote card is open (the lab keys and auto-open wait). */
-  voteOpen: boolean;
+  /** Runtime only (never saved): the vote card is open (the lab keys and auto-open wait); voteNudge: eligible to vote, so the
+   *  pause card leads with the vote (VoteLayer sets it; players who never land never see the auto-open). */
+  voteOpen: boolean; voteNudge: boolean;
   flying: boolean; landing: boolean; canLand: boolean; nearTerminal: boolean; boundaryNear: boolean; clearanceActive: boolean; inputEpoch: number;
   checkpoint: Vec; discovered: boolean; message: string;
   set: (patch: Partial<Omit<GameState, 'set'>>) => void;
@@ -61,7 +62,7 @@ export const useGame = create<GameState>((set) => ({
   autoFire: true, aimButton: true, hintProgress: { touch: 0, simple: 0, mouse: 0 }, hintVisible: false,
   touchScheme: 'twin', touchLook: 1, touchAim: 1, lookAccel: true, edgeRest: true, invertY: false, flipSides: false,
   controlSize: 1, controlOpacity: .85, flyWhereILook: false, homeTipSeen: false, controlLab: 'standard', labShotsSlow: false,
-  nearGround: false, leavePrompt: false, zoomNote: false, descendBlocked: false, voteOpen: false,
+  nearGround: false, leavePrompt: false, zoomNote: false, descendBlocked: false, voteOpen: false, voteNudge: false,
   flying: false, landing: false, canLand: false, nearTerminal: false, boundaryNear: false, clearanceActive: false, inputEpoch: 0,
   checkpoint: START, discovered: false, message: '', set,
 }));

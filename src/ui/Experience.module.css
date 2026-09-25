@@ -17,7 +17,7 @@
 .flightSurface{position:absolute;inset:0;touch-action:none;z-index:1}
 .stick{position:fixed;pointer-events:none;z-index:3;width:88px;height:88px;margin:-44px;border:1px solid #ecf9dc88;border-radius:50%;background:#0c34342b}.stick span{position:absolute;inset:30px;background:#e3f4c7;border-radius:50%}.stick small{position:absolute;top:94px;left:50%;transform:translateX(-50%);font:9px 'Courier New',monospace;letter-spacing:.12em;color:var(--ink);text-shadow:0 1px 4px #000}
 .reticle{position:absolute;top:50%;left:50%;width:16px;height:16px;border:1px solid #efffe0aa;border-radius:50%;transform:translate(-50%,-50%);pointer-events:none}.reticle span{position:absolute;inset:6px;background:#faffef;border-radius:50%}
-.flightHint{position:absolute;left:50%;top:54%;transform:translateX(-50%);margin:0;max-width:75%;padding:8px 12px;background:#142c32e8;color:#e8f6d6;font:10px/1.5 'Courier New',monospace;text-align:center;pointer-events:none}
+.flightHint{position:absolute;left:50%;top:54%;transform:translateX(-50%);margin:0;max-width:75%;padding:8px 12px;background:#142c32e8;color:#e8f6d6;font:10px/1.5 'Courier New',monospace;text-align:center;pointer-events:none;z-index:3}
 .tapPad{position:absolute;left:5%;bottom:100px;z-index:5;display:grid;grid-template-columns:repeat(4,44px);gap:5px;pointer-events:none}.tapPad button{pointer-events:auto}.tapPad button{min-width:44px;min-height:44px;background:#142c32ed;border:1px solid #97aaa6;border-radius:4px;color:#e8f6d6;font-size:20px}.tapPad button:active{background:#d4f197;color:#142c32}
 .actions{position:absolute;right:max(5%,env(safe-area-inset-right));bottom:max(55px,calc(env(safe-area-inset-bottom) + 30px));display:flex;gap:12px;z-index:4}.action{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;width:68px;min-height:68px;border:1px solid #b4c9b4a6;background:#163738d4;border-radius:50%;font-size:10px;box-shadow:0 4px 16px #13303944}.action>span{font-size:23px;line-height:1.1}.action:hover,.action.active{color:#1b302c;background:var(--lime)}
 .telemetry{position:absolute;left:5%;bottom:38px;display:flex;flex-direction:column;gap:8px;font:10px 'Courier New',monospace;letter-spacing:.12em;pointer-events:none;text-shadow:0 1px 5px #000}.telemetry i{font-style:normal;margin:0 7px;color:var(--lime)}.telemetry>span:last-child{font-size:24px;font-weight:bold}.telemetry small{font-size:9px;font-weight:400}
@@ -65,11 +65,14 @@
 :global(html[data-input=touch]) .telemetry>span:last-child{font-size:18px}
 @media(orientation:landscape){:global(html[data-input=touch]) .telemetry{left:auto;right:max(16px,env(safe-area-inset-right));top:calc(max(28px,env(safe-area-inset-top)) + 56px + var(--lab-row,0px));align-items:flex-end}}
 @media(orientation:landscape) and (max-height:550px){:global(html[data-input=touch]) .telemetry{top:calc(max(12px,env(safe-area-inset-top)) + 56px + var(--lab-row,0px))}}
-@media(orientation:portrait){:global(html[data-input=touch]) .telemetry{left:max(16px,env(safe-area-inset-left));top:calc(max(20px,env(safe-area-inset-top)) + 136px)}}
+/* Portrait: under the lab bar's row too, and clear of a two-line top hint (review 2026-09-25: the lab toast overlapped it). */
+@media(orientation:portrait){:global(html[data-input=touch]) .telemetry{left:max(16px,env(safe-area-inset-left));top:calc(max(20px,env(safe-area-inset-top)) + 148px + var(--lab-row,0px))}}
 /* The pause card always fits: it scrolls inside itself instead of clipping (Resume comes before the tip). */
 .pauseCard{max-height:calc(100dvh - max(12px,env(safe-area-inset-top)) - max(12px,env(safe-area-inset-bottom)) - 16px);overflow:auto;overscroll-behavior:contain}
 .pauseCard .note:empty{margin:0}
 .pauseCard .voteOpen{margin-top:10px}
+.pauseCard .voteOpen[data-nudge]{border-color:var(--lime);color:var(--lime)}
+.pauseCard .voteAsk{margin:12px 0 0;font-size:13px}
 .insetProbe{position:fixed;left:0;top:0;width:0;height:0;visibility:hidden;pointer-events:none;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
 .homeTip{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;margin-top:12px;border-top:1px solid #738c85;padding-top:10px}.homeTip p{flex:1 1 180px;margin:0;font-size:13px}.pauseCard .homeTip .secondary{width:auto;flex:none;min-width:88px}
 .portraitLine{display:none;font-size:12px}

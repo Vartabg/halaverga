@@ -57,6 +57,8 @@ export interface BrushView {
   /** Brake-fill ring 0..1 between HOLD_MS and BRAKE_HOLD_MS. */
   ring: number;
   locks: number;
+  /** The live stroke is a whirl-size loop (whirl.whirlAngle): the ink takes the whirl tone, and no lock rings show. */
+  whirl: boolean;
   /** A swipe was committed mid-stroke: the arbiter should end the ink (desktop hover ink commits here). */
   committed: boolean;
   /** Bumped on every recognised stroke (the ink 'sets' and the chime plays); speed is its release speed, px/ms. */
