@@ -1,5 +1,5 @@
 'use client';
-import { Suspense, useEffect } from 'react';
+import { Suspense, lazy, useEffect } from 'react';
 import { Canvas, useThree } from '@react-three/fiber';
 import { Physics } from '@react-three/rapier';
 import { ACESFilmicToneMapping } from 'three';
@@ -20,6 +20,13 @@ import ArmCannon from './ArmCannon';
 import { useGame } from '@/game/store';
 import { clearInput } from '@/game/runtime';
 import EnvironmentLight from './EnvironmentLight';
+import { labFault } from '@/ui/labSwitch';
+// The Gesture Lab's scene parts load only when a lab scheme is on (spec 10): the drone screen history (-9), Draw's world probe
+// (-45) and ribbon, and the hero trail. The standard controls never fetch them.
+const GestureTrack = lazy(() => import('./GestureTrack'));
+const DrawProbe = lazy(() => import('./DrawProbe'));
+const GestureRibbon = lazy(() => import('./GestureRibbon'));
+const HeroTrail = lazy(() => import('./HeroTrail'));
 function GraphicsRecovery({ onLoss }: { onLoss: () => void }) {
   const { gl, invalidate } = useThree();
   useEffect(() => {
@@ -36,6 +43,14 @@ function ShooterLayer() {
   const shooter = useGame(s => s.shooter);
   return shooter ? <Boundary fallback={null} onError={() => shooterFault('render', null)}><Shooter /><Drones /><ShotFx /><ImpactFx />
     <Suspense fallback={null}><ArmCannon /></Suspense></Boundary> : null;
+}
+/** Mounted inside Physics (DrawProbe queries the world). A load or render error returns the session to the standard controls. */
+function LabLayer() {
+  const lab = useGame(s => s.controlLab);
+  if (lab === 'standard') return null;
+  return <Boundary key={lab} fallback={null} onError={() => labFault('The Gesture Lab scene failed. Standard controls are on.')}>
+    <Suspense fallback={null}><GestureTrack />{lab === 'draw' && <><DrawProbe /><GestureRibbon /></>}<HeroTrail /></Suspense>
+  </Boundary>;
 }
 export default function Scene({ onLoss }: { onLoss: () => void }) {
   const paused = useGame(s => s.paused), quality = useGame(s => s.quality);
@@ -54,7 +69,7 @@ export default function Scene({ onLoss }: { onLoss: () => void }) {
     <Suspense fallback={null}>
       <Physics paused={paused} timeStep={1 / 60} updatePriority={-50} gravity={[0, -22, 0]}>
         <City /><DistrictBoundary /><Player /><FlightPresentation /><Suit /><CameraRig />
-        <ShooterLayer />
+        <ShooterLayer /><LabLayer />
       </Physics>
     </Suspense>
   </Canvas>;

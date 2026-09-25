@@ -13,6 +13,7 @@ import { advanceSpread, advanceWeapon, spreadHalfAngle } from './weapon';
 import { advanceBurst, burst } from './burst';
 import { autoFire, stepAutoFire } from './autoFire';
 import { fireShot, muzzleFrom, realMuzzle, type AudioSink, type StepContext } from './shooterShots';
+import { aimed, shotDirOf, trackAimed } from './gesture/aimedShot';
 export type { AudioSink, StepContext } from './shooterShots';
 export { NEAR_MISS } from './shooterShots';
 
@@ -48,9 +49,10 @@ function voice(e: ShotEvent) {
   voiceSink(e.kind, pan, clamp(1 - d / 120, .15, 1), 0);
 }
 
-/** Crosshair point for the suit IK and the HUD: the world, water or a drone along the camera ray, from level with the head. */
+/** Crosshair point for the suit IK and the HUD: the world, water or a drone along the camera ray (the Gesture Lab's aimed ray while
+ * an aimed burst runs), from level with the head. */
 function aimPoint(s: ShooterState, world: ShooterWorld, ctx: StepContext, count: number) {
-  const a = s.aim, o = a.origin, d = a.dir;
+  const a = s.aim, o = a.origin, d = shotDirOf(s);
   projectedStart(o, d, ctx.head, start);
   let t = world.castShot(start, d, SHOT_RANGE, env) ? env.t : Infinity;
   t = Math.min(t, rayWater(start, d));
@@ -75,6 +77,8 @@ export function stepShooter(s: ShooterState, sim: DroneSim, mem: AssistMemory, w
   s.clock += dt;
   const a = s.aim, w = s.weapon, input = s.input, fx = s.camFx;
   if (input.fireSource === 'tap' && s.clock > input.tapFireUntil) releaseFire(s, 'tap');
+  // Gesture Lab aimed bursts: re-aim at the tapped drone and release 'gesture' when the burst is done (the only releaser).
+  trackAimed(s);
   stepAutoFire(s, autoFire, ctx.autoFire, dt);
   let count = s.drones.count, shotKind = '';
   if (a.valid) {
@@ -102,7 +106,8 @@ export function stepShooter(s: ShooterState, sim: DroneSim, mem: AssistMemory, w
   }
   // f. Drones. Targets are rebuilt after they move, so the aim point, the assist and next frame's shots see where they are drawn.
   const c = droneContext;
-  c.dt = dt; copy(c.player, ctx.player); copy(c.camera, a.origin); copy(c.aimDir, a.dir); c.aimDist = a.dist; c.ads = a.blend;
+  // Drones read the real threat: an aimed burst's ray, except mid lock chain (lock time counts as dwell only once it ends).
+  c.dt = dt; copy(c.player, ctx.player); copy(c.camera, a.origin); copy(c.aimDir, aimed.chainLen > 0 ? a.dir : shotDirOf(s)); c.aimDist = a.dist; c.ads = a.blend;
   c.threat = threat(s); c.tier = input.lookSource; c.tutorialLocked = s.stats.kills === 0; c.reduced = ctx.reduced;
   advanceDrones(s, sim, c, world.lineClear);
   count = buildTargets(s);

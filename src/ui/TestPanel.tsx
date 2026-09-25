@@ -11,6 +11,7 @@ import { touchMode } from '@/game/pointerMode';
 import { readInsets } from './touchInsets';
 import { isStandalone } from './playSession';
 import { unlockBlasterAudio } from './audioUnlock';
+import LabPanel, { LabStatsTable } from './gesture/LabPanel';
 // Blaster settings load with the panel, not with the landing page.
 const ShooterSettings = dynamic(() => import('./ShooterSettings'), { ssr: false, loading: () => null });
 import { BUILD_STAMP, DEPLOYMENT_URL } from './buildInfo';
@@ -58,7 +59,8 @@ function ScreenDiagnostics() {
 
 export default function TestPanel({ onClose }: { onClose: () => void }) {
   const state = useGame(), [stats, setStats] = useState<ReturnType<typeof measurements> | null>(null);
-  // Touch screens: the blaster section (Auto-fire) leads, above main's desktop and trackpad sections, so it is not below the fold.
+  // Touch screens: the blaster section (Auto-fire) leads, above the control lab and the desktop and trackpad sections, so it is not
+  // below the fold (852 × 393 landscape included).
   const [coarse] = useState(() => typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches);
   // Any touch screen (a phone, or an iPad or laptop that also has a trackpad) gets the touch controls, blaster on or off.
   const [anyCoarse] = useState(() => typeof matchMedia === 'function' && matchMedia('(any-pointer: coarse)').matches);
@@ -66,8 +68,12 @@ export default function TestPanel({ onClose }: { onClose: () => void }) {
   const save = (patch: Parameters<typeof state.set>[0]) => { state.set(patch); persistGame(); };
   return <Modal title="Flight settings" onClose={onClose}>
     <p>Adjust the experience, resume, and try the same route again.</p>
+    {!coarse && <LabPanel />}
     {coarse && <ShooterSettings coarse />}
     {coarse && <TouchSettings />}
+    {/* Touch: the control lab follows the blaster and touch sections, so Auto-fire stays above the fold in landscape too. The
+        pause card and the Lab chip keep the switch one tap away while playing. */}
+    {coarse && <LabPanel />}
     <fieldset><legend>Perspective</legend><div className={styles.segment}>
       <button aria-pressed={state.camera === 'third'} onClick={() => save({ camera: 'third' })}>Third person</button>
       <button aria-pressed={state.camera === 'first'} onClick={() => save({ camera: 'first' })}>First person</button>
@@ -86,6 +92,7 @@ export default function TestPanel({ onClose }: { onClose: () => void }) {
     <MoreControls />
     <p className={styles.muted}>Reduced motion keeps a fixed field of view, removes camera easing and softens the character’s poses. Flight itself remains player-controlled.</p>
     {anyCoarse && <ScreenDiagnostics />}
+    <LabStatsTable />
     <details><summary>Playtest measurements</summary>
       <p>Active-play frame timings from this browser. A desktop simulation is not an iPhone performance test.</p>
       {stats && <dl className={styles.stats}><dt>Time sampled</dt><dd>{stats.seconds}s</dd><dt>Median frame</dt><dd>{stats.p50Ms}ms</dd><dt>95th percentile</dt><dd>{stats.p95Ms}ms</dd><dt>Frames above 50ms</dt><dd>{stats.stallsOver50Ms}</dd></dl>}

@@ -5,6 +5,7 @@ import type { ArbiterEvent, ArbiterEventType, ArbiterOutType, PointerKind } from
 import { arbiterCommit, arbiterDispatch, arbiterLive, arbiterNeedsTick, arbiterReset, createArbiter, REJECT_BOTTOM, REJECT_EDGE,
   type Arbiter, type LabId } from '../src/ui/gesture/pointerArbiter';
 import { inkTaper, inkWidth, phaseGain, tailAlpha } from '../src/ui/gesture/inkStyle';
+import { REST_COMMIT_MS } from '../src/game/gesture/tuning';
 
 // A drone sits in a 30 px box around (500, 300); the viewport is 1000 x 800 with the phone start filter.
 const DRONE = { x: 500, y: 300 };
@@ -149,14 +150,16 @@ describe.each(SCHEMES)('phone table: %s', scheme => {
 });
 
 describe.each(['draw', 'brush'] as LabId[])('desktop click-to-ink: %s', scheme => {
-  it('a click starts ink, hover draws, and a 350 ms rest after 60 px commits', () => {
+  it('a click starts ink, hover draws, and a REST_COMMIT_MS (650 ms) rest after 60 px commits', () => {
     const d = lab(scheme);
     expect(d.down(1, 200, 400, 0, 'mouse')).toEqual([]);
     expect(d.up(1, 201, 400, 90, 'mouse')).toEqual(['begin']);
     expect(arbiterLive(d.a)).toBe(true);
     for (let i = 1; i <= 8; i++) expect(d.move(1, 200 + i * 10, 400, 100 + i * 16, 'mouse', 0)).toEqual(['extend']);
+    expect(REST_COMMIT_MS).toBe(650); // a trackpad pause to think mid-curve (about 350 ms) keeps inking
     expect(d.tick(228 + 349)).toEqual([]);
-    expect(d.tick(228 + 350)).toEqual(['commit']);
+    expect(d.tick(228 + REST_COMMIT_MS - 1)).toEqual([]);
+    expect(d.tick(228 + REST_COMMIT_MS)).toEqual(['commit']);
     expect(arbiterLive(d.a)).toBe(false);
     noShot(d.log);
   });

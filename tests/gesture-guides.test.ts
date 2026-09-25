@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { gesture } from '../src/game/gesture/bus';
-import { BOTTOM_BAND, INK_WORLD_MS, ONBOARD_GHOST_MS, ONBOARD_REPLAY_S, TRAIL_S } from '../src/game/gesture/tuning';
+import { BOTTOM_BAND, INK_WORLD_MS, ONBOARD_GHOST_MS, ONBOARD_LOOPS, ONBOARD_REPLAY_S, TRAIL_S } from '../src/game/gesture/tuning';
 import {
   GHOST_LOOP_MS, GUIDE_STEPS, NEXT_MS, createGhostFrame, createRunner, ghostAnchor, ghostFrame, guideLink, loadGuideProgress, progressToSave,
   report, reportGuide, saveGuideProgress, skip, type RibbonPath,
@@ -42,11 +42,13 @@ describe('ghost onboarding steps', () => {
     expect(f.visible).toBe(false);
   });
 
-  it('draws at real speed, loops twice, then replays after 8 s with no success', () => {
+  it('draws at real speed, loops three times, then replays after 8 s with no success', () => {
     const r = createRunner('brush', 0, 0), f = createGhostFrame();
+    expect(ONBOARD_LOOPS).toBe(3);
     expect(ghostFrame(r, ONBOARD_GHOST_MS / 2, false, f).progress).toBeCloseTo(.5, 5);
     expect(ghostFrame(r, GHOST_LOOP_MS + 10, false, f).loop).toBe(1);
-    const loopsEnd = 2 * GHOST_LOOP_MS;
+    expect(ghostFrame(r, 2 * GHOST_LOOP_MS + 10, false, f).loop).toBe(2);
+    const loopsEnd = ONBOARD_LOOPS * GHOST_LOOP_MS;
     expect(ghostFrame(r, loopsEnd + 10, false, f).visible).toBe(false);
     expect(f.wakeIn).toBeGreaterThan(0);
     expect(ghostFrame(r, loopsEnd + ONBOARD_REPLAY_S * 1000 - 10, false, f).visible).toBe(false);

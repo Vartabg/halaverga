@@ -2,7 +2,7 @@ import { Euler, Quaternion, Vector3, type Object3D } from 'three';
 import { settle, type Pose } from '../game/presentation';
 import { sightLine } from './suitRoll';
 export type SuitMotion = { hero: number; epoch: number };
-const euler = new Euler(0, 0, 0, 'YXZ'), roll = new Quaternion(), sight = new Vector3(), tail = new Vector3();
+const euler = new Euler(0, 0, 0, 'YXZ'), roll = new Quaternion(), sight = new Vector3(), tail = new Vector3(), travel = new Vector3();
 /**
  * Root orientation. The model faces -Z and the chase camera hangs at +Z of the view frame, so the back stays toward the camera:
  * yaw and pitch follow the travel direction (bounded near the view in presentation.ts) and the lean tips the head into it.
@@ -12,13 +12,20 @@ const euler = new Euler(0, 0, 0, 'YXZ'), roll = new Quaternion(), sight = new Ve
  * weighted by how directly the camera looks along the flight axis (body yaw and pitch × power), so the on-screen tilt matches a bank
  * about that axis and a steep view does not turn it into a heading swing. Within the facing bounds that weight stays above .07, so
  * its floor at 0 is only a guard; backward flight gives no roll because the turn sweep counts only speed along the heading.
+ * `spin` (Gesture Lab, rad, positive rolls right as seen from behind) turns the whole body about its travel axis last; only the
+ * model turns, never the anchor, the collider or the camera.
  */
-export function orientSuit(root: Object3D, pose: Pose, motion: SuitMotion, turnRoll = 0, fade = 0) {
+export function orientSuit(root: Object3D, pose: Pose, motion: SuitMotion, turnRoll = 0, fade = 0, spin = 0) {
   const power = pose.power;
   euler.set(pose.lean + pose.pitch * power, pose.yaw, pose.bank * (1 - power) * (1 + motion.hero * .7) * (1 - fade * pose.flight));
   root.quaternion.setFromEuler(euler);
-  if (!turnRoll) return;
   const elevation = pose.pitch * power;
+  if (spin) {
+    // Forward along the flight axis (the model faces -Z): a positive angle about it rolls the right side down.
+    travel.set(-Math.sin(pose.yaw) * Math.cos(elevation), Math.sin(elevation), -Math.cos(pose.yaw) * Math.cos(elevation));
+    root.quaternion.premultiply(roll.setFromAxisAngle(travel, spin));
+  }
+  if (!turnRoll) return;
   // Back along the flight axis, the way the camera looks along it.
   tail.set(Math.sin(pose.yaw) * Math.cos(elevation), -Math.sin(elevation), Math.cos(pose.yaw) * Math.cos(elevation));
   sightLine(pose, sight);

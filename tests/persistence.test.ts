@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { PERSISTED_KEYS, hydrateGame, persistGame, useGame, validHintProgress, type PersistedKey } from '../src/game/store';
+import { PERSISTED_KEYS, chooseControlLab, hydrateGame, overrideControls, persistGame, useGame, validHintProgress, type PersistedKey } from '../src/game/store';
+import { readControlsQuery } from '../src/ui/labSwitch';
 import { START } from '../src/game/motion';
 const saved: Record<string, string> = {}, STORAGE = 'halaverga-flight-v1';
 // Every persisted key, set away from its default. The Record type makes a new key a compile error until it is added here.
@@ -9,7 +10,7 @@ const NON_DEFAULT: Record<PersistedKey, unknown> = {
   cruiseSpeed: 20, heroPoses: false, lookSensitivity: 1.7, flowIntroSeen: true, shooter: false, aimToggle: true, aimAssist: 1.5,
   controlsVersion: 5, autoFire: false, aimButton: false, hintProgress: { touch: 2, simple: 3, mouse: 1 },
   touchScheme: 'classic', touchLook: 1.6, touchAim: .7, lookAccel: true, invertY: true, flipSides: true,
-  controlSize: 1.15, controlOpacity: .5, flyWhereILook: true, homeTipSeen: true,
+  controlSize: 1.15, controlOpacity: .5, flyWhereILook: true, homeTipSeen: true, controlLab: 'brush', labShotsSlow: true,
 };
 const DEFAULTS: Record<PersistedKey, unknown> = {
   checkpoint: START, camera: 'third', quality: 'high', reduced: false, muted: true, discovered: false,
@@ -17,7 +18,7 @@ const DEFAULTS: Record<PersistedKey, unknown> = {
   cruiseSpeed: 8, heroPoses: true, lookSensitivity: 1, flowIntroSeen: false, shooter: true, aimToggle: false, aimAssist: 1,
   controlsVersion: 4, autoFire: true, aimButton: true, hintProgress: { touch: 0, simple: 0, mouse: 0 },
   touchScheme: 'twin', touchLook: 1, touchAim: 1, lookAccel: false, invertY: false, flipSides: false,
-  controlSize: 1, controlOpacity: .85, flyWhereILook: false, homeTipSeen: false,
+  controlSize: 1, controlOpacity: .85, flyWhereILook: false, homeTipSeen: false, controlLab: 'standard', labShotsSlow: false,
 };
 const expectAll = (table: Record<PersistedKey, unknown>) => {
   const s = useGame.getState();
@@ -195,5 +196,18 @@ describe('persistence', () => {
     hydrateGame();
     const s = useGame.getState();
     expect([s.nearGround, s.leavePrompt, s.zoomNote]).toEqual([false, false, false]);
+  });
+  it('Gesture Lab: controlLab is saved (standard by default, unknown values fall back), and ?controls is session-only', () => {
+    for (const [raw, want] of [[undefined, 'standard'], ['draw', 'draw'], ['conduct', 'conduct'], ['brush', 'brush'], ['x', 'standard'], [3, 'standard']] as const) {
+      saved[STORAGE] = JSON.stringify(raw === undefined ? { controlsVersion: 4 } : { controlLab: raw });
+      hydrateGame(); expect([raw, useGame.getState().controlLab]).toEqual([raw, want]);
+    }
+    saved[STORAGE] = JSON.stringify({ controlLab: 'conduct' }); hydrateGame();
+    readControlsQuery(new URLSearchParams('controls=draw')); expect(useGame.getState().controlLab).toBe('draw');
+    persistGame(); expect(JSON.parse(saved[STORAGE]).controlLab).toBe('conduct');
+    overrideControls('brush'); persistGame(); expect(JSON.parse(saved[STORAGE]).controlLab).toBe('conduct');
+    readControlsQuery(new URLSearchParams('controls=nope')); expect(useGame.getState().controlLab).toBe('brush');
+    chooseControlLab('draw'); expect(JSON.parse(saved[STORAGE]).controlLab).toBe('draw');
+    chooseControlLab('standard'); persistGame(); expect(JSON.parse(saved[STORAGE]).controlLab).toBe('standard');
   });
 });

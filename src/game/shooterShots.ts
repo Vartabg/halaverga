@@ -9,6 +9,7 @@ import { damageDrone, nearMiss, type DroneSim } from './drones';
 import { coneSample } from './shotMath';
 import { resolveShot, type ShooterWorld, type ShotHit } from './shotResolve';
 import { bloom01 } from './weapon';
+import { aimed, shotDirOf } from './gesture/aimedShot';
 
 /** Per-frame inputs from the scene. head = presentation.position + CHASE_HEAD; strength = the aimAssist setting. */
 export type StepContext = {
@@ -59,14 +60,15 @@ function nearMisses(s: ShooterState, count: number, o: Vec3, d: Vec3, point: Vec
 }
 
 /**
- * Fires one shot along the published camera ray (burst.index is this shot's place in the burst; it is advanced here). `count` targets were built this frame; a killed drone is marked dead in
+ * Fires one shot along the published camera ray (or the Gesture Lab's aimed ray) (burst.index is this shot's place in the burst; it is advanced here). `count` targets were built this frame; a killed drone is marked dead in
  * s.targets so later shots in the same frame pass through it. Returns the module ShotHit (valid until the next shot).
  */
 export function fireShot(s: ShooterState, sim: DroneSim, world: ShooterWorld, ctx: StepContext, audio: AudioSink,
   rng: () => number, count: number): ShotHit {
   const a = s.aim, fx = s.camFx, stats = s.stats, blend = a.blend, src = s.input.lookSource;
-  coneSample(a.dir, a.spreadHalf, rng, dir);
-  const magnet = magnetize(a.origin, dir, s.targets, count, blend, bloom01(s.weapon), src, ctx.strength);
+  // Gesture Lab Tap to Blast: an aimed burst follows the tapped ray, and the tapped drone takes the magnet (spec 3.6).
+  coneSample(shotDirOf(s), a.spreadHalf, rng, dir);
+  const magnet = aimed.active && aimed.drone >= 0 ? aimed.drone : magnetize(a.origin, dir, s.targets, count, blend, bloom01(s.weapon), src, ctx.strength);
   const muzzle = realMuzzle(s);
   const from = muzzleFrom(s, ctx, dir);
   const hit = resolveShot(world, a.origin, dir, ctx.head, muzzle, s.targets, count, magnet, shotHit);

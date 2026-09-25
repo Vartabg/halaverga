@@ -1,5 +1,5 @@
 // Gesture Lab ink look (spec 7): pure width, alpha and colour functions for InkCanvas. No DOM, no allocation, node-testable.
-import { INK_COLOR, INK_W_FAST, INK_W_SLOW, REJECT_MS, RM_INK_FADE_MS, SET_GAIN, SET_MS } from '@/game/gesture/tuning';
+import { INK_COLOR, INK_W_FAST, INK_W_SLOW, INK_WORLD_MS, REJECT_MS, RM_INK_FADE_MS, SET_GAIN, SET_MS } from '@/game/gesture/tuning';
 
 /** Live: being drawn. Set: recognised (brief 1.3x flash, then fades). Reject: greyed and dissolving. */
 export type InkPhase = 'idle' | 'live' | 'set' | 'reject';
@@ -11,6 +11,14 @@ export const INK_SPEED_SLOW = 0.1, INK_SPEED_FAST = 1.5;
 export const SET_FADE_MS = 250;
 export const INK_SET_COLOR = '#c4f6ff', INK_REJECT_COLOR = '#8f9aa1', RING_COLOR = '#e9fbff', BRAKE_COLOR = '#ffd36b';
 export const SPARKLE_MS = 420, SPARKLE_COUNT = 10, SPARKLE_REACH = 34;
+
+/**
+ * Screen-ink tail per scheme, ms: Draw INK_WORLD_MS (the world ribbon takes over); Conduct a short comet (a whole session of
+ * conducting is one stroke, and keeping it all scribbled over the hero); Brush the whole stroke (one gesture is one stroke).
+ */
+export const CONDUCT_TAIL_MS = 320;
+export const inkTailMs = (scheme: 'draw' | 'conduct' | 'brush', override?: number) =>
+  override ?? (scheme === 'draw' ? INK_WORLD_MS : scheme === 'conduct' ? CONDUCT_TAIL_MS : Infinity);
 
 const clamp01 = (v: number) => v < 0 ? 0 : v > 1 ? 1 : v;
 const smooth = (v: number) => { const u = clamp01(v); return u * u * (3 - 2 * u); };

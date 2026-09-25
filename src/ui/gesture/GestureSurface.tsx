@@ -1,17 +1,20 @@
 import { useEffect, useRef } from 'react';
 import { look, runtime } from '@/game/runtime';
 import { useGame } from '@/game/store';
+import { touchMode } from '@/game/pointerMode';
 import { holdAimed, queueAimedBurst } from '@/game/gesture/aimedShot';
 import { clearGesture } from '@/game/gesture/bus';
 import { labAimFrame } from '@/game/gesture/screenRay';
 import { createStrokeBuffer } from '@/game/gesture/strokeBuffer';
 import { classify } from '@/game/gesture/strokeFeatures';
 import { pick as pickDrone, tapRay } from '@/game/gesture/tapBlast';
-import { BOTTOM_BAND, EDGE_STRIP, INK_WORLD_MS } from '@/game/gesture/tuning';
+import { BOTTOM_BAND, EDGE_STRIP } from '@/game/gesture/tuning';
 import type { ArbiterEvent, ArbiterEventType, ArbiterOut, PointerKind, Scheme, StrokeClass, StrokeView } from '@/game/gesture/types';
 import { headerBand, readInsets, viewportBox } from '../touchInsets';
 import { holdHide, holdRing, holdShow, holdTrack, type HoldModel } from './HoldGuide';
+import { reportGuide, setGuideLive } from './guideSteps';
 import { InkCanvas } from './InkCanvas';
+import { inkTailMs } from './inkStyle';
 import { arbiterCommit, arbiterDispatch, arbiterLive, arbiterNeedsTick, arbiterReset, arbiterTracks, createArbiter, type Arbiter,
   type LabId, type StartZone } from './pointerArbiter';
 import styles from './Gesture.module.css';
@@ -32,10 +35,11 @@ export interface GestureSurfaceProps {
   /** Every output except begin/extend, after the surface handled it. Read it synchronously (the slot is reused). */
   onAction?(out: Readonly<ArbiterOut>, arbiter: Arbiter): void;
   onReady?(handle: SurfaceHandle | null): void;
-  /** Screen-ink tail, ms. Default: INK_WORLD_MS in Draw (the world ribbon takes over), the whole stroke otherwise. */
+  /** Screen-ink tail, ms. Default: inkStyle.inkTailMs (Draw 150 ms, Conduct a short comet, Brush the whole stroke). */
   tailMs?: number;
 }
-type Extras = { handle?(o: ArbiterOut): boolean; view?: { committed?: boolean } };
+const tailFor = (p: GestureSurfaceProps) => inkTailMs(p.scheme.id, p.tailMs);
+type Extras = { handle?(o: ArbiterOut): boolean; view?: { committed?: boolean }; clickStarts?(x: number, y: number): boolean };
 const kindOf = (t: string): PointerKind => t === 'mouse' ? 'mouse' : t === 'pen' ? 'pen' : 'touch';
 const tagLook = () => { runtime.shooter.input.lookSource = 'tap'; };
 const defaultPick = (x: number, y: number, t: number) => pickDrone(x, y, t, runtime.shooter.targets, runtime.shooter.drones.count);
@@ -46,6 +50,7 @@ function shoot(o: ArbiterOut) {
   const s = runtime.shooter;
   if (!useGame.getState().shooter) return;
   if (labAimFrame.t > 0) tapRay(labAimFrame, o.x, o.y, dir); else { dir.x = s.aim.dir.x; dir.y = s.aim.dir.y; dir.z = s.aim.dir.z; }
+  if (o.drone >= 0) reportGuide('tap-drone');
   if (o.type === 'burst' || o.type === 'blastNow') queueAimedBurst(s, dir, o.drone);
   else if (o.type === 'miss') queueAimedBurst(s, dir, -1, 1);
   else holdAimed(s, dir, o.drone, o.type === 'sustainEnd');
@@ -58,16 +63,16 @@ export default function GestureSurface(props: GestureSurfaceProps) {
   useEffect(() => {
     latest.current = props;
     const ink = inkRef.current;
-    if (ink) { ink.tailMs = props.tailMs ?? (props.scheme.id === 'draw' ? INK_WORLD_MS : Infinity); ink.reduced = reduced; }
+    if (ink) { ink.tailMs = tailFor(props); ink.reduced = reduced; }
   });
   useEffect(() => {
     const el = surface.current, cv = canvas.current;
     if (!el || !cv) return;
     const zone: StartZone = { x: 0, y: 0, width: 0, height: 0, left: 0, right: 0, top: 0, bottom: 0 };
-    const a = createArbiter({ scheme: latest.current.scheme.id, zone,
+    const a = createArbiter({ scheme: latest.current.scheme.id, zone, toggle: (x, y) => !!(latest.current.scheme as Extras).clickStarts?.(x, y),
       pick: (x, y, t) => (latest.current.pick ?? defaultPick)(x, y, t), blaster: () => (latest.current.blaster ?? defaultBlaster)() });
     const ink = new InkCanvas(cv), buffer = createStrokeBuffer();
-    inkRef.current = ink; ink.tailMs = latest.current.tailMs ?? (latest.current.scheme.id === 'draw' ? INK_WORLD_MS : Infinity);
+    inkRef.current = ink; ink.tailMs = tailFor(latest.current);
     ink.reduced = useGame.getState().reduced;
     const ev: ArbiterEvent = { type: 'tick', id: -1, x: 0, y: 0, t: 0, kind: 'touch', buttons: 0, epoch: runtime.touchEpoch };
     let epoch = runtime.touchEpoch, raf = 0, routing = false, commitQueued = false, lookX = 0, lookY = 0;
@@ -114,7 +119,10 @@ export default function GestureSurface(props: GestureSurfaceProps) {
       route(arbiterDispatch(a, ev));
     };
     const tick = () => { raf = 0; feed('tick', -1, ev.x, ev.y, performance.now(), ev.kind, 0); done(); };
-    const done = () => { ink.flush(); if (!raf && arbiterNeedsTick(a)) raf = requestAnimationFrame(tick); };
+    const done = () => {
+      ink.flush(); if (!raf && arbiterNeedsTick(a)) raf = requestAnimationFrame(tick);
+      setGuideLive(arbiterLive(a) && latest.current.scheme.id !== 'conduct'); // Conduct is live for a whole session: its tips stay up
+    };
     const resetAll = () => {
       if (raf) cancelAnimationFrame(raf);
       raf = 0; commitQueued = false;
@@ -145,6 +153,10 @@ export default function GestureSurface(props: GestureSurfaceProps) {
       if (!arbiterTracks(a, e.pointerId)) return;
       feed('cancel', e.pointerId, e.clientX, e.clientY, e.timeStamp, kindOf(e.pointerType), 0); clearGesture(); done();
     };
+    // The mouse left the surface (the window, or onto the header): Conduct stops steering from the stale last hover point.
+    const leave = (e: PointerEvent) => { if (e.pointerType === 'mouse' && !arbiterTracks(a, e.pointerId)) latest.current.scheme.leave?.(); };
+    // Touch: a blur keeps the fingers' controls, as useInput does (iOS cancels the pointers itself when the system takes them).
+    const blur = () => { if (!touchMode()) resetAll(); };
     const context = (e: MouseEvent) => { e.preventDefault(); feed('escape', -1, e.clientX, e.clientY, e.timeStamp, 'mouse', 0); done(); };
     // Escape cancels live ink or a stroke; with nothing live it passes through, so Escape still pauses.
     const key = (e: KeyboardEvent) => {
@@ -158,15 +170,17 @@ export default function GestureSurface(props: GestureSurfaceProps) {
     measure();
     el.addEventListener('pointerdown', down); el.addEventListener('pointermove', move); el.addEventListener('pointerup', up);
     el.addEventListener('pointercancel', cancel); el.addEventListener('lostpointercapture', cancel); el.addEventListener('contextmenu', context);
-    window.addEventListener('keydown', key, true); window.addEventListener('blur', resetAll); window.addEventListener('resize', measure);
+    el.addEventListener('pointerleave', leave);
+    window.addEventListener('keydown', key, true); window.addEventListener('blur', blur); window.addEventListener('resize', measure);
     window.visualViewport?.addEventListener('resize', measure); document.addEventListener('visibilitychange', hidden);
     latest.current.onReady?.({ ink, commitNow: () => { if (routing) commitQueued = true; else { route(arbiterCommit(a, performance.now())); done(); } } });
     return () => {
       el.removeEventListener('pointerdown', down); el.removeEventListener('pointermove', move); el.removeEventListener('pointerup', up);
       el.removeEventListener('pointercancel', cancel); el.removeEventListener('lostpointercapture', cancel); el.removeEventListener('contextmenu', context);
-      window.removeEventListener('keydown', key, true); window.removeEventListener('blur', resetAll); window.removeEventListener('resize', measure);
+      el.removeEventListener('pointerleave', leave);
+      window.removeEventListener('keydown', key, true); window.removeEventListener('blur', blur); window.removeEventListener('resize', measure);
       window.visualViewport?.removeEventListener('resize', measure); document.removeEventListener('visibilitychange', hidden);
-      unsubscribe(); resetAll(); latest.current.onReady?.(null); ink.destroy(); inkRef.current = null;
+      unsubscribe(); resetAll(); setGuideLive(false); latest.current.onReady?.(null); ink.destroy(); inkRef.current = null;
     };
   }, []);
   return <>

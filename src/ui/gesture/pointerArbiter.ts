@@ -9,8 +9,8 @@ interface Slot { id: number; role: Role; kind: PointerKind; epoch: number; x0: n
   x: number; y: number; t: number; travel: number; drone: number; guide: boolean }
 /** Touch start filter in client px: the box origin and size plus the rejected margins (side strips, header band, bottom band). */
 export interface StartZone { x: number; y: number; width: number; height: number; left: number; right: number; top: number; bottom: number }
-/** pick: the drone under the point (tapBlast.pick) or -1. blaster(): an empty tap fires a miss. zone.width 0: not measured, no filter. */
-export interface ArbiterConfig { scheme: LabId; pick(x: number, y: number, t: number): number; blaster(): boolean; zone: StartZone }
+/** pick: drone under the point or -1. blaster(): empty taps miss. zone.width 0: no filter. toggle: this desktop Conduct click starts cruise. */
+export interface ArbiterConfig { scheme: LabId; pick(x: number, y: number, t: number): number; blaster(): boolean; zone: StartZone; toggle?(x: number, y: number): boolean }
 export type InkMode = 'idle' | 'inking' | 'committing';
 interface Ink { mode: InkMode; id: number; epoch: number; arc: number; x: number; y: number; restX: number; restY: number; restT: number; guide: boolean }
 export interface Arbiter { cfg: ArbiterConfig; owner: Slot; second: Slot; ink: Ink; out: ArbiterOut[]; n: number; rejects: number }
@@ -131,7 +131,7 @@ function deskDown(a: Arbiter, e: ArbiterEvent) {
   open(s, e);
   // While inking, clicks belong to the ink: this press commits (even on a drone) and is swallowed until it lifts.
   if (inkEnd(a, 'commit', e.t)) { a.ink.mode = 'committing'; s.role = 'spent'; return; }
-  const d = a.cfg.pick(e.x, e.y, e.t);
+  const d = a.cfg.scheme === 'conduct' && a.cfg.toggle?.(e.x, e.y) ? -1 : a.cfg.pick(e.x, e.y, e.t);
   if (d >= 0) { s.role = 'armed'; s.drone = d; emit(a, 'armBlast', e.id, e.x, e.y, e.t, d); }
 }
 function hover(a: Arbiter, e: ArbiterEvent) {

@@ -14,6 +14,7 @@ import { advanceShotBody, createShotBody, resetShotBody, ventAimScale, type Shot
 import { applyShotBodyPost, applyShotBodyPre } from './shotBodyPose';
 import { writeCannonDrive } from './shotDrive';
 import { BONE_COUNT } from './suitSkeleton';
+import { shotDirOf } from '../game/gesture/aimedShot';
 
 /** Carry weight in flight at cruise: lerp(1, CARRY_FLIGHT, flight), where flight fades in from hover (3 m/s) to 13 m/s. .7 (was .5)
  * keeps the bold carry's outline readable in cruise (owner feedback 2026-09-23). */
@@ -64,7 +65,8 @@ const run = guarded('Suit blaster', (f: BlasterFrame, dt: number) => {
     writeCannonDrive(body, s, b.aim.weight, f.reduced);
     applyShotBodyPre(joints, body);
     advanceSuitAim(b.aim, f.epoch, s.aim.blend, s.aim.fireHold, carryGoal(f), ventAimScale(body), s.aim.origin, s.aim.point, f.paused, f.reduced, dt);
-    applySuitAim(joints, root, b.aim, s.aim.origin, s.aim.dir);
+    // The arm follows the shot ray: the view centre, or a Gesture Lab tap's aimed ray while its burst runs.
+    applySuitAim(joints, root, b.aim, s.aim.origin, shotDirOf(s));
     if (skinned) {
       root.updateMatrixWorld(true);
       barrelOf(joints, muzzle, axis); b.barrel.x = axis.x; b.barrel.y = axis.y; b.barrel.z = axis.z;

@@ -9,6 +9,9 @@ const SCENE = ['WebGLRenderer', 'isVector3', '@react-three', 'BufferGeometry', '
 const SHOOTER = ['ShooterHud-module', 'FireControls-module', 'shooter-hud', 'fire-button', 'createDynamicsCompressor', 'drones and shooting'];
 // The touch controls (stick, look, cluster) are a chunk warmed after hydration (Experience loads them with next/dynamic).
 const TOUCH = ['TouchControls-module', 'rise-button', 'touch-stick'];
+// The Gesture Lab (surface, ink, schemes, guides, picker, chip) loads only when a lab scheme is on or a picker opens. Only its
+// plain bus and flight hooks (bus.ts, applyGesture.ts) reach the landing graph, through runtime.ts.
+const LAB = ['Gesture-module', 'Lab-module', 'lab-surface', 'lab-picker', 'lab-chip', 'lab-ghost', 'halaverga.lab.guides'];
 // Main measured 614.9 KB (PR #11); the blaster keeps only its input handlers and plain state on the landing page.
 const BUDGET_KB = 636;
 const html = await readFile(root + '.next/server/app/index.html', 'utf8').catch(() => {
@@ -22,9 +25,9 @@ let bytes = 0; const found = [];
 for (const src of sources) {
   const body = await readFile(root + '.next/' + src.slice('/_next/'.length).split('?')[0], 'utf8');
   bytes += Buffer.byteLength(body);
-  for (const marker of [...SCENE, ...SHOOTER, ...TOUCH]) if (body.includes(marker)) found.push(`${marker} in ${src}`);
+  for (const marker of [...SCENE, ...SHOOTER, ...TOUCH, ...LAB]) if (body.includes(marker)) found.push(`${marker} in ${src}`);
 }
 const kb = bytes / 1024;
 console.log(`Landing first load: ${sources.size} scripts, ${kb.toFixed(1)} KB (budget ${BUDGET_KB} KB).`);
-if (found.length) { console.error('Scene, blaster or touch-control code reached the landing first load:\n  ' + found.join('\n  ')); process.exit(1); }
+if (found.length) { console.error('Scene, blaster, touch-control or Gesture Lab code reached the landing first load:\n  ' + found.join('\n  ')); process.exit(1); }
 if (kb > BUDGET_KB) { console.error(`The landing first load grew past its ${BUDGET_KB} KB budget.`); process.exit(1); }

@@ -49,13 +49,13 @@ function cls(kind: StrokeKind, s: Stroke, winding = 0): StrokeClass {
   return { kind, dir, angle: Math.atan2(cy, cx), magnitude: 0, winding, speed: 1, chordX: cx, chordY: cy };
 }
 
-function rig() {
+function rig(over: Partial<BrushHost> = {}) {
   const st = { flying: true, yaw: 0, pitch: 0, clearance: false, ground: 50, landTarget: null as Vec | null, clear: true,
     locks: 0, endLocks: 0, bursts: 0, nearest: false, said: [] as string[] };
   const host: BrushHost = {
     flying: () => st.flying, yaw: () => st.yaw, clearance: () => st.clearance, landTarget: () => st.landTarget,
     lassoBegin() {}, lassoAdd: () => st.locks, lassoEnd: closed => (closed ? st.endLocks : 0),
-    lockBurst() { st.bursts++; }, lockNearest: () => st.nearest,
+    lockBurst() { st.bursts++; }, lockNearest: () => st.nearest, ...over,
   };
   const ctx: GestureCtx = { clock: 0, canLand: () => true, pathClear: () => st.clear, groundBelow: () => st.ground,
     land() {}, say(t) { st.said.push(t); } };
@@ -172,13 +172,27 @@ describe('brushScheme', () => {
     expect(gesture.intent.vertical).toBeGreaterThanOrEqual(0);
     expect(gesture.surge).toBe(false);
   });
-  it('a swipe down while low with a landTarget requests land instead of diving', () => {
-    const r = rig(); r.st.ground = 8; r.st.landTarget = { x: 3, y: 12, z: -4 }; r.step();
+  it('a swipe down while low (under 5 m) with a landTarget requests land instead of diving', () => {
+    const r = rig(); r.st.ground = 4; r.st.landTarget = { x: 3, y: 12, z: -4 }; r.step();
     draw(r, 0, 200);
     expect(gesture.request).toEqual({ kind: 'land', x: 3, y: 12, z: -4 });
     expect(gesture.landArmed).toBe(true);
     expect(r.b.cruising).toBe(false);
     expect(r.b.view.program).toBe('none');
+  });
+  it('higher up a swipe down stays a dive unless it ends on the land target; standing it lifts and dives, never lands', () => {
+    let r = rig(); r.st.ground = 26; r.st.landTarget = { x: 3, y: 12, z: -4 }; r.step();
+    draw(r, 0, 200);
+    expect(gesture.request).toBeNull(); expect(r.b.view.program).toBe('dive'); expect(r.b.cruising).toBe(true);
+    clearGesture();
+    const at: number[][] = [];
+    r = rig({ landAt: (x, y) => { at.push([x, y]); return true; } }); r.st.ground = 26; r.st.landTarget = { x: 3, y: 12, z: -4 }; r.step();
+    draw(r, 0, 200);
+    expect(gesture.request).toEqual({ kind: 'land', x: 3, y: 12, z: -4 }); expect(at[0]).toEqual([400, 700]);
+    clearGesture();
+    r = rig(); r.st.flying = false; r.st.ground = 1.04; r.st.landTarget = { x: 3, y: 12, z: -4 }; r.step();
+    draw(r, 0, 200);
+    expect(gesture.request).toEqual({ kind: 'lift' }); expect(gesture.landArmed).toBe(false);
   });
   it('each cancel reason stops the program at once', () => {
     const running = () => {

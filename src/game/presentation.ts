@@ -1,6 +1,7 @@
 import type { Object3D } from 'three';
 import type { Vec } from './motion';
 import type { ShooterState } from './combat';
+import { FACING_AIM, FACING_PATH } from './gesture/tuningCore';
 // Telemetry reads this on the landing page, so vectors stay plain objects and three.js is imported for types only.
 export const presentation = {
   anchor: null as Object3D | null, position: { x: 0, y: 0, z: 0 },
@@ -12,6 +13,10 @@ export const presentation = {
   suitRoll: 0,
   /** Body aim weight 0..1 (max of the ADS blend and the hip-fire hold) the pose was last advanced with; 0 with the shooter off. */
   aim: 0,
+  /** Gesture Lab body roll about the travel axis (rad, positive rolls right); the camera never rolls. 0 outside the lab. */
+  spin: 0,
+  /** The facing bounds in force (FACING, FACING_PATH or FACING_AIM): they widen at once and narrow smoothly. */
+  bound: { yaw: .3, up: .4, down: .15 },
 };
 /** Third-person boom in the view frame: right, up and behind the head. */
 export const CHASE_BOOM: Vec = { x: .85, y: .7, z: 5.3 };
@@ -36,9 +41,17 @@ export function aimDemand(s: Pick<ShooterState, 'aim' | 'input' | 'weapon'>) {
   const pressed = s.input.fire || (s.weapon.lock === 0 && s.input.pressSerial !== s.weapon.handledPress);
   return Math.max(s.aim.blend, s.aim.fireHold, pressed ? 1 : 0);
 }
-export type Pose = Pick<typeof presentation, 'viewYaw' | 'viewPitch' | 'yaw' | 'pitch' | 'lean' | 'bank' | 'speed' | 'flight' | 'power' | 'brake'> & { aim?: number };
-/** `aim`: body aim weight 0..1 (squares the chest to the crosshair); `combat`: the view settles faster while shooting. */
-export type PoseInput = { yaw: number; pitch: number; speed: number; velocity: Vec; flying: boolean; reduced: boolean; aim?: number; combat?: boolean };
+export type FacingBound = { yaw: number; up: number; down: number };
+export type Pose = Pick<typeof presentation, 'viewYaw' | 'viewPitch' | 'yaw' | 'pitch' | 'lean' | 'bank' | 'speed' | 'flight' | 'power' | 'brake'>
+  & { aim?: number; spin?: number; bound?: FacingBound };
+/**
+ * `aim`: body aim weight 0..1 (squares the chest to the crosshair); `combat`: the view settles faster while shooting. Gesture Lab:
+ * `facing` 1 (a drawn path) or 2 (an aimed burst) widens the facing bounds; `aimYaw`/`aimPitch` offset the aimed shot from the view
+ * (the chest squares to view + aimYaw); `spin` is the body roll.
+ */
+export type PoseInput = { yaw: number; pitch: number; speed: number; velocity: Vec; flying: boolean; reduced: boolean; aim?: number; combat?: boolean;
+  facing?: 0 | 1 | 2; aimYaw?: number; aimPitch?: number; spin?: number };
+const widen = (from: number, to: number, snap: boolean, dt: number) => to >= from || snap ? to : settle(from, to, 4, dt);
 export function advanceFlightPose(pose: Pose, input: PoseInput, elapsed: number) {
   const dt = Math.min(elapsed, .05), aim = input.aim ?? 0, viewRate = input.combat ? 40 : 15;
   pose.viewYaw = input.reduced ? input.yaw : settleAngle(pose.viewYaw, input.yaw, viewRate, dt);
@@ -49,14 +62,20 @@ export function advanceFlightPose(pose: Pose, input: PoseInput, elapsed: number)
   const travelYaw = travelling && horizontalSpeed > 1 ? Math.atan2(-input.velocity.x, -input.velocity.z) : travelling ? pose.yaw : input.yaw;
   const travelPitch = travelling ? Math.atan2(input.velocity.y, horizontalSpeed) : input.pitch;
   // Aiming blends the body toward the view yaw (strafe-aim), so the chest squares to the crosshair.
-  const bodyYaw = aim > 0 ? travelYaw + angleDelta(travelYaw, input.yaw) * aim : travelYaw;
+  const bodyYaw = aim > 0 ? travelYaw + angleDelta(travelYaw, input.yaw + (input.aimYaw ?? 0)) * aim : travelYaw;
+  const f = input.facing === 1 ? FACING_PATH : input.facing === 2 ? FACING_AIM : FACING, b = pose.bound;
+  if (b) { b.yaw = widen(b.yaw, f.yaw, input.reduced, dt); b.up = widen(b.up, f.pitchUp, input.reduced, dt); b.down = widen(b.down, f.pitchDown, input.reduced, dt); }
+  const bYaw = b ? b.yaw : f.yaw, bUp = b ? b.up : f.pitchUp, bDown = b ? b.down : f.pitchDown;
   const turn = Math.max(-.3, Math.min(.3, angleDelta(pose.yaw, bodyYaw) * .55));
   pose.yaw = settleAngle(pose.yaw, bodyYaw, 7 + 13 * aim, dt);
   // The player reads the back in chase view, even while velocity catches a sharp turn.
   const facingLag = angleDelta(pose.viewYaw, pose.yaw);
-  if (Math.abs(facingLag) > FACING.yaw) pose.yaw = pose.viewYaw + Math.sign(facingLag) * FACING.yaw;
+  if (Math.abs(facingLag) > bYaw) pose.yaw = pose.viewYaw + Math.sign(facingLag) * bYaw;
   // Looking up before the climb catches up would show the chest from below; the body stays within reach of the view pitch.
-  pose.pitch = Math.max(pose.viewPitch - FACING.pitchDown, Math.min(pose.viewPitch + FACING.pitchUp, settle(pose.pitch, travelPitch, 7, dt)));
+  // An aimed burst blends toward the absolute aim pitch (view + aimPitch), as the yaw does; aimPitch is view-relative, so adding it to
+  // the travel pitch would miss by (view - travel) while cruising. Standard aiming (no facing 2) is unchanged.
+  const aimPitch = input.facing === 2 && input.aimPitch !== undefined ? (input.pitch + input.aimPitch - travelPitch) * aim : 0;
+  pose.pitch = Math.max(pose.viewPitch - bDown, Math.min(pose.viewPitch + bUp, settle(pose.pitch, travelPitch + aimPitch, 7, dt)));
   pose.bank = settle(pose.bank, input.reduced ? 0 : turn, 5, dt);
   pose.flight = settle(pose.flight, input.flying ? 1 : 0, 5, dt);
   const deceleration = dt > 0 ? (oldSpeed - pose.speed) / dt : 0;
@@ -67,4 +86,5 @@ export function advanceFlightPose(pose: Pose, input: PoseInput, elapsed: number)
   // separate rates turned the body edge-on while braking hard out of a climb with the camera below it.
   pose.lean = -pose.power * 1.35 + pose.brake * .12;
   if (input.aim !== undefined) pose.aim = aim;
+  if (input.spin !== undefined) pose.spin = input.reduced ? 0 : input.spin;
 }

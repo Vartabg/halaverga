@@ -89,6 +89,7 @@ export default function HeroTrail({ read = heroPosition }: HeroTrailProps) {
     geometry.setAttribute('position', pos); geometry.setAttribute('color', col);
     geometry.setIndex(new BufferAttribute(buffer.index, 1)); geometry.setDrawRange(0, 0);
     const material = new MeshBasicMaterial({ vertexColors: true, transparent: true, depthWrite: false, side: DoubleSide, toneMapped: false });
+    material.forceSinglePass = true; // a transparent DoubleSide material otherwise draws in two passes (the budget allows +1 call)
     const mesh = new Mesh(geometry, material);
     mesh.frustumCulled = false; mesh.visible = false; mesh.renderOrder = 2;
     return { mesh, geometry, material, buffer, hand: { x: 0, y: 0, z: 0 } };

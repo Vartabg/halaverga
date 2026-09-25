@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { RigidBody, CapsuleCollider, useRapier, useBeforePhysicsStep, type RapierRigidBody, type RapierCollider } from '@react-three/rapier';
 import { useThree } from '@react-three/fiber';
 import { Vector3 } from 'three';
@@ -13,7 +13,10 @@ import { sweepTurn } from './turnSweep';
 import { moveMode } from './combat';
 import { aimVelocity, hipVelocity } from './aimMotion';
 import { levelFlight, probeBelow, touchBlockedStep, touchLandStep, LAND_WINDOW } from './touchFlight';
-const direction = new Vector3();
+import { gestureBase, gestureBefore, gestureOffset, gestureVelocity, labMode } from './gesture/applyGesture';
+import { clearGesture, gesture } from './gesture/bus';
+import { createGestureCtx } from './gestureCtx';
+const direction = new Vector3(), baseScratch = { x: 0, y: 0, z: 0 };
 export default function Player() {
   const body = useRef<RapierRigidBody>(null), collider = useRef<RapierCollider>(null);
   const { world, rapier } = useRapier(), { camera } = useThree();
@@ -23,6 +26,9 @@ export default function Player() {
   const safety = useRef<FlightSafety | null>(null), warmup = useRef(0), landingStall = useRef(0);
   const paused = useGame(s => s.paused);
   const spawn = useRef(useGame.getState().checkpoint);
+  // Gesture Lab host services (canLand, pathClear, a cached ground ray, land, say), built once per physics world.
+  const gctx = useMemo(() => createGestureCtx({ world, rapier, collider: () => collider.current, safe: () => safety.current,
+    landed: () => { landingStall.current = 0; } }), [world, rapier]);
   useEffect(() => { if (paused) liftTime.current = 0; }, [paused]);
   useEffect(() => {
     const c = world.createCharacterController(CLEARANCE.margin); c.setSlideEnabled(true);
@@ -61,7 +67,9 @@ export default function Player() {
     // Held Descend stopped short by the clearance assist (last step's result): land beside the obstacle, or say there is no landing.
     if (touchBlockedStep({ world, rapier, collider: col, safe, position: current, flying: state.flying, clearance: runtime.clearance.active,
       vy: runtime.velocity.y, dt })) landingStall.current = 0;
-    const p = b.translation(), intent = readIntent();
+    // The lab scheme steps first (its request, lift or land, and its turn rates), so readIntent sees this step's gesture intent.
+    const p = b.translation(); gestureBefore(dt, p, gctx, runtime);
+    const intent = readIntent();
     const k = runtime.keys;
     const pointerFlight = runtime.thumb.active || runtime.trackpad.active;
     if (pointerFlight) {
@@ -77,25 +85,30 @@ export default function Player() {
       runtime.yaw += (Number(k.has('ArrowLeft')) - Number(k.has('ArrowRight'))) * dt * 1.5;
       runtime.pitch = Math.max(-1.3, Math.min(1.25, runtime.pitch + (Number(k.has('ArrowUp')) - Number(k.has('ArrowDown'))) * dt * 1.2));
     }
-    if (runtime.landGoal && moving(intent)) { runtime.landGoal = null; useGame.setState({ landing: false }); }
+    // A new Draw stroke also cancels a landing: Draw steers by velocity, which the intent does not show.
+    if (runtime.landGoal && (moving(intent) || (gesture.live && gesture.velocityOn))) { runtime.landGoal = null; useGame.setState({ landing: false }); }
     let flying = state.flying;
     if (runtime.lift || (pointerFlight && moving(intent) && !flying)) {
       runtime.lift = false;
       if (!flying) { flying = true; liftTime.current = .4; runtime.velocity.y = 6; useGame.setState({ flying: true }); }
       else if (runtime.landGoal) { runtime.landGoal = null; useGame.setState({ landing: false }); }
-      else if (runtime.landTarget) { runtime.landGoal = runtime.landTarget.clone().add(new Vector3(0, FOOT, 0)); landingStall.current = 0; useGame.setState({ landing: true }); }
+      else if (runtime.landTarget) { runtime.landGoal = runtime.landTarget.clone().add(new Vector3(0, FOOT, 0)); landingStall.current = 0; clearGesture(); useGame.setState({ landing: true }); }
       else useGame.setState({ message: 'Aim at a nearby flat rooftop or terrace to land.' });
     }
     // PR #12: the one-finger 'simple' trackpad profile looks without thrusting; every other gesture still surges.
     const gestureThrust = runtime.thumb.active || (runtime.trackpad.active && state.trackpadSteering !== 'simple');
-    const mode = state.shooter ? moveMode(runtime.shooter) : 0, surge = runtime.surge || gestureThrust || runtime.stick.boost;
+    const mode = state.shooter ? labMode(moveMode(runtime.shooter)) : 0, surge = runtime.surge || gestureThrust || runtime.stick.boost || gesture.surge;
     // Twin touch flies level: altitude comes only from Rise and Descend, so aiming never climbs or dives (ADS pitch lift included).
     const fp = levelFlight(state) ? 0 : runtime.pitch;
+    // The branches build on the velocity without last step's lab offset (gestureBase), so offsets never compound.
+    const vb = gestureBase(runtime.velocity, baseScratch);
     let v = runtime.landGoal ? landingVelocity(p, runtime.landGoal)
-      : mode === 2 ? aimVelocity(runtime.velocity, intent, runtime.yaw, fp, flying, dt)
-      : mode === 1 ? hipVelocity(runtime.velocity, intent, runtime.yaw, fp, flying, surge, dt)
-      : advanceVelocity(runtime.velocity, intent, runtime.yaw, fp, flying, surge, dt);
+      : mode === 2 ? aimVelocity(vb, intent, runtime.yaw, fp, flying, dt)
+      : mode === 1 ? hipVelocity(vb, intent, runtime.yaw, fp, flying, surge, dt)
+      : advanceVelocity(vb, intent, runtime.yaw, fp, flying, surge, dt);
+    gestureVelocity(v, runtime.landGoal, flying);
     if (liftTime.current > 0) { v.y = 6; liftTime.current -= dt; }
+    gestureOffset(v, flying && !runtime.landGoal);
     const from = { ...runtime.velocity }, chosen = v;
     runtime.clearance.active = false; runtime.clearance.boundary = boundaryDistance(p) < 12;
     if (flying && !runtime.landGoal) {

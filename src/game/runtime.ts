@@ -1,8 +1,10 @@
 import type { Vector3 } from 'three';
-import { SPEED, START, setVec, type Intent } from './motion';
+import { SPEED, START, moving, setVec, type Intent } from './motion';
 import { useGame } from './store';
 import { flowSpeed, type CaptureState } from './flowFlight';
 import { aimGain, createShooter, engaged, resetShooterInput, lookGain, releaseFire } from './combat';
+import { clearGesture, gesture } from './gesture/bus';
+import { gestureIntent, type GestureIntentOut } from './gesture/applyGesture';
 // The landing page imports this module, so vectors stay plain objects and three.js is imported for types only; a value import would load the 3D bundle with the page.
 export const runtime = {
   position: { ...START }, velocity: { x: 0, y: 0, z: 0 },
@@ -36,17 +38,26 @@ function stickVertical() {
   const st = runtime.stick;
   return st.rise && st.descend ? 0 : st.rise - (st.descendUsed ? 0 : st.descend * DESCEND_RATE);
 }
+const clamp1 = (v: number) => Math.max(-1, Math.min(1, v));
+const labIntent: GestureIntentOut = { forward: 0, strafe: 0, vertical: 0, precise: false };
+/**
+ * Keys, thumbs, sticks, tap pad and trackpad, plus the Gesture Lab's intent (spec 2.8: added only while live or with no landGoal,
+ * precise only while live). Any movement from the other sources sets gesture.override, so a lab scheme drops its path or program.
+ */
 export function readIntent(): Intent {
   const k = runtime.keys, st = runtime.stick;
   const profile = useGame.getState().trackpadSteering;
   const flow = runtime.trackpad.active && profile === 'flow';
   const cruise = runtime.trackpad.active && profile !== 'simple';
-  return {
-    forward: Math.max(-1, Math.min(1, Number(k.has('KeyW')) - Number(k.has('KeyS')) + runtime.thumb.throttle + (flow ? runtime.trackpad.selectedSpeed / SPEED.surge : cruise ? runtime.trackpad.throttle : 0) + runtime.tap.forward + st.forward)),
-    strafe: Math.max(-1, Math.min(1, Number(k.has('KeyD')) - Number(k.has('KeyA')) + runtime.thumb.strafe + runtime.tap.strafe + st.strafe)),
-    vertical: Math.max(-1, Math.min(1, Number(k.has('KeyR')) - Number(k.has('KeyF')) + runtime.tap.vertical + stickVertical())),
-    ...(flow ? { precise: true as const } : {}),
-  };
+  const forward = Number(k.has('KeyW')) - Number(k.has('KeyS')) + runtime.thumb.throttle + (flow ? runtime.trackpad.selectedSpeed / SPEED.surge : cruise ? runtime.trackpad.throttle : 0) + runtime.tap.forward + st.forward;
+  const strafe = Number(k.has('KeyD')) - Number(k.has('KeyA')) + runtime.thumb.strafe + runtime.tap.strafe + st.strafe;
+  const vertical = Number(k.has('KeyR')) - Number(k.has('KeyF')) + runtime.tap.vertical + stickVertical();
+  const base: Intent = { forward: clamp1(forward), strafe: clamp1(strafe), vertical: clamp1(vertical), ...(flow ? { precise: true as const } : {}) };
+  gesture.override = moving(base);
+  const g = gestureIntent(runtime.landGoal, labIntent);
+  if (!g.forward && !g.strafe && !g.vertical && !g.precise) return base;
+  return { forward: clamp1(forward + g.forward), strafe: clamp1(strafe + g.strafe), vertical: clamp1(vertical + g.vertical),
+    ...(flow || g.precise ? { precise: true as const } : {}) };
 }
 /** Arrow-key fine aim: while the blaster is engaged a fresh press turns at 30% for 150 ms, so a tap is about 1.3-1.5 deg. */
 export const KEY_FINE = .3, KEY_RAMP = .15;
@@ -68,6 +79,8 @@ export function arrowLook(dt: number) {
   if (sp) h.pitch += dt;
 }
 export function clearInput(stop = false, keepShooter = false) {
+  // The lab's aimed burst ends too (trackAimed drops its state once 'gesture' no longer holds the trigger).
+  releaseFire(runtime.shooter, 'gesture'); clearGesture();
   if (!keepShooter) resetShooterInput(runtime.shooter);
   runtime.keys.clear(); clearKeyHold(); releaseThumb(); stopTrackpad(); zeroStick();
   runtime.tap = { forward: 0, strafe: 0, vertical: 0 };
@@ -90,6 +103,7 @@ export function releaseHeldInput() {
   runtime.surge = false; runtime.lift = false;
   const s = runtime.shooter;
   if (s.input.fireSource === 'touch' && !s.input.auto) releaseFire(s, 'touch');
+  releaseFire(s, 'gesture'); clearGesture();
   s.input.touchId = null;
   runtime.touchEpoch++;
 }

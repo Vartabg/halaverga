@@ -1,20 +1,23 @@
 import { useState } from 'react';
 import { persistGame, useGame } from '@/game/store';
 import styles from './Experience.module.css';
+import LabFallback from './gesture/LabFallback';
 type Patch = Parameters<ReturnType<typeof useGame.getState>['set']>[0];
 const save = (patch: Patch) => { useGame.setState(patch); persistGame(); };
 // Progressive disclosure: advanced controls stay folded until a player opens them, and stay open for anyone who changed one
 // from its default (the Aim button is on by default since controls version 3).
 export default function MoreControls() {
   const shooter = useGame(s => s.shooter), tapControls = useGame(s => s.tapControls), aimButton = useGame(s => s.aimButton);
-  const aimToggle = useGame(s => s.aimToggle), aimAssist = useGame(s => s.aimAssist);
+  const aimToggle = useGame(s => s.aimToggle), aimAssist = useGame(s => s.aimAssist), lab = useGame(s => s.controlLab);
   const [initialOpen] = useState(() => tapControls || !aimButton || aimToggle || aimAssist !== 1);
   const tap = <label className={styles.check}><input type="checkbox" checked={tapControls} onChange={e => save({ tapControls: e.target.checked })} /> Show tap controls · no dragging</label>;
   // Blaster off is main's panel: the tap checkbox in main's place, with no disclosure (the blaster's advanced controls fold here).
-  if (!shooter) return tap;
-  return <details data-testid="more-controls" open={initialOpen}>
+  // A lab scheme's plain buttons (spec 9) show with the blaster on or off: nobody has to draw.
+  if (!shooter) return <>{tap}<LabFallback scheme={lab} /></>;
+  return <details data-testid="more-controls" open={initialOpen || lab !== 'standard'}>
     <summary>More controls</summary>
     {tap}
+    <LabFallback scheme={lab} />
     <label className={styles.check}><input type="checkbox" checked={aimButton} onChange={e => save({ aimButton: e.target.checked })} /> Show Aim button on touch screens</label>
     <div className={styles.segment}>
       <button aria-pressed={!aimToggle} onClick={() => save({ aimToggle: false })}>Hold to aim</button>

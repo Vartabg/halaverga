@@ -34,3 +34,11 @@
 
 .fallback{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0}
 .fallback .note{flex-basis:100%}
+
+.check{display:flex;align-items:center;gap:12px;min-height:48px;font-size:14px}
+.check input{width:22px;height:22px;accent-color:var(--lime)}
+.tableWrap{overflow-x:auto;max-width:100%;margin:10px 0;border:1px solid var(--line);border-radius:4px}
+.tableWrap:focus-visible{outline:2px solid var(--lime);outline-offset:2px}
+.table{border-collapse:collapse;width:100%;font:12px 'Courier New',monospace}
+.table th,.table td{padding:6px 8px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
+.table th[scope=row],.table thead th:first-child{text-align:left;font-weight:600}

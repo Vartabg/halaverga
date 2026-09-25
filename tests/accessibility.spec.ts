@@ -55,3 +55,71 @@ for (const viewport of [{ width: 852, height: 393 }, { width: 393, height: 852 }
     expect(t.errors).toEqual([]); await t.context.close();
   });
 }
+// Gesture Lab (spec 7-9): the chip, the pickers, the rating, the fallback buttons and the announcements. Reduced motion, so the
+// picker glyphs hold still. System Chrome; automated checks are a floor, not a screen-reader session.
+const wcag = async (page: Page) => expect((await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze()).violations).toEqual([]);
+test('Gesture Lab on a desktop: chip by keyboard, picker radios, rating, fallback buttons and announcements', async ({ page }) => {
+  const errors: string[] = []; page.on('pageerror', e => errors.push(e.message));
+  await page.emulateMedia({ reducedMotion: 'reduce' }); await page.goto('/?controls=draw');
+  await page.getByRole('button', { name: 'Begin expedition' }).click();
+  await expect(page.getByTestId('lab-surface')).toHaveCount(1);
+  // The ghost tip is announced through the polite live region; the ink canvas and surface stay out of the accessibility tree.
+  await expect(page.locator('main > div.sr-only[aria-live="polite"]').last()).toHaveText(/ink a curve/i);
+  expect(await page.getByTestId('lab-surface').getAttribute('aria-hidden')).toBe('true');
+  await wcag(page);
+  // The chip: its visible text starts its accessible name (2.5.3), at least 44 px, and it pauses and opens settings from the keyboard.
+  const chip = page.getByTestId('lab-chip');
+  await expect(chip).toHaveAccessibleName(/^Lab: Draw/);
+  expect((await chip.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+  await chip.focus(); await page.keyboard.press('Enter');
+  const dialog = page.locator('dialog[open]');
+  await expect(dialog).toHaveCount(1);
+  await expect(page.getByRole('button', { name: 'Pause expedition' })).toHaveCount(0);
+  // The picker is a native radio group with a legend; arrow keys select.
+  const picker = dialog.getByTestId('lab-picker');
+  await expect(picker).toHaveRole('group'); await expect(picker).toHaveAccessibleName('Control lab');
+  await picker.getByRole('radio', { name: /^Draw/ }).focus(); await page.keyboard.press('ArrowDown');
+  await expect(picker.getByRole('radio', { name: /^Conduct/ })).toBeChecked();
+  await expect(dialog.getByRole('region', { name: 'Rate Draw' })).toBeVisible();
+  await wcag(page);
+  await dialog.getByRole('region', { name: 'Rate Draw' }).getByRole('button', { name: 'Skip' }).click();
+  // Conduct's fallback buttons under More controls: every one at least 44 x 44, and a press is confirmed in a status line.
+  const group = dialog.getByRole('group', { name: 'Lab actions' });
+  await expect(group).toBeVisible();
+  const names = await group.getByRole('button').allTextContents();
+  expect(names).toEqual(['Faster', 'Slower', 'Dash', 'Roll left', 'Roll right', 'Brake']);
+  for (const b of await group.getByRole('button').all()) { const r = (await b.boundingBox())!; expect(r.height).toBeGreaterThanOrEqual(44); expect(r.width).toBeGreaterThanOrEqual(44); }
+  await group.getByRole('button', { name: 'Faster' }).click();
+  await expect(group.getByRole('status')).toHaveText('Faster when flight resumes.');
+  // The lab measurements table (a scrollable region, reachable by keyboard).
+  await dialog.getByTestId('lab-stats').locator('summary').click();
+  await expect(dialog.getByRole('region', { name: 'Control lab measurements table' })).toHaveAttribute('tabindex', '0');
+  await wcag(page);
+  await page.getByRole('button', { name: 'Close dialog' }).click();
+  await expect(page.getByTestId('lab-chip')).toHaveText('Lab: Conduct');
+  expect(errors).toEqual([]);
+});
+test('Gesture Lab on a phone: play, and the pause card with its picker and rating, satisfy AA checks', async ({ browser }) => {
+  const context = await browser.newContext({ viewport: { width: 852, height: 393 }, isMobile: true, hasTouch: true });
+  const page = await context.newPage(), errors: string[] = []; page.on('pageerror', e => errors.push(e.message));
+  await page.emulateMedia({ reducedMotion: 'reduce' }); await page.goto('/?controls=brush');
+  await page.getByRole('button', { name: 'Begin expedition' }).tap();
+  await expect(page.getByTestId('lab-surface')).toHaveCount(1);
+  await expect(page.getByRole('button', { name: 'Lift', exact: true })).toBeVisible();
+  await aa(page);
+  await page.getByRole('button', { name: 'Pause expedition' }).tap();
+  const card = page.getByRole('region', { name: 'Expedition paused' });
+  await expect(card.getByTestId('lab-picker')).toBeVisible();
+  await card.getByRole('radio', { name: /^Draw/ }).tap();
+  await expect(card.getByRole('region', { name: 'Rate Brush' })).toBeVisible();
+  await aa(page);
+  // A rating needs at least one answer before Save; both questions may be skipped.
+  const rating = card.getByRole('region', { name: 'Rate Brush' });
+  await expect(rating.getByRole('button', { name: 'Save rating' })).toBeDisabled();
+  await rating.getByRole('group', { name: 'How in control?' }).getByRole('radio', { name: '4' }).tap();
+  await rating.getByRole('button', { name: 'Save rating' }).tap();
+  await expect(rating).toHaveCount(0);
+  await card.getByRole('button', { name: 'Resume flight' }).tap();
+  await expect(page.getByTestId('lab-chip')).toHaveText('Lab: Draw');
+  expect(errors).toEqual([]); await context.close();
+});

@@ -12,6 +12,7 @@ import { touchMode } from '@/game/pointerMode';
 import { unlockBlasterAudio } from './audioUnlock';
 import { useAudio } from './useAudio';
 import { trackpadPill } from './trackpadPill';
+import { labFault, readControlsQuery } from './labSwitch';
 import Boundary from './Boundary';
 import TapControls from './TapControls';
 import FieldGuide from './FieldGuide';
@@ -36,11 +37,20 @@ const loadFire = () => import('./FireControls');
 const ControlsHint = dynamic(() => import('./ControlsHint'), { ssr: false, loading: () => null });
 // Flight settings open only after Begin, so they are a chunk warmed then: settings copy never grows the landing first load.
 const loadPanel = () => import('./TestPanel');
+// The Gesture Lab (Draw, Conduct, Brush) replaces the standard controls only while chosen. Its surface is held in state like the
+// touch controls (loaded when a lab scheme is on, and Begin/Resume waits for it); its chip is a chunk too. The landing first load
+// carries no lab module: a failed chunk returns the session to the standard controls.
+type LabProps = { scheme: 'draw' | 'conduct' | 'brush'; onError?: (error: unknown) => void };
+const loadLab = () => import('./gesture/LabControls');
+const LabChip = dynamic(() => import('./gesture/LabChip'), { ssr: false, loading: () => null });
+const LAB_LOAD_FAILED = 'The Gesture Lab could not load. Standard controls are on.', LAB_FAILED = 'The Gesture Lab stopped. Standard controls are on.';
 const TestPanel = dynamic(loadPanel, { ssr: false, loading: () => null });
 export default function Experience() {
   const state = useGame(), [hydrated, setHydrated] = useState(false), [failed, setFailed] = useState(false);
   const [sceneKey, setSceneKey] = useState(0), [touchReady, setTouchReady] = useState(false);
   const [TouchControls, setTouchControls] = useState<ComponentType | null>(null);
+  const [LabControls, setLabControls] = useState<ComponentType<LabProps> | null>(null);
+  const lab = state.controlLab;
   const main = useRef<HTMLElement>(null);
   useEffect(() => {
     hydrateGame();
@@ -48,6 +58,7 @@ export default function Experience() {
     // ?shooter=1 / 0 overrides the saved setting for this session only.
     if (blaster === '1') { clearShooterFault(); overrideShooter(true); } else if (blaster === '0') overrideShooter(false);
     if (profile === 'simple' || profile === 'flow' || profile === 'free' || profile === 'captured') useGame.setState({ desktopMode: 'trackpad', trackpadSteering: profile });
+    readControlsQuery(query);
     setHydrated(true);
   }, []);
   // A failed chunk still enables Begin: the scene and the keyboard keep working.
@@ -57,6 +68,15 @@ export default function Experience() {
   // Warm the blaster UI chunks after hydration so the first aim never waits on them; with the blaster off nothing is requested.
   useEffect(() => { if (hydrated && state.shooter) { void loadHud().catch(() => {}); void loadFire().catch(() => {}); } }, [hydrated, state.shooter]);
   useEffect(() => { if (state.started) void loadPanel().catch(() => {}); }, [state.started]);
+  useEffect(() => {
+    if (hydrated && lab !== 'standard' && !LabControls) void loadLab().then(m => setLabControls(() => m.default)).catch(() => labFault(LAB_LOAD_FAILED));
+  }, [hydrated, lab, LabControls]);
+  // html[data-controls]: CSS hides the crosshair while a lab scheme is on.
+  useEffect(() => {
+    const html = document.documentElement;
+    if (lab === 'standard') delete html.dataset.controls; else html.dataset.controls = lab;
+    return () => { delete html.dataset.controls; };
+  }, [lab]);
   useInput(); useAudio(); useShooterInput({ unlock: unlockBlasterAudio }); usePlayGuard();
   const failure = useCallback(() => { setFailed(true); pause(); }, []);
   // Begin/Resume is an activation gesture: it unlocks blaster audio (a no-op while the blaster is off or muted), and it refuses to
@@ -77,10 +97,11 @@ export default function Experience() {
     setFailed(false); setSceneKey(v => v + 1); state.set({ ready: false, flying: false, landing: false });
   };
   const fallback = <div className={styles.recovery} role="alert"><h2>The world needs a moment.</h2><p>Your field guide remains available. Reload the scene to continue from your saved landing.</p><button className={styles.primary} onClick={retry}>Reload scene</button></div>;
-  const playing = state.started && !state.paused, ready = state.ready && touchReady, twin = state.touchScheme === 'twin';
+  const standard = lab === 'standard', playing = state.started && !state.paused, twin = state.touchScheme === 'twin';
+  const ready = state.ready && touchReady && (standard || !!LabControls);
   const seriesOpen = twin && !state.tapControls && state.hintProgress.touch < HINT_STEPS.touch;
   const reticle = <Reticle />;
-  const pill = trackpadPill({ steering: state.trackpadSteering, shooter: state.shooter, cruising: state.trackpadFlying, flying: state.flying, canLand: state.canLand });
+  const pill = standard && trackpadPill({ steering: state.trackpadSteering, shooter: state.shooter, cruising: state.trackpadFlying, flying: state.flying, canLand: state.canLand });
   const flightHint = state.message || (state.flying && state.canLand ? 'SURFACE IN REACH · LAND' : state.boundaryNear ? 'SURVEY LIMIT · TURN BACK' : state.flying && state.descendBlocked ? 'NO LANDING BELOW · MOVE TO OPEN GROUND' : state.clearanceActive ? 'CLEARANCE ASSIST · STEER AROUND' : '');
   useEffect(() => {
     if (!state.message) return;
@@ -98,6 +119,7 @@ export default function Experience() {
         <div className={styles.brand}><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M5 26V6h5v8h12V6h5v20h-5v-8H10v8Z" fill="currentColor" /></svg><span>HALAVERGA<small>RETURN TO EARTH</small></span></div>
         <div className={styles.headerActions}>
           <button id="field-guide" onClick={() => { pause(); state.set({ journal: true }); }}>Field guide</button>
+          {state.started && !standard && <LabChip scheme={lab} />}
           {state.started && <button onClick={() => { pause(); state.set({ panel: true }); }} aria-label="Flight settings">⚙</button>}
           {playing && <button onClick={pause} aria-label="Pause expedition">Ⅱ</button>}
         </div>
@@ -114,24 +136,26 @@ export default function Experience() {
       {state.started && <>
         {/* A fresh mount per pause state, as on main: the desktop trackpad hooks keep per-session refs (capture, strokes) that
             must reset on resume. inputEpoch moves only in desktop mode; touch controls re-anchor themselves on rotation. */}
-        {TouchControls && <TouchControls key={`${state.paused}-${state.inputEpoch}`} />}
+        {standard ? TouchControls && <TouchControls key={`${state.paused}-${state.inputEpoch}`} />
+          : playing && LabControls && <LabControls key={`${lab}-${state.inputEpoch}`} scheme={lab as LabProps['scheme']} onError={() => labFault(LAB_FAILED)} />}
         {playing && <>
           {state.tapControls && <TapControls key={state.inputEpoch} />}
           {state.shooter ? <Boundary fallback={reticle} onError={() => shooterFault('hud', null)}><ShooterHud /></Boundary> : reticle}
-          {!state.shooter && twin && touchMode() && <Boundary fallback={null} onError={() => {}}><ControlsHint coarse /></Boundary>}
+          {!state.shooter && standard && twin && touchMode() && <Boundary fallback={null} onError={() => {}}><ControlsHint coarse /></Boundary>}
           {flightHint && <p className={styles.flightHint} data-shooter={String(state.shooter)}>{flightHint}</p>}
           <Telemetry />
           {/* Twin touch: the cluster's Rise/Descend replace Lift/Land, so CSS hides this under html[data-input=touch]. */}
-          <div className={styles.actions} data-shooter={String(state.shooter)} data-fire={String(state.shooter && !state.autoFire)} data-twin={String(twin)}>
+          {/* In a lab scheme Lift/Land is always shown (data-twin false): the lab has no Rise/Descend. */}
+          <div className={styles.actions} data-ghost-avoid="" data-shooter={String(state.shooter)} data-fire={String(state.shooter && !state.autoFire)} data-twin={String(twin && standard)}>
             {/* A mouse click activates Lift/Land without focusing it, so the next Space still reaches flight (Tab + Space works). */}
             <button className={styles.action} onMouseDown={e => { if (!touchMode()) e.preventDefault(); }} onClick={() => { runtime.lift = true; }}><span aria-hidden="true">{state.flying ? '↓' : '↑'}</span>{state.landing ? 'Cancel landing' : state.flying ? 'Land' : 'Lift'}</button>
           </div>
           {state.nearTerminal && <button className={styles.discovery} onClick={() => { pause(); state.set({ discovered: true, journal: true }); persistGame(); }}>◇ Municipal record <span>Read ↗</span></button>}
           {/* One instruction at a time: the drag hint waits for any controls hint and for an unfinished twin touch series; blaster-on
               tap players never get drag advice. */}
-          {!state.flying && !state.hintVisible && !seriesOpen && !(state.shooter && state.tapControls) && <div className={styles.touchHint} aria-hidden="true">{twin ? 'LEFT THUMB MOVES · RIGHT THUMB LOOKS' : 'ONE THUMB TO FLY · TWO TO MOVE + LOOK'}</div>}
-          {state.desktopMode === 'trackpad' && state.trackpadSteering === 'flow' && <FlowHud />}
-          {state.desktopMode === 'trackpad' && state.trackpadSteering === 'simple' && <SimpleTrackpadHud />}
+          {standard && !state.flying && !state.hintVisible && !seriesOpen && !(state.shooter && state.tapControls) && <div className={styles.touchHint} aria-hidden="true">{twin ? 'LEFT THUMB MOVES · RIGHT THUMB LOOKS' : 'ONE THUMB TO FLY · TWO TO MOVE + LOOK'}</div>}
+          {standard && state.desktopMode === 'trackpad' && state.trackpadSteering === 'flow' && <FlowHud />}
+          {standard && state.desktopMode === 'trackpad' && state.trackpadSteering === 'simple' && <SimpleTrackpadHud />}
           {state.desktopMode === 'trackpad' && pill && <div className={styles.trackpadHint}>{pill}</div>}
         </>}
         {state.paused && !state.panel && !state.journal && !failed && <PauseCard ready={ready} onEnter={enter} />}
@@ -139,7 +163,7 @@ export default function Experience() {
       <div className="sr-only" aria-live="polite">{state.message}</div>
       {state.journal && <FieldGuide onClose={closeGuide} />}
       {state.panel && <TestPanel onClose={closePanel} />}
-      {state.started && !failed && state.desktopMode === 'trackpad' && state.trackpadSteering === 'flow' && !state.flowIntroSeen && !state.panel && !state.journal && <FlowWelcome />}
+      {state.started && !failed && standard && state.desktopMode === 'trackpad' && state.trackpadSteering === 'flow' && !state.flowIntroSeen && !state.panel && !state.journal && <FlowWelcome />}
     </main>
   </>;
 }

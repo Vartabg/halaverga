@@ -13,9 +13,12 @@ type Ray = InstanceType<RayApi['Ray']>;
 type Safe = { canLand(target: Vec): boolean };
 type SafePath = Safe & { pathClear(from: Vec, to: Vec): boolean };
 
-/** Twin touch flies level (view pitch ignored) unless the player chose "Fly where I look". Desktop and classic keep pitch coupling. */
-export function levelFlight(state: { touchScheme: string; flyWhereILook: boolean }): boolean {
-  return state.touchScheme === 'twin' && !state.flyWhereILook && touchMode();
+/**
+ * Twin touch flies level (view pitch ignored) unless the player chose "Fly where I look". Desktop and classic keep pitch coupling,
+ * and so does every Gesture Lab scheme (a drawn dive or a Brush soar pitches the flight).
+ */
+export function levelFlight(state: { touchScheme: string; flyWhereILook: boolean; controlLab?: string }): boolean {
+  return state.touchScheme === 'twin' && !state.flyWhereILook && (state.controlLab ?? 'standard') === 'standard' && touchMode();
 }
 
 const down = { x: 0, y: -1, z: 0 }, hitPoint = new Vector3();

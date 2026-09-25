@@ -90,6 +90,10 @@ export interface Scheme {
   cancel(): void;
   /** Desktop hover with no stroke (Conduct steering while cruising). */
   hover?(x: number, y: number, t: number): void;
+  /** The desktop pointer left the play surface (the window, or onto the header): stop steering from its last point. */
+  leave?(): void;
+  /** Desktop Conduct: a click here starts the cruise even over a drone (stopped, below the horizon). */
+  clickStarts?(x: number, y: number): boolean;
   step(dt: number, pos: Vec, ctx: GestureCtx): void;
   reset(): void;
   fallback(a: Action): void;

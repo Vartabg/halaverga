@@ -36,7 +36,7 @@ export default function ShooterHud() {
   const root = useRef<HTMLDivElement>(null), cross = useRef<HTMLDivElement>(null), heat = useRef<SVGSVGElement>(null),
     fill = useRef<SVGCircleElement>(null), vent = useRef<SVGGElement>(null), sweep = useRef<SVGCircleElement>(null),
     marker = useRef<HTMLSpanElement>(null), chev = useRef<HTMLSpanElement>(null), chain = useRef<HTMLSpanElement>(null);
-  const [live, setLive] = useState('');
+  const [live, setLive] = useState(''), lab = useGame(st => st.controlLab);
   const coarse = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
   useEffect(() => {
     const el = root.current!, crossEl = cross.current!, heatEl = heat.current!, fillEl = fill.current!, ventEl = vent.current!,
@@ -136,6 +136,7 @@ export default function ShooterHud() {
     </div>
     <div className="sr-only" aria-live="polite" data-testid="shooter-live">{live}</div>
     {/* Outside the crosshair box. */}
-    <ControlsHint coarse={coarse} />
+    {/* The standard controls' lessons; a Gesture Lab scheme has its own ghost guide. */}
+    {lab === 'standard' && <ControlsHint coarse={coarse} />}
   </>;
 }

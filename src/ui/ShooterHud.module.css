@@ -41,3 +41,7 @@
   .chain,.hint{color:CanvasText;background:Canvas;text-shadow:none}
   .hint{border-color:CanvasText}
 }
+/* Gesture Lab (html[data-controls], spec 3.6): the finger aims, so there is no crosshair; the hit marker and heat ring follow the
+   latest tap (labWire.markTap sets the variables) and start at the centre. */
+:global(html[data-controls]) .hud{left:var(--lab-tap-x,50%);top:var(--lab-tap-y,50%)}
+:global(html[data-controls]) .cross{display:none}

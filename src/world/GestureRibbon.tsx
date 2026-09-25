@@ -12,6 +12,12 @@ import { ribbonLink, type RibbonPath } from '@/ui/gesture/guideSteps';
 import type { Vec } from '@/game/motion';
 
 export const RIBBON_MAX = 128, RIBBON_HALF_W = .18, SPENT_FADE_MS = 350;
+/**
+ * Strip hygiene: a segment longer than RIBBON_GAP_M (over 2.5x the 1.5 m spacing) is not drawn, so a stale or far point can never
+ * be joined into a screen-filling wedge; points within NEAR_M of the camera fade out over NEAR_FADE_M, so a strip passing the
+ * lens never fills the view.
+ */
+export const RIBBON_GAP_M = 4, NEAR_M = 1, NEAR_FADE_M = 2;
 /** Linear RGB + alpha per phase: unflown ink (#58e1ff), spent (grey), blocked (amber). */
 const INK = [.098, .75, 1, .9] as const, SPENT = [.36, .4, .42, .55] as const, AMBER = [1, .55, .08, .9] as const;
 
@@ -67,10 +73,19 @@ export function writeRibbon(b: RibbonBuffer, path: RibbonPath | null, now: numbe
     pos[p] = x - sx; pos[p + 1] = y - sy; pos[p + 2] = z - sz; pos[p + 3] = x + sx; pos[p + 4] = y + sy; pos[p + 5] = z + sz;
     const spent = i < flown, tone = blocked >= 0 && i >= blocked ? AMBER : spent ? SPENT : INK;
     const fade = spent ? Math.max(0, 1 - (now - b.spentAt[(path.seq0 + i) % RIBBON_MAX]) / SPENT_FADE_MS) : 1;
-    const q = j * 8, alpha = tone[3] * fade;
+    const near = Math.min(1, Math.max(0, (Math.hypot(vx, vy, vz) - NEAR_M) / NEAR_FADE_M));
+    const q = j * 8, alpha = tone[3] * fade * near;
     col[q] = col[q + 4] = tone[0]; col[q + 1] = col[q + 5] = tone[1]; col[q + 2] = col[q + 6] = tone[2]; col[q + 3] = col[q + 7] = alpha;
   }
-  b.points = count; b.drawCount = (count - 1) * 6;
+  // Indices for the segments short enough to draw (a long one splits the strip).
+  let kept = 0;
+  for (let j = 0; j + 1 < count; j++) {
+    const i = start + j;
+    if (Math.hypot(path.x(i + 1) - path.x(i), path.y(i + 1) - path.y(i), path.z(i + 1) - path.z(i)) > RIBBON_GAP_M) continue;
+    const v = j * 2, o = kept * 6, ix = b.index;
+    ix[o] = v; ix[o + 1] = v + 1; ix[o + 2] = v + 2; ix[o + 3] = v + 1; ix[o + 4] = v + 3; ix[o + 5] = v + 2; kept++;
+  }
+  b.points = count; b.drawCount = kept * 6;
   return b.drawCount;
 }
 
@@ -84,6 +99,7 @@ export default function GestureRibbon({ read }: GestureRibbonProps) {
     geometry.setAttribute('position', pos); geometry.setAttribute('color', col);
     geometry.setIndex(new BufferAttribute(buffer.index, 1)); geometry.setDrawRange(0, 0);
     const material = new MeshBasicMaterial({ vertexColors: true, transparent: true, depthWrite: false, side: DoubleSide, toneMapped: false });
+    material.forceSinglePass = true; // a transparent DoubleSide material otherwise draws in two passes (the budget allows +1 call)
     const mesh = new Mesh(geometry, material);
     mesh.frustumCulled = false; mesh.visible = false; mesh.renderOrder = 2;
     return { mesh, geometry, material, buffer };
@@ -95,6 +111,7 @@ export default function GestureRibbon({ read }: GestureRibbonProps) {
     if (!draw) return;
     geometry.setDrawRange(0, draw);
     geometry.attributes.position.needsUpdate = true; geometry.attributes.color.needsUpdate = true;
+    if (geometry.index) geometry.index.needsUpdate = true;
   }, -8);
   return <primitive object={mesh} />;
 }

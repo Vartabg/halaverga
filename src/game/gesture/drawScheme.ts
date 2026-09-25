@@ -4,10 +4,10 @@
 import type { Vec } from '../motion';
 import { gesture } from './bus';
 import { drawPath, type DrawPath } from './drawPath';
-import { FOLLOW, IDLE, PathFollow, type FollowView } from './pathFollow';
+import { EXIT, FOLLOW, LANDING, PathFollow, type FollowView } from './pathFollow';
 import { labAimFrame, pointAt } from './screenRay';
 import type { Action, AimFrame, ArbiterOut, GestureCtx, Scheme, StrokeClass, StrokeView } from './types';
-import { DRAW_D0, DRAW_MAX_PTS, NUDGE_FRAC, SCRUB_FRAC, SCRUB_MS, STROKE_RING, TAP_SLOP_MOUSE, TAP_SLOP_TOUCH } from './tuning';
+import { DRAW_D0, DRAW_MAX_PTS, INK_WORLD_MS, NUDGE_FRAC, SCRUB_FRAC, SCRUB_MS, STROKE_RING, TAP_SLOP_MOUSE, TAP_SLOP_TOUCH } from './tuning';
 
 export interface DrawOptions {
   /** The camera frame samples are unprojected through. Default: labAimFrame once GestureTrack has published it. */
@@ -20,6 +20,10 @@ export interface DrawOptions {
   fire?(drone: number, x: number, y: number, t: number, sustained: boolean): void;
   /** A miss shot along the tap ray (blaster on, empty tap). Omit when the surface fires it. */
   miss?(x: number, y: number, t: number): void;
+  /** Onboarding successes (guideSteps.reportGuide): a first path, a chained stroke, a rooftop hand-off. */
+  guide?(ev: 'curve' | 'chain' | 'rooftop'): void;
+  /** The suit is flying (store.flying): a landing approach that touched down drops its path. Default: always. */
+  flying?(): boolean;
 }
 export interface DrawScheme extends Scheme {
   readonly id: 'draw';
@@ -43,6 +47,8 @@ export interface DrawRibbon {
 /** A stroke shorter than this (px of arc) that failed the tap is a nudge, not a path. */
 export const DRAW_NUDGE_PX = 40;
 const SCRUB_NEAR_PX = 14, SCRUB_TIP_PX = 40, INK_MIN_PX = 2, TELEPORT_M = 5;
+/** A blocked path's amber stub (the ink past the cut) stays on show this long, ms. */
+export const STUB_MS = 1500;
 const labFrame = () => (labAimFrame.t > 0 ? labAimFrame : null);
 
 export function createDrawScheme(opts: DrawOptions = {}, path: DrawPath = drawPath): DrawScheme {
@@ -55,10 +61,13 @@ export function createDrawScheme(opts: DrawOptions = {}, path: DrawPath = drawPa
   const follow = new PathFollow(path, view);
   const hero = { x: 0, y: 0, z: 0 }, vel = { x: 0, y: 0, z: 0 }, a = { x: 0, y: 0, z: 0 }, b = { x: 0, y: 0, z: 0 };
   const inkX = new Float32Array(STROKE_RING), inkY = new Float32Array(STROKE_RING), inkA = new Float32Array(STROKE_RING);
-  let hasPos = false, stroke = false, started = false, dead = false, epoch = gesture.epoch;
+  let hasPos = false, stroke = false, started = false, dead = false, epoch = gesture.epoch, stepEpoch = gesture.epoch, ground = Infinity;
   let seen = 0, lastX = NaN, lastY = NaN, lastT = NaN, nInk = 0, scrubbing = false, scrubT0 = 0, scrubJ = 0;
 
-  const startPath = () => { started = true; path.begin(hero); follow.start(vel); gesture.live = true; };
+  const startPath = () => {
+    const chained = follow.mode === FOLLOW || follow.mode === EXIT;
+    started = true; path.begin(hero, ground); follow.start(vel); gesture.live = true; opts.guide?.(chained ? 'chain' : 'curve');
+  };
   const dist = (j: number, x: number, y: number) => Math.hypot(inkX[j] - x, inkY[j] - y);
   /** Scrub back: returns true while the pen retraces the ink (those samples are not appended). */
   function scrub(x: number, y: number, t: number): boolean {
@@ -94,17 +103,21 @@ export function createDrawScheme(opts: DrawOptions = {}, path: DrawPath = drawPa
     follow.nudgeBy((b.x - a.x) * NUDGE_FRAC, (b.y - a.y) * NUDGE_FRAC, (b.z - a.z) * NUDGE_FRAC);
   }
 
-  const rg = path.ring, slot = (i: number) => (rg.first + i) % DRAW_MAX_PTS;
+  // The ribbon: the ring, plus the amber stub past a blocked cut for STUB_MS. Once the path is not being followed (a glide, a
+  // landing approach, the end), every ring point counts as flown, so the whole ribbon fades out behind the hero.
+  const rg = path.ring, slot = (i: number) => (rg.first + i) % DRAW_MAX_PTS, ringN = () => rg.count - rg.first;
+  const stubOn = () => path.blocked && rg.count > 0 && performance.now() - path.blockedAt < STUB_MS;
   const ribbon: DrawRibbon = {
-    get count() { return rg.count - rg.first; },
+    get count() { return ringN() + (stubOn() ? 1 : 0); },
     get seq0() { return rg.first; },
     get flown() {
-      if (follow.mode === IDLE && !path.inking) return rg.count - rg.first;
+      if (follow.mode !== FOLLOW && !path.inking) return ringN();
       const i = Math.max(follow.seg, rg.first), a = rg.arcOf(i), span = i + 1 < rg.count ? rg.arcOf(i + 1) - a : 0;
       return i - rg.first + (span > 1e-9 ? Math.min(1, Math.max(0, (follow.s - a) / span)) : 0);
     },
-    get blocked() { return path.blocked && rg.count > 0 ? rg.count - 1 - rg.first : -1; },
-    x: i => rg.x[slot(i)], y: i => rg.y[slot(i)], z: i => rg.z[slot(i)], t: i => rg.time[slot(i)],
+    get blocked() { return path.blocked && rg.count > 0 ? ringN() - 1 : -1; },
+    x: i => (i < ringN() ? rg.x[slot(i)] : path.stub.x), y: i => (i < ringN() ? rg.y[slot(i)] : path.stub.y),
+    z: i => (i < ringN() ? rg.z[slot(i)] : path.stub.z), t: i => (i < ringN() ? rg.time[slot(i)] : path.blockedAt - INK_WORLD_MS),
   };
   const scheme: DrawScheme = {
     id: 'draw', path, follow, flyToMode: false, ribbon,
@@ -141,11 +154,20 @@ export function createDrawScheme(opts: DrawOptions = {}, path: DrawPath = drawPa
       const jump = hasPos ? Math.hypot(p.x - hero.x, p.y - hero.y, p.z - hero.z) : 0;
       const k = hasPos && dt > 0 && jump < TELEPORT_M ? 1 / dt : 0;
       vel.x = (p.x - hero.x) * k; vel.y = (p.y - hero.y) * k; vel.z = (p.z - hero.z) * k;
-      hero.x = p.x; hero.y = p.y; hero.z = p.z; hasPos = true;
+      hero.x = p.x; hero.y = p.y; hero.z = p.z; hasPos = true; ground = ctx.groundBelow(p);
+      // A host landing (Land, Space) or a reset clears the bus: stop following and drop the path, so no slow abort ('Path blocked')
+      // fires on the approach and no path velocity survives touchdown. A glide already under way (pointer cancel) runs out.
+      if (gesture.epoch !== stepEpoch) {
+        stepEpoch = gesture.epoch;
+        if (follow.mode === FOLLOW || follow.mode === LANDING) { follow.cancel('cancel'); path.reset(); dead = true; stroke = false; }
+      }
+      const landing = follow.mode === LANDING;
       follow.step(dt, p, vel, ctx, clearance());
+      if (!landing && follow.mode === LANDING) opts.guide?.('rooftop');
+      if (follow.mode === LANDING && opts.flying && !opts.flying()) { follow.reset(); path.reset(); }
     },
     reset() {
-      path.reset(); follow.reset(); stroke = started = scrubbing = false; dead = true; nInk = 0; hasPos = false;
+      path.reset(); follow.reset(); stroke = started = scrubbing = false; dead = true; nInk = 0; hasPos = false; stepEpoch = gesture.epoch;
     },
     fallback(act: Action) {
       if (act === 'fly-to') scheme.flyToMode = !scheme.flyToMode;

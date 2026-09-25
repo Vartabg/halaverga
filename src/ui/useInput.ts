@@ -34,7 +34,9 @@ export function useInput() {
       if (!e.repeat && e.code === swallowed) swallowed = null;
       // Free trackpad with the blaster: a click while stopped fires, so W (in the air) or Space starts the cruise the click used
       // to, and Space brakes it again. The starting press is the click: it never adds forward thrust, even while held.
-      const ctx = { shooter: state.shooter, started: state.started, paused: state.paused, desktopMode: state.desktopMode, steering: state.trackpadSteering,
+      // A Gesture Lab scheme owns the pointer: W and Space keep their 7945430 meanings (no free-cursor cruise).
+      const ctx = { shooter: state.shooter, started: state.started, paused: state.paused, desktopMode: state.desktopMode,
+        steering: state.controlLab === 'standard' ? state.trackpadSteering : 'lab',
         touch: touchMode(), cruising: runtime.trackpad.active, flying: state.flying, landing: state.landing, canLand: state.canLand,
         repeat: e.repeat, targetTag: (e.target as HTMLElement).tagName ?? '' };
       const action = flightKey(e.code, ctx);

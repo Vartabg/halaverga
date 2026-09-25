@@ -119,10 +119,11 @@ describe('look source and selector', () => {
     expect(lookSourceFor('pen', 'trackpad')).toBe('touch');
     expect(lookSourceFor('touch', 'trackpad', false)).toBe('touch');
   });
-  it('covers the tap pad and the Fire/Aim wrapper', () => {
+  it('covers the tap pad, the Fire/Aim wrapper and the Gesture Lab surface', () => {
     expect(OWN_LOOK_SELECTOR).toContain('[aria-label="Tap flight controls"]');
     expect(OWN_LOOK_SELECTOR).toContain('[data-shooter-controls]');
-    expect(OWN_LOOK_SELECTOR.split(',').map(p => p.trim())).toEqual(['[aria-label="Tap flight controls"]', '[data-shooter-controls]']);
+    expect(OWN_LOOK_SELECTOR).toContain('[data-gesture-surface]');
+    expect(OWN_LOOK_SELECTOR.split(',').map(p => p.trim())).toEqual(['[aria-label="Tap flight controls"]', '[data-shooter-controls]', '[data-gesture-surface]']);
   });
 });
 it('resetShooterInput after holds clears everything but keeps the serial', () => {

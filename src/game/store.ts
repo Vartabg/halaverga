@@ -10,6 +10,10 @@ export type TrackpadProfile = 'simple' | 'free' | 'captured' | 'flow';
 export const CONTROLS_VERSION = 4;
 export type TouchScheme = 'twin' | 'classic';
 export type HintSeries = 'touch' | 'simple' | 'mouse';
+/** The Gesture Lab (docs: gesture lab spec 8). 'standard' is the restored desktop + twin-stick controls and stays the default. */
+export type ControlLab = 'standard' | 'draw' | 'conduct' | 'brush';
+export const CONTROL_LABS: readonly ControlLab[] = ['standard', 'draw', 'conduct', 'brush'];
+export const isControlLab = (v: unknown): v is ControlLab => typeof v === 'string' && (CONTROL_LABS as readonly string[]).includes(v);
 export type HintProgress = Record<HintSeries, number>;
 /** Steps per progressive hint series; progress === HINT_STEPS[series] means done. */
 export const HINT_STEPS: Readonly<HintProgress> = { touch: 4, simple: 4, mouse: 4 };
@@ -30,6 +34,8 @@ type GameState = {
   /** Touch controls (v3). touchLook/touchAim/controlSize/controlOpacity are multipliers clamped to TOUCH_RANGES. */
   touchScheme: TouchScheme; touchLook: number; touchAim: number; lookAccel: boolean; invertY: boolean; flipSides: boolean;
   controlSize: number; controlOpacity: number; flyWhereILook: boolean; homeTipSeen: boolean;
+  /** Gesture Lab scheme, and 'Shots slow me down' (off: lab shots skip the hip-fire speed clamp, gesture.exemptHip). */
+  controlLab: ControlLab; labShotsSlow: boolean;
   /** Runtime only: a landable surface is within reach below (Descend reads Land), the Leave card, the pinch-zoom note, and a held
    *  Descend that the clearance assist stopped with no landable spot near (Descend reads "No landing"). */
   nearGround: boolean; leavePrompt: boolean; zoomNote: boolean; descendBlocked: boolean;
@@ -48,7 +54,7 @@ export const useGame = create<GameState>((set) => ({
   shooter: true, aimToggle: false, aimAssist: 1, controlsVersion: CONTROLS_VERSION,
   autoFire: true, aimButton: true, hintProgress: { touch: 0, simple: 0, mouse: 0 }, hintVisible: false,
   touchScheme: 'twin', touchLook: 1, touchAim: 1, lookAccel: false, invertY: false, flipSides: false,
-  controlSize: 1, controlOpacity: .85, flyWhereILook: false, homeTipSeen: false,
+  controlSize: 1, controlOpacity: .85, flyWhereILook: false, homeTipSeen: false, controlLab: 'standard', labShotsSlow: false,
   nearGround: false, leavePrompt: false, zoomNote: false, descendBlocked: false,
   flying: false, landing: false, canLand: false, nearTerminal: false, boundaryNear: false, clearanceActive: false, inputEpoch: 0,
   checkpoint: START, discovered: false, message: '', set,
@@ -58,7 +64,7 @@ const STORAGE = 'halaverga-flight-v1';
 // writes exactly these keys; tests/persistence.test.ts pins hydrateGame to
 // restore every entry and to ignore runtime-only state.
 export const PERSISTED_KEYS = ['checkpoint', 'camera', 'quality', 'reduced', 'muted', 'discovered', 'tapControls', 'desktopMode', 'trackpadSteering', 'sustainedEdges', 'reverseScroll', 'cruiseSpeed', 'heroPoses', 'lookSensitivity', 'flowIntroSeen', 'shooter', 'aimToggle', 'aimAssist', 'controlsVersion', 'autoFire', 'aimButton', 'hintProgress',
-  'touchScheme', 'touchLook', 'touchAim', 'lookAccel', 'invertY', 'flipSides', 'controlSize', 'controlOpacity', 'flyWhereILook', 'homeTipSeen'] as const;
+  'touchScheme', 'touchLook', 'touchAim', 'lookAccel', 'invertY', 'flipSides', 'controlSize', 'controlOpacity', 'flyWhereILook', 'homeTipSeen', 'controlLab', 'labShotsSlow'] as const;
 /** [min, max, default] for the numeric touch settings. */
 export const TOUCH_RANGES = { touchLook: [.5, 2, 1], touchAim: [.5, 1.5, 1], controlSize: [.85, 1.2, 1], controlOpacity: [.4, 1, .85] } as const;
 const ranged = (v: unknown, [lo, hi, fallback]: readonly [number, number, number]) =>
@@ -100,6 +106,8 @@ export function hydrateGame() {
       lookAccel: strict(saved.lookAccel, false), invertY: strict(saved.invertY, false), flipSides: strict(saved.flipSides, false),
       controlSize: ranged(saved.controlSize, TOUCH_RANGES.controlSize), controlOpacity: ranged(saved.controlOpacity, TOUCH_RANGES.controlOpacity),
       flyWhereILook: strict(saved.flyWhereILook, false), homeTipSeen: strict(saved.homeTipSeen, false),
+      // No migration: a save without a lab choice (every save before the lab) plays the standard controls.
+      controlLab: isControlLab(saved.controlLab) ? saved.controlLab : 'standard', labShotsSlow: strict(saved.labShotsSlow, false),
     });
   } catch { useGame.setState({ reduced: matchMedia('(prefers-reduced-motion: reduce)').matches }); }
 }
@@ -110,12 +118,24 @@ export function overrideShooter(on: boolean) {
   if (shooterPin) shooterPin.session = on; else shooterPin = { session: on, saved: useGame.getState().shooter };
   useGame.setState({ shooter: on });
 }
+// ?controls=draw (or a lab chunk that fails to load) switches the scheme for this session only; a choice in the picker is saved.
+let labPin: { session: ControlLab; saved: ControlLab } | null = null;
+export function overrideControls(id: ControlLab) {
+  if (labPin) labPin.session = id; else labPin = { session: id, saved: useGame.getState().controlLab };
+  useGame.setState({ controlLab: id });
+}
+/** The player's own choice (picker): saved, and it ends any session override. */
+export function chooseControlLab(id: ControlLab) {
+  labPin = null;
+  useGame.setState({ controlLab: id }); persistGame();
+}
 export function persistGame() {
   try {
     const state = useGame.getState();
     const saved: Record<string, unknown> = {};
     for (const key of PERSISTED_KEYS) saved[key] = state[key];
     if (shooterPin && state.shooter === shooterPin.session) saved.shooter = shooterPin.saved; else shooterPin = null;
+    if (labPin && state.controlLab === labPin.session) saved.controlLab = labPin.saved; else labPin = null;
     localStorage.setItem(STORAGE, JSON.stringify(saved));
   }
   catch { /* Private browsing may prohibit storage; play remains available. */ }

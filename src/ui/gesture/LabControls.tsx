@@ -14,7 +14,8 @@ import GhostGuide from './GhostGuide';
 import HoldGuide, { createHoldModel, type HoldModel } from './HoldGuide';
 import { setFallbackTarget, type LabScheme } from './LabFallback';
 import { createProbe, flushLabStats, labStats, recordFrame, recordStroke, sampleProbe, type FrameProbe } from './labStats';
-import { buildScheme, countLabOut } from './labWire';
+import { buildScheme, countLabOut, markTap } from './labWire';
+import { ribbonLink, type RibbonPath } from './guideSteps';
 import { instrumentScheme, strokeLog } from './strokeLog';
 // The lazy Gesture Lab chunk entry (Experience loads it in place of TouchControls, keyed on the scheme, paused and inputEpoch).
 // It builds the scheme, registers it on the bus, mounts the surface (which owns the ink canvas) and the guides, and samples
@@ -56,12 +57,15 @@ export default function LabControls({ scheme: id, onError }: Props) {
     const s = runtime.shooter, previousLook = s.input.lookSource;
     const step = (dt: number, pos: Vec, ctx: GestureCtx) => scheme.step(dt, pos, ctx);
     resetGestureApply(); clearGesture(); releaseThumb();
-    gesture.scheme = scheme.id; gesture.step = step;
+    gesture.scheme = scheme.id; gesture.step = step; gesture.exemptHip = !useGame.getState().labShotsSlow;
+    const ribbon = (scheme as Scheme & { ribbon?: RibbonPath }).ribbon ?? null;
+    if (ribbon) ribbonLink.path = ribbon;
     s.input.lookSource = 'tap';
     try { if (document.pointerLockElement) document.exitPointerLock(); } catch { /* no pointer lock to leave */ }
     setFallbackTarget(scheme);
     return () => {
       setFallbackTarget(null);
+      if (ribbon && ribbonLink.path === ribbon) ribbonLink.path = null;
       scheme.cancel(); scheme.reset();
       if (gesture.step === step) { gesture.step = null; gesture.scheme = 'off'; }
       s.input.lookSource = previousLook;
@@ -90,7 +94,7 @@ export default function LabControls({ scheme: id, onError }: Props) {
 
   if (!scheme || failed) return null;
   const renderFailed = () => { setFailed(true); report.current?.(new Error(`Gesture Lab ${id} failed to render`)); };
-  const onAction = (o: Readonly<ArbiterOut>) => countLabOut(id, o);
+  const onAction = (o: Readonly<ArbiterOut>) => { countLabOut(id, o); markTap(o); };
   return <Boundary fallback={null} onError={renderFailed}>
     <GestureSurface scheme={scheme} hold={hold} onAction={onAction} />
     <HoldGuide model={hold} scheme={id} />

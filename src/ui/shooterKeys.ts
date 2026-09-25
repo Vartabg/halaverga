@@ -52,5 +52,5 @@ export function mouseUp(button: number, env: ShooterEnv, s: ShooterState) {
 export function lookSourceFor(pointerType: string, desktopMode: 'trackpad' | 'mouse', capable = true): LookSource {
   return pointerType === 'touch' || (pointerType === 'pen' && capable) ? 'touch' : desktopMode === 'mouse' ? 'mouse' : 'trackpad';
 }
-/** Pointers inside these elements set lookSource themselves (tap pad 'tap', Fire/Aim 'touch'). */
-export const OWN_LOOK_SELECTOR = '[aria-label="Tap flight controls"], [data-shooter-controls]';
+/** Pointers inside these elements set lookSource themselves (tap pad 'tap', Fire/Aim 'touch', the Gesture Lab surface 'tap'). */
+export const OWN_LOOK_SELECTOR = '[aria-label="Tap flight controls"], [data-shooter-controls], [data-gesture-surface]';

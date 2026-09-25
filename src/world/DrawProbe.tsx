@@ -27,7 +27,7 @@ export function ballSweep(world: RAPIER.World, ball: RAPIER.Shape): SweepCast {
 
 /** One probe frame: the pending end ray first (so a landing retarget is swept with the rest), then the sweep. */
 export function probeDrawPath(path: DrawPath, castShot: (o: Vec, d: Vec, maxT: number, out: WorldHit) => boolean,
-  sweep: SweepCast, hit: WorldHit, end: DrawHit) {
+  sweep: SweepCast, hit: WorldHit, end: DrawHit, now = 0) {
   if (path.pendingEnd) {
     const o = path.endO, d = path.endD, ok = castShot(o, d, END_RANGE, hit);
     if (ok) {
@@ -36,7 +36,7 @@ export function probeDrawPath(path: DrawPath, castShot: (o: Vec, d: Vec, maxT: n
     }
     path.finish(ok ? end : null);
   }
-  path.sweep(sweep, SWEEP_MAX_FRAME);
+  path.sweep(sweep, SWEEP_MAX_FRAME, now);
 }
 
 export default function DrawProbe() {
@@ -48,7 +48,7 @@ export default function DrawProbe() {
     let failed = false;   // a probe fault stops probing (the path is then unswept, and anticipate still brakes) but never the frame loop
     return () => {
       if (failed) return;
-      try { probeDrawPath(drawPath, shots.castShot, sweep, hit, end); } catch (e) { failed = true; console.error('[lab] DrawProbe', e); }
+      try { probeDrawPath(drawPath, shots.castShot, sweep, hit, end, performance.now()); } catch (e) { failed = true; console.error('[lab] DrawProbe', e); }
     };
   }, [world, rapier]);
   useFrame(frame, -45);

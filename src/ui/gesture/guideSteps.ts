@@ -15,17 +15,20 @@ export type GuideStep = { readonly id: GuideEvent; readonly shape: GhostShape; r
 
 const step = (id: GuideEvent, shape: GhostShape, label: string, desk = label): GuideStep => ({ id, shape, label, desk });
 export const GUIDE_STEPS: Readonly<Record<LabScheme, readonly GuideStep[]>> = {
-  draw: [step('curve', 'curve', 'Draw a curve to fly it', 'Click, move: ink a curve'), step('chain', 'chain', 'Draw again to chain', 'Ink again to chain'),
+  draw: [step('curve', 'curve', 'Draw a rising curve to fly', 'Click, move: ink a curve up'), step('chain', 'chain', 'Draw again to chain', 'Ink again to chain'),
     step('tap-drone', 'tap', 'Tap a drone to blast', 'Click a drone to blast'), step('rooftop', 'rooftop', 'End on a roof to land')],
-  conduct: [step('rest-steer', 'rest', 'Rest a finger to steer', 'Click sky, point to steer'), step('stir', 'stir', 'Stir small circles: faster', 'Stir the pointer: faster'),
+  conduct: [step('rest-steer', 'rest', 'Rest a finger to steer', 'Click below the horizon to fly'), step('stir', 'stir', 'Stir small circles: faster', 'Stir the pointer: faster'),
     step('lift-glide', 'lift', 'Lift your finger to glide', 'Click again to glide'), step('flick', 'flick', 'Flick to dash'),
     step('circle', 'circle', 'Circle fast to roll'), step('tap-drone', 'tap', 'Tap a drone to blast', 'Click a drone to blast')],
   brush: [step('up', 'up', 'Swipe up to soar', 'Click, sweep up: soar'), step('turn', 'turn', 'Swipe sideways to turn', 'Click, sweep sideways: turn'),
     step('down', 'down', 'Swipe down to dive', 'Click, sweep down: dive'), step('lasso', 'lasso', 'Circle a drone to lock', 'Click, circle a drone')],
 };
 
-/** One loop: draw at real speed, then hold the finished ghost briefly. The next step waits NEXT_MS after a success. */
-export const GHOST_HOLD_MS = 400, GHOST_LOOP_MS = ONBOARD_GHOST_MS + GHOST_HOLD_MS, NEXT_MS = 800;
+/**
+ * One loop: draw at real speed, then hold the finished ghost briefly. The next step waits NEXT_MS after a success. The first ghost
+ * waits FIRST_GHOST_MS after the lab mounts, so it plays once the player has the scene in view (GhostGuide passes it to createRunner).
+ */
+export const GHOST_HOLD_MS = 400, GHOST_LOOP_MS = ONBOARD_GHOST_MS + GHOST_HOLD_MS, NEXT_MS = 800, FIRST_GHOST_MS = 1000;
 const LOOPS_MS = GHOST_LOOP_MS * ONBOARD_LOOPS, REPLAY_MS = ONBOARD_REPLAY_S * 1000;
 
 export type GhostRunner = {
@@ -104,15 +107,27 @@ export function progressToSave(r: GhostRunner): number {
   return k;
 }
 
-/** Where the ghost sits. Touch: the right thumb zone above the bottom band; desktop: centre-right. size is the box edge, px. */
+/**
+ * Where the ghost sits. Touch: the right thumb zone above the bottom band; desktop: centre-right. size is the box edge, px. avoid is
+ * the measured Lift/Land button box: a ghost block (box plus GHOST_BELOW of label and Skip button) that would overlap it moves to
+ * the centre, then above it.
+ */
 export type GhostBox = { x: number; y: number; size: number };
-export function ghostAnchor(touch: boolean, w: number, h: number, safeBottom: number, out: GhostBox): GhostBox {
+export type AvoidRect = { left: number; top: number; right: number; bottom: number };
+export const GHOST_BELOW = 74, AVOID_GAP = 12;
+const overlaps = (b: GhostBox, a: AvoidRect) => { const h = b.size / 2;
+  return b.x - h < a.right && b.x + h > a.left && b.y - h < a.bottom && b.y + h + GHOST_BELOW > a.top; };
+export function ghostAnchor(touch: boolean, w: number, h: number, safeBottom: number, out: GhostBox, avoid: AvoidRect | null = null): GhostBox {
   const short = Math.min(w, h);
   out.size = touch ? Math.min(160, .38 * short) : Math.min(200, .26 * short);
   const half = out.size / 2;
   out.x = Math.min(w - half - 16, Math.max(half + 16, w * (touch ? .7 : .68)));
   out.y = touch ? h - BOTTOM_BAND - Math.max(0, safeBottom) - half - 56 : h * .5;
   out.y = Math.max(half + 16, out.y);
+  if (avoid && avoid.right > avoid.left && overlaps(out, avoid)) {
+    out.x = w / 2;
+    if (overlaps(out, avoid)) out.y = Math.max(half + 16, avoid.top - AVOID_GAP - GHOST_BELOW - half);
+  }
   return out;
 }
 
@@ -153,8 +168,15 @@ export interface RibbonPath {
 /** The Draw scheme publishes its path here (null when there is none); GestureRibbon reads it unless given its own reader. */
 export const ribbonLink = { path: null as RibbonPath | null };
 
-/** The live runner (GhostGuide installs it). Schemes call reportGuide on success; with no ghost mounted it does nothing. */
-export const guideLink = { runner: null as GhostRunner | null };
+/**
+ * The live runner (GhostGuide installs it). Schemes call reportGuide on success; with no ghost mounted it does nothing. live is set
+ * by the surface while a Draw or Brush stroke (or hover ink) is live: the ghost hides, so it never replays in the middle of one.
+ */
+export const guideLink = { runner: null as GhostRunner | null, live: false };
+export function setGuideLive(live: boolean) {
+  if (guideLink.live === live) return;
+  guideLink.live = live; guideLink.runner?.wake?.();
+}
 export function reportGuide(ev: GuideEvent, now = performance.now()): boolean {
   const r = guideLink.runner;
   return r ? report(r, ev, now) : false;

@@ -1,72 +1,23 @@
 // Brush strokes (spec 6): cruise after Lift, and each recognised stroke runs one timed maneuver. Pure: the host injects flight
 // state and the U3 lasso/lockBurst, so node tests drive it directly. Allocation-free after createBrushScheme.
 import type { Vec } from '../motion';
-import type { Action, Cardinal, GestureCtx, Scheme, StrokeClass, StrokeView } from './types';
+import type { Action, Cardinal, GestureCtx, StrokeClass, StrokeView } from './types';
 import { gesture, LIFT_REQUEST } from './bus';
-import { BRAKE_HOLD_MS, CLOSURE_FRAC, CLOSURE_PX, HOLD_MS, TAP_SLOP_MOUSE, TAP_SLOP_TOUCH } from './tuning';
+import { ACCEL, BRAKE_HOLD_MS, DIVE_FLOOR_M, HOLD_MS, TAP_SLOP_MOUSE, TAP_SLOP_TOUCH } from './tuning';
 import { straightFast } from './strokeFeatures';
 import {
   cancelManeuver, createManeuver, createManeuverOut, setRollBlocked, startDive, startNudge, startRoll, startSoar, startTurn,
-  stepManeuver, swipeMag, type CancelReason, type ManeuverId,
+  stepManeuver, swipeMag, type CancelReason,
 } from './maneuvers';
+import { BRUSH_LAND_LOW_M, BRUSH_PULLOUT_M, NO_DRONE, SWIPE_COMMIT_WIND_DEG, cardinalOf, closedStroke as closed, type BrushHost,
+  type BrushScheme, type BrushView } from './brushHost';
+export { BRUSH_LAND_LOW_M, BRUSH_PULLOUT_M, NO_DRONE, SWIPE_COMMIT_WIND_DEG, cardinalOf, type BrushHost, type BrushScheme,
+  type BrushView } from './brushHost';
 
-/** A swipe down counts as a landing request when the ground is closer than this (with a landTarget in view). */
-export const BRUSH_LAND_LOW_M = 12;
-/**
- * The mid-stroke swipe commit (strokeFeatures.straightFast, which waits for the finger to settle so the full length sets the
- * magnitude) also needs little turning so far and no lasso lock, so the opening arc of a large circle never commits.
- */
-export const SWIPE_COMMIT_WIND_DEG = 15;
 /** Lateral reach checked with pathClear before a roll sidesteps (ROLL_OFFSET_M plus a margin). */
 const ROLL_CHECK_M = 3.5, FALLBACK_MAG = 0.5;
-export const NO_DRONE = 'No drone in view';
-
-/** What Brush needs from the game (LabControls wires it; tests mock it). */
-export interface BrushHost {
-  flying(): boolean;
-  /** runtime.yaw (the offset basis: camera right = (cos yaw, 0, -sin yaw)). */
-  yaw(): number;
-  /** FlightSafety clearance is pushing the hero away from geometry. */
-  clearance(): boolean;
-  /** runtime.landTarget (surface point) or null. */
-  landTarget(): Vec | null;
-  /** lasso.ts: lassoBegin, lassoSample (locks so far, for mid-stroke rings) and lassoClose(closed) (final locks). */
-  lassoBegin(x: number, y: number, t: number): void;
-  lassoAdd(x: number, y: number, t: number): number;
-  lassoEnd(closed: boolean): number;
-  /** aimedShot.lockBurst on the locked drones. */
-  lockBurst(): void;
-  /** Fallback: lock and burst the nearest visible drone; false when there is none. */
-  lockNearest(): boolean;
-}
-/** What the ink and guides read (U2/U7). Mutated in place. */
-export interface BrushView {
-  guide: boolean;
-  /** Brake-fill ring 0..1 between HOLD_MS and BRAKE_HOLD_MS. */
-  ring: number;
-  locks: number;
-  /** A swipe was committed mid-stroke: the arbiter should end the ink (desktop hover ink commits here). */
-  committed: boolean;
-  /** Bumped on every recognised stroke (the ink 'sets' and the chime plays); speed is its release speed, px/ms. */
-  recognized: number; speed: number;
-  /** The last stroke was unknown: the ink greys out. */
-  grey: boolean;
-  program: ManeuverId;
-  lastCancel: CancelReason | null;
-}
-export interface BrushScheme extends Scheme {
-  readonly view: BrushView;
-  /** Still-press time from the arbiter's guide/brakeRing/brake outputs: the guide from HOLD_MS, the brake at BRAKE_HOLD_MS. */
-  hold(ms: number): void;
-  readonly cruising: boolean;
-}
-
-/** Chord direction in ±45 deg sectors (screen y down). */
-export function cardinalOf(dx: number, dy: number): Cardinal {
-  return Math.abs(dx) >= Math.abs(dy) ? (dx < 0 ? 'left' : 'right') : (dy < 0 ? 'up' : 'down');
-}
-/** Closure as the recogniser defines it: the end is back within max(40 px, 30% of the bbox diagonal) of the start. */
-const closed = (s: StrokeView) => s.chord <= Math.max(CLOSURE_PX, CLOSURE_FRAC * Math.hypot(s.maxX - s.minX, s.maxY - s.minY));
+/** Under clearance, a program is cancelled only when its push points this far into the obstacle (dot with the surface normal). */
+const INTO = -0.3;
 
 export function createBrushScheme(host: BrushHost): BrushScheme {
   const m = createManeuver(), out = createManeuverOut(), g = gesture;
@@ -75,7 +26,7 @@ export function createBrushScheme(host: BrushHost): BrushScheme {
   const view: BrushView = { guide: false, ring: 0, locks: 0, committed: false, recognized: 0, speed: 0, grey: false,
     program: 'none', lastCancel: null };
   let cruise = false, flying = false, wasFlying: boolean | null = null, ground = Infinity, epoch = g.epoch;
-  let active = false, real = false, braked = false, lastT = 0;
+  let active = false, real = false, braked = false, lastT = 0, lastY = NaN, vy = 0;
   /** The host ctx, remembered from step so the lock fallback can announce a miss. */
   let ctxRef: GestureCtx | null = null;
 
@@ -84,22 +35,29 @@ export function createBrushScheme(host: BrushHost): BrushScheme {
     if (r) view.lastCancel = r;
     stepManeuver(m, 0, ground, out);
   }
+  /** Soar, dive and the pull-out own the vertical; otherwise the cruise cancels the view pitch's sink and holds altitude. */
+  const holds = () => m.id !== 'soar' && m.id !== 'dive' && m.id !== 'pullout';
   function write() {
     const i = g.intent, yaw = host.yaw();
     view.program = m.id;
     g.live = active && real;
-    i.forward = cruise && flying ? out.forward : 0; i.strafe = 0; i.vertical = out.vertical;
+    i.forward = cruise && flying ? out.forward : 0; i.strafe = 0;
+    i.vertical = out.vertical - (i.forward > 0 && holds() ? Math.sin(host.pitch?.() ?? 0) * i.forward : 0);
     g.surge = out.surge; g.yawRate = out.yawRate; g.pitchRate = out.pitchRate; g.spin = out.spin;
     g.offset.x = Math.cos(yaw) * out.right; g.offset.y = out.up; g.offset.z = -Math.sin(yaw) * out.right;
     g.velocityOn = false; g.facing = 0;
   }
   function brake() { cancel('brake'); cruise = false; write(); }
   function recognized(speed: number) { view.recognized++; view.speed = speed; view.grey = false; }
-  /** Replaces any running program (turn, soar, dive, roll) and resumes cruise, lifting off when grounded; low dive = land. */
-  function run(kind: Cardinal | 'roll', value: number) {
+  /**
+   * Replaces any running program (turn, soar, dive, roll) and resumes cruise, lifting off when grounded. A swipe down while
+   * flying low, or ending on the land target (ex, ey), lands instead; standing, a swipe down lifts and dives.
+   */
+  function run(kind: Cardinal | 'roll', value: number, ex = NaN, ey = NaN) {
     cancel('stroke');
     const lt = host.landTarget();
-    if (kind === 'down' && lt && ground < BRUSH_LAND_LOW_M) {
+    if (kind !== 'roll') host.guide?.(kind === 'left' || kind === 'right' ? 'turn' : kind);
+    if (kind === 'down' && flying && lt && (ground < BRUSH_LAND_LOW_M || (ex === ex && !!host.landAt?.(ex, ey)))) {
       cruise = false; landReq.x = lt.x; landReq.y = lt.y; landReq.z = lt.z; g.request = landReq; g.landArmed = true;
     } else {
       if (kind === 'roll') startRoll(m, value >= 0 ? 1 : -1);
@@ -112,6 +70,13 @@ export function createBrushScheme(host: BrushHost): BrushScheme {
     write();
   }
   const endStroke = () => { active = false; real = false; view.guide = false; view.ring = 0; };
+  /** Whether the running program pushes into the obstacle whose surface normal (out of it) is n. */
+  function into(n: Vec) {
+    const yaw = host.yaw(), rx = Math.cos(yaw), rz = -Math.sin(yaw), side = rx * n.x + rz * n.z;
+    const d = m.id === 'turn' ? -m.sign * side : m.id === 'roll' ? (m.blocked ? 0 : m.sign * side)
+      : m.id === 'soar' || m.id === 'pullout' ? n.y : m.id === 'dive' ? -n.y : m.id === 'nudge' ? m.rx * side + m.uy * n.y : 0;
+    return d < INTO;
+  }
 
   return {
     id: 'brush', view,
@@ -135,7 +100,7 @@ export function createBrushScheme(host: BrushHost): BrushScheme {
       }
       if (real && !view.committed && view.locks === 0 && Math.abs(s.winding) <= SWIPE_COMMIT_WIND_DEG && straightFast(s)) {
         view.committed = true; recognized(s.speed150);
-        run(cardinalOf(s.lastX - s.startX, s.lastY - s.startY), swipeMag(s.chord));
+        run(cardinalOf(s.lastX - s.startX, s.lastY - s.startY), swipeMag(s.chord), s.lastX, s.lastY);
       }
     },
     up(s: StrokeView, c: StrokeClass) {
@@ -144,10 +109,10 @@ export function createBrushScheme(host: BrushHost): BrushScheme {
       endStroke();
       if (!wasReal || view.committed) { write(); return; }
       view.locks = host.lassoEnd(c.kind === 'circle' || c.kind === 'lasso' || closed(s));
-      if (view.locks > 0) { host.lockBurst(); recognized(c.speed); }
+      if (view.locks > 0) { host.lockBurst(); recognized(c.speed); host.guide?.('lasso'); }
       else if (c.kind === 'circle' || c.kind === 'lasso') { recognized(c.speed); run('roll', c.winding); }
       else if ((c.kind === 'swipe' || c.kind === 'flick') && c.dir) {
-        recognized(c.speed); run(c.dir, swipeMag(Math.hypot(c.chordX, c.chordY)));
+        recognized(c.speed); run(c.dir, swipeMag(Math.hypot(c.chordX, c.chordY)), s.lastX, s.lastY);
       } else if (c.kind !== 'tap' && c.kind !== 'hold') { cancel('stroke'); startNudge(m, c.chordX, c.chordY); view.grey = true; }
       write();
     },
@@ -164,20 +129,24 @@ export function createBrushScheme(host: BrushHost): BrushScheme {
       if (wasFlying !== null && flying !== wasFlying) { cruise = flying; if (!flying) cancelManeuver(m, 'stroke'); }
       wasFlying = flying;
       if (g.override) { cancel('override'); cruise = false; }
-      if (host.clearance()) cancel('clearance');
+      // Clearance cancels only a program that pushes into the obstacle: soaring off a floor or turning away from a wall still runs.
+      if (host.clearance() && (!host.clearanceNormal || into(host.clearanceNormal()))) cancel('clearance');
       ground = ctx.groundBelow(p);
+      vy = lastY === lastY && dt > 0 ? (p.y - lastY) / dt : 0; lastY = p.y;
       if (m.id === 'roll' && m.pending) {
         const yaw = host.yaw(), r = m.sign * ROLL_CHECK_M;
         probeA.x = p.x; probeA.y = p.y; probeA.z = p.z;
         probeB.x = p.x + Math.cos(yaw) * r; probeB.y = p.y; probeB.z = p.z - Math.sin(yaw) * r;
         setRollBlocked(m, !ctx.pathClear(probeA, probeB));
       }
-      stepManeuver(m, dt, ground, out);
+      // The dive pulls out at DIVE_FLOOR_M of this ground: its braking distance and the pull-out margin keep it BRUSH_PULLOUT_M up.
+      const brake = vy < 0 ? vy * vy / (2 * ACCEL) : 0;
+      stepManeuver(m, dt, ground - brake - (BRUSH_PULLOUT_M - DIVE_FLOOR_M), out);
       write();
     },
     reset() {
       cancelManeuver(m, 'stroke'); stepManeuver(m, 0, Infinity, out);
-      cruise = false; wasFlying = null; ground = Infinity; epoch = g.epoch; endStroke();
+      cruise = false; wasFlying = null; ground = Infinity; epoch = g.epoch; lastY = NaN; vy = 0; endStroke();
       view.locks = 0; view.committed = false; view.grey = false; view.program = 'none'; view.lastCancel = null;
     },
     fallback(a: Action) {

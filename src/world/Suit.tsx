@@ -32,7 +32,7 @@ export default function Suit() {
     const roll = advanceSuitRoll(turn.current, pose, input, m.hero, mix.flare, dt), v = input.velocity;
     rig.root.visible = state.camera === 'third';
     rig.root.position.copy(pose.position);
-    orientSuit(rig.root, pose, m, roll, speedFade(Math.sqrt(v.x * v.x + v.z * v.z)));
+    orientSuit(rig.root, pose, m, roll, speedFade(Math.sqrt(v.x * v.x + v.z * v.z)), pose.spin);
     applySuitPose(rig.joints, pose, m, state.reduced);
     // In flight the authored clips blend over the pose targets (and write the added bones); the living layer then adds its motion.
     const authored = applyFlightClips(rig.joints, mix, pose, life, m.hero, state.reduced);

@@ -1,18 +1,15 @@
 // Every Gesture Lab threshold from the spec, by section. Units: px = CSS px, ms, s, m, m/s, rad unless the name says DEG.
-// Plain numbers only (no imports), so any lab module and the Player graph may read them.
+// Plain numbers only, so any lab module and the Player graph may read them. The few the landing graph needs live in tuningCore.ts
+// and are re-exported here.
+export { FACING_AIM, FACING_PATH, GOAL_PITCH_MAX, GOAL_PITCH_MIN, MAX_PITCH_RATE, MAX_YAW_RATE, PITCH_MAX, PITCH_MIN, SNAP_INTENT } from './tuningCore';
 
 // 1. Flight envelope
 export const FLIGHT_SPEED = 13, SURGE_SPEED = 34;
 /** Active and idle acceleration caps, m/s^2 (motion.advanceVelocity). */
 export const ACCEL = 42, ACCEL_IDLE = 110;
-export const PITCH_MIN = -1.3, PITCH_MAX = 1.25;
-/** A gesture never drives pitch beyond this band (it does not pull a pitch that is already outside it back in). */
-export const GOAL_PITCH_MIN = -1.0, GOAL_PITCH_MAX = 0.9;
 export const FLIGHT_Y_MIN = 1.7, FLIGHT_Y_MAX = 105;
 /** Curve cap: v <= sqrt(CURVE_K * r). */
 export const CURVE_K = 33.6;
-/** Largest yaw and pitch rates gestureBefore applies, rad/s (Brush turn peak 2.5; Conduct pitch 1.0, Soar/Dive headroom). */
-export const MAX_YAW_RATE = 2.5, MAX_PITCH_RATE = 1.5;
 
 // 2.1 Pointer arbitration (touch start filter)
 export const EDGE_STRIP = 12, BOTTOM_BAND = 28;
@@ -35,12 +32,11 @@ export const CIRCLE_BRUSH_DEG = 300, CLOSURE_PX = 40, CLOSURE_FRAC = 0.3;
 /** A stroke that fails every class nudges by this fraction of its chord. */
 export const NUDGE_FRAC = 0.3;
 
-// 2.6 Desktop hover ink
-export const REST_COMMIT_MS = 350, REST_COMMIT_MIN_PX = 60;
+// 2.6 Desktop hover ink. A 650 ms rest commits (350 ms cut a trackpad stroke whenever the player paused to think mid-curve);
+// Brush swipes still commit mid-hover through straightFast.
+export const REST_COMMIT_MS = 650, REST_COMMIT_MIN_PX = 60;
 
 // 2.8 applyGesture
-/** Intent components below this snap to 0 (so a decay tail ends and moving() turns false). */
-export const SNAP_INTENT = 0.02;
 /** Largest offset-envelope derivative, m/s^2 (the envelope generators enforce it). */
 export const OFFSET_JERK = 120;
 
@@ -89,15 +85,14 @@ export const TURN_DUR_BASE = 0.45, TURN_DUR_K = 0.55, TURN_PEAK_K = 1.5, TURN_PE
 export const SOAR_MIN_S = 0.5, SOAR_MAX_S = 0.9, SOAR_PITCH = 0.35;
 export const DIVE_FLOOR_M = 5;
 
-// 3.6 / 4.5 Body facing reach (presentation.FACING is {yaw .3, pitchUp .4, pitchDown .15})
-export const FACING_PATH = { yaw: 0.6, pitchUp: 0.7, pitchDown: 0.9 } as const;
-export const FACING_AIM = { yaw: 0.9, pitchUp: 0.6, pitchDown: 0.5 } as const;
+// 3.6 / 4.5 Body facing reach: FACING_PATH and FACING_AIM (tuningCore.ts).
 
 // 7. Feedback and discoverability
 export const INK_W_SLOW = 10, INK_W_FAST = 4, INK_COLOR = '#58e1ff';
 export const SET_MS = 120, SET_GAIN = 1.3, FEEDBACK_MS = 50, REJECT_MS = 250;
 export const TRAIL_S = 1.2, TRAIL_W_MIN = 0.06, TRAIL_W_MAX = 0.12, MAX_CHANNELS = 4;
-export const ONBOARD_GHOST_MS = 600, ONBOARD_LOOPS = 2, ONBOARD_REPLAY_S = 8;
+/** Each ghost plays ONBOARD_LOOPS times (3: two left a new player too little time while getting oriented), then replays after 8 s. */
+export const ONBOARD_GHOST_MS = 600, ONBOARD_LOOPS = 3, ONBOARD_REPLAY_S = 8;
 export const RM_INK_FADE_MS = 150, RM_OFFSET_SCALE = 0.6;
 
 // 10-11. Performance and local telemetry

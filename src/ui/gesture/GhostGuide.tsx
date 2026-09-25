@@ -4,8 +4,8 @@
 // motion: a static dotted path with arrowheads. The runner (guideSteps) holds all timing; this component only paints it, with a
 // rAF only while a ghost animates and a timer while it waits for the next replay.
 import { useEffect, useRef, useState } from 'react';
-import { GUIDE_STEPS, createGhostFrame, createRunner, ghostAnchor, ghostFrame, guideLink, loadGuideProgress, progressToSave, saveGuideProgress,
-  skip, type GhostShape, type LabScheme } from './guideSteps';
+import { FIRST_GHOST_MS, GUIDE_STEPS, createGhostFrame, createRunner, ghostAnchor, ghostFrame, guideLink, loadGuideProgress, progressToSave,
+  saveGuideProgress, skip, type AvoidRect, type GhostShape, type LabScheme } from './guideSteps';
 
 type Shape = { d: string; sx: number; sy: number; context?: string; pulse?: boolean };
 const pts = (n: number, fn: (k: number) => [number, number]) => {
@@ -16,7 +16,9 @@ const pts = (n: number, fn: (k: number) => [number, number]) => {
 const ring = (r: number, cx = 0, cy = 0) => pts(32, k => [cx + r * Math.sin(k * 2 * Math.PI), cy + r * Math.cos(k * 2 * Math.PI)]);
 /** Every ghost in a [-1, 1] box, y down. sx, sy is the start (the desktop click cue); context is a static prop (roof, drone). */
 export const GHOST_SHAPES: Readonly<Record<GhostShape, Shape>> = {
-  curve: { d: 'M-.8 .6C-.3 -.7 .3 .7 .8 -.6', sx: -.8, sy: .6 },
+  // Starts low (where the hero is), rises and bends away: the shape that flies from the ground. A dip below the start would teach
+  // ink that unprojects under the terrace.
+  curve: { d: 'M-.7 .7C-.55 .05 -.1 -.25 .75 -.7', sx: -.7, sy: .7 },
   chain: { d: 'M-.85 .55Q-.5 -.35 0 0M0 0Q.45 .35 .85 -.55', sx: -.85, sy: .55 },
   tap: { d: 'M0 0L.001 0', sx: 0, sy: 0, pulse: true, context: ring(.12) },
   rooftop: { d: 'M-.8 -.5Q.1 -.95 .55 .3', sx: -.8, sy: -.5, context: 'M.15 .42H.95M.15 .42V.9M.95 .42V.9' },
@@ -39,26 +41,30 @@ const SKIP = { pointerEvents: 'auto', minWidth: 44, minHeight: 44, padding: '0 1
 export type GhostGuideProps = { scheme: LabScheme; touch: boolean; reduced: boolean; announce?: (text: string) => void };
 
 export default function GhostGuide({ scheme, touch, reduced, announce }: GhostGuideProps) {
-  const [runner] = useState(() => createRunner(scheme, loadGuideProgress()[scheme], performance.now()));
+  const [runner] = useState(() => createRunner(scheme, loadGuideProgress()[scheme], performance.now() + FIRST_GHOST_MS));
   const [shown, setShown] = useState<{ step: number; visible: boolean }>({ step: -1, visible: false });
-  const [view, setView] = useState(() => ({ w: 390, h: 844 }));
+  const [view, setView] = useState(() => ({ w: 390, h: 844, avoid: null as AvoidRect | null }));
   const trail = useRef<SVGPathElement>(null), tip = useRef<SVGCircleElement>(null), pulse = useRef<SVGCircleElement>(null);
   const length = useRef(1), say = useRef(announce);
   say.current = announce;
   useEffect(() => {
-    const size = () => setView({ w: window.innerWidth, h: window.innerHeight });
+    // The Lift/Land button (Experience marks it data-ghost-avoid): the ghost and its label never sit under it.
+    const size = () => { const r = document.querySelector('[data-ghost-avoid]')?.getBoundingClientRect() ?? null;
+      setView({ w: window.innerWidth, h: window.innerHeight, avoid: r && { left: r.left, top: r.top, right: r.right, bottom: r.bottom } }); };
     size(); window.addEventListener('resize', size);
     return () => window.removeEventListener('resize', size);
   }, []);
   useEffect(() => {
     const frame = createGhostFrame();
-    let raf = 0, timer = 0, lastStep = -2, lastVisible = false;
+    let raf = 0, timer = 0, lastStep = -2, lastVisible = false, announced = -1;
     const paint = () => {
       raf = 0; timer = 0;
       ghostFrame(runner, performance.now(), reduced, frame);
+      if (guideLink.live) { frame.visible = false; frame.wakeIn = Infinity; } // a live stroke: hidden until setGuideLive(false) wakes it
       if (runner.dirty) { runner.dirty = false; saveGuideProgress(scheme, progressToSave(runner)); }
       if (runner.step !== lastStep || frame.visible !== lastVisible) {
-        if (frame.visible && runner.step !== lastStep && frame.step) say.current?.(touch ? frame.step.label : frame.step.desk);
+        // Announce a step the first time it shows: it may become visible after its step began (the first tip's delay, NEXT_MS).
+        if (frame.visible && runner.step !== announced && frame.step) { announced = runner.step; say.current?.(touch ? frame.step.label : frame.step.desk); }
         lastStep = runner.step; lastVisible = frame.visible; setShown({ step: runner.step, visible: frame.visible });
       }
       const p = trail.current;
@@ -95,7 +101,7 @@ export default function GhostGuide({ scheme, touch, reduced, announce }: GhostGu
     if (!reduced) p.style.strokeDasharray = String(length.current);
   }, [stepDef?.shape, reduced]);
   if (!stepDef) return null;
-  const shape = GHOST_SHAPES[stepDef.shape], box = ghostAnchor(touch, view.w, view.h, 0, { x: 0, y: 0, size: 0 });
+  const shape = GHOST_SHAPES[stepDef.shape], box = ghostAnchor(touch, view.w, view.h, 0, { x: 0, y: 0, size: 0 }, view.avoid);
   const style = { ...BOX, left: box.x - box.size / 2, top: box.y - box.size / 2,
     transform: touch ? 'translateY(calc(-1 * env(safe-area-inset-bottom, 0px)))' : undefined };
   return <div style={style} data-testid="lab-ghost" data-step={stepDef.id}>

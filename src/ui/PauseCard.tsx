@@ -1,3 +1,4 @@
+import dynamic from 'next/dynamic';
 import { useEffect, useRef, useState } from 'react';
 import { persistGame, useGame } from '@/game/store';
 import { runtime } from '@/game/runtime';
@@ -7,6 +8,8 @@ import { headerBand, readInsets, viewportBox } from './touchInsets';
 import { isStandalone, keepPlaying, leaveGame } from './playSession';
 import styles from './Experience.module.css';
 type Props = { ready: boolean; onEnter: () => void };
+// The live control switch (Standard, Draw, Conduct, Brush) is a chunk: the landing first load carries no lab picker.
+const LabSwitch = dynamic(() => import('./gesture/LabSwitch'), { ssr: false, loading: () => null });
 // Would the touch cluster fit this screen? The same pure layout the controls use, from the visual viewport and the safe areas.
 function crampedNow(probe: HTMLElement | null): boolean {
   if (!probe || !touchMode()) return false;
@@ -42,6 +45,7 @@ export default function PauseCard({ ready, onEnter }: Props) {
     {shooter && runtime.shooter.stats.kills > 0 && <p>Drones downed: {runtime.shooter.stats.kills}</p>}
     <p className={styles.note} role="status">{zoomNote ? 'Pinch out to normal size, then tap Resume.' : cramped ? 'Screen too short for touch controls. Zoom out or turn the phone.' : ''}</p>
     <button className={styles.primary} disabled={!ready} onClick={onEnter}>{ready ? 'Resume flight' : 'Restoring your suit…'} <span aria-hidden="true">↗</span></button>
+    <LabSwitch name="control-lab-pause" />
     <button className={styles.secondary} onClick={() => useGame.setState({ panel: true })}>Adjust flight settings</button>
     <p className={styles.portraitLine}>Best played sideways.</p>
     {tip && !tipSeen && <div className={styles.homeTip}><p>Tip: Share › Add to Home Screen for full screen.</p><button className={styles.secondary} onClick={gotIt}>Got it</button></div>}

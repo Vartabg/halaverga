@@ -9,9 +9,9 @@ import {
 } from './tuning';
 import { WINDING_CUSP, wrapAngle as wrap } from './strokeBuffer';
 import type { Cardinal, PointerKind, Scheme, StrokeClass, StrokeView } from './types';
+import { releaseSpeed } from './releaseSpeed';
 export { pointInPolygon } from './resample';
 
-// Recogniser details the spec leaves open (candidates for tuning.ts).
 /** A flick's last 150 ms may step back this far along its release direction (jitter), px. */
 export const FLICK_REVERSAL_PX = 4;
 /** straightFast: mean speed floor (px/ms), and the release is "settling" once speed60 <= this fraction of the mean. */
@@ -186,7 +186,7 @@ export function classify(s: StrokeView, variant: Variant, upT = s.lastT, out: St
   out.dir = null; out.magnitude = 0; out.winding = 0;
   out.chordX = s.lastX - s.startX; out.chordY = s.lastY - s.startY;
   out.angle = Math.atan2(out.chordY, out.chordX);
-  out.speed = s.count > 1 ? speedSince(s, SPEED_WIN_SHORT_MS) : 0;
+  out.speed = s.count > 1 ? releaseSpeed(s) : 0; // skips a still pointer-up sample; reads an ease-out flick's peak
   if (s.count === 0) { out.kind = 'none'; return out; }
   if (isStill(s)) {
     out.kind = now - s.startT <= TAP_MS ? 'tap' : now - s.startT >= HOLD_MS ? 'hold' : 'nudge';

@@ -2,67 +2,38 @@
 // the arbiter; desktop hovers steer while cruising (a click on empty space toggles cruise, a press-drag looks). Writes only the
 // gesture bus (intent, rates, offset, spin, lift request). Pure apart from the guarded exitPointerLock at creation.
 import { flowSpeed } from '../flowFlight';
-import { FOOT, type Vec } from '../motion';
+import type { Vec } from '../motion';
 import { gesture, LIFT_REQUEST } from './bus';
-import { ConductMotion, HoverTrail, Pulse, steerRates } from './conduct';
+import { ConductMotion, HoverTrail, Pulse, deskYaw, pitchRate, steerRates } from './conduct';
 import { OneEuro2 } from './oneEuro';
-import { labAimFrame } from './screenRay';
-import type { Action, AimFrame, ArbiterOut, GestureCtx, Scheme, StrokeClass, StrokeView } from './types';
-import {
-  DASH_COOLDOWN, DASH_MAX, DASH_MIN, DASH_S, FLICK_SPEED, FLICK_SPEED_MAX, LIFT_TAU,
-  RM_OFFSET_SCALE, ROLL_OFFSET_M, ROLL_PEAK, ROLL_S, SNAP_INTENT, STEER_GRACE_MS, SURGE_SPEED, THROTTLE_FLOOR, THROTTLE_RISE,
-} from './tuning';
-
-export type ConductCue = 'sparkle' | 'roll' | 'dash';
-export interface ConductOptions {
-  /** The camera frame the steer point is cast through, or null. Default: labAimFrame once GestureTrack has published it. */
-  frame?(): AimFrame | null;
-  /** Shot outputs routed through handle() (burst / blastNow / sustain). Omit when the surface fires them itself. */
-  fire?(drone: number, x: number, y: number, t: number, sustained: boolean): void;
-  /** Feedback hook for the ink layer and chime. */
-  cue?(kind: ConductCue, dir: number): void;
-  reduced?(): boolean;
-}
-export interface ConductScheme extends Scheme {
-  readonly id: 'conduct';
-  hover(x: number, y: number, t: number): void;
-  /** Desktop: a click on empty space. Returns the new cruise state. */
-  toggleCruise(): boolean;
-  /** Routes the arbiter outputs Conduct owns; returns false for the ones it leaves to the surface (look, strokes). */
-  handle(out: ArbiterOut): boolean;
-  /** Desktop hover gain for tempo, flick and circle (1 = raw px). */
-  setGain(g: number): void;
-  readonly state: { readonly throttle: number; readonly forward: number; readonly cruising: boolean; readonly touching: boolean };
-}
-
-/** Roll sidestep: a sine envelope whose integral is ROLL_OFFSET_M (peak 3*PI/(2*0.7) = 6.7 m/s, under ROLL_PEAK). */
-const SIDESTEP_PEAK = Math.min(ROLL_PEAK, ROLL_OFFSET_M * Math.PI / (2 * ROLL_S));
-const GROUNDED_M = FOOT + 0.3, FALLBACK_STEP = 0.25, FALLBACK_DASH = (DASH_MIN + DASH_MAX) / 2;
-const clamp = (v: number, lo: number, hi: number) => (v < lo ? lo : v > hi ? hi : v);
-/** Throttle u for a forward intent (inverse of flowSpeed / SURGE), so a new contact picks up the glide seamlessly. */
-const uFor = (fwd: number) => (fwd > 0 ? (-0.25 + Math.sqrt(0.0625 + 3 * fwd)) / 1.5 : 0);
-const CARD = { right: [1, 0], left: [-1, 0], up: [0, 1], down: [0, -1] } as const;
-
-export function releasePointerLock(doc: { exitPointerLock?: () => void } | undefined =
-  typeof document === 'undefined' ? undefined : document) {
-  try { doc?.exitPointerLock?.(); } catch { /* not locked, or unsupported */ }
-}
+import { labAimFrame, unproject } from './screenRay';
+import type { Action, AimFrame, ArbiterOut, GestureCtx, StrokeClass, StrokeView } from './types';
+import { DASH_COOLDOWN, DASH_S, LIFT_TAU, RM_OFFSET_SCALE, ROLL_OFFSET_M, ROLL_S, SNAP_INTENT, STEER_GRACE_MS, SURGE_SPEED, THROTTLE_FLOOR,
+  THROTTLE_RISE } from './tuning';
+import { DESK_FLOOR, EDGE_PX, FALLBACK_DASH, FALLBACK_STEP, GROUNDED_M, SIDESTEP_PEAK, SWIPE_DASH, clamp, dashPeak, releasePointerLock, uFor,
+  type ConductGuide, type ConductOptions, type ConductScheme } from './conductApi';
+export { DESK_FLOOR, EDGE_PX, SWIPE_DASH, releasePointerLock, type ConductCue, type ConductGuide, type ConductOptions,
+  type ConductScheme } from './conductApi';
 
 const labFrame = () => (labAimFrame.t > 0 ? labAimFrame : null);
 
 export function createConductScheme(opts: ConductOptions = {}): ConductScheme {
   releasePointerLock();
   const frame = opts.frame ?? labFrame;
+  const viewPitch = (f: AimFrame) => opts.view?.pitch ?? Math.asin(clamp(f.dir.y, -1, 1));
   const m = new ConductMotion(), euro = new OneEuro2(), dash = new Pulse(), side = new Pulse(), trail = new HoverTrail();
-  const rates = { yaw: 0, pitch: 0 }, off = { x: 0, y: 0, z: 0 }, probe = { x: 0, y: 0, z: 0 };
+  const rates = { yaw: 0, pitch: 0 }, off = { x: 0, y: 0, z: 0 }, probe = { x: 0, y: 0, z: 0 }, ray = { x: 0, y: 0, z: 0 };
+  const told: Partial<Record<ConductGuide, true>> = {};
   let hovered = false, gain = 1, hx = 0, hy = 0, ht = 0, seenT = -Infinity;
   let touching = false, cruising = false, braked = false, lifted = true, now = 0, downAt = 0, epoch = gesture.epoch;
   let u = 0, fwd = 0, lastDash = -Infinity, spinT = 0, spinDir = 0, pendRoll = 0, pendDash = 0, dashX = 0, dashY = 0;
   const live = () => touching || cruising;
+  const floor = () => (cruising && !touching ? DESK_FLOOR : THROTTLE_FLOOR);
+  const tell = (ev: ConductGuide) => { if (!told[ev]) { told[ev] = true; opts.guide?.(ev); } };
   const state = { get throttle() { return u; }, get forward() { return fwd; }, get cruising() { return cruising; },
     get touching() { return touching; } };
   function toggleCruise() {
-    if (cruising) cruising = false;
+    if (cruising) { cruising = false; if (fwd > 0) tell('lift-glide'); }
     else { cruising = true; start(hx * gain, hy * gain, ht); }
     return cruising;
   }
@@ -72,12 +43,12 @@ export function createConductScheme(opts: ConductOptions = {}): ConductScheme {
   function reset() {
     touching = cruising = hovered = false; u = fwd = 0; seenT = -Infinity; stopMotion(); m.reset(); euro.reset(); trail.reset();
   }
-  /** Flick release speed 0.9..3 px/ms -> 6..14 m/s, linear; cooldown 0.6 s from the last dash. */
-  function queueDash(speed: number, cx: number, cy: number, peak = -1) {
+  /** Release speed 0.9..3 px/ms -> 6..14 m/s (times scale), along screen direction (cx right, cy up); cooldown 0.6 s. */
+  function queueDash(speed: number, cx: number, cy: number, peak = -1, scale = 1) {
     if (now - lastDash < DASH_COOLDOWN) return;
-    pendDash = peak >= 0 ? peak
-      : DASH_MIN + (DASH_MAX - DASH_MIN) * clamp((speed - FLICK_SPEED) / (FLICK_SPEED_MAX - FLICK_SPEED), 0, 1);
+    pendDash = peak >= 0 ? peak : scale * dashPeak(speed);
     dashX = cx; dashY = cy; lastDash = now;
+    if (peak < 0) tell('flick');
   }
   function beginDash(f: AimFrame) {
     // Along camera right/up plus forward (horizontal), capped so cruise + dash stays within surge speed.
@@ -97,7 +68,7 @@ export function createConductScheme(opts: ConductOptions = {}): ConductScheme {
   function feed(x: number, y: number, t: number) {
     m.sample(x, y, t);
     if (m.sparkle) { m.sparkle = false; opts.cue?.('sparkle', 0); }
-    if (m.roll) { if (!spinDir && !pendRoll) pendRoll = m.roll; m.roll = 0; }
+    if (m.roll) { if (!spinDir && !pendRoll) { pendRoll = m.roll; tell('circle'); } m.roll = 0; }
   }
   function step(dt: number, p: Vec, ctx: GestureCtx) {
     if (gesture.epoch !== epoch) { epoch = gesture.epoch; reset(); }
@@ -109,19 +80,26 @@ export function createConductScheme(opts: ConductOptions = {}): ConductScheme {
       if (ctx.groundBelow(p) <= GROUNDED_M) gesture.request = LIFT_REQUEST;
     }
     if (on) {
-      const target = since >= STEER_GRACE_MS ? Math.max(m.stirLevel, braked ? 0 : THROTTLE_FLOOR) : 0;
+      const target = since >= STEER_GRACE_MS ? Math.max(m.stirLevel, braked ? 0 : floor()) : 0;
       if (u < target) u = Math.min(target, u + THROTTLE_RISE * dt);
       fwd = flowSpeed(u) / SURGE_SPEED;
+      if (m.stirLevel > THROTTLE_FLOOR) tell('stir');
     } else {
       fwd *= Math.exp(-dt / LIFT_TAU);
       if (fwd < SNAP_INTENT) fwd = 0;
     }
     if (pendRoll) beginRoll(p, ctx, f);
     if (pendDash && f) beginDash(f);
-    // Touch steers from the centroid; desktop cruise from the 1-euro hover point (button cruise with no hover does not steer).
+    // Touch steers from the centroid (yaw by angle, spec 5); desktop cruise from the 1-euro hover point (a steady screen-offset
+    // yaw). Pitch follows the steer point's height (position control); a glide with no steer point levels the view.
     const src = touching ? 1 : cruising && hovered ? 2 : 0;
-    if (!src || since < STEER_GRACE_MS || !f) rates.yaw = rates.pitch = 0;
-    else if (!m.frozen && !spinDir) steerRates(f, src === 1 ? m.cx : euro.x, src === 1 ? m.cy : euro.y, p, rates);
+    if (!src || since < STEER_GRACE_MS || !f) { rates.yaw = 0; rates.pitch = !src && fwd > 0 && f ? pitchRate(f, NaN, viewPitch(f)) : 0; }
+    else if (!m.frozen && !spinDir) {
+      const sx = src === 1 ? m.cx : euro.x, sy = src === 1 ? m.cy : euro.y;
+      rates.yaw = src === 1 ? steerRates(f, sx, sy, p, rates).yaw : deskYaw(f, sx);
+      rates.pitch = pitchRate(f, sy, viewPitch(f));
+      if (Math.abs(rates.yaw) > 0.05) tell('rest-steer');
+    }
     const reduced = opts.reduced?.() ?? false, scale = reduced ? RM_OFFSET_SCALE : 1;
     off.x = off.y = off.z = 0; dash.add(dt, off, scale); side.add(dt, off, scale);
     let spin = 0;
@@ -136,6 +114,8 @@ export function createConductScheme(opts: ConductOptions = {}): ConductScheme {
     g.yawRate = rates.yaw; g.pitchRate = rates.pitch; g.spin = spin;
     g.offset.x = off.x; g.offset.y = off.y; g.offset.z = off.z;
   }
+  const nearEdge = (f: AimFrame | null, x: number, y: number) => !!f && f.width > 0
+    && (x < f.left + EDGE_PX || x > f.left + f.width - EDGE_PX || y < f.top + EDGE_PX || y > f.top + f.height - EDGE_PX);
 
   return {
     id: 'conduct',
@@ -152,16 +132,23 @@ export function createConductScheme(opts: ConductOptions = {}): ConductScheme {
     },
     up(s: StrokeView, c: StrokeClass) {
       if (s.kind === 'mouse' || !touching) return;
-      touching = false; // lift: glide (decay) from here; a flick release also dashes
-      if (c.kind === 'flick' && c.dir) queueDash(c.speed, CARD[c.dir][0], CARD[c.dir][1]);
+      touching = false; // lift: glide (decay) from here; a flick release dashes along its real angle, a quick straight one less
+      if (fwd > 0) tell('lift-glide');
+      if (c.kind === 'flick' || c.kind === 'swipe') queueDash(c.speed, Math.cos(c.angle), -Math.sin(c.angle), -1, c.kind === 'swipe' ? SWIPE_DASH : 1);
     },
     cancel() { touching = false; u = fwd = 0; stopMotion(); m.reset(); },
     hover(x: number, y: number, t: number) {
       hx = x; hy = y; ht = t; hovered = true; euro.filter(x, y, t); trail.push(x, y, t);
-      if (!cruising || touching) return;
+      if (!cruising || touching || nearEdge(frame(), x, y)) return;
       feed(x * gain, y * gain, t);
       const sp = trail.flick(gain);
       if (sp > 0) queueDash(sp, trail.dx, trail.dy);
+    },
+    // Off the surface the last hover point would keep steering at full rate: stop steering, keep the throttle.
+    leave() { hovered = false; trail.reset(); },
+    clickStarts(x: number, y: number) {
+      const f = frame();
+      return !cruising && !!f && unproject(f, x, y, ray).y < 0;
     },
     toggleCruise,
     handle(out: ArbiterOut) {
@@ -183,11 +170,10 @@ export function createConductScheme(opts: ConductOptions = {}): ConductScheme {
         if (!cruising && !touching) { cruising = true; start(hx * gain, hy * gain, ht); }
         u = Math.min(1, u + FALLBACK_STEP);
       }
-      else if (a === 'slower') { u -= FALLBACK_STEP; if (u < THROTTLE_FLOOR) { u = 0; cruising = false; } }
+      else if (a === 'slower') { u -= FALLBACK_STEP; if (u < floor()) { u = 0; cruising = false; } }
       else if (a === 'dash') queueDash(0, 0, 0, FALLBACK_DASH);
       else if (a === 'roll-left' || a === 'roll-right') { if (!spinDir) pendRoll = a === 'roll-right' ? 1 : -1; }
       else if (a === 'brake') brake();
     },
   };
 }
-
