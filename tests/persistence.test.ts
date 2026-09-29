@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { PERSISTED_KEYS, chooseControlLab, hydrateGame, overrideControls, persistGame, useGame, validHintProgress, type PersistedKey } from '../src/game/store';
-import { readControlsQuery } from '../src/ui/labSwitch';
+import { PERSISTED_KEYS, hydrateGame, overrideControlFields, overrideShooter, persistGame, saveControlFields, useGame, validHintProgress, type PersistedKey } from '../src/game/store';
+import { settingsFor } from '../src/game/controlTypes';
+import { applyControlsQuery } from '../src/ui/controls/controlsQuery';
 import { START } from '../src/game/motion';
 const saved: Record<string, string> = {}, STORAGE = 'halaverga-flight-v1';
 // Every persisted key, set away from its default. The Record type makes a new key a compile error until it is added here.
@@ -33,7 +34,11 @@ beforeEach(() => {
   vi.stubGlobal('matchMedia', () => ({ matches: false }));
   useGame.setState(DEFAULTS as never);
 });
-afterEach(() => { vi.unstubAllGlobals(); Object.keys(saved).forEach(key => delete saved[key]); });
+afterEach(() => {
+  // Ends every session override the test left behind (the pins are module state).
+  saveControlFields({ controlLab: 'standard', touchScheme: 'classic', trackpadSteering: 'free', desktopMode: 'trackpad' });
+  vi.unstubAllGlobals(); Object.keys(saved).forEach(key => delete saved[key]);
+});
 describe('persistence', () => {
   it('defaults to the classic free trackpad while preserving an explicitly saved v4 profile', () => {
     hydrateGame(); expect(useGame.getState().trackpadSteering).toBe('free');
@@ -239,11 +244,95 @@ describe('persistence', () => {
       hydrateGame(); expect([raw, useGame.getState().controlLab]).toEqual([raw, want]);
     }
     saved[STORAGE] = JSON.stringify({ controlLab: 'conduct' }); hydrateGame();
-    readControlsQuery(new URLSearchParams('controls=draw')); expect(useGame.getState().controlLab).toBe('draw');
+    applyControlsQuery('draw'); expect(useGame.getState().controlLab).toBe('draw');
     persistGame(); expect(JSON.parse(saved[STORAGE]).controlLab).toBe('conduct');
-    overrideControls('brush'); persistGame(); expect(JSON.parse(saved[STORAGE]).controlLab).toBe('conduct');
-    readControlsQuery(new URLSearchParams('controls=nope')); expect(useGame.getState().controlLab).toBe('brush');
-    chooseControlLab('draw'); expect(JSON.parse(saved[STORAGE]).controlLab).toBe('draw');
-    chooseControlLab('standard'); persistGame(); expect(JSON.parse(saved[STORAGE]).controlLab).toBe('standard');
+    overrideControlFields({ controlLab: 'brush' }); persistGame(); expect(JSON.parse(saved[STORAGE]).controlLab).toBe('conduct');
+    applyControlsQuery('nope'); expect(useGame.getState().controlLab).toBe('brush');
+    saveControlFields({ controlLab: 'draw' }); expect(JSON.parse(saved[STORAGE]).controlLab).toBe('draw');
+    saveControlFields({ controlLab: 'standard' }); persistGame(); expect(JSON.parse(saved[STORAGE]).controlLab).toBe('standard');
+  });
+  it('keeps the persisted key list exactly as it was (no key for the new controls)', () => {
+    expect([...PERSISTED_KEYS]).toEqual(['checkpoint', 'camera', 'quality', 'reduced', 'muted', 'discovered', 'tapControls', 'desktopMode', 'trackpadSteering', 'sustainedEdges', 'reverseScroll', 'cruiseSpeed', 'heroPoses', 'lookSensitivity', 'flowIntroSeen', 'shooter', 'aimToggle', 'aimAssist', 'controlsVersion', 'autoFire', 'aimButton', 'hintProgress',
+      'touchScheme', 'touchLook', 'touchAim', 'lookAccel', 'edgeRest', 'invertY', 'flipSides', 'controlSize', 'controlOpacity', 'flyWhereILook', 'homeTipSeen', 'controlLab']);
+  });
+});
+
+// The per-field session pin: one helper behind ?shooter=, ?controls= and a lab fault.
+describe('session pins per field', () => {
+  const SAVED = { controlsVersion: 6, touchScheme: 'twin', trackpadSteering: 'captured', desktopMode: 'mouse', controlLab: 'draw' };
+  const stored = () => JSON.parse(saved[STORAGE]);
+  const start = () => { saved[STORAGE] = JSON.stringify(SAVED); hydrateGame(); };
+  const OTHER = { touchScheme: 'classic', trackpadSteering: 'flow', desktopMode: 'trackpad', controlLab: 'conduct' } as const;
+  for (const key of ['touchScheme', 'trackpadSteering', 'desktopMode', 'controlLab'] as const) {
+    it(`${key}: a session override is not saved; a change by the player is, and ends the pin`, () => {
+      start();
+      overrideControlFields({ [key]: OTHER[key] });
+      expect(useGame.getState()[key]).toBe(OTHER[key]);
+      persistGame(); expect(stored()[key]).toBe(SAVED[key]);
+      useGame.setState({ camera: 'first' }); persistGame(); expect(stored()[key]).toBe(SAVED[key]);
+      const player = key === 'controlLab' ? 'brush' : key === 'desktopMode' ? 'mouse' : key === 'touchScheme' ? 'twin' : 'simple';
+      useGame.setState({ [key]: player }); persistGame(); expect(stored()[key]).toBe(player);
+      // The pin is gone: coming back to the old session value now saves it.
+      useGame.setState({ [key]: OTHER[key] }); persistGame(); expect(stored()[key]).toBe(OTHER[key]);
+    });
+  }
+  it('a lab fault keeps the saved lab, and a later save of an unrelated field never drops the pin', () => {
+    start();
+    overrideControlFields({ controlLab: 'standard' });
+    for (const camera of ['first', 'third', 'first'] as const) { useGame.setState({ camera }); persistGame(); expect(stored()).toMatchObject({ controlLab: 'draw', camera }); }
+    expect(useGame.getState().controlLab).toBe('standard');
+    saveControlFields({ touchScheme: 'classic' }); // an unrelated field's save leaves the lab pin alone
+    expect(stored()).toMatchObject({ controlLab: 'draw', touchScheme: 'classic' });
+  });
+  it('overrideShooter behaves as before', () => {
+    start(); expect(useGame.getState().shooter).toBe(true);
+    overrideShooter(false); persistGame(); expect(useGame.getState().shooter).toBe(false); expect(stored().shooter).toBe(true);
+    overrideShooter(true); overrideShooter(false); persistGame(); expect(stored().shooter).toBe(true);
+    useGame.setState({ shooter: true }); persistGame(); expect(stored().shooter).toBe(true);
+    useGame.setState({ shooter: false }); persistGame(); expect(stored().shooter).toBe(false);
+    overrideShooter(true); persistGame(); expect(stored().shooter).toBe(false);
+  });
+  it('a pinned key updated twice keeps the FIRST saved value', () => {
+    start();
+    applyControlsQuery('draw'); applyControlsQuery('brush'); applyControlsQuery('conduct');
+    expect(useGame.getState().controlLab).toBe('conduct');
+    persistGame(); expect(stored().controlLab).toBe('draw');
+  });
+  it('one-finger-keys pins three fields; a later Brush pick saves only the lab; Flow unpins exactly its own keys', () => {
+    start();
+    applyControlsQuery('one-finger-keys');
+    const session = { controlLab: 'standard', desktopMode: 'trackpad', trackpadSteering: 'simple' };
+    const live = () => { const s = useGame.getState(); return { controlLab: s.controlLab, desktopMode: s.desktopMode, trackpadSteering: s.trackpadSteering }; };
+    expect(live()).toEqual(session);
+    persistGame(); expect(stored()).toMatchObject({ controlLab: 'draw', desktopMode: 'mouse', trackpadSteering: 'captured' });
+    // A phone pick pins nothing: the twin-stick session pin sits beside the three.
+    applyControlsQuery('twin-stick');
+    expect(useGame.getState().touchScheme).toBe('twin');
+    // The player picks Brush: only controlLab is unpinned and saved.
+    saveControlFields(settingsFor('brush'));
+    expect(stored()).toMatchObject({ controlLab: 'brush', desktopMode: 'mouse', trackpadSteering: 'captured' });
+    expect(live()).toEqual({ ...session, controlLab: 'brush' });
+    // The player picks Flow: desktopMode, trackpadSteering and controlLab are saved; touchScheme's pin stays.
+    saveControlFields(settingsFor('flow'));
+    expect(stored()).toMatchObject({ controlLab: 'standard', desktopMode: 'trackpad', trackpadSteering: 'flow' });
+    expect(live()).toEqual({ controlLab: 'standard', desktopMode: 'trackpad', trackpadSteering: 'flow' });
+  });
+  it('Flow keeps a pin on a field it does not patch (touchScheme keeps its ORIGINAL saved value)', () => {
+    saved[STORAGE] = JSON.stringify({ ...SAVED, touchScheme: 'classic' }); hydrateGame();
+    applyControlsQuery('twin-stick');
+    saveControlFields(settingsFor('flow'));
+    expect(useGame.getState().touchScheme).toBe('twin');
+    expect(stored()).toMatchObject({ touchScheme: 'classic', trackpadSteering: 'flow', desktopMode: 'trackpad', controlLab: 'standard' });
+    saveControlFields(settingsFor('twin-stick'));
+    expect(stored()).toMatchObject({ touchScheme: 'twin' });
+  });
+  it('restores every persisted key through hydrate after pins were used', () => {
+    useGame.setState(NON_DEFAULT as never);
+    applyControlsQuery('flow'); persistGame();
+    useGame.setState(DEFAULTS as never);
+    // A pin the state no longer matches is dropped; the stored session-independent values come back.
+    hydrateGame();
+    for (const key of PERSISTED_KEYS) if (!['controlLab', 'desktopMode', 'trackpadSteering'].includes(key)) expect([key, useGame.getState()[key]]).toEqual([key, NON_DEFAULT[key]]);
+    expect(stored()).toMatchObject({ controlLab: 'brush', desktopMode: 'mouse', trackpadSteering: 'captured' });
   });
 });

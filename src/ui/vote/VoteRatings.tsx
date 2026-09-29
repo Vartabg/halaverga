@@ -1,12 +1,12 @@
 'use client';
-import type { VoteLab } from '@/lib/vote/shape';
+import type { ControlId } from '@/game/controlTypes';
 import { VOTE_NAMES, type VoteRating } from './voteClient';
 import styles from './VoteCard.module.css';
 
 const SCALE: readonly VoteRating[] = [1, 2, 3, 4, 5];
-type RatingsProps = { labs: readonly VoteLab[]; value: Partial<Record<VoteLab, VoteRating>>; onChange: (id: VoteLab, r: VoteRating) => void; disabled?: boolean };
+type RatingsProps = { labs: readonly ControlId[]; value: Partial<Record<ControlId, VoteRating>>; onChange: (id: ControlId, r: VoteRating) => void; disabled?: boolean };
 
-/** One optional 1-5 group per tried style: native radios (arrow keys move and select), each option a 44 px target. */
+/** One optional 1-5 group per tried control: native radios (arrow keys move and select), each option a 44 px target. */
 export default function VoteRatings({ labs, value, onChange, disabled = false }: RatingsProps) {
   if (!labs.length) return null;
   return <div className={styles.ratings}>
@@ -22,8 +22,8 @@ export default function VoteRatings({ labs, value, onChange, disabled = false }:
   </div>;
 }
 
-type FavoriteProps = { labs: readonly VoteLab[]; value: VoteLab | null; onChange: (id: VoteLab) => void; disabled?: boolean };
-/** "Favorite": one radio per offered style, current style first. */
+type FavoriteProps = { labs: readonly ControlId[]; value: ControlId | null; onChange: (id: ControlId) => void; disabled?: boolean };
+/** "Favorite": one radio per offered control, current control first. */
 export function VoteFavorite({ labs, value, onChange, disabled = false }: FavoriteProps) {
   return <fieldset className={styles.favorite} disabled={disabled} data-testid="vote-favorite">
     <legend>Favorite</legend>

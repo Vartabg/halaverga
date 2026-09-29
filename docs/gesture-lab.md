@@ -1,8 +1,10 @@
 # Gesture Lab: Standard, Draw, Conduct and Brush
 
-The Gesture Lab lets you switch between four control schemes while you play, on the iPhone and on the Mac, so you can compare them by flying. Standard stays the default. A lab scheme replaces the input only while it is selected. Movement, safety, the camera and the world stay the same in all four.
+> 2026-09-28 update: the lab is now one part of the Controls demo. Draw, Conduct and Brush are three of ten controls listed together in the Controls sheet, next to the plain touch and desktop controls that "Standard" used to stand for (One finger and Twin stick on touch; Cursor, One finger + keys, Flow, Captured and Mouse + keys on desktop). The top bar with the four labels and keys 1-4 are gone. Switching, the number keys and the vote are described below and in [controls-demo.md](controls-demo.md). The rest of this page (how each lab control behaves, the measurements, the tests) still describes Draw, Conduct and Brush, and where it says "Standard" it means the plain control of the device that was chosen before the lab.
 
-- **Standard**: the controls from before the lab. On the Mac that is the free-cursor trackpad restored in 52f3efa. On the phone it is the twin sticks.
+The Gesture Lab lets you switch between four control schemes while you play, on the iPhone and on the Mac, so you can compare them by flying. Standard stays the default (One finger on touch, Cursor on desktop). A lab scheme replaces the input only while it is selected. Movement, safety, the camera and the world stay the same in all four.
+
+- **Standard**: the controls from before the lab. On the Mac that is the free-cursor trackpad restored in 52f3efa. On the phone it is one thumb since 2026-09-26 (the twin sticks are opt-in; this line said twin sticks before that).
 - **Draw**: draw a line and the hero flies along it.
 - **Conduct**: rest a finger (or the pointer) to steer, and stir to go faster.
 - **Brush**: the hero cruises on its own. Swipes turn, soar and dive, and a circle around drones locks on.
@@ -13,15 +15,16 @@ With the blaster on, every lab scheme uses **Tap to Blast**: tap a drone to shoo
 
 | Where | How | Saved? |
 |---|---|---|
-| Lab bar at the top of the screen, **Standard · Draw · Conduct · Brush** (during play, in every scheme) | One tap or click switches at once. It never pauses: a paused game stays paused, a running one keeps flying. A mouse click takes no focus, so Space and the arrows keep flying. By keyboard it is one radio group named "Controls": Tab to it, then the arrow keys (wrapping), Home and End. | yes |
-| Keys 1-4 (desktop only) | 1 Standard, 2 Draw, 3 Conduct, 4 Brush. Ignored on touch devices, with a modifier, on key repeat, while typing in a field, and while Flight settings, the Field guide or the vote card is open. Works while paused. The bar shows the numbers only for a fine pointer on screens over 600 px wide. | yes |
-| Pause card | Use the **Control lab** radios under Resume, with a line on each scheme and the rating. Arrow keys also work. | yes |
-| Flight settings | The same radios, plus **Shots slow me down** (lab schemes only). | yes |
-| URL | `?controls=standard`, `draw`, `conduct` or `brush` | no, this visit only |
+| **Controls** button in the header (after Begin, in every control) | Opens the Controls sheet, which lists your device family: five controls on touch (One finger, Twin stick, Draw, Conduct, Brush) and eight on desktop (Cursor, One finger + keys, Flow, Captured, Mouse + keys, Draw, Conduct, Brush). One tap, click or arrow key switches at once. It never pauses: a paused game stays paused, a running one keeps flying. The list is one radio group named "Controls" (arrow keys move and select). The sheet is `role="dialog"` with `aria-modal="false"`, so reaching for it never flips the view; Esc closes it without pausing. On touch a pick closes the sheet; on desktop it stays open until Esc, Done or an outside click. | yes |
+| Keys 1-8 (desktop only) | The digits pick the desktop controls in sheet order: 1 Cursor, 2 One finger + keys, 3 Flow, 4 Captured, 5 Mouse + keys, 6 Draw, 7 Conduct, 8 Brush. Ignored on touch devices, with a modifier, on key repeat, while typing in a field, and while a panel, the Field guide or the vote card is open. Works while paused. The checkbox **Number keys 1-8 switch controls** (in the sheet and in Flight settings, default on, stored on this device) turns them off (WCAG 2.1.4). Inside the list the digits still work whatever the setting. | yes |
+| Pause card | The same list, under Resume, with **Vote on the controls**. Arrow keys also work. On screens under 560 px high it is folded into a details element. | yes |
+| Field guide (before Begin too) | The same list. | yes |
+| Flight settings | The same list (replacing the old touch-scheme buttons, the Desktop controls select, the Trackpad steering select and the lab radios), plus **Shots slow me down** (lab controls only). A touch laptop gets a switch to reach the other family's list. | yes |
+| URL | `?controls=<id>` for any id in [controls-demo.md](controls-demo.md); the old `standard`, `draw`, `conduct` and `brush` still work | no, this visit only |
 
 - Any switch releases every held input: keys, the stick, a held blast and the lab's cruise. The controls then remount, so nothing carries over from the scheme you left. The browser test `lab-switch.spec.ts` checks this in the middle of a cruise and in the middle of a sustained blast.
-- The bar sits between the brand and the header buttons. Up to 839 px wide it takes a second row under them, and the hints under the header move down with it. Landscape phones keep one row and hide the brand text (the logo stays).
-- After a switch from the pause card or Flight settings you can rate the scheme you just left from 1 to 5 on "How beautiful?" and "How in control?". Both questions can be skipped.
+- The Controls button sits between the brand and the header buttons and shows after Begin. Up to 839 px wide it takes a second row under them, and the hints under the header move down with it. Landscape phones keep one row and hide the brand text (the logo stays). The sheet opens under the header and its footer (Done, **Vote on the controls**, "Tried X of N") stays in view when the list scrolls.
+- The post-switch rating popup ("How beautiful?" and "How in control?") is removed. Ratings now live in the vote card, one 1-5 rating per control you tried. Old saves that hold popup ratings keep them in the local measurements table.
 - If a lab part fails to load or crashes, the game goes back to Standard for this visit and tells you. Your saved choice stays as it was.
 
 ## Player guide
@@ -113,9 +116,9 @@ Garo found a full 360 hard in every mode. Each mode now has a way to keep turnin
 
 ## The vote
 
-After you have played about 3 minutes and tried at least 2 styles for 30 s or more, landing opens a small card once per page load: which style did you like, and an optional 1-5 rating for each style you tried, plus an optional note. You can also open it any time from the pause card (**Vote on the controls**). It is anonymous: no sign-in, no cookies.
+The vote now covers all ten controls, with touch and desktop counted separately. You can open the card any time from the Controls sheet or the pause card (**Vote on the controls**). It lists the controls you tried in your family (a control counts as tried after 20 s of actual input on it), a favorite and an optional 1-5 rating for each, plus an optional note. The pause card leads with the vote after 3 tried controls and 180 s of play; the card opens by itself once per page load, on a landing, only after every control of your family has been tried and 180 s played. It is anonymous and unverified: no sign-in, no cookies. The current round is r2, schema 2.
 
-**The vote card is the one thing that leaves the device, and only when you press Send.** The lab measurements above never leave it. Results are at `/results`. Backend, privacy, retention and setup: [voting.md](voting.md).
+**The vote card is the one thing that leaves the device, and only when you press Send.** The lab measurements above never leave it. Results are at `/results`, one table per family. Backend, privacy, retention and setup: [voting.md](voting.md). How to use it as a player: [controls-demo.md](controls-demo.md).
 
 ## Input table (spec 2.6)
 
@@ -169,7 +172,7 @@ The Standard column stays empty, because Standard is the baseline you rate. The 
 
 ## Design rationale and research
 
-- **Why a lab and not a decision.** Four schemes playable live let the choice come from playing, not from describing. Standard stays the default and is not changed, so the comparison stays fair.
+- **Why a lab and not a decision.** Four schemes playable live (ten controls since 2026-09-28) let the choice come from playing, not from describing. Standard stays the default and is not changed, so the comparison stays fair.
 - **One pipeline.** A gesture only produces an intent, turn rates, a desired velocity or offset, a lift or land request, or an aimed shot. Every result then goes through the same flight safety (soft bounds, anticipation, collision) as keyboard and sticks. That is why a drawn line into a wall still stops at the wall. CameraRig stays the only camera writer, and camera roll stays 0: rolls turn the body only.
 - **Ink you can trust.** Touch samples are smoothed with the 1-euro filter (Casiez, Roussel and Vogel, "1€ Filter", CHI 2012), which removes jitter at low speed without adding lag at high speed. Strokes are simplified with Ramer–Douglas–Peucker (Ramer 1972; Douglas and Peucker 1973) and resampled as centripetal Catmull-Rom curves (Yuksel, Schaefer and Keyser, Computer-Aided Design 2011), which do not form cusps or self-intersections.
 - **Following a drawn path.** Pure pursuit (Coulter, CMU-RI-TR-92-01, 1992) with a look-ahead of max(3 m, 0.35 v). Speed is capped at sqrt(33.6 r) on curves, so turns stay flyable. The hero starts along the ink while you draw, so there is no commit delay.
@@ -178,7 +181,7 @@ The Standard column stays empty, because Standard is the baseline you rate. The 
 - **Accessibility.**
   - Every gesture has a 44 px button under More controls.
   - A stroke can be cancelled before it takes effect (WCAG 2.5.2 Pointer Cancellation).
-  - The lab bar is a radio group named "Controls" whose buttons are named by their visible text (2.5.3 Label in Name); each segment is at least 44 x 44 px with a 2 px focus ring.
+  - The control list is a fieldset named "Controls" of native radios named by their visible text (2.5.3 Label in Name); each row is at least 44 px high with a 2 px focus ring. The old lab bar (a radio group of four buttons) is replaced by it. Single-key shortcuts (digits 1-8) have a turn-off checkbox (2.1.4).
   - Flashes stay under the existing flash gate (2.3.1).
   - Announcements go through the polite live region, and the ink canvas is hidden from assistive technology.
 - **Phone safety.** Stroke starts are filtered away from the screen edges and the home-indicator band, and a pointercancel (iOS taking the touch) drops the stroke with no command.
@@ -188,7 +191,7 @@ The Standard column stays empty, because Standard is the baseline you rate. The 
 | Spec | What it checks |
 |---|---|
 | `lab-switch.spec.ts` | Standard is the default; `?controls=` is not saved; the bar shows in every scheme and switches without pausing; the pause card keeps the full picker and rating; radios work by keyboard and save; the rating is optional; a switch mid-cruise or mid-blast leaves no stuck movement or fire |
-| `lab-bar.spec.ts` | a click switches mid-flight with no pause, no focus taken and no stuck movement; key 3 (ignored while typing in a field); arrow keys select without turning the view; Standard to Draw mounts within 500 ms; no overlaps and 44 px segments at every tested size; axe AA |
+| `lab-bar.spec.ts` (old lab bar; replaced by `controls-picker.spec.ts` and `controls-parity.spec.ts` when the Controls sheet is wired in) | a click switches mid-flight with no pause, no focus taken and no stuck movement; key 3 (ignored while typing in a field); arrow keys select without turning the view; Standard to Draw mounts within 500 ms; no overlaps and 44 px segments at every tested size; axe AA |
 | `vote.spec.ts` | the pause card opens the card; a 200 thanks and shows the tally and sends only the answers; 429 "too many" keeps the answers; 503 "not open"; one retry; Skip and Escape return to the pause card; an eligible landing auto-opens it with the tap guard; a pause you opened never auto-opens it; axe AA. `/api/vote` and `/api/results` are mocked with `page.route`, never a real database |
 | `lab-draw.spec.ts` (phone) | live follow with the view held; "Path blocked", and the real wall stops the hero outside it; landing on the arrival terrace; chained strokes never stop the hero; a drawn loop turns the view 270° or more within 2.5 s of the turn starting |
 | `lab-conduct.spec.ts` | Mac: an empty click toggles the cruise with no shot, hover steers, a drone click fires without toggling. Phone: a resting finger steers, and lifting it glides to a hover; in portrait a finger resting near the edge for about 1 s turns 180° or more |
@@ -226,8 +229,10 @@ Nothing below has been done yet. Fill it in after playing on the devices.
 
 | Check | iPhone 15, portrait | iPhone 15, landscape | Mac trackpad |
 |---|---|---|---|
-| Switch all four live (bar, keys 1-4, pause card, settings) | not done | not done | not done |
-| Lab bar in both orientations: fits, never covers the look pad, cluster, hints or Pause | not done | not done | not done |
+| Switch every control live (Controls sheet, keys 1-8, pause card, settings) | not done | not done | not done |
+| Controls sheet on iPhone Safari (both orientations): fits, never covers the look pad, cluster, hints or Pause | not done | not done | n/a |
+| Keys 1-8 on a real Mac | n/a | n/a | not done |
+| Vote against a real Upstash database | not done | not done | not done |
 | 360 in Standard: twin swipe then rest band, right (outer) and left (inner) | not done | not done | n/a |
 | 360 in Standard: one-thumb edge hold | not done | not done | n/a |
 | 360 in Standard: desktop edge hold, fullscreen | n/a | n/a | not done |
@@ -236,7 +241,7 @@ Nothing below has been done yet. Fill it in after playing on the devices.
 | 360 in Draw (circle; spring climbs) | not done | not done | not done |
 | 360 in Brush: whirl recognised at a natural loop size; 4 stacked swipes | not done | not done | not done |
 | Reduced motion: turns feel slower (2.5 rad/s), no bank or whirl spin | not done | not done | not done |
-| Vote card on a phone: opens after a landing, Send and Skip, results page | not done | not done | not done |
+| Vote card on a phone: opens by itself only after every touch control is tried, Send and Skip, results page | not done | not done | not done |
 | Frame time p50 / p95 per scheme (lab table) | not done | not done | not done |
 | Finger hides the hero (Conduct near centre, Draw start) | not done | not done | n/a |
 | Ink latency: ink keeps up with the finger, the hero starts without delay | not done | not done | not done |
@@ -264,7 +269,7 @@ Fixed, each with node tests and a browser check (system Chrome emulation, not th
 
 - **Brush whirl vs Lock.** A whirl-size loop (radius 70 px or more, 150° or more of winding) always whirls, even around drones; a smaller loop around drones is Lock. The live ink turns pink once the loop is whirl-size, and shows no lock count. A mouse loop whirls as soon as it closes (330°). A natural 80 px loop now whirls (it was a silent Roll under the old 85 px limit).
 - **Brush stacked swipes.** A full-strength swipe is 240 px at most (was 300), so four natural swipes make 360° in landscape and on a desktop too.
-- **Lab tips.** A tip shows once, at the bottom with Skip tip, and is announced through the guide's own live region; it no longer also shows as the top toast. The portrait altitude block moves under the lab bar's row, clear of a two-line toast, and the toast sits above the ink.
+- **Lab tips.** A tip shows once, at the bottom with Skip tip, and is announced through the guide's own live region; it no longer also shows as the top toast. The portrait altitude block moves under the lab bar's row (that bar is since replaced by the Controls button), clear of a two-line toast, and the toast sits above the ink.
 - **Vote card.** A modal dialog: while it shows, the rest of the page is inert and the bar cannot switch behind it. In short landscape Send and Skip stay pinned at the bottom. An eligible player who never lands gets the ask at the top of the pause card.
 
 Still open:

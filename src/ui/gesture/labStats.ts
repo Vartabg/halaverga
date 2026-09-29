@@ -1,13 +1,15 @@
 // Gesture Lab local telemetry (spec 11). Pure accumulators over one plain JSON record, saved under LAB_STATS_KEY through an
 // injectable storage (localStorage by default). Every storage access is wrapped: a missing or throwing storage leaves an empty,
 // render-safe record. The numbers stay on this device; nothing here sends them anywhere.
+import { controlById } from '@/game/controlTypes';
 import { gesture } from '@/game/gesture/bus';
 import { LAB_STATS_KEY } from '@/game/gesture/tuning';
 import type { StrokeKind } from '@/game/gesture/types';
 
 export type LabId = 'standard' | 'draw' | 'conduct' | 'brush';
 export const LAB_IDS: readonly LabId[] = ['standard', 'draw', 'conduct', 'brush'];
-export const LAB_NAMES: Record<LabId, string> = { standard: 'Standard', draw: 'Draw', conduct: 'Conduct', brush: 'Brush' };
+/** Display names: the three labs read the registry (src/game/controlTypes.ts); 'standard' is not a control of its own. */
+export const LAB_NAMES: Record<LabId, string> = { standard: 'Standard', draw: controlById('draw').label, conduct: controlById('conduct').label, brush: controlById('brush').label };
 export type StatStorage = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
 const KINDS: readonly StrokeKind[] = ['none', 'tap', 'hold', 'flick', 'swipe', 'circle', 'lasso', 'nudge'];
 export const COUNTERS = ['taps', 'hits', 'kills', 'overheats', 'truncations', 'drawDone', 'landings', 'clearance',

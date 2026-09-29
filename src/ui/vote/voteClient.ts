@@ -1,6 +1,7 @@
 // Sending the in-game vote (spec 3.2). Only the card's answers, touch or desktop, the build stamp and a random send code (so a
 // retry is not counted twice) leave the device, and only when the player presses Send. Lab measurements, strokes and timings never do. Only a 200 marks the device as voted (B1).
-import { cleanNote, isVoteLab, VOTE_LABS, type VoteDevice, type VoteLab, type VotePayload, type VoteRating, type VoteResults } from '@/lib/vote/shape';
+import { CONTROL_TYPES, controlsFor, isControlFor, type ControlId } from '@/game/controlTypes';
+import { cleanNote, VOTE_DEVICES, VOTE_SCHEMA, type VoteDevice, type VotePayload, type VoteRating, type VoteResults } from '@/lib/vote/shape';
 import { BUILD_STAMP } from '@/ui/buildInfo';
 import { markVoted, type VoteStorage } from './voteTracker';
 
@@ -8,7 +9,8 @@ export type VoteOutcome = 'ok' | 'later' | 'closed' | 'invalid' | 'network';
 export type { VoteRating };
 export const VOTE_URL = '/api/vote';
 export const RESULTS_URL = '/api/results';
-export const VOTE_NAMES: Record<VoteLab, string> = { standard: 'Standard', draw: 'Draw', conduct: 'Conduct', brush: 'Brush' };
+/** Display names, straight from the registry. */
+export const VOTE_NAMES = Object.fromEntries(CONTROL_TYPES.map(c => [c.id, c.label])) as Record<ControlId, string>;
 
 type FetchLike = (url: string, init?: RequestInit) => Promise<Pick<Response, 'status' | 'json'>>;
 export interface SubmitOptions {
@@ -16,16 +18,19 @@ export interface SubmitOptions {
   /** Where the voted mark goes (default: localStorage), and the clock for it. */
   storage?: VoteStorage | null; now?: () => number;
 }
-export interface CardAnswers { favorite: VoteLab; ratings: Partial<Record<VoteLab, number>>; tried: readonly VoteLab[]; note?: string }
+export interface CardAnswers { favorite: ControlId; ratings: Partial<Record<ControlId, number>>; tried: readonly ControlId[]; note?: string }
 
 const isRating = (v: unknown): v is VoteRating => typeof v === 'number' && Number.isInteger(v) && v >= 1 && v <= 5;
 
-/** The payload is the card's answers and nothing else: favorite, ratings for tried styles, tried, device, build, cleaned note. */
-export function buildPayload(a: CardAnswers, device: VoteDevice, build = BUILD_STAMP): VotePayload {
-  const tried = VOTE_LABS.filter(id => id === a.favorite || a.tried.includes(id));
-  const ratings: Partial<Record<VoteLab, VoteRating>> = {};
+/**
+ * The payload is the card's answers and nothing else: v, favorite, ratings for tried controls, tried, device (the family), build,
+ * cleaned note and a fresh send code (always, so the server's repeat-send guard always applies). Only this family's controls go.
+ */
+export function buildPayload(a: CardAnswers, device: VoteDevice, build = BUILD_STAMP, nonce = newNonce()): VotePayload {
+  const tried = controlsFor(device).map(c => c.id).filter(id => id === a.favorite || a.tried.includes(id));
+  const ratings: Partial<Record<ControlId, VoteRating>> = {};
   for (const id of tried) { const r = a.ratings[id]; if (isRating(r)) ratings[id] = r; }
-  const payload: VotePayload = { favorite: a.favorite, ratings, tried, device, build: build.slice(0, 40) };
+  const payload: VotePayload = { v: VOTE_SCHEMA, favorite: a.favorite, ratings, tried, device, build: build.slice(0, 40), nonce };
   const note = typeof a.note === 'string' ? cleanNote(a.note) : '';
   if (note) payload.note = note;
   return payload;
@@ -70,13 +75,18 @@ export function newNonce(): string {
  */
 export async function submitVote(payload: VotePayload, opts: SubmitOptions = {}): Promise<VoteOutcome> {
   const f = opts.fetch ?? ((url, init) => fetch(url, init)), timeoutMs = opts.timeoutMs ?? 6000;
-  const body = JSON.stringify(payload.nonce ? payload : { ...payload, nonce: newNonce() });
+  const body = JSON.stringify(payload);
   let status = await postOnce(body, f, timeoutMs);
   if (retryable(status)) { await wait(opts.retryDelayMs ?? 1000); status = await postOnce(body, f, timeoutMs); }
   const outcome = outcomeOf(status);
-  if (outcome === 'ok') markVoted((opts.now ?? Date.now)(), opts.storage);
+  if (outcome === 'ok') markVoted(payload.device, (opts.now ?? Date.now)(), opts.storage);
   return outcome;
 }
+
+const isObj = (v: unknown): v is Record<string, unknown> => v !== null && typeof v === 'object' && !Array.isArray(v);
+/** Only the version-2 shape (a row group per family) is accepted; the old shape, or anything else, is null. */
+const isResults = (d: unknown): d is VoteResults => isObj(d) && d.v === VOTE_SCHEMA && isObj(d.families)
+  && VOTE_DEVICES.every(f => isObj(d.families) && isObj(d.families[f]) && isObj((d.families[f] as Record<string, unknown>).controls));
 
 /** The running tally for the thanks line; any failure (or an unexpected shape) is null and the line is simply left out. */
 export async function fetchResults(f: FetchLike = (url, init) => fetch(url, init), timeoutMs = 4000): Promise<VoteResults | null> {
@@ -85,28 +95,35 @@ export async function fetchResults(f: FetchLike = (url, init) => fetch(url, init
     const res = await f(RESULTS_URL, { signal: d.signal, credentials: 'same-origin' });
     if (res.status !== 200) return null;
     const data: unknown = await res.json();
-    return data !== null && typeof data === 'object' && typeof (data as VoteResults).favorite === 'object' ? data as VoteResults : null;
+    return isResults(data) ? data : null;
   } catch { return null; } finally { d.done(); }
 }
 
-/** "Favorites so far: Draw 4 · Standard 2" (most first, zero counts left out), or '' when there is nothing to show. */
-export function favoritesLine(r: VoteResults | null): string {
-  if (!r || !r.favorite) return '';
-  const counts = VOTE_LABS.map(id => [id, Number((r.favorite as Record<string, unknown>)[id]) || 0] as const)
+/** "Favorites so far on touch: Cursor 4 · Draw 2" (most first, zero counts left out), or '' when there is nothing to show. */
+export function favoritesLine(r: VoteResults | null, family: VoteDevice): string {
+  const rows = r?.families?.[family]?.controls;
+  if (!rows) return '';
+  const counts = controlsFor(family).map(c => [c.label, Number(rows[c.id]?.favorite) || 0] as const)
     .filter(([, n]) => n > 0).sort((a, b) => b[1] - a[1]);
-  return counts.length ? `Favorites so far: ${counts.map(([id, n]) => `${VOTE_NAMES[id]} ${n}`).join(' · ')}` : '';
+  return counts.length ? `Favorites so far on ${family}: ${counts.map(([label, n]) => `${label} ${n}`).join(' · ')}` : '';
 }
 
 // The card's pure model (tests/vote-card.test.ts).
-/** The favorite choices: the tried styles (all four when none), current style first. */
-export function favoriteOptions(tried: readonly VoteLab[], current: VoteLab): VoteLab[] {
-  const list = tried.filter(isVoteLab);
-  const base = list.length ? VOTE_LABS.filter(id => list.includes(id)) : [...VOTE_LABS];
+/** The favorite choices: this family's tried controls, current first. With none tried, just the current control (or the whole family). */
+export function favoriteOptions(tried: readonly ControlId[], current: ControlId, family: VoteDevice): ControlId[] {
+  const own = controlsFor(family).map(c => c.id), list = own.filter(id => tried.includes(id));
+  const base = list.length ? list : isControlFor(current, family) ? [current] : own;
   return base.includes(current) ? [current, ...base.filter(id => id !== current)] : base;
 }
-/** A rating group for each tried style only (same order as the favorites). */
-export const ratingLabs = (tried: readonly VoteLab[], current: VoteLab) => favoriteOptions(tried, current).filter(id => tried.includes(id));
-export const canSend = (favorite: VoteLab | null, busy: boolean, outcome: VoteOutcome | null) =>
+/** A rating group for each tried control only (same order as the favorites). */
+export const ratingLabs = (tried: readonly ControlId[], current: ControlId, family: VoteDevice) =>
+  favoriteOptions(tried, current, family).filter(id => tried.includes(id));
+/** "Tried X of N" and the controls of the family not tried yet, in registry order. */
+export function triedSummary(tried: readonly ControlId[], family: VoteDevice) {
+  const all = controlsFor(family), left = all.filter(c => !tried.includes(c.id));
+  return { count: all.length - left.length, of: all.length, left: left.map(c => c.label) };
+}
+export const canSend = (favorite: ControlId | null, busy: boolean, outcome: VoteOutcome | null) =>
   favorite !== null && !busy && outcome !== 'ok' && outcome !== 'closed';
 /** The note counter counts code points, like the server's 280 cap. */
 export const noteLength = (note: string) => Array.from(note).length;
@@ -114,6 +131,6 @@ export const STATUS_TEXT: Record<VoteOutcome, string> = {
   ok: 'Thanks, your vote is counted.',
   later: 'Too many votes from this network right now. Try again later.',
   closed: "Voting isn't open on this version yet.",
-  invalid: 'Something went wrong with this vote.',
+  invalid: 'Something went wrong with this vote. Reload the page and try again.',
   network: "Couldn't send. Try again?",
 };

@@ -37,7 +37,7 @@ for (const viewport of [PORTRAIT, LANDSCAPE]) {
       await expect(page.getByLabel('Auto-fire assist on touch screens')).toHaveCount(0);
       // Touch: the blaster section leads, above the fold, with one line about touch only.
       const line = page.getByText('One thumb flies. Tap a drone to blast it.'); await expect(line).toBeVisible();
-      const af = (await line.boundingBox())!, desk = (await page.getByLabel('Desktop controls').boundingBox())!;
+      const af = (await line.boundingBox())!, desk = (await page.getByTestId('controls-section').boundingBox())!;
       expect(af.y).toBeLessThan(desk.y); expect(af.y + af.height).toBeLessThanOrEqual(viewport.height);
       await expect(page.getByText(/left click fires once the mouse is captured/)).toHaveCount(0);
       // Nothing is away from its default here, so More controls is folded (progressive disclosure) and opens on a tap; on classic
@@ -51,7 +51,9 @@ for (const viewport of [PORTRAIT, LANDSCAPE]) {
       const scan = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze();
       expect(scan.violations).toEqual([]);
       // Two thumbs (opt-in) brings the Auto-fire assist and the Aim-button switch back.
-      await page.getByRole('button', { name: 'Two thumbs' }).tap();
+      const section = page.getByTestId('controls-section');
+      if (!(await section.locator('details').evaluate(d => (d as HTMLDetailsElement).open))) await section.locator('summary').tap();
+      await section.getByRole('radio', { name: 'Twin stick', exact: true }).tap();
       await expect(page.getByLabel('Auto-fire assist on touch screens')).toBeChecked();
       await expect(page.getByLabel('Show Aim button on touch screens')).toBeVisible();
       expect(t.errors).toEqual([]); await t.context.close();

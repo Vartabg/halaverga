@@ -11,7 +11,8 @@ import { touchMode } from '@/game/pointerMode';
 import { readInsets } from './touchInsets';
 import { isStandalone } from './playSession';
 import { unlockBlasterAudio } from './audioUnlock';
-import LabPanel, { LabStatsTable } from './gesture/LabPanel';
+import { LabStatsTable } from './gesture/LabPanel';
+import ControlsSection from './controls/ControlsSection';
 // Blaster settings load with the panel, not with the landing page.
 const ShooterSettings = dynamic(() => import('./ShooterSettings'), { ssr: false, loading: () => null });
 import { BUILD_STAMP, DEPLOYMENT_URL } from './buildInfo';
@@ -59,7 +60,7 @@ function ScreenDiagnostics() {
 
 export default function TestPanel({ onClose }: { onClose: () => void }) {
   const state = useGame(), [stats, setStats] = useState<ReturnType<typeof measurements> | null>(null);
-  // Touch screens: the blaster section (Auto-fire) leads, above the control lab and the desktop and trackpad sections, so it is not
+  // Touch screens: the blaster section (Auto-fire) leads, above the controls list and the touch and trackpad sections, so it is not
   // below the fold (852 × 393 landscape included).
   const [coarse] = useState(() => typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches);
   // Any touch screen (a phone, or an iPad or laptop that also has a trackpad) gets the touch controls, blaster on or off.
@@ -68,17 +69,15 @@ export default function TestPanel({ onClose }: { onClose: () => void }) {
   const save = (patch: Parameters<typeof state.set>[0]) => { state.set(patch); persistGame(); };
   return <Modal title="Flight settings" onClose={onClose}>
     <p>Adjust the experience, resume, and try the same route again.</p>
-    {!coarse && <LabPanel />}
     {coarse && <ShooterSettings coarse />}
+    {/* The one list of every control (the same as the header sheet, the pause card and the Field guide). It follows the blaster
+        section on touch, so Auto-fire stays above the fold in landscape too. The mode-dependent settings follow it. */}
+    <ControlsSection name="control-settings" />
     {coarse && <TouchSettings />}
-    {/* Touch: the control lab follows the blaster and touch sections, so Auto-fire stays above the fold in landscape too. The
-        pause card and the Lab chip keep the switch one tap away while playing. */}
-    {coarse && <LabPanel />}
     <fieldset><legend>Perspective</legend><div className={styles.segment}>
       <button aria-pressed={state.camera === 'third'} onClick={() => save({ camera: 'third' })}>Third person</button>
       <button aria-pressed={state.camera === 'first'} onClick={() => save({ camera: 'first' })}>First person</button>
     </div></fieldset>
-    <label className={styles.setting}>Desktop controls<select value={state.desktopMode} onChange={e => save({ desktopMode: e.target.value as 'trackpad' | 'mouse' })}><option value="trackpad">Trackpad</option><option value="mouse">Mouse + keyboard</option></select></label>
     {state.desktopMode === 'trackpad' ? <TrackpadSettings /> : <p className={styles.muted}>Click the scene to capture the mouse. Use WASD to move, Space to lift or land, and Escape to pause. Left click fires and right click aims once the mouse is captured.</p>}
     <label className={styles.check}><input type="checkbox" checked={state.heroPoses} onChange={e => save({ heroPoses: e.target.checked })} /> Expressive hero poses</label>
     <label className={styles.setting}>Graphics<select value={state.quality} onChange={e => save({ quality: e.target.value as 'high' | 'low' })}><option value="high">Full detail</option><option value="low">Lighter · lower resolution, no shadows</option></select></label>

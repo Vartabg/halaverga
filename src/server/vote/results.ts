@@ -1,6 +1,8 @@
-// Vote results (spec 3.1): one multi-exec reads the round's tally hash and its builds hash, then parses them into public
-// aggregates. Notes are counted, never returned. Averages hide until a style has at least 3 ratings.
-import { VOTE_DEVICES, VOTE_LABS, VOTE_ROUND, type VoteDevice, type VoteLab, type VoteResults } from '@/lib/vote/shape';
+// Vote results (spec 3.1, schema 2): one multi-exec reads the round's tagged tally hash and builds hash, then parses them into
+// public aggregates per family (touch, desktop), with a row for every control of the family. Notes are counted, never returned.
+// Averages hide until a control has at least 3 ratings. Only the current schema's keys are read, so older data never mixes in.
+import { controlsFor } from '@/game/controlTypes';
+import { VOTE_DEVICES, VOTE_ROUND, VOTE_SCHEMA, voteKeyTag, type ControlResult, type FamilyResults, type VoteDevice, type VoteResults } from '@/lib/vote/shape';
 import type { VoteDeps } from './handlers';
 import type { VoteStore } from './store';
 
@@ -20,30 +22,30 @@ export function hashToCounts(raw: unknown): Record<string, number> {
 }
 
 const round1 = (x: number) => Math.round(x * 10) / 10;
-const perLab = <T>(f: (id: VoteLab) => T) => Object.fromEntries(VOTE_LABS.map((id) => [id, f(id)])) as Record<VoteLab, T>;
-const perDevice = <T>(f: (d: VoteDevice) => T) => Object.fromEntries(VOTE_DEVICES.map((d) => [d, f(d)])) as Record<VoteDevice, T>;
 
+function family(d: VoteDevice, get: (k: string) => number): FamilyResults {
+  const votes = get(`dev:${d}`), controls: FamilyResults['controls'] = {};
+  for (const { id } of controlsFor(d)) {
+    const favorite = get(`fav:${d}:${id}`), n = get(`rn:${d}:${id}`);
+    const row: ControlResult = {
+      favorite, share: votes > 0 ? Math.round((100 * favorite) / votes) : 0, tried: get(`tried:${d}:${id}`),
+      rating: { avg: n >= MIN_RATINGS ? round1(get(`rsum:${d}:${id}`) / n) : null, n },
+    };
+    controls[id] = row;
+  }
+  return { votes, controls };
+}
+
+/** Unknown Redis fields (an old family or id) are never looked up, so they cannot appear in the result. */
 export function toResults(round: string, tally: Record<string, number>, builds: Record<string, number>): VoteResults {
   const get = (k: string) => tally[k] ?? 0;
-  return {
-    round,
-    total: get('total'),
-    favorite: perLab((id) => get(`fav:${id}`)),
-    favoriteByDevice: perDevice((d) => perLab((id) => get(`favdev:${d}:${id}`))),
-    rating: perLab((id) => {
-      const n = get(`rn:${id}`);
-      return { avg: n >= MIN_RATINGS ? round1(get(`rsum:${id}`) / n) : null, n };
-    }),
-    tried: perLab((id) => get(`tried:${id}`)),
-    device: perDevice((d) => get(`dev:${d}`)),
-    builds,
-    notes: get('notes'),
-    stale: get('stale'),
-  };
+  const families = Object.fromEntries(VOTE_DEVICES.map(d => [d, family(d, get)])) as Record<VoteDevice, FamilyResults>;
+  return { v: VOTE_SCHEMA, round, total: get('total'), notes: get('notes'), stale: get('stale'), builds, families };
 }
 
 export const readResults: ResultsReader = async (store, ns, round) => {
-  const [tally, builds] = await store.exec([['HGETALL', `${ns}:vote:${round}`], ['HGETALL', `${ns}:builds:${round}`]]);
+  const tag = voteKeyTag(round);
+  const [tally, builds] = await store.exec([['HGETALL', `${ns}:vote:${tag}`], ['HGETALL', `${ns}:builds:${tag}`]]);
   return toResults(round, hashToCounts(tally), hashToCounts(builds));
 };
 

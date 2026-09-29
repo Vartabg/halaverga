@@ -16,6 +16,24 @@ export function resume() {
   // Playing again answers any "Leave the game?" prompt raised while a dialog hid it.
   useGame.setState({ started: true, paused: false, panel: false, journal: false, message: '', leavePrompt: false });
 }
+// A lock that is granted and released again before its first event is dispatched reports twice (the grant and the loss), and
+// both read "no lock" by then. The second event of a game-requested release is the same release, not an Esc; a resize is
+// one too (the browser can drop a lock that is still being granted).
+let releasedAt = -Infinity;
+const SAME_RELEASE_MS = 250;
+/**
+ * A pointer lock ended. One the game asked for (runtime.trackpad.unlocking: cruise capture letting go, a resize, or the Controls
+ * sheet switching control) only drops held input, whichever control is current by now (the switch has already changed desktopMode);
+ * any other exit (Esc, the browser, another window) pauses.
+ */
+export function pointerLockChanged() {
+  if (document.pointerLockElement) return;
+  const asked = runtime.trackpad.unlocking; runtime.trackpad.unlocking = false;
+  const expected = asked || Date.now() - releasedAt < SAME_RELEASE_MS;
+  if (asked) releasedAt = Date.now();
+  const g = useGame.getState();
+  if (g.started && !g.paused) { if (expected) clearInput(); else pause(); }
+}
 export function useInput() {
   useEffect(() => {
     // swallowed: the key whose press started or braked the free cruise; its auto-repeats are ignored until it is released.
@@ -77,16 +95,11 @@ export function useInput() {
       orientation = next;
       // Touch: Safari's toolbar resizes change nothing; a rotation releases held input and keeps playing.
       if (touchMode()) { if (flipped) releaseHeldInput(); return; }
+      // A resize drops the lock (ours below, or the browser's own while a request is in flight): none of it is an Esc.
+      releasedAt = Date.now();
       clearInput(true); if (document.pointerLockElement) document.exitPointerLock(); useGame.setState(s => ({ landing: false, inputEpoch: s.inputEpoch + 1 }));
     };
-    const lock = () => {
-      if (!document.pointerLockElement) {
-        const expected = runtime.trackpad.unlocking; runtime.trackpad.unlocking = false;
-        if (useGame.getState().started && !useGame.getState().paused) {
-          if (useGame.getState().desktopMode === 'trackpad' && expected) clearInput(); else pause();
-        }
-      }
-    };
+    const lock = pointerLockChanged;
     window.addEventListener('keydown', keydown); window.addEventListener('keyup', keyup);
     window.addEventListener('mousemove', mouse); window.addEventListener('blur', blur); window.addEventListener('resize', resized);
     window.addEventListener('pagehide', pagehide); window.addEventListener('pageshow', pageshow);

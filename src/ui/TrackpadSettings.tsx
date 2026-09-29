@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { persistGame, useGame, type TrackpadProfile } from '@/game/store';
+import { persistGame, useGame } from '@/game/store';
 import { gestureLog, gestureRecording, startGestureLog } from '@/game/gestureLog';
 import styles from './Experience.module.css';
 export default function TrackpadSettings() {
@@ -9,9 +9,6 @@ export default function TrackpadSettings() {
   // Free cursor with the blaster on (Garo 2026-09-24): the classic flight plus one change, a click while stopped fires.
   const freeShooter = 'Space starts flying; in the air W does too. Move the pointer to steer, hold near an edge to keep turning, and scroll for speed. Click or press Space to stop and hover. While stopped or on the ground, a click fires at the centre reticle when you let go, and dragging only looks. Hold C to fire and ' + (state.aimToggle ? 'press Q to toggle aim' : 'hold Q to aim') + ' at any time. Blaster sound starts off; turn on Suit and wind audio below. ' + edge + ' Escape pauses.';
   return <fieldset><legend>Trackpad controls</legend>
-    <label className={styles.setting}>Trackpad steering<select value={state.trackpadSteering} onChange={e => save({ trackpadSteering: e.target.value as TrackpadProfile })}>
-      <option value="free">Classic · Free cursor · recommended</option><option value="simple">One finger + keyboard</option><option value="captured">Classic · Captured steering</option><option value="flow">Flow · scroll experiment</option>
-    </select></label>
     <p className={styles.muted}>{state.trackpadSteering === 'simple' ? state.shooter ? `Click the scene to look freely (that click never fires or lifts). Slide to look · click to fire (hold for auto) · ${state.aimToggle ? 'Q toggles' : 'hold Q to'} aim · WASD fly · Space lift/land · Esc pause.` : 'Click the scene to lift into hover, then slide one finger to look. Hold WASD to move; release to hover. R/F rise and descend, Shift toggles Surge, Space lands. Click again to stop and free the pointer; Escape pauses. Scrolling does not control flight.' : state.trackpadSteering === 'flow' ? 'Slide to look, stroke to glide, press to hover. Looking stays free when you stop. Two-finger click releases the pointer for buttons; Escape pauses.' : state.trackpadSteering === 'free' ? state.shooter ? freeShooter : `Click to cruise, move to steer, and scroll for speed. Click again to hover. ${edge}` : 'Click to cruise with unlimited turning. The pointer hides during flight. Click again to brake and release it; then use any button normally. Escape pauses.'}</p>
     {['simple', 'flow'].includes(state.trackpadSteering) &&
       <label className={styles.setting}>Looking sensitivity · {state.lookSensitivity.toFixed(1)}×<input type="range" min=".5" max="2" step=".1" value={state.lookSensitivity} onChange={e => save({ lookSensitivity: e.target.valueAsNumber })} /></label>

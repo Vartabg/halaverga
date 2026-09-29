@@ -1,12 +1,16 @@
 // Gesture Lab stroke log (spec 11): a ring of the last STROKE_LOG_CAP raw strokes and their class, exported as JSON so a real
 // stroke can become a test fixture. Slots and their sample arrays are reused, so a steady stream of strokes stops allocating.
 // Also instrumentScheme: the wrapper that feeds finished strokes into this log and the lab stats. Local only.
+import type { ControlFamily } from '@/game/controlTypes';
 import { STROKE_LOG_CAP } from '@/game/gesture/tuning';
 import type { Cardinal, PointerKind, Scheme, StrokeClass, StrokeKind, StrokeView } from '@/game/gesture/types';
+import { currentFamily } from '../controls/family';
 import type { LabId } from './labStats';
 
 export interface LoggedStroke {
   scheme: LabId; pointer: PointerKind;
+  /** The control family (touch or desktop) the stroke was made in. */
+  family: ControlFamily;
   /** performance.now ms of the first kept sample. */
   at: number;
   kind: StrokeKind; dir: Cardinal | null; angle: number; magnitude: number; winding: number; speed: number;
@@ -16,7 +20,8 @@ export interface LoggedStroke {
 export interface StrokeLog {
   readonly size: number;
   readonly cap: number;
-  push(scheme: LabId, s: StrokeView, c: StrokeClass | null): void;
+  /** `family` defaults to the family in use when the stroke is pushed. */
+  push(scheme: LabId, s: StrokeView, c: StrokeClass | null, family?: ControlFamily): void;
   /** 0 is the oldest kept stroke. */
   at(i: number): LoggedStroke | undefined;
   clear(): void;
@@ -32,14 +37,14 @@ export function createStrokeLog(cap = STROKE_LOG_CAP): StrokeLog {
   return {
     get size() { return size; },
     cap,
-    push(scheme, s, c) {
+    push(scheme, s, c, family = currentFamily()) {
       let e = slots[head];
-      if (!e) e = slots[head] = { scheme, pointer: s.kind, at: 0, kind: 'none', dir: null, angle: 0, magnitude: 0, winding: 0, speed: 0,
+      if (!e) e = slots[head] = { scheme, pointer: s.kind, family, at: 0, kind: 'none', dir: null, angle: 0, magnitude: 0, winding: 0, speed: 0,
         n: 0, xyt: new Float32Array(Math.max(96, s.count * 3)) };
       if (e.xyt.length < s.count * 3) e.xyt = new Float32Array(s.count * 3);
       const n = s.count, t0 = n ? s.t(0) : s.startT;
       for (let i = 0; i < n; i++) { e.xyt[i * 3] = s.x(i); e.xyt[i * 3 + 1] = s.y(i); e.xyt[i * 3 + 2] = s.t(i) - t0; }
-      e.scheme = scheme; e.pointer = s.kind; e.at = t0; e.n = n;
+      e.scheme = scheme; e.pointer = s.kind; e.family = family; e.at = t0; e.n = n;
       e.kind = c?.kind ?? 'none'; e.dir = c?.dir ?? null; e.angle = c?.angle ?? 0; e.magnitude = c?.magnitude ?? 0;
       e.winding = c?.winding ?? s.winding; e.speed = c?.speed ?? s.speed60;
       head = (head + 1) % cap; size = Math.min(cap, size + 1);
@@ -51,7 +56,7 @@ export function createStrokeLog(cap = STROKE_LOG_CAP): StrokeLog {
       for (let i = 0; i < size; i++) {
         const e = at(i)!, points: number[][] = [];
         for (let j = 0; j < e.n; j++) points.push([round(e.xyt[j * 3]), round(e.xyt[j * 3 + 1]), round(e.xyt[j * 3 + 2])]);
-        strokes.push({ scheme: e.scheme, pointer: e.pointer, at: Math.round(e.at), kind: e.kind, dir: e.dir, angle: round(e.angle),
+        strokes.push({ scheme: e.scheme, family: e.family, pointer: e.pointer, at: Math.round(e.at), kind: e.kind, dir: e.dir, angle: round(e.angle),
           magnitude: round(e.magnitude), winding: round(e.winding), speed: Math.round(e.speed * 1000) / 1000, points });
       }
       return JSON.stringify({ v: 1, format: 'halaverga-strokes', units: { xy: 'css-px', t: 'ms' }, strokes });
@@ -70,6 +75,8 @@ export interface StrokeHooks {
   /** Stats sink: a finished non-tap stroke, recognised or not, with its latency in ms. */
   stroke(kind: StrokeKind, ok: boolean, latencyMs: number): void;
   now(): number;
+  /** The control family to stamp on each logged stroke (default: the family in use when the stroke ends). */
+  family?: () => ControlFamily;
 }
 /**
  * Wraps a scheme so each finished stroke is logged and counted before the scheme sees it. Taps are logged but not counted as
@@ -81,7 +88,7 @@ export function instrumentScheme(inner: Scheme, id: LabId, hooks: StrokeHooks): 
     down: s => inner.down(s),
     move: s => inner.move(s),
     up(s, c) {
-      hooks.log.push(id, s, c);
+      hooks.log.push(id, s, c, hooks.family?.());
       if (c.kind !== 'tap') hooks.stroke(c.kind, !rejectedKind(c.kind), Math.max(0, hooks.now() - s.lastT));
       inner.up(s, c);
     },

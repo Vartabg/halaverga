@@ -9,6 +9,8 @@ import { useTouchCapable } from './useTouchCapable';
 // There is deliberately no touchstart handler: it cannot stop the iOS edge back swipe and would kill taps (Pause's edge).
 const ZOOMED = 1.01;
 const inside = (target: EventTarget | null, selector: string) => !!(target as Element | null)?.closest?.(selector);
+// A panel that scrolls itself (the controls sheet, the vote card) marks its scroller data-scroll-ok; the guard lets a finger move it while it overflows.
+const scrolls = (target: EventTarget | null) => { const el = (target as Element | null)?.closest?.('[data-scroll-ok]'); return !!el && el.scrollHeight > el.clientHeight; };
 const writeInput = () => { document.documentElement.dataset.input = touchMode() ? 'touch' : 'mouse'; };
 
 export function usePlayGuard() {
@@ -34,7 +36,7 @@ export function usePlayGuard() {
     root.dataset.playing = 'true';
     const opts: AddEventListenerOptions = { capture: true, passive: false };
     const touchmove = (e: TouchEvent) => {
-      if (e.cancelable && !inside(e.target, '[data-play-surface]') && !inside(e.target, '[data-hold-control]')) e.preventDefault();
+      if (e.cancelable && !inside(e.target, '[data-play-surface]') && !inside(e.target, '[data-hold-control]') && !scrolls(e.target)) e.preventDefault();
     };
     // preventDefault only: these fire for any second finger on iPhone, so they must never touch input state.
     const gesture = (e: Event) => { if (e.cancelable) e.preventDefault(); };

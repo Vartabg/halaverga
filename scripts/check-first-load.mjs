@@ -13,6 +13,9 @@ const TOUCH = ['TouchControls-module', 'rise-button', 'touch-stick'];
 // The Gesture Lab (surface, ink, schemes, guides, picker, header bar) loads only when a lab scheme is on, a picker opens or play
 // starts (the bar). Only its plain bus and flight hooks (bus.ts, applyGesture.ts) reach the landing graph, through runtime.ts.
 const LAB = ['Gesture-module', 'Lab-module', 'lab-surface', 'lab-picker', 'lab-bar', 'LabBar-module', 'lab-ghost', 'halaverga.lab.guides'];
+// The controls picker (header trigger, sheet, shared list, demo note) and its play record are chunks: the landing page carries only the
+// two dynamic() doors (Experience, LazyControls). Every control name, line and preference key lives in the chunk.
+const CONTROLS = ['ControlsPicker-module', 'controls-picker', 'halaverga.controls', 'halaverga.vote.play'];
 // The in-game vote (tracker, card, client) is a chunk mounted after Begin: the landing page never carries it.
 const VOTE = ['VoteCard-module', 'vote-card', '/api/vote', 'halaverga.vote'];
 // Main measured 614.9 KB (PR #11); the blaster keeps only its input handlers and plain state on the landing page.
@@ -28,9 +31,9 @@ let bytes = 0; const found = [];
 for (const src of sources) {
   const body = await readFile(root + '.next/' + src.slice('/_next/'.length).split('?')[0], 'utf8');
   bytes += Buffer.byteLength(body);
-  for (const marker of [...SCENE, ...SHOOTER, ...TOUCH, ...LAB, ...VOTE]) if (body.includes(marker)) found.push(`${marker} in ${src}`);
+  for (const marker of [...SCENE, ...SHOOTER, ...TOUCH, ...LAB, ...CONTROLS, ...VOTE]) if (body.includes(marker)) found.push(`${marker} in ${src}`);
 }
 const kb = bytes / 1024;
 console.log(`Landing first load: ${sources.size} scripts, ${kb.toFixed(1)} KB (budget ${BUDGET_KB} KB).`);
-if (found.length) { console.error('Scene, blaster, touch-control, Gesture Lab or vote code reached the landing first load:\n  ' + found.join('\n  ')); process.exit(1); }
+if (found.length) { console.error('Scene, blaster, touch-control, Gesture Lab, controls picker or vote code reached the landing first load:\n  ' + found.join('\n  ')); process.exit(1); }
 if (kb > BUDGET_KB) { console.error(`The landing first load grew past its ${BUDGET_KB} KB budget.`); process.exit(1); }

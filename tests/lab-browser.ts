@@ -1,9 +1,17 @@
 import { expect, type Browser, type Page } from '@playwright/test';
+import type { ControlId } from '../src/game/controlTypes';
 // Shared helpers for the Gesture Lab browser specs (lab-*.spec.ts). System Chrome emulation: these check the wiring and the
 // behaviour a player can see, never how Draw, Conduct or Brush feel on a real iPhone or Mac trackpad (docs/gesture-lab.md).
 export type Lab = 'standard' | 'draw' | 'conduct' | 'brush';
+/** Any way to fly: the legacy 'standard' or one of the ten registry ids. */
+export type AnyControl = Lab | ControlId;
+const isLab = (id: string): id is Exclude<Lab, 'standard'> => id === 'draw' || id === 'conduct' || id === 'brush';
 export type Pt = { x: number; y: number };
 export type Tel = { pos: number[]; speed: number; flying: boolean; heading: number; pitch: number };
+/** Flight settings' Controls list (the same radios as the header sheet): the checked control's id, and picking one by its label. */
+export const settingsList = (page: Page) => page.locator('dialog[open]').getByTestId('controls-list');
+export const settingsCurrent = (page: Page) => settingsList(page).locator('input[type=radio]:checked').inputValue();
+export const settingsPick = (page: Page, label: string) => settingsList(page).getByRole('radio', { name: label, exact: true }).check();
 export const PHONE = { width: 852, height: 393 } as const;
 export const DESKTOP = { width: 1440, height: 1000 } as const;
 
@@ -24,10 +32,10 @@ export const guideShown = (page: Page) => page.evaluate(() => {
 });
 
 /**
- * A page after Begin with `scheme` chosen by ?controls= (a session override), on a phone (touch emulation, isMobile) or a
- * non-touch desktop. `saved` seeds the save once. Captures page errors and every aria-live text.
+ * A page after Begin with `scheme` (any registry id, or 'standard') chosen by ?controls= (a session override), on a phone (touch
+ * emulation, isMobile) or a non-touch desktop. `saved` seeds the save once. Captures page errors and every aria-live text.
  */
-export async function labPage(browser: Browser, scheme: Lab, opts: { touch?: boolean; viewport?: { width: number; height: number };
+export async function labPage(browser: Browser, scheme: AnyControl, opts: { touch?: boolean; viewport?: { width: number; height: number };
   saved?: Record<string, unknown>; url?: string; init?: () => void } = {}) {
   const touch = !!opts.touch, viewport = opts.viewport ?? (touch ? PHONE : DESKTOP);
   const context = await browser.newContext({ viewport, isMobile: touch, hasTouch: touch });
@@ -48,7 +56,7 @@ export async function labPage(browser: Browser, scheme: Lab, opts: { touch?: boo
   await expect(begin).toBeEnabled({ timeout: 60000 });
   if (touch) await begin.tap(); else await begin.click();
   await expect(page.getByRole('button', { name: 'Pause expedition' })).toBeVisible();
-  if (scheme !== 'standard') await expect(page.getByTestId('lab-surface')).toHaveCount(1);
+  if (isLab(scheme)) await expect(page.getByTestId('lab-surface')).toHaveCount(1);
   const cdp = await context.newCDPSession(page);
   const send = (type: 'touchStart' | 'touchMove' | 'touchEnd' | 'touchCancel', points: { id: number; x: number; y: number }[]) =>
     cdp.send('Input.dispatchTouchEvent', { type, touchPoints: points.map(p => ({ id: p.id, x: Math.round(p.x), y: Math.round(p.y) })) });

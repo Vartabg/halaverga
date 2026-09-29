@@ -1,38 +1,11 @@
-/* Gesture Lab chrome: picker, rating and fallback buttons (the header bar has its own LabBar.module.css). Every control is at least 44 px. */
-.picker{border:0;padding:0;margin:20px 0;display:grid;gap:6px}
-.picker legend{font-size:14px;margin-bottom:10px}
-.option{display:flex;align-items:center;gap:12px;min-height:52px;padding:6px 10px;border:1px solid transparent;border-radius:4px;cursor:pointer}
-.option:hover{background:#203b40}
-.option:has(input:checked){border-color:var(--lime);background:#1c3a3a}
-.option input{flex:none;width:22px;height:22px;margin:0;accent-color:var(--lime)}
-.option span{display:flex;flex-direction:column;gap:2px;min-width:0}
-.option b{font-size:14px;font-weight:600}
-.option small{font-size:12px;color:var(--muted);line-height:1.4}
+/* Gesture Lab chrome: the fallback buttons and the measurements table (the control list is the shared Controls picker, src/ui/controls). Every control is at least 44 px. */
 .note{margin:6px 0 0;font-size:12px;color:var(--muted);min-height:1.4em}
 
-.glyph{flex:none;overflow:visible;fill:none;stroke-linecap:round;stroke-linejoin:round}
-.glyphBase{stroke:#8fa7a1;stroke-width:1.5;opacity:.45}
-.glyphInk{stroke:#58e1ff;stroke-width:2.2;stroke-dasharray:28 72;animation:labInk 1.8s linear infinite}
-.glyph[data-reduced=true] .glyphInk{animation:none;stroke-dasharray:3 4}
-@media(prefers-reduced-motion:reduce){.glyphInk{animation:none;stroke-dasharray:3 4}}
-@keyframes labInk{from{stroke-dashoffset:100}to{stroke-dashoffset:0}}
-
-.rate{margin:16px 0;padding:14px 0;border-top:1px solid var(--line)}
-.rate p{margin:0 0 8px;font-size:14px}
-.rating{border:0;padding:0;margin:10px 0;display:flex;flex-wrap:wrap;gap:6px}
-.rating legend{font-size:13px;margin-bottom:6px}
-.rating label{display:flex;align-items:center;justify-content:center;gap:6px;min-width:44px;min-height:44px;padding:0 8px;border:1px solid #809c91;border-radius:4px;cursor:pointer}
-.rating label:has(input:checked){background:var(--lime);color:#1a3029}
-.rating input{width:18px;height:18px;margin:0;accent-color:var(--lime)}
-.rateActions{display:flex;gap:10px;margin-top:10px}
-.rateActions button,.fallback button{min-height:44px;min-width:44px;padding:10px 14px;border:1px solid #94aaa1;border-radius:3px;background:transparent;font-size:13px}
-.rateActions button:hover,.fallback button:hover{background:#2b4747}
-
+.fallback button{min-height:44px;min-width:44px;padding:10px 14px;border:1px solid #94aaa1;border-radius:3px;background:transparent;font-size:13px}
+.fallback button:hover{background:#2b4747}
 .fallback{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0}
 .fallback .note{flex-basis:100%}
 
-.check{display:flex;align-items:center;gap:12px;min-height:48px;font-size:14px}
-.check input{width:22px;height:22px;accent-color:var(--lime)}
 .tableWrap{overflow-x:auto;max-width:100%;margin:10px 0;border:1px solid var(--line);border-radius:4px}
 .tableWrap:focus-visible{outline:2px solid var(--lime);outline-offset:2px}
 .table{border-collapse:collapse;width:100%;font:12px 'Courier New',monospace}

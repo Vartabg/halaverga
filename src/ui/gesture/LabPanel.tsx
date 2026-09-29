@@ -1,10 +1,9 @@
 'use client';
 import { useState } from 'react';
-import LabSwitch from './LabSwitch';
 import { exportStats, flushLabStats, LAB_IDS, LAB_NAMES, labStats, resetLabStats, statsTable } from './labStats';
 import { strokeLog } from './strokeLog';
 import styles from './Lab.module.css';
-// Flight settings' Gesture Lab section (spec 8, 11): the switch and the local side-by-side table with its exports. Everything stays on this device; the exports are files the player saves.
+// Flight settings' Gesture Lab section (spec 11): the local side-by-side table with its exports (the control switch is the shared Controls list). Everything stays on this device; the exports are files the player saves.
 function download(name: string, text: string) {
   const url = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
   const a = document.createElement('a'); a.href = url; a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
@@ -27,10 +26,4 @@ export function LabStatsTable() {
       <button type="button" onClick={() => { resetLabStats(); strokeLog.clear(); setRows(statsTable(labStats())); }}>Clear lab measurements</button>
     </div>
   </details>;
-}
-
-export default function LabPanel() {
-  return <section aria-label="Control lab">
-    <LabSwitch name="control-lab-settings" />
-  </section>;
 }

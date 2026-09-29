@@ -3,7 +3,7 @@ import styles from './Experience.module.css';
 type Patch = Parameters<ReturnType<typeof useGame.getState>['set']>[0];
 const save = (patch: Patch) => { useGame.setState(patch); persistGame(); };
 // Touch controls (Flight settings, any coarse pointer, blaster on or off). One thumb (classic) is the default again (Garo
-// 2026-09-26): main's one-finger flight with tap-a-drone shooting; Two thumbs is the opt-in twin stick. Every control is a labelled native input with a 44 px target, saved at once. Range inputs get an inline
+// 2026-09-26): main's one-finger flight with tap-a-drone shooting; Two thumbs is the opt-in twin stick. The scheme itself is chosen in the shared Controls list above (selectControl is its only writer); this holds the settings that depend on it. Every control is a labelled native input with a 44 px target, saved at once. Range inputs get an inline
 // 44 px height because Experience.module.css styles only select and number inputs.
 const RANGE = { width: '100%', minHeight: 44, accentColor: 'var(--lime)' } as const;
 function Range({ label, value, min, max, step, shown, onChange }: {
@@ -27,10 +27,6 @@ export default function TouchSettings() {
   const edgeRest = useGame(s => s.edgeRest), reduced = useGame(s => s.reduced);
   const twin = scheme !== 'classic';
   return <fieldset data-testid="touch-settings"><legend>Touch controls</legend>
-    <div className={styles.segment} role="group" aria-label="Touch scheme">
-      <button aria-pressed={!twin} onClick={() => save({ touchScheme: 'classic' })}>One thumb (classic)</button>
-      <button aria-pressed={twin} onClick={() => save({ touchScheme: 'twin' })}>Two thumbs</button>
-    </div>
     {!twin && <p className={styles.muted}>Hold to fly, slide to steer, hold near an edge to keep turning, let go to hover. Tap a drone to blast it.</p>}
     {twin && <>
       <p className={styles.muted}>Left thumb moves, right thumb looks. Rise and Descend change height.</p>
