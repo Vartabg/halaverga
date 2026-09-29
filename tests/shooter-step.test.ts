@@ -85,7 +85,7 @@ describe('shooter step', () => {
     expect(r.s.stats.kills).toBe(1); expect(r.s.stats.chain).toBe(1); expect(r.s.stats.hits).toBeGreaterThanOrEqual(3); expect(r.s.stats.hits).toBeLessThanOrEqual(6);
     const e = r.s.events[(r.s.eventSerial - 1) % 16].kind === 'kill' ? r.s.events[(r.s.eventSerial - 1) % 16] : r.s.events.find(v => v.kind === 'kill')!;
     const p = e.point, d = Math.hypot(p.x - ORIGIN.x, p.y - ORIGIN.y, p.z - ORIGIN.z);
-    expect(r.s.camFx.trauma).toBeCloseTo(.45 * (1 - d / 20) - 1 / 60, 12);
+    expect(r.s.camFx.trauma).toBeCloseTo(.6 * Math.min(1, (70 - d) / 30) - 1 / 60, 12); // S5: flat .6 to 40 m
     // No FOV punch on shots or kills: only the kill's small rotational shake.
     for (const k of ['fovShot', 'fovShotV', 'fovKill', 'fovKillV'] as const) expect(r.s.camFx[k]).toBe(0);
     expect(r.s.targets[0].alive).toBe(false); expect(r.played).toContain('kill');

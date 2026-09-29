@@ -80,7 +80,8 @@ export function fireShot(s: ShooterState, sim: DroneSim, world: ShooterWorld, ct
       kind = 'kill'; s.targets[drone].alive = false;
       stats.kills++; stats.chain = s.clock - stats.lastKillT <= 4 ? stats.chain + 1 : 1; stats.lastKillT = s.clock;
       const p = hit.point, o = a.origin, d = Math.hypot(p.x - o.x, p.y - o.y, p.z - o.z);
-      addTrauma(fx, .45 * Math.max(0, 1 - d / 20));
+      // A felt kill at tap range (dynamics review S5): full .6 trauma out to 40 m, tapering to none at 70 m (was .45 fading out by 20 m).
+      addTrauma(fx, .6 * Math.min(1, Math.max(0, (70 - d) / 30)));
     }
     stats.hits++;
   } else nearMisses(s, count, a.origin, dir, hit.point);

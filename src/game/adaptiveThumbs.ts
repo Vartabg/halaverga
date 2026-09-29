@@ -56,5 +56,11 @@ export class AdaptiveThumbs {
     // Releasing the movement thumb must not make a stationary look thumb launch forward.
     // Sliding the remaining contact resumes single-thumb flight without lifting it.
   }
+  /** The contact left alone after a joined second thumb lifted keeps flying where it is (no launch: it was flying before the join). */
+  resume(id: number, width: number, height: number) {
+    const p = this.contacts.get(id);
+    if (!p || this.mode !== 'single' || this.active) return;
+    this.active = true; this.move(id, p.x, p.y, width, height);
+  }
   cancel() { this.contacts.clear(); this.mode = 'idle'; this.active = false; this.holdAllowed = false; this.neutral(); }
 }
