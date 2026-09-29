@@ -77,8 +77,9 @@ for (const viewport of [V, { width: 325, height: 928 }]) {
       await expect(page.getByText('Blaster sound is off')).toHaveCount(0);
       expect(await locked(page), scheme).toBe(false);
       expect(await paused(page), scheme).toBe(0);
-      await expect(page.getByTestId('lab-bar')).toBeVisible();
-      await expect(page.getByTestId('lab-bar').getByRole('radio', { name: /^(Draw|Conduct|Brush)$/, checked: true })).toHaveAttribute('data-lab', scheme);
+      await expect(page.getByTestId('controls-trigger')).toBeVisible();
+      await expect(page.getByTestId('controls-trigger')).toHaveText(`Controls: ${scheme[0].toUpperCase()}${scheme.slice(1)}`);
+      expect(await page.evaluate(() => document.documentElement.dataset.controlId), scheme).toBe(scheme);
       await expect(page.getByRole('button', { name: /^(Lift|Land)$/ })).toBeVisible();
       expect(t.errors, scheme).toEqual([]); await t.context.close();
     }

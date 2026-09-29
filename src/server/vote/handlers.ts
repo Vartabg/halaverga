@@ -3,7 +3,7 @@
 // (only for requests that passed the per-IP check), the Send nonce (a retry already counted answers ok), then one write
 // transaction. IPv6 callers are limited per /64 (hash.ipNetwork). Nothing here logs or echoes an IP, a body,
 // a note, a build or a token.
-import { parseVote, mediaType, VOTE_MAX_BYTES, VOTE_ROUND, type VotePayload } from '@/lib/vote/shape';
+import { parseVote, mediaType, VOTE_KEY_TAG, VOTE_MAX_BYTES, type VotePayload } from '@/lib/vote/shape';
 import { BUILD_STAMP } from '@/ui/buildInfo';
 import { ipKey } from './hash';
 import { MemoLimit } from './memoLimit';
@@ -86,24 +86,24 @@ async function bump(store: VoteStore, key: string, ttl: number): Promise<number>
 }
 
 export function voteWrites(vote: VotePayload, ns: string, serverBuild: string, now: number): Command[] {
-  const h = `${ns}:vote:${VOTE_ROUND}`;
+  // The schema tag is in all three keys, so a later schema can never mix into this data (VOTE_KEY_TAG = round + schema).
+  const h = `${ns}:vote:${VOTE_KEY_TAG}`, d = vote.device;
   const cmds: Command[] = [
     ['HINCRBY', h, 'total', 1],
-    ['HINCRBY', h, `fav:${vote.favorite}`, 1],
-    ['HINCRBY', h, `favdev:${vote.device}:${vote.favorite}`, 1],
-    ['HINCRBY', h, `dev:${vote.device}`, 1],
+    ['HINCRBY', h, `dev:${d}`, 1],
+    ['HINCRBY', h, `fav:${d}:${vote.favorite}`, 1],
   ];
-  for (const id of vote.tried) cmds.push(['HINCRBY', h, `tried:${id}`, 1]);
+  for (const id of vote.tried) cmds.push(['HINCRBY', h, `tried:${d}:${id}`, 1]);
   for (const [id, r] of Object.entries(vote.ratings)) {
-    cmds.push(['HINCRBY', h, `rsum:${id}`, r as number], ['HINCRBY', h, `rn:${id}`, 1]);
+    cmds.push(['HINCRBY', h, `rsum:${d}:${id}`, r as number], ['HINCRBY', h, `rn:${d}:${id}`, 1]);
   }
   // The client build is only compared, never stored: a mismatch means an old tab voted after a deploy.
   if (vote.build !== serverBuild) cmds.push(['HINCRBY', h, 'stale', 1]);
-  cmds.push(['HINCRBY', `${ns}:builds:${VOTE_ROUND}`, serverBuild, 1]);
+  cmds.push(['HINCRBY', `${ns}:builds:${VOTE_KEY_TAG}`, serverBuild, 1]);
   if (vote.note) {
-    const notes = `${ns}:notes:${VOTE_ROUND}:${stamp(now, 8)}`;
+    const notes = `${ns}:notes:${VOTE_KEY_TAG}:${stamp(now, 8)}`;
     cmds.push(['HINCRBY', h, 'notes', 1]);
-    cmds.push(['LPUSH', notes, JSON.stringify({ favorite: vote.favorite, device: vote.device, note: vote.note })]);
+    cmds.push(['LPUSH', notes, JSON.stringify({ favorite: vote.favorite, device: d, note: vote.note })]);
     cmds.push(['LTRIM', notes, 0, NOTES_KEEP - 1], ['EXPIRE', notes, NOTE_TTL_S]);
   }
   return cmds;
@@ -128,10 +128,11 @@ export async function handleVote(req: Request, deps: VoteDeps): Promise<Response
     if (await bump(store, `${deps.ns}:rl:${key}`, 3600) > IP_LIMIT) return fail(429, 'too-many');
     if (await bump(store, `${deps.ns}:rlg:${stamp(now, 10)}`, 7200) > GLOBAL_LIMIT) return fail(429, 'busy');
     // A retried Send whose first try was already counted (the reply was lost or late) answers ok without counting again.
-    const seen = parsed.vote.nonce ? `${deps.ns}:seen:${parsed.vote.nonce}` : null;
-    if (seen && (await store.exec([['SET', seen, 1, 'EX', NONCE_TTL_S, 'NX']]))[0] === null) return Response.json({ ok: true }, { headers: NO_STORE });
+    // The nonce is required in v2, so this guard always applies.
+    const seen = `${deps.ns}:seen:${parsed.vote.nonce}`;
+    if ((await store.exec([['SET', seen, 1, 'EX', NONCE_TTL_S, 'NX']]))[0] === null) return Response.json({ ok: true }, { headers: NO_STORE });
     try { await store.exec(voteWrites(parsed.vote, deps.ns, deps.serverBuild, now)); } catch (e) {
-      if (seen) await store.exec([['DEL', seen]]).catch(() => {}); // not counted: let the retry count it
+      await store.exec([['DEL', seen]]).catch(() => {}); // not counted: let the retry count it
       throw e;
     }
   } catch {

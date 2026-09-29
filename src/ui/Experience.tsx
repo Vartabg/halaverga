@@ -1,6 +1,6 @@
 'use client';
 import dynamic from 'next/dynamic';
-import { useCallback, useEffect, useRef, useState, type ComponentType } from 'react';
+import { useCallback, useEffect, useRef, useState, type ComponentType, type ReactNode } from 'react';
 import { HINT_STEPS, hydrateGame, overrideShooter, persistGame, useGame } from '@/game/store';
 import { runtime } from '@/game/runtime';
 import { clearShooterFault, shooterFault } from '@/game/shooterFault';
@@ -12,7 +12,7 @@ import { touchMode } from '@/game/pointerMode';
 import { unlockBlasterAudio } from './audioUnlock';
 import { useAudio } from './useAudio';
 import { trackpadPill } from './trackpadPill';
-import { labFault, readControlsQuery } from './labSwitch';
+import { labFault } from './labSwitch';
 import Boundary from './Boundary';
 import TapControls from './TapControls';
 import FieldGuide from './FieldGuide';
@@ -37,13 +37,17 @@ const ControlsHint = dynamic(() => import('./ControlsHint'), { ssr: false, loadi
 // Flight settings open only after Begin, so they are a chunk warmed then: settings copy never grows the landing first load.
 const loadPanel = () => import('./TestPanel');
 // The Gesture Lab (Draw, Conduct, Brush) replaces the standard controls only while chosen. Its surface is held in state like the
-// touch controls (loaded when a lab scheme is on, and Begin/Resume waits for it). The header's one-tap switcher (LabBar) and the
-// in-game vote (VoteLayer) are chunks mounted after Begin. The landing first load carries no lab or vote module: a failed lab
-// chunk returns the session to the standard controls, and a failed bar or vote chunk only leaves the header or card out.
+// touch controls (loaded when a lab scheme is on, and Begin/Resume waits for it). The controls picker (ControlsEntry: the header
+// trigger and, on the start card, the first-visit demo note) and the in-game vote (VoteLayer) are chunks. The landing first load
+// carries no lab, picker or vote module: a failed lab chunk returns the session to the standard controls, and a failed picker or
+// vote chunk only leaves the header trigger or card out.
 type LabProps = { scheme: 'draw' | 'conduct' | 'brush'; onError?: (error: unknown) => void };
 const loadLab = () => import('./gesture/LabControls');
-const LabBar = dynamic(() => import('./gesture/LabBar'), { ssr: false, loading: () => null });
+const ControlsEntry = dynamic(() => import('./controls/ControlsEntry'), { ssr: false, loading: () => null });
 const VoteLayer = dynamic(() => import('./vote/VoteLayer'), { ssr: false, loading: () => null });
+// A chunk that fails to load (deploy skew, offline) must not unmount the page: the picker and the vote simply stay out.
+const skip = () => {};
+const Optional = ({ children }: { children: ReactNode }) => <Boundary fallback={null} onError={skip}>{children}</Boundary>;
 const LAB_LOAD_FAILED = 'The Gesture Lab could not load. Standard controls are on.', LAB_FAILED = 'The Gesture Lab stopped. Standard controls are on.';
 const TestPanel = dynamic(loadPanel, { ssr: false, loading: () => null });
 export default function Experience() {
@@ -54,13 +58,16 @@ export default function Experience() {
   const lab = state.controlLab;
   const main = useRef<HTMLElement>(null);
   useEffect(() => {
+    let cancelled = false;
     hydrateGame();
     const query = new URLSearchParams(location.search), profile = query.get('trackpad'), blaster = query.get('shooter');
     // ?shooter=1 / 0 overrides the saved setting for this session only.
     if (blaster === '1') { clearShooterFault(); overrideShooter(true); } else if (blaster === '0') overrideShooter(false);
     if (profile === 'simple' || profile === 'flow' || profile === 'free' || profile === 'captured') useGame.setState({ desktopMode: 'trackpad', trackpadSteering: profile });
-    readControlsQuery(query);
-    setHydrated(true);
+    // ?controls= (a session override) comes from a lazy chunk: Begin waits for it, and a failed load still hydrates.
+    const go = () => { if (!cancelled) setHydrated(true); }, c = query.get('controls');
+    if (c) import('./controls/controlsQuery').then(m => m.applyControlsQuery(c)).catch(() => {}).finally(go); else go();
+    return () => { cancelled = true; };
   }, []);
   // A failed chunk still enables Begin: the scene and the keyboard keep working.
   useEffect(() => {
@@ -133,7 +140,7 @@ export default function Experience() {
       <div className={`${styles.vignette} ${!state.started ? styles.introVignette : ''}`} aria-hidden="true" />
       <header className={styles.header} data-bar={bar ? '' : undefined}>
         <div className={styles.brand}><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M5 26V6h5v8h12V6h5v20h-5v-8H10v8Z" fill="currentColor" /></svg><span>HALAVERGA<small>RETURN TO EARTH</small></span></div>
-        {bar && <div className={styles.barSlot}><LabBar /></div>}
+        {bar && <div className={styles.barSlot}><Optional><ControlsEntry part="trigger" /></Optional></div>}
         <div className={styles.headerActions}>
           <button id="field-guide" onClick={() => { pause(); state.set({ journal: true }); }}>Field guide</button>
           {state.started && <button onClick={() => { pause(); state.set({ panel: true }); }} aria-label="Flight settings">⚙</button>}
@@ -147,6 +154,7 @@ export default function Experience() {
         <p className={styles.introCopy}>Eighty years of silence.<br />An entire world still waiting to be understood.</p>
         <button className={styles.primary} disabled={!ready} onClick={enter}>{ready ? 'Begin expedition' : 'Preparing your suit…'}<span aria-hidden="true">↗</span></button>
         <p className={styles.introHint} role="status">{state.zoomNote ? 'Pinch out to normal size, then tap Begin.' : ready ? 'Explore freely. Leave whenever you like.' : 'Building the district and collision map.'}</p>
+        <Optional><ControlsEntry part="note" /></Optional>
       </section>}
       {!state.started && <footer className={styles.introFooter}><span>2033 <small>CATASTROPHE</small><b>—</b> 2113 <small>ARRIVAL</small></span><span>INTERACTIVE FLIGHT STUDY <i>01</i></span></footer>}
       {state.started && <>
@@ -176,7 +184,7 @@ export default function Experience() {
           {state.desktopMode === 'trackpad' && pill && !state.limitHint && <div className={styles.trackpadHint}>{pill}</div>}
         </>}
         {state.paused && !state.panel && !state.journal && !failed && !state.voteOpen && <PauseCard ready={ready} onEnter={enter} />}
-        {!failed && <VoteLayer onResume={enter} />}
+        {!failed && <Optional><VoteLayer onResume={enter} /></Optional>}
       </>}
       <div className="sr-only" aria-live="polite">{state.message}</div>
       {state.journal && <FieldGuide onClose={closeGuide} />}

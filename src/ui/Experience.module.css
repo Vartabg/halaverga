@@ -78,10 +78,10 @@
 /* Gesture Lab: no crosshair (the finger aims); the lab surface replaces the flight surface. Classic one thumb on a touch screen
    (tap a drone to blast) hides it the same way. */
 :global(html[data-controls]) .reticle,:global(html[data-input=touch][data-touch-blast]) .reticle{display:none}
-/* Lab bar (spec 2): once play starts the header is a grid, "brand bar actions", with the one-tap Standard · Draw · Conduct · Brush
-   switcher in the middle. Up to 839 px wide it takes a second row under the brand and buttons, and --lab-row (52 px: the 44 px bar
-   plus the 8 px row gap) moves every band under the header down with it. Landscape phones keep one row and drop the brand text (the
-   logo stays): 812 x 375 is about 539 px of content in 712. html[data-lab-bar] is set by Experience while the bar shows. */
+/* Bar slot (spec 2, controls picker 2026-09-28): once play starts the header is a grid, "brand bar actions", with the Controls
+   trigger (its sheet opens under the header) in the middle. Up to 839 px wide it takes a second row under the brand and buttons, and
+   --lab-row (52 px: the 44 px trigger plus the 8 px row gap) moves every band under the header down with it. Landscape phones keep one row and drop the brand text (the
+   logo stays): 812 x 375 is about 539 px of content in 712. html[data-lab-bar] is set by Experience while the slot shows. */
 .header[data-bar]{display:grid;grid-template-columns:auto 1fr auto;grid-template-areas:"brand bar actions";column-gap:16px;row-gap:0;align-items:center}
 .header[data-bar] .brand{grid-area:brand;min-width:0}
 .header[data-bar] .headerActions{grid-area:actions;justify-self:end}

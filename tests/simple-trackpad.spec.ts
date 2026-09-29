@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { settingsCurrent } from './lab-browser';
 const surface = (p: Page) => p.getByTestId('flight-surface');
 const telemetry = (p: Page) => p.getByTestId('flight-telemetry');
 const speed = async (p: Page) => Number(await telemetry(p).getAttribute('data-speed'));
@@ -53,7 +54,7 @@ test('blaster off: primary click brakes, releases the pointer and requires a fre
   await expect(surface(page)).toHaveAttribute('data-trackpad-active', 'false');
   await expect(page.getByRole('button', { name: 'Resume flight' })).not.toBeVisible();
   await page.getByRole('button', { name: 'Flight settings' }).click();
-  await expect(page.getByLabel('Trackpad steering')).toHaveValue('simple');
+  expect(await settingsCurrent(page)).toBe('one-finger-keys');
   await expect(page.getByLabel('Reverse scroll direction')).toHaveCount(0);
   await page.getByRole('button', { name: 'Close dialog' }).click();
   await page.keyboard.up('KeyW'); await page.mouse.click(720, 450);
@@ -126,7 +127,7 @@ test('simple link overrides a saved Flow preference and saves the new selection'
   await begin(page, '/?trackpad=simple');
   await expect(page.getByRole('dialog', { name: 'Find your flow' })).toHaveCount(0);
   await page.getByRole('button', { name: 'Flight settings' }).click();
-  await expect(page.getByLabel('Trackpad steering')).toHaveValue('simple');
+  expect(await settingsCurrent(page)).toBe('one-finger-keys');
   await expect(page.getByRole('button', { name: 'First person', exact: true })).toHaveAttribute('aria-pressed', 'true');
   await page.getByLabel('Looking sensitivity').fill('1.4');
   await page.goto('/'); await page.getByRole('button', { name: 'Begin expedition' }).click();
@@ -138,7 +139,7 @@ test('controls v5: an old free opens free, a v3 simple returns to free, a v4 sim
     await page.goto('/'); await page.evaluate(v => { localStorage.setItem('halaverga-flight-v1', JSON.stringify(v)); }, save);
     await page.reload(); await page.getByRole('button', { name: 'Begin expedition' }).click();
     await page.getByRole('button', { name: 'Flight settings' }).click();
-    const value = await page.getByLabel('Trackpad steering').inputValue();
+    const value = ({ cursor: 'free', 'one-finger-keys': 'simple', flow: 'flow', captured: 'captured', 'mouse-keys': 'mouse' } as Record<string, string>)[await settingsCurrent(page)];
     await page.getByRole('button', { name: 'Close dialog' }).click();
     return value;
   };

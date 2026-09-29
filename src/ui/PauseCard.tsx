@@ -1,4 +1,3 @@
-import dynamic from 'next/dynamic';
 import { useEffect, useRef, useState } from 'react';
 import { persistGame, useGame } from '@/game/store';
 import { runtime } from '@/game/runtime';
@@ -6,10 +5,9 @@ import { touchMode } from '@/game/pointerMode';
 import { computeLayout } from '@/game/touchLayout';
 import { headerBand, readInsets, viewportBox } from './touchInsets';
 import { isStandalone, keepPlaying, leaveGame } from './playSession';
+import LazyControls from './LazyControls';
 import styles from './Experience.module.css';
 type Props = { ready: boolean; onEnter: () => void };
-// The live control switch (Standard, Draw, Conduct, Brush) is a chunk: the landing first load carries no lab picker.
-const LabSwitch = dynamic(() => import('./gesture/LabSwitch'), { ssr: false, loading: () => null });
 // Would the touch cluster fit this screen? The same pure layout the controls use, from the visual viewport and the safe areas.
 function crampedNow(probe: HTMLElement | null): boolean {
   if (!probe || !touchMode()) return false;
@@ -45,7 +43,7 @@ export default function PauseCard({ ready, onEnter }: Props) {
     {shooter && runtime.shooter.stats.kills > 0 && <p>Drones downed: {runtime.shooter.stats.kills}</p>}
     <p className={styles.note} role="status">{zoomNote ? 'Pinch out to normal size, then tap Resume.' : cramped ? 'Screen too short for touch controls. Zoom out or turn the phone.' : ''}</p>
     <button className={styles.primary} disabled={!ready} onClick={onEnter}>{ready ? 'Resume flight' : 'Restoring your suit…'} <span aria-hidden="true">↗</span></button>
-    <LabSwitch name="control-lab-pause" />
+    <LazyControls name="control-pause" />
     <button className={styles.secondary} onClick={() => useGame.setState({ panel: true })}>Adjust flight settings</button>
     {/* The vote card (VoteLayer) opens over the paused game; this card hides while it shows and returns after Skip. Eligible
         players (two styles tried, 3 minutes) see the ask first, since they may never land to get the auto-open. */}

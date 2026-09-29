@@ -1,12 +1,20 @@
 // In-game vote: the one shape shared by the client card and the /api/vote server (spec 3.1). Pure: no Node, no DOM, no
 // Next imports, so the lazy client chunk can use it too. The server trusts nothing here without parseVote.
-export const VOTE_LABS = ['standard', 'draw', 'conduct', 'brush'] as const;
-export type VoteLab = (typeof VOTE_LABS)[number];
-export type VoteDevice = 'touch' | 'desktop';
-export const VOTE_DEVICES: readonly VoteDevice[] = ['touch', 'desktop'];
+// Version 2 votes for every control type (src/game/controlTypes.ts, the one registry): the device is the control family, and a
+// favorite, tried or rated id must belong to that family.
+import { CONTROL_FAMILIES, controlsFor, isControlFor, type ControlFamily, type ControlId } from '@/game/controlTypes';
+
+export type VoteControl = ControlId;
+export type VoteDevice = ControlFamily;
+export const VOTE_DEVICES: readonly VoteDevice[] = CONTROL_FAMILIES;
 export type VoteRating = 1 | 2 | 3 | 4 | 5;
 // Bump when the controls change meaningfully: a new round starts a fresh tally and lets every device vote again.
-export const VOTE_ROUND = 'r1';
+export const VOTE_ROUND = 'r2';
+/** The payload shape. A later shape change bumps this, and the tag below keeps the new data out of the old keys. */
+export const VOTE_SCHEMA = 2;
+/** Round and schema in one tag: every server key carries it, so a schema bump can never mix into older data. */
+export const voteKeyTag = (round: string = VOTE_ROUND, schema: number = VOTE_SCHEMA) => `${round}:s${schema}`;
+export const VOTE_KEY_TAG = voteKeyTag();
 export const VOTE_MAX_BYTES = 2048;
 export const NOTE_MAX = 280;
 const NOTE_RAW_MAX = 400;
@@ -15,34 +23,35 @@ const BUILD_MAX = 40;
 export const BUILD_RE = /^(\d{4}-\d{2}-\d{2} · ([0-9a-f]{7,12}|uncommitted)|local development build)$/;
 
 export interface VotePayload {
-  favorite: VoteLab;
-  ratings: Partial<Record<VoteLab, VoteRating>>;
-  tried: VoteLab[];
+  v: typeof VOTE_SCHEMA;
+  favorite: VoteControl;
+  ratings: Partial<Record<VoteControl, VoteRating>>;
+  tried: VoteControl[];
   device: VoteDevice;
   build: string;
   note?: string;
   /** One random id per Send (the client's single retry reuses it), so a vote the server counted before the reply was lost is
    *  never counted twice. Checked once, then forgotten; never stored with the vote. */
-  nonce?: string;
+  nonce: string;
 }
 export type VoteParse = { ok: true; vote: VotePayload } | { ok: false; status: 400 | 413 };
 
+/** One control's row: favorite votes, that share of the family's votes (integer %), voters who tried it, and its ratings. */
+export interface ControlResult { favorite: number; share: number; tried: number; rating: { avg: number | null; n: number } }
+/** One family's tally: its votes, and a row for every control of the family (zeros included), in registry order. */
+export interface FamilyResults { votes: number; controls: Record<string, ControlResult> }
 export interface VoteResults {
+  v: typeof VOTE_SCHEMA;
   round: string;
   total: number;
-  favorite: Record<VoteLab, number>;
-  favoriteByDevice: Record<VoteDevice, Record<VoteLab, number>>;
-  rating: Record<VoteLab, { avg: number | null; n: number }>;
-  tried: Record<VoteLab, number>;
-  device: Record<VoteDevice, number>;
-  builds: Record<string, number>;
   notes: number;
   stale: number;
+  builds: Record<string, number>;
+  families: Record<VoteDevice, FamilyResults>;
 }
 
-const KEYS = new Set(['favorite', 'ratings', 'tried', 'device', 'build', 'note', 'nonce']);
+const KEYS = new Set(['v', 'favorite', 'ratings', 'tried', 'device', 'build', 'note', 'nonce']);
 export const NONCE_RE = /^[0-9a-f-]{16,64}$/;
-export const isVoteLab = (v: unknown): v is VoteLab => typeof v === 'string' && (VOTE_LABS as readonly string[]).includes(v);
 const isDevice = (v: unknown): v is VoteDevice => v === 'touch' || v === 'desktop';
 const isPlainObject = (v: unknown): v is Record<string, unknown> =>
   typeof v === 'object' && v !== null && !Array.isArray(v) && Object.getPrototypeOf(v) === Object.prototype;
@@ -81,22 +90,22 @@ function codePoints(s: string): number {
 function validate(v: unknown): VotePayload | null {
   if (!isPlainObject(v)) return null;
   for (const k of Object.keys(v)) if (!KEYS.has(k)) return null;
-  const { favorite, ratings, tried, device, build, note, nonce } = v;
-  if (nonce !== undefined && (typeof nonce !== 'string' || !NONCE_RE.test(nonce))) return null;
-  if (!isVoteLab(favorite) || !isDevice(device)) return null;
-  if (!Array.isArray(tried) || tried.length < 1 || tried.length > VOTE_LABS.length) return null;
-  if (!tried.every(isVoteLab) || new Set(tried).size !== tried.length || !tried.includes(favorite)) return null;
-  const labs = tried as VoteLab[];
+  const { v: version, favorite, ratings, tried, device, build, note, nonce } = v;
+  if (version !== VOTE_SCHEMA) return null; // an unversioned (v1) body or another schema is never counted
+  if (typeof nonce !== 'string' || !NONCE_RE.test(nonce)) return null;
+  if (!isDevice(device) || !isControlFor(favorite, device)) return null;
+  if (!Array.isArray(tried) || tried.length < 1 || tried.length > controlsFor(device).length) return null;
+  if (!tried.every(id => isControlFor(id, device)) || new Set(tried).size !== tried.length || !tried.includes(favorite)) return null;
+  const ids = tried as VoteControl[];
   if (typeof build !== 'string' || build.length > BUILD_MAX) return null;
   if (ratings !== undefined && !isPlainObject(ratings)) return null;
-  const out: Partial<Record<VoteLab, VoteRating>> = {};
+  const out: Partial<Record<VoteControl, VoteRating>> = {};
   for (const [k, r] of Object.entries(ratings ?? {})) {
-    if (!isVoteLab(k) || !labs.includes(k)) return null;
+    if (!isControlFor(k, device) || !ids.includes(k)) return null;
     if (typeof r !== 'number' || !Number.isInteger(r) || r < 1 || r > 5) return null;
     out[k] = r as VoteRating;
   }
-  const vote: VotePayload = { favorite, ratings: out, tried: [...labs], device, build };
-  if (typeof nonce === 'string') vote.nonce = nonce;
+  const vote: VotePayload = { v: VOTE_SCHEMA, favorite, ratings: out, tried: [...ids], device, build, nonce };
   if (note !== undefined) {
     if (typeof note !== 'string' || note.length > NOTE_RAW_MAX * 2 || codePoints(note) > NOTE_RAW_MAX) return null;
     const clean = cleanNote(note);

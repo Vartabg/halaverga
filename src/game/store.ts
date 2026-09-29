@@ -125,31 +125,30 @@ export function hydrateGame() {
     });
   } catch { useGame.setState({ reduced: matchMedia('(prefers-reduced-motion: reduce)').matches }); }
 }
-// A session override of the blaster (?shooter=0/1, a fault) is not saved: persistGame keeps writing the stored choice
-// until the player changes the setting themselves.
-let shooterPin: { session: boolean; saved: boolean } | null = null;
-export function overrideShooter(on: boolean) {
-  if (shooterPin) shooterPin.session = on; else shooterPin = { session: on, saved: useGame.getState().shooter };
-  useGame.setState({ shooter: on });
+// A session override (?shooter=0/1, ?controls=, a fault) is not saved: persistGame keeps writing the stored value while the state
+// still equals the session value, and drops the pin once the player changes that field. One pin per state key; a key that is
+// already pinned keeps its ORIGINAL saved value when it is pinned again.
+const pins: Record<string, { session: unknown; saved: unknown }> = {};
+function pinFields(patch: Partial<GameState>) {
+  const state = useGame.getState() as Record<string, unknown>, next = patch as Record<string, unknown>;
+  for (const key in next) (pins[key] ??= { session: next[key], saved: state[key] }).session = next[key];
+  useGame.setState(patch);
 }
-// ?controls=draw (or a lab chunk that fails to load) switches the scheme for this session only; a choice in the picker is saved.
-let labPin: { session: ControlLab; saved: ControlLab } | null = null;
-export function overrideControls(id: ControlLab) {
-  if (labPin) labPin.session = id; else labPin = { session: id, saved: useGame.getState().controlLab };
-  useGame.setState({ controlLab: id });
-}
-/** The player's own choice (picker): saved, and it ends any session override. */
-export function chooseControlLab(id: ControlLab) {
-  labPin = null;
-  useGame.setState({ controlLab: id }); persistGame();
+export type ControlFields = Pick<GameState, 'controlLab' | 'touchScheme' | 'trackpadSteering' | 'desktopMode'>;
+export const overrideShooter = (on: boolean) => pinFields({ shooter: on });
+/** This session only (?controls=, a lab fault): the saved choices stay. */
+export const overrideControlFields: (patch: Partial<ControlFields>) => void = pinFields;
+/** The player's own choice: saved, and it ends the session override of exactly the fields in the patch. `more` rides in the same single state change. */
+export function saveControlFields(patch: Partial<ControlFields>, more?: Partial<GameState>) {
+  for (const key in patch) delete pins[key];
+  useGame.setState({ ...patch, ...more }); persistGame();
 }
 export function persistGame() {
   try {
-    const state = useGame.getState();
+    const state = useGame.getState() as Record<string, unknown>;
     const saved: Record<string, unknown> = {};
     for (const key of PERSISTED_KEYS) saved[key] = state[key];
-    if (shooterPin && state.shooter === shooterPin.session) saved.shooter = shooterPin.saved; else shooterPin = null;
-    if (labPin && state.controlLab === labPin.session) saved.controlLab = labPin.saved; else labPin = null;
+    for (const key in pins) if (state[key] === pins[key].session) saved[key] = pins[key].saved; else delete pins[key];
     localStorage.setItem(STORAGE, JSON.stringify(saved));
   }
   catch { /* Private browsing may prohibit storage; play remains available. */ }

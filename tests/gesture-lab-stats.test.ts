@@ -1,9 +1,10 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { controlById } from '@/game/controlTypes';
 import { LAB_STATS_KEY, STROKE_LOG_CAP } from '@/game/gesture/tuning';
 import type { Scheme, StrokeClass, StrokeView } from '@/game/gesture/types';
 import {
-  clearStats, count, createProbe, emptyStats, FRAME_BINS, LAB_IDS, loadStats, percentile, rate, recordAbort, recordFrame,
+  clearStats, count, createProbe, emptyStats, FRAME_BINS, LAB_IDS, LAB_NAMES, loadStats, percentile, rate, recordAbort, recordFrame,
   recordStroke, revive, sampleProbe, saveStats, statsTable, type StatStorage,
 } from '@/ui/gesture/labStats';
 import { createStrokeLog, instrumentScheme } from '@/ui/gesture/strokeLog';
@@ -25,6 +26,24 @@ function stroke(n: number, x0 = 0, id = 1): StrokeView {
 }
 const cls = (kind: StrokeClass['kind']): StrokeClass => ({ kind, dir: kind === 'swipe' ? 'right' : null, angle: 0, magnitude: 0.5,
   winding: 0, speed: 1.2, chordX: 10, chordY: 0 });
+
+describe('lab names and old saves', () => {
+  it('names the three labs from the registry; standard keeps its own name', () => {
+    expect(LAB_NAMES).toEqual({ standard: 'Standard', draw: controlById('draw').label, conduct: controlById('conduct').label, brush: controlById('brush').label });
+    expect(LAB_NAMES.draw).toBe('Draw');
+    expect([...LAB_IDS]).toEqual(['standard', 'draw', 'conduct', 'brush']);
+  });
+
+  it('an old save (the four-lab table, before the picker) still revives unchanged', () => {
+    const old = { v: 1, schemes: { standard: { ms: 60000, attempts: 3, counts: { taps: 4 }, beauty: 5, control: 4 }, brush: { ms: 1500, firstSuccessMs: 900 } } };
+    const st = revive(old);
+    expect(st.schemes.standard).toMatchObject({ ms: 60000, attempts: 3, beauty: 5, control: 4 });
+    expect(st.schemes.standard.counts.taps).toBe(4);
+    expect(st.schemes.brush).toMatchObject({ ms: 1500, firstSuccessMs: 900 });
+    expect(Object.keys(st.schemes)).toEqual(['standard', 'draw', 'conduct', 'brush']);
+    expect(JSON.stringify(st)).not.toContain('family'); // lab stats are not timed per family: the vote tracker is the one time source
+  });
+});
 
 describe('labStats storage', () => {
   it('survives a throwing storage with an empty, render-safe state', () => {
@@ -124,6 +143,37 @@ describe('strokeLog', () => {
     expect(out.strokes).toHaveLength(50);
     expect(out.strokes[0]).toMatchObject({ scheme: 'draw', pointer: 'touch', kind: 'swipe', dir: 'right' });
     expect(out.strokes[0].points[1]).toEqual([15, 101, 16]);
+  });
+
+  it('stamps each stroke and the export with the control family (default: the family in use when pushed)', () => {
+    const log = createStrokeLog();
+    log.push('draw', stroke(4), cls('swipe'), 'touch');
+    log.push('brush', stroke(4), cls('circle'), 'desktop');
+    log.push('draw', stroke(4), null);
+    expect(log.at(0)!.family).toBe('touch');
+    expect(log.at(1)!.family).toBe('desktop');
+    expect(['touch', 'desktop']).toContain(log.at(2)!.family); // node has no touch: the default is desktop
+    const out = JSON.parse(log.exportJson());
+    expect(out.strokes.map((s: { family: string }) => s.family).slice(0, 2)).toEqual(['touch', 'desktop']);
+    expect(out.strokes.every((s: { family: string }) => s.family === 'touch' || s.family === 'desktop')).toBe(true);
+  });
+
+  it('a reused slot takes the new stroke\'s family, not the old one', () => {
+    const log = createStrokeLog(1);
+    log.push('draw', stroke(4), null, 'touch');
+    log.push('draw', stroke(4), null, 'desktop');
+    expect(log.at(0)!.family).toBe('desktop');
+  });
+
+  it('instrumentScheme stamps the family from its hook, or the family in use when none is given', () => {
+    const inner: Scheme = { id: 'brush', down() {}, move() {}, up() {}, cancel() {}, step() {}, reset() {}, fallback() {} };
+    const log = createStrokeLog();
+    const stamped = instrumentScheme(inner, 'brush', { log, now: () => 0, stroke() {}, family: () => 'touch' });
+    stamped.up(stroke(5), cls('swipe'));
+    expect(log.at(0)!.family).toBe('touch');
+    const plain = instrumentScheme(inner, 'brush', { log, now: () => 0, stroke() {} });
+    plain.up(stroke(5), cls('swipe'));
+    expect(['touch', 'desktop']).toContain(log.at(1)!.family);
   });
 
   it('reuses slot arrays once the ring is full', () => {

@@ -1,41 +1,47 @@
 'use client';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { controlKey, idFor, type ControlFamily, type ControlId } from '@/game/controlTypes';
 import { useGame } from '@/game/store';
-import { touchMode } from '@/game/pointerMode';
-import { isVoteLab, type VoteLab } from '@/lib/vote/shape';
+import { currentFamily, watchFamily } from '../controls/family';
 import { pause } from '../useInput';
-import { canVote, eligible, guardOn, GUARD_MAX_MS, GUARD_MS, markSkipped, readMark, readPlay, savePlay, tick, tried, type VotePlay } from './voteTracker';
+import { watchPlayInput } from './playInput';
+import { autoNeed, canVote, eligible, guardOn, GUARD_MAX_MS, GUARD_MS, livePlay, markSkipped, NUDGE_TRIED, readMark, savePlay, tick, triedIds } from './voteTracker';
 import VoteCard, { type CloseKind } from './VoteCard';
 import styles from './VoteCard.module.css';
 
 // voteOpen is a runtime-only store field; the pause card's "Vote on the controls" opens the card with useGame.setState({ voteOpen: true }).
 const setOpen = (voteOpen: boolean) => useGame.setState({ voteOpen });
-const asLab = (v: string): VoteLab => isVoteLab(v) ? v : 'standard';
 type Origin = 'auto' | 'pause';
-type Session = { origin: Origin; current: VoteLab; tried: VoteLab[]; already: boolean };
+type Session = { origin: Origin; family: ControlFamily; current: ControlId; tried: ControlId[]; already: boolean };
 
-/** The vote's background work and its card: a 1 s play-time tracker, the one auto-open per page load (on a landing, when
- *  eligible), the post-auto-open pointer guard, and the card itself while voteOpen. onResume resumes play (auto-open Skip/Done). */
+/** The vote's background work and its card: a 1 s play-time tracker (seconds with input only, per control and family), the one
+ *  auto-open per page load (on a landing, once every control of the family is tried), the post-auto-open pointer guard, and the
+ *  card itself while voteOpen. onResume resumes play (auto-open Skip/Done). */
 export default function VoteLayer({ onResume }: { onResume: () => void }) {
   const open = useGame(s => s.voteOpen);
-  const play = useRef<VotePlay | null>(null), autoDone = useRef(false), pendingAuto = useRef(false);
+  const autoDone = useRef(false), pendingAuto = useRef(false), resumeAfter = useRef(false);
   const pointers = useRef(new Set<number>()), openedAt = useRef(0);
   const [session, setSession] = useState<Session | null>(null), [guard, setGuard] = useState(false);
-  const playNow = () => (play.current ??= readPlay());
+  const playNow = livePlay;
 
-  // Played seconds per style: started, not paused, page visible. Saved every 10 s, on pagehide and on unmount.
+  // Played seconds per control and family: started, not paused, page visible, and only a second in which the player gave input
+  // (a key or pointer held, or game input within 2 s; dialogs, the header and the digit keys do not count). Saved every 10 s,
+  // on pagehide and on unmount. watchFamily() follows whichever pointer touched last, so a touch laptop counts the right family.
   useEffect(() => {
     let n = 0;
-    const save = () => { if (play.current) savePlay(play.current); };
+    watchFamily();
+    const input = watchPlayInput();
+    const save = () => savePlay(playNow());
     const id = window.setInterval(() => {
       const g = useGame.getState();
-      if (!g.started || g.paused || document.visibilityState !== 'visible') return;
-      tick(playNow(), asLab(g.controlLab), 1);
+      if (!g.started || g.paused || document.visibilityState !== 'visible' || !input.active(performance.now())) return;
+      const family = currentFamily();
+      tick(playNow(), controlKey(family, idFor(g, family)), 1);
       if (++n % 10 === 0) save();
     }, 1000);
     const hidden = () => { if (document.visibilityState === 'hidden') save(); };
     window.addEventListener('pagehide', save); document.addEventListener('visibilitychange', hidden);
-    return () => { clearInterval(id); window.removeEventListener('pagehide', save); document.removeEventListener('visibilitychange', hidden); save(); };
+    return () => { clearInterval(id); input.stop(); window.removeEventListener('pagehide', save); document.removeEventListener('visibilitychange', hidden); save(); };
   }, []);
 
   // Every pointer that is down, counted from the window's capture phase (the controls capture their pointers, which still pass
@@ -65,7 +71,8 @@ export default function VoteLayer({ onResume }: { onResume: () => void }) {
   // a player who never lands (over water, or always in the air) still gets asked. Re-checked on each pause, off after a vote.
   useEffect(() => useGame.subscribe((s, prev) => {
     if (s.paused && !prev.paused) {
-      const nudge = !s.voteOpen && eligible(playNow(), readMark(), Date.now());
+      const family = currentFamily();
+      const nudge = !s.voteOpen && eligible(playNow(), readMark(), Date.now(), family, NUDGE_TRIED(family));
       if (nudge !== s.voteNudge) useGame.setState({ voteNudge: nudge });
     }
   }), []);
@@ -74,21 +81,25 @@ export default function VoteLayer({ onResume }: { onResume: () => void }) {
   // A pause the player opened never opens it (that path is the pause card's "Vote on the controls").
   useEffect(() => useGame.subscribe((s, prev) => {
     if (autoDone.current || s.voteOpen || !prev.flying || s.flying || !s.started || s.paused || s.panel || s.journal) return;
-    const now = Date.now();
-    if (!eligible(playNow(), readMark(), now)) return;
+    const family = currentFamily();
+    if (!eligible(playNow(), readMark(), Date.now(), family, autoNeed(family))) return;
     autoDone.current = true; pendingAuto.current = true;
     savePlay(playNow());
     pause();
     setOpen(true);
   }), []);
 
-  // Each open takes its answers' context once: origin, current style, tried styles, and whether this device already voted.
+  // Each open takes its answers' context once: origin, family, current control, tried controls, and whether this device already voted.
   useEffect(() => {
     if (!open) { setSession(null); setGuard(false); pendingAuto.current = false; return; }
     const origin: Origin = pendingAuto.current ? 'auto' : 'pause';
     pendingAuto.current = false;
-    const current = asLab(useGame.getState().controlLab);
-    setSession({ origin, current, tried: tried(playNow(), current), already: !canVote(readMark(), Date.now()) });
+    // Opened from the Controls sheet while flying: stop the game behind the card (keys and fingers must not fly it), and give it
+    // back on Done or Skip. Opened from a pause the player already has, nothing changes.
+    const g = useGame.getState();
+    if (origin === 'pause' && g.started && !g.paused) { pause(); resumeAfter.current = true; }
+    const family = currentFamily(), current = idFor(useGame.getState(), family);
+    setSession({ origin, family, current, tried: triedIds(playNow(), family), already: !canVote(readMark(), Date.now(), family) });
     if (origin === 'auto') { openedAt.current = performance.now(); setGuard(true); }
   }, [open]);
 
@@ -105,13 +116,15 @@ export default function VoteLayer({ onResume }: { onResume: () => void }) {
 
   const close = (kind: CloseKind) => {
     const origin = session?.origin;
-    if (kind === 'skip') markSkipped();
+    if (kind === 'skip' && session) markSkipped(session.family);
     useGame.setState({ voteOpen: false, voteNudge: false });
-    if (origin === 'auto') onResume();
+    const back = origin === 'auto' || resumeAfter.current;
+    resumeAfter.current = false;
+    if (back) onResume();
   };
   if (!open || !session) return null;
-  return <div ref={scrim} className={styles.scrim} data-testid="vote-layer">
-    <VoteCard current={session.current} tried={session.tried} device={touchMode() ? 'touch' : 'desktop'} already={session.already}
+  return <div ref={scrim} className={styles.scrim} data-testid="vote-layer" data-scroll-ok="">
+    <VoteCard current={session.current} tried={session.tried} device={session.family} already={session.already}
       guard={guard} onClose={close} />
   </div>;
 }

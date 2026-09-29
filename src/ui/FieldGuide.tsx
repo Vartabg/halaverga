@@ -2,6 +2,7 @@ import record from '@/content/arrival.json';
 import { persistGame, useGame } from '@/game/store';
 import { runtime } from '@/game/runtime';
 import Modal from './Modal';
+import LazyControls from './LazyControls';
 import styles from './Experience.module.css';
 import { BUILD_STAMP, DEPLOYMENT_URL } from './buildInfo';
 export default function FieldGuide({ onClose }: { onClose: () => void }) {
@@ -15,6 +16,7 @@ export default function FieldGuide({ onClose }: { onClose: () => void }) {
     <p>The suit explores the exteriors of this district. Amber clearance markers mean slow down and steer around; a survey frame and faint grids mark the district edge. The suit eases to a stop before the edge, and the edge hold turns: hold your thumb near the screen side (or move the cursor to a side, or use the arrow keys) to turn. Hands-off, it also turns itself toward open air. The ceiling is 105 metres. Ruined interiors are outside this expedition.</p>
     <h3>Move naturally</h3>
     <p>Recommended on a trackpad (the default): click the open scene to lift and cruise, move the pointer to steer, hold near an edge to keep turning, and scroll with two fingers for speed. Click again to brake and hover. While hovering, click and drag to look around; aim at a nearby flat surface and click Land. With the blaster on, a click while stopped or on the ground fires at the centre reticle instead (dragging only looks), and Space starts flying — W too, once you are in the air. Space stops again. Blaster sound starts off; turn it on in Flight settings.</p>
+    <LazyControls name="control-guide" />
     <p>Prefer keys? Choose “One finger + keyboard” in Flight settings or <a href="/?trackpad=simple">try it here</a>. It captures the pointer, slides to look and flies with WASD.</p>
     <p>Touch screens, one thumb (the default): hold anywhere in the open scene to lift and cruise. Slide to steer: left and right turn, up and down climb and dive, and dragging farther goes faster. Hold near an edge to keep turning. Let go to hover. A second thumb turns the pair into left to move and right to look. Tap a drone to blast it; a tap on empty ground does nothing. Turn the phone sideways for the most room.</p>
     <p>Two thumbs is the option under Touch controls in Flight settings: the left thumb puts down a joystick where it lands (push to move, farther for speed, straight up to boost, double-tap to cruise), the right thumb drags to look, and Rise, Descend, Fire and Aim buttons sit within reach. Flight stays level there unless you turn on “Fly where I look”. Look speed, left-handed layout, control size and opacity are under the same heading. During play the page does not scroll or zoom, and switching away pauses the game. A back swipe asks before leaving, and your progress is saved. Pause first to pinch zoom, or zoom and select text here in the Field guide.</p>

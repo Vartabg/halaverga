@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { settingsCurrent, settingsPick } from './lab-browser';
 const scene = (page: Page) => page.getByTestId('flight-surface');
 const telemetry = (page: Page) => page.getByTestId('flight-telemetry');
 const speed = async (page: Page) => Number(await telemetry(page).getAttribute('data-speed'));
@@ -82,7 +83,7 @@ test('HUD hover keeps the cruise; a click, resize, pause and zoom clear it witho
 test('optional mouse capture persists and failure offers trackpad recovery', async ({ page }) => {
   const errors: string[] = []; page.on('pageerror', e => errors.push(e.message));
   await begin(page); await page.getByRole('button', { name: 'Flight settings' }).click();
-  await page.getByLabel('Desktop controls').selectOption('mouse');
+  await settingsPick(page, 'Mouse + keys');
   await page.getByRole('button', { name: 'Close dialog' }).click();
   await page.mouse.click(720, 500);
   await expect.poll(() => page.evaluate(() => document.pointerLockElement?.tagName)).toBe('CANVAS');
@@ -90,13 +91,13 @@ test('optional mouse capture persists and failure offers trackpad recovery', asy
   await expect(page.getByRole('button', { name: 'Resume flight' })).toBeVisible();
   await page.reload(); await page.getByRole('button', { name: 'Begin expedition' }).click();
   await page.getByRole('button', { name: 'Flight settings' }).click();
-  await expect(page.getByLabel('Desktop controls')).toHaveValue('mouse');
+  expect(await settingsCurrent(page)).toBe('mouse-keys');
   await page.getByRole('button', { name: 'Close dialog' }).click();
   await page.evaluate(() => { document.querySelector('canvas')!.requestPointerLock = () => Promise.reject(new Error('Capture unavailable')); });
   await page.mouse.click(720, 500);
   await expect(page.getByText('Mouse capture is unavailable.', { exact: false }).first()).toBeVisible();
   await page.getByRole('button', { name: 'Flight settings' }).click();
-  await page.getByLabel('Desktop controls').selectOption('trackpad');
+  await settingsPick(page, 'Cursor');
   await page.getByRole('button', { name: 'Close dialog' }).click();
   await page.mouse.click(720, 500); await expect.poll(() => speed(page)).toBeGreaterThan(7);
   expect(errors).toEqual([]);

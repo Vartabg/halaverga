@@ -6,7 +6,11 @@ test.use({ viewport: { width: 1440, height: 1000 }, hasTouch: false, isMobile: f
 const scene = (p: Page) => p.getByTestId('flight-surface');
 const active = (p: Page) => scene(p).getAttribute('data-trackpad-active');
 /** data-shots is stamped every 100 ms and telemetry every 350 ms: let both settle before an exact comparison. */
-const settle = (p: Page) => p.waitForTimeout(450);
+// A loaded machine can delay a stamp past one 450 ms wait (seen once in a 27-minute full run), so wait again while the count still moves.
+const settle = async (p: Page) => {
+  let last = await shots(p);
+  for (let i = 0; i < 6; i++) { await p.waitForTimeout(450); const now = await shots(p); if (now === last) return; last = now; }
+};
 const turned = async (p: Page, from: number) => Math.abs((await heading(p)) - from);
 /** The pointer never hides over the scene (as at 7945430). */
 const cursor = (p: Page) => scene(p).evaluate(e => getComputedStyle(e).cursor);

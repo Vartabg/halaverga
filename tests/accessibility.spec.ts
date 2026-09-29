@@ -55,10 +55,10 @@ for (const viewport of [{ width: 852, height: 393 }, { width: 393, height: 852 }
     expect(t.errors).toEqual([]); await t.context.close();
   });
 }
-// Gesture Lab (spec 7-9, bar 2026-09-25): the header bar, the pickers, the rating, the fallback buttons and the announcements. Reduced motion, so the
-// picker glyphs hold still. System Chrome; automated checks are a floor, not a screen-reader session.
+// Controls (picker 2026-09-28): the header trigger and sheet, the shared list, the fallback buttons and the announcements. Reduced motion, so the
+// list glyphs hold still. System Chrome; automated checks are a floor, not a screen-reader session.
 const wcag = async (page: Page) => expect((await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze()).violations).toEqual([]);
-test('Gesture Lab on a desktop: the bar by keyboard, picker radios, rating, fallback buttons and announcements', async ({ page }) => {
+test('Controls on a desktop: the trigger and sheet by keyboard, list radios, fallback buttons and announcements', async ({ page }) => {
   const errors: string[] = []; page.on('pageerror', e => errors.push(e.message));
   await page.emulateMedia({ reducedMotion: 'reduce' }); await page.goto('/?controls=draw');
   await page.getByRole('button', { name: 'Begin expedition' }).click();
@@ -69,34 +69,42 @@ test('Gesture Lab on a desktop: the bar by keyboard, picker radios, rating, fall
   await expect(page.locator('main > div.sr-only[aria-live="polite"]').last()).not.toHaveText(/ink a curve/i);
   expect(await page.getByTestId('lab-surface').getAttribute('aria-hidden')).toBe('true');
   await wcag(page);
-  // The bar: one radio group named "Controls", segments named by their visible text (2.5.3) and at least 44 x 44. APG radios:
-  // only the checked one is in the tab order, arrows move and select (wrapping), Home and End jump, and nothing pauses.
-  const bar = page.getByTestId('lab-bar');
-  await expect(bar).toHaveRole('radiogroup'); await expect(bar).toHaveAccessibleName('Controls');
-  const seg = (name: string) => bar.getByRole('radio', { name, exact: true });
-  for (const r of await bar.getByRole('radio').all()) { const b = (await r.boundingBox())!; expect(b.height).toBeGreaterThanOrEqual(44); expect(b.width).toBeGreaterThanOrEqual(44); }
-  await expect(seg('Draw')).toHaveAttribute('aria-checked', 'true');
-  await expect(seg('Draw')).toHaveAttribute('tabindex', '0'); await expect(seg('Conduct')).toHaveAttribute('tabindex', '-1');
-  await seg('Draw').focus(); await page.keyboard.press('ArrowRight');
-  await expect(seg('Conduct')).toHaveAttribute('aria-checked', 'true'); await expect(seg('Conduct')).toBeFocused();
-  await page.keyboard.press('End'); await expect(seg('Brush')).toHaveAttribute('aria-checked', 'true');
-  await page.keyboard.press('ArrowRight'); await expect(seg('Standard')).toHaveAttribute('aria-checked', 'true'); await expect(seg('Standard')).toBeFocused();
-  await page.keyboard.press('Home'); await page.keyboard.press('ArrowRight'); await expect(seg('Draw')).toHaveAttribute('aria-checked', 'true');
+  // The trigger: a button named by its visible text (2.5.3), at least 44 x 44, announcing the dialog it opens.
+  const trigger = page.getByTestId('controls-trigger');
+  await expect(trigger).toHaveAccessibleName('Controls: Draw');
+  await expect(trigger).toHaveAttribute('aria-haspopup', 'dialog'); await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+  { const b = (await trigger.boundingBox())!; expect(b.height).toBeGreaterThanOrEqual(44); expect(b.width).toBeGreaterThanOrEqual(44); }
+  // The sheet is a non-modal dialog named Controls; the list is one native radio group and every row is at least 44 px high. Arrow
+  // keys move and select (wrapping), and nothing pauses.
+  await trigger.focus(); await page.keyboard.press('Enter');
+  const sheet = page.getByTestId('controls-sheet');
+  await expect(sheet).toHaveRole('dialog'); await expect(sheet).toHaveAccessibleName('Controls'); await expect(sheet).toHaveAttribute('aria-modal', 'false');
+  await expect(trigger).toHaveAttribute('aria-expanded', 'true');
+  const list = sheet.getByTestId('controls-list');
+  await expect(list).toHaveRole('group'); await expect(list).toHaveAccessibleName('Controls');
+  for (const r of await list.getByRole('radio').all()) { const b = (await r.locator('xpath=ancestor::label').boundingBox())!; expect(b.height).toBeGreaterThanOrEqual(44); }
+  const radio = (name: RegExp) => list.getByRole('radio', { name });
+  await expect(radio(/^Draw/)).toBeChecked(); await expect(radio(/^Draw/)).toBeFocused();
+  await page.keyboard.press('ArrowDown');
+  await expect(radio(/^Conduct/)).toBeChecked(); await expect(radio(/^Conduct/)).toBeFocused();
+  await page.keyboard.press('ArrowDown'); await expect(radio(/^Brush/)).toBeChecked();
+  await page.keyboard.press('ArrowDown'); await expect(radio(/^Cursor/)).toBeChecked(); await expect(radio(/^Cursor/)).toBeFocused();
   await expect(page.getByRole('button', { name: 'Pause expedition' })).toBeVisible();
   await wcag(page);
-  // Flight settings keeps the full picker (the bar never opens it).
+  // Escape closes the sheet, never pauses, and the view of play returns.
+  await page.keyboard.press('Escape');
+  await expect(sheet).toHaveCount(0); await expect(page.getByRole('button', { name: 'Pause expedition' })).toBeVisible();
+  await expect(trigger).toHaveAccessibleName('Controls: Cursor');
+  // Flight settings carries the same list (the sheet never opens it).
   await page.getByRole('button', { name: 'Flight settings' }).focus(); await page.keyboard.press('Enter');
   const dialog = page.locator('dialog[open]');
   await expect(dialog).toHaveCount(1);
   await expect(page.getByRole('button', { name: 'Pause expedition' })).toHaveCount(0);
-  // The picker is a native radio group with a legend; arrow keys select.
-  const picker = dialog.getByTestId('lab-picker');
-  await expect(picker).toHaveRole('group'); await expect(picker).toHaveAccessibleName('Control lab');
-  await picker.getByRole('radio', { name: /^Draw/ }).focus(); await page.keyboard.press('ArrowDown');
-  await expect(picker.getByRole('radio', { name: /^Conduct/ })).toBeChecked();
-  await expect(dialog.getByRole('region', { name: 'Rate Draw' })).toBeVisible();
+  const settings = dialog.getByTestId('controls-list');
+  await expect(settings).toHaveRole('group'); await expect(settings).toHaveAccessibleName('Controls');
+  await settings.getByRole('radio', { name: /^Conduct/ }).check();
+  await expect(settings.getByRole('radio', { name: /^Conduct/ })).toBeChecked();
   await wcag(page);
-  await dialog.getByRole('region', { name: 'Rate Draw' }).getByRole('button', { name: 'Skip' }).click();
   // Conduct's fallback buttons under More controls: every one at least 44 x 44, and a press is confirmed in a status line.
   const group = dialog.getByRole('group', { name: 'Lab actions' });
   await expect(group).toBeVisible();
@@ -110,10 +118,10 @@ test('Gesture Lab on a desktop: the bar by keyboard, picker radios, rating, fall
   await expect(dialog.getByRole('region', { name: 'Control lab measurements table' })).toHaveAttribute('tabindex', '0');
   await wcag(page);
   await page.getByRole('button', { name: 'Close dialog' }).click();
-  await expect(seg('Conduct')).toHaveAttribute('aria-checked', 'true');
+  await expect(trigger).toHaveAccessibleName('Controls: Conduct');
   expect(errors).toEqual([]);
 });
-test('Gesture Lab on a phone: play, and the pause card with its picker and rating, satisfy AA checks', async ({ browser }) => {
+test('Controls on a phone: play, the pause card list and the sheet satisfy AA checks', async ({ browser }) => {
   const context = await browser.newContext({ viewport: { width: 852, height: 393 }, isMobile: true, hasTouch: true });
   const page = await context.newPage(), errors: string[] = []; page.on('pageerror', e => errors.push(e.message));
   await page.emulateMedia({ reducedMotion: 'reduce' }); await page.goto('/?controls=brush');
@@ -123,22 +131,25 @@ test('Gesture Lab on a phone: play, and the pause card with its picker and ratin
   await aa(page);
   await page.getByRole('button', { name: 'Pause expedition' }).tap();
   const card = page.getByRole('region', { name: 'Expedition paused' });
-  await expect(card.getByTestId('lab-picker')).toBeVisible();
-  await card.getByRole('radio', { name: /^Draw/ }).tap();
-  await expect(card.getByRole('region', { name: 'Rate Brush' })).toBeVisible();
+  // On a short screen the list is folded under its summary; opening it lists the five touch controls.
+  const section = card.getByTestId('controls-section');
+  await expect(section.locator('summary')).toHaveText('Controls: Brush');
+  await section.locator('summary').tap();
+  const list = section.getByTestId('controls-list');
+  await expect(list.getByRole('radio')).toHaveCount(5);
+  await list.getByRole('radio', { name: /^Draw/ }).tap();
+  await expect(list.getByRole('radio', { name: /^Draw/ })).toBeChecked();
   await aa(page);
-  // A rating needs at least one answer before Save; both questions may be skipped.
-  const rating = card.getByRole('region', { name: 'Rate Brush' });
-  await expect(rating.getByRole('button', { name: 'Save rating' })).toBeDisabled();
-  await rating.getByRole('group', { name: 'How in control?' }).getByRole('radio', { name: '4' }).tap();
-  await rating.getByRole('button', { name: 'Save rating' }).tap();
-  await expect(rating).toHaveCount(0);
   await card.getByRole('button', { name: 'Resume flight' }).tap();
-  const bar = page.getByTestId('lab-bar');
-  await expect(bar.getByRole('radio', { name: 'Draw', exact: true })).toHaveAttribute('aria-checked', 'true');
-  // A tap on the bar switches at once and keeps playing.
-  await bar.getByRole('radio', { name: 'Conduct', exact: true }).tap();
-  await expect(bar.getByRole('radio', { name: 'Conduct', exact: true })).toHaveAttribute('aria-checked', 'true');
+  const trigger = page.getByTestId('controls-trigger');
+  await expect(trigger).toHaveText('Controls: Draw');
+  // A tap on the trigger opens the sheet; a tap on a row switches at once, closes the sheet and keeps playing.
+  await trigger.tap();
+  const sheet = page.getByTestId('controls-sheet');
+  await expect(sheet).toBeVisible(); await aa(page);
+  await sheet.getByRole('radio', { name: /^Conduct/ }).tap();
+  await expect(sheet).toHaveCount(0);
+  await expect(trigger).toHaveText('Controls: Conduct');
   await expect(page.getByRole('button', { name: 'Pause expedition' })).toBeVisible();
   await aa(page);
   expect(errors).toEqual([]); await context.close();
