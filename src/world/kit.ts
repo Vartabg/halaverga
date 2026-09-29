@@ -7,7 +7,7 @@ export const surfaces = ['stone', 'glass', 'metal', 'ground', 'paint'] as const;
 function surface(color: string) {
   if (color === colors.glass || color === '#2d3742') return 1;
   if ([colors.steel, colors.edge, '#44434d', '#272e37'].includes(color)) return 2;
-  if ([colors.road, '#6c7a6b', '#6b7b66', '#657362'].includes(color)) return 3;
+  if ([colors.road, colors.moss, '#6c7a6b', '#6b7b66', '#657362', '#7a8069', '#82847c', '#7d7864', '#5c6454'].includes(color)) return 3;
   if ([colors.white, '#ddaa76', '#b8e8b0'].includes(color)) return 4;
   return 0;
 }
