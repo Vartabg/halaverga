@@ -7,10 +7,21 @@ import { runtime } from '@/game/runtime';
 const vertex = `varying vec3 vWorld; void main(){ vec4 world=modelMatrix*vec4(position,1.);vWorld=world.xyz; gl_Position=projectionMatrix*viewMatrix*world;}`;
 
 export function Sky() {
-  const uniforms = useMemo(() => ({ sun: { value: new Vector3(-65, 100, 80).normalize() } }), []);
-  return <mesh><sphereGeometry args={[700, 32, 16]} /><shaderMaterial side={BackSide} depthWrite={false}
+  const material = useRef<ShaderMaterial>(null);
+  const uniforms = useMemo(() => ({
+    sun: { value: new Vector3(-65, 100, 80).normalize() },
+    time: { value: 0 },
+  }), []);
+
+  useFrame((_, dt) => {
+    if (material.current && !useGame.getState().paused) {
+      material.current.uniforms.time.value += Math.min(dt, .04);
+    }
+  });
+
+  return <mesh><sphereGeometry args={[700, 32, 16]} /><shaderMaterial ref={material} side={BackSide} depthWrite={false}
     uniforms={uniforms} vertexShader={vertex.replace('gl_Position=projectionMatrix*viewMatrix*world;', 'gl_Position=projectionMatrix*viewMatrix*world; gl_Position.z=gl_Position.w;')} fragmentShader={`
-    varying vec3 vWorld; uniform vec3 sun;
+    varying vec3 vWorld; uniform vec3 sun; uniform float time;
     float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
     float noise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);
       return mix(mix(hash(i),hash(i+vec2(1,0)),f.x),mix(hash(i+vec2(0,1)),hash(i+1.),f.x),f.y);}
@@ -18,14 +29,23 @@ export function Sky() {
     // Sky gradient: warm horizon haze shifting to azure zenith with a subtle violet blush in shadows
     vec3 horizon=vec3(.68,.76,.75), zenith=vec3(.14,.38,.58);
     vec3 color=mix(horizon,zenith,pow(h,.52));
+    // Coastal marine haze layer at sea horizon
+    float marineHaze=exp(-h*16.);
+    color=mix(color,vec3(.74,.78,.76),marineHaze*.42);
     float s=dot(dir,sun);
     // Directional Mie forward-scattering: golden atmospheric glow around the sun
     float mie=pow(max(s,0.),6.)*.32+pow(max(s,0.),24.)*.55+pow(max(s,0.),90.)*.85;
-    color+=vec3(.48,.36,.18)*mie;
+    color+=vec3(.52,.38,.18)*mie;
+    // Radial crepuscular sun halo
+    float sunHalo=pow(max(s,0.),2.8)*.24;
+    color+=vec3(.48,.36,.22)*sunHalo;
     color=mix(color,vec3(4.2,3.6,2.4),smoothstep(.9996,.9998,s));
-    vec2 p=dir.xz/max(.15,dir.y)*2.;
+    // Drifting cirrus clouds with golden silver lining
+    vec2 p=(dir.xz/max(.15,dir.y)*2.)+vec2(time*.007,time*.003);
     float cloud=noise(p)*.55+noise(p*2.1)*.28+noise(p*4.2)*.13;
-    vec3 cloudColor=mix(vec3(.88,.87,.80),vec3(1.02,.94,.78),pow(max(s,0.),5.)*.6);
+    vec3 cloudColor=mix(vec3(.88,.87,.80),vec3(1.08,.98,.78),pow(max(s,0.),5.)*.65);
+    float silverLining=pow(max(s,0.),8.)*smoothstep(.62,.72,cloud)*.4;
+    cloudColor+=vec3(.6,.45,.2)*silverLining;
     color=mix(color,cloudColor,smoothstep(.54,.72,cloud)*smoothstep(.06,.2,h)*.68);
     gl_FragColor=vec4(color,1.);
     #include <tonemapping_fragment>
@@ -70,7 +90,7 @@ export function Water() {
       float d=distance(cameraPosition,vWorld);
       color+=vec3(.005,.012,.008)*sin(a)*sin(b);
       float wd=length(p-wake);color+=vec3(.16,.36,.28)*wakeStrength*exp(-wd*.28)*pow(max(0.,sin(wd*5.-time*7.)),6.);
-      color=mix(color,vec3(.4,.53,.49),smoothstep(110.,360.,d));
+      color=mix(color,vec3(.62,.70,.68),smoothstep(110.,360.,d));
       gl_FragColor=vec4(color,1.);
       #include <tonemapping_fragment>
       #include <colorspace_fragment>
