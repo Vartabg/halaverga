@@ -13,15 +13,22 @@ export function makeUnderstory() {
     for (let i = 0; i < 18; i++) {
       const z = 54 - i * 8.2;
       plants.push({ position: [side * (17 + i % 2), 3.8, z], scale: [3.2, 3.8, 3], yaw: i * 2.4 });
+      // Shoreline moisture reeds along the canal retaining wall
+      if (i % 2 === 0) plants.push({ position: [side * 15.3, 1.25, z + 2], scale: [1.8, 2.2, 1.8], yaw: i * 1.7 });
     }
     // Growth occupies the retained deck and leaves the fractured opening clear.
     for (let i = 0; i < 5; i++) plants.push({ position: [side * (15 + i * 5), 15.7, -3.5],
       scale: [3.8, 4, 3.3], yaw: i * 1.8 });
   }
+  // Arrival terrace edge pioneer scrub
+  plants.push({ position: [8, 20.2, 57], scale: [2.2, 2.4, 2.2], yaw: .8 });
+  plants.push({ position: [-8, 20.2, 57], scale: [2.2, 2.4, 2.2], yaw: 2.1 });
   const vines = [
     [-39, 26.9, 37.4, 11], [-32, 26.9, 37.4, 8], [-41, 19.5, 37.4, 7],
     [29, 24.2, 30.9, 9], [34, 20.5, 30.9, 6], [-44, 42.7, -17.1, 10],
     [28, 57.7, -26.6, 11], [31, 46.55, -26.6, 7],
+    // Additional cascading facade growth framing the canal corridor
+    [-35, 23.5, -78, 9], [38, 23.5, -92, 8], [-71, 25.5, -36, 10], [74, 29.5, -29, 9],
   ];
   for (const [x, top, z, count] of vines) for (let i = 0; i < count; i++) {
     const taper = 1 - i / (count * 1.5);

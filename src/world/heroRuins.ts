@@ -31,9 +31,18 @@ export function heroRuins(k: Kit) {
   for (const side of [-1, 1]) for (let i = 0; i < 9; i++) {
     const z = 45 - i * 18;
     k.box(side * 14.56, .65, z, .1, 1.1, 14, '#414f43');
+    // Smart transit induction guideway embedded in retaining wall
+    k.box(side * 14.72, 1.15, z, .12, .18, 14, colors.edge);
+    k.box(side * 14.8, 1.22, z, .04, .06, 10, colors.amber);
     const pipe = new CylinderGeometry(.58, .58, 1.1, 12);
     pipe.applyMatrix4(new Matrix4().compose(new Vector3(side * 14.4, 1.8, z),
       new Quaternion().setFromAxisAngle(new Vector3(0, 0, 1), Math.PI / 2), new Vector3(1, 1, 1)));
     k.add(pipe, colors.edge);
+  }
+  // High-tension catenary utility cables spanning across the flooded avenue
+  for (const [z, y] of [[10, 25], [-62, 33]] as const) {
+    k.box(-14, y + .4, z, 14, .05, .05, colors.edge, false, 0, -.06);
+    k.box(0, y - .15, z, 15, .05, .05, colors.edge);
+    k.box(14, y + .4, z, 14, .05, .05, colors.edge, false, 0, .06);
   }
 }

@@ -22,14 +22,26 @@ export default function IvyCards({ plants }: { plants: Plant[] }) {
     const geometry = mergeGeometries(cards); cards.forEach(card => card.dispose());
     const material = new MeshStandardMaterial({ map: texture, alphaTest: .45, side: DoubleSide,
       roughness: .95, alphaToCoverage: true });
+    material.onBeforeCompile = shader => {
+      shader.vertexShader = 'varying vec3 vIvyWorld;\n' + shader.vertexShader;
+      shader.vertexShader = shader.vertexShader.replace('#include <begin_vertex>', `
+        #include <begin_vertex>
+        vIvyWorld = (modelMatrix * instanceMatrix * vec4(position, 1.)).xyz;
+        transformed.x += sin(vIvyWorld.y * 1.4 + vIvyWorld.z * .8) * .04 * clamp(transformed.y, 0., 1.);
+      `);
+    };
     const mesh = new InstancedMesh(geometry, material, plants.length * 2);
     const matrix = new Matrix4(), q = new Quaternion(), position = new Vector3(), scale = new Vector3();
     plants.forEach((plant, i) => {
+      const isBloom = plant.tilt && (i % 3 === 0);
+      const col = isBloom
+        ? new Color().setRGB(.88 + (i % 2) * .05, .82 + (i % 3) * .04, .92)
+        : new Color().setRGB(.82 + i % 3 * .06, .91 + i % 2 * .07, .78);
       for (let layer = 0; layer < 2; layer++) {
         position.fromArray(plant.position); position.z += layer * .18;
         q.setFromEuler(new Euler(0, plant.yaw + (plant.tilt ? layer * .13 : layer * 1.2), plant.tilt || 0));
         matrix.compose(position, q, scale.fromArray(plant.scale)); mesh.setMatrixAt(i * 2 + layer, matrix);
-        mesh.setColorAt(i * 2 + layer, new Color().setRGB(.82 + i % 3 * .06, .91 + i % 2 * .07, .78));
+        mesh.setColorAt(i * 2 + layer, col);
       }
     });
     mesh.instanceMatrix.needsUpdate = true; mesh.computeBoundingSphere();

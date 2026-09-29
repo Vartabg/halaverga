@@ -27,23 +27,46 @@ export function makeCity() {
     building(k, side * 140, 15.5, -70, 21, 23, 9, '#c49a7c', 23);
     building(k, side * 173, 33.5, -125, 19, 18, 7, '#a8a58e', 24);
   }
-  // Distant surviving skyline: sculpted broken tops, never a wallpaper image.
-  for (let i = 0; i < 20; i++) {
-    const x = (i - 9.5) * 17, h = 24 + (i * 17 % 41), z = -210 - (i % 3) * 13;
-    k.box(x, h / 2 - 3, z, 11 + i % 5, h, 13, '#737e83');
-    k.box(x - 3, h - 1, z, 5, 8, 12, '#737e83');
+  // Distant surviving skyline: sculpted silhouettes anchored by the hero Solar Arcology
+  for (let i = 0; i < 22; i++) {
+    const x = (i - 10.5) * 18, h = 28 + (i * 19 % 38), z = -215 - (i % 4) * 12;
+    // Central landmark: the Solar Arcology twin spires and fractured connecting sky-bridge
+    if (Math.abs(x) < 22) continue;
+    k.box(x, h / 2 - 3, z, 12 + i % 4, h, 14, '#6d787e');
+    k.box(x - 2, h + 1, z, 5, 6, 10, '#5f696e');
+    if (i % 3 === 0) k.box(x + 1, h + 4, z, .14, 8, .14, colors.steel);
   }
-  // Arrival terrace is the sole fully prepared landing surface.
+  // The Solar Arcology: twin towers framing the central canal axis at z = -230
+  k.box(-11, 38, -232, 14, 82, 16, '#647076');
+  k.box(-11, 80, -232, 9, 8, 11, '#525e64');
+  k.box(-11, 86, -232, .2, 12, .2, colors.steel);
+  k.box(11, 34, -228, 13, 74, 15, '#69757b');
+  k.box(11, 72, -228, 8, 6, 10, '#556167');
+  k.box(11, 77, -228, .2, 10, .2, colors.steel);
+  // Fractured sky-bridge connecting the twin arcology spires across the central flight axis
+  k.box(-4, 52, -230, 9, 3.2, 5.5, colors.concrete);
+  k.box(5, 50.8, -230, 7, 3.2, 5.5, colors.concrete, false, 0, -.12);
+
+  // Arrival terrace: framed observation deck overlooking the flooded canal
   k.box(0, 19, 65, 24, 2, 20, colors.concrete, true);
   k.box(0, 20.04, 65, 22.8, .06, 18.8, colors.road);
   k.box(0, 9, 65, 18, 18, 14, '#7f7776', true);
+  // Tactile amber safety warning border along the departure edge
+  k.box(0, 20.07, 55.6, 22.4, .025, .5, colors.amber);
   for (const x of [-9, 9]) {
     k.box(x, 21.2, 69, .14, 2.2, 10, colors.steel);
     k.box(x, 22.25, 69, .2, .13, 10, colors.white);
     k.box(x, 20.12, 65, .28, .12, 9, '#ddaa76');
   }
-  k.box(-7, 21, 58, 1.6, 2, 1.2, colors.steel, true);
-  k.box(-7, 21.7, 58.65, 1.1, .6, .08, '#b8e8b0');
+  // Cantilevered solar observation canopy framing the view from arrival
+  k.box(-8.5, 23.5, 62, .18, 5, .18, colors.steel, false, 0, .14);
+  k.box(-6.8, 25.8, 60, 4.2, .06, 5.5, colors.glass, false, .08, -.22);
+  k.box(-6.8, 25.75, 60, 4.4, .08, 5.7, colors.steel, false, .08, -.22);
+  // Weathered 2033 arrival terminal console with solar accumulator and indicator
+  k.box(-7, 21, 58, 1.6, 2, 1.2, '#283432', true);
+  k.box(-7, 22.05, 58, 1.2, .08, .9, colors.glass);
+  k.box(-7, 21.7, 58.65, 1.1, .6, .08, colors.cyan);
+  k.box(-6.3, 21.5, 58.65, .08, .15, .09, colors.amber);
   k.box(6, 20.25, 55.3, 5, .45, 2, colors.concrete, true, .23, -.14);
   // Ruptured elevated road: a navigable opening, visible reinforcing steel.
   for (const side of [-1, 1]) {
