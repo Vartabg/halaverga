@@ -1,12 +1,11 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
-  ADS_GAIN, EVENT_RING, MAX_DRONES, MAX_SLOW, createShooter, engaged, flashGate, frictionNow, lookGain, moveMode, mulberry32,
+  ADS_GAIN, EVENT_RING, MAX_DRONES, aimGain, createShooter, engaged, flashGate, moveMode, mulberry32,
   pressAim, pressFire, pushEvent, readEvents, releaseAim, releaseFire, resetShooterFeel, resetShooterInput, springStep, tapShot,
   type ShotEvent,
 } from '../src/game/combat';
 const O = { x: 0, y: 0, z: 0 };
-const out = { x: 0, y: 0 };
 describe('shooter state', () => {
   it('preallocates every drone array, target and event slot and serializes', () => {
     const s = createShooter();
@@ -33,17 +32,16 @@ describe('shooter state', () => {
     const s = createShooter();
     s.aim.blend = .7; s.aim.fireHold = 1; s.aim.spreadHalf = .02; s.aim.acquired = true; s.aim.target = 3;
     for (const key of Object.keys(s.camFx)) (s.camFx as Record<string, number>)[key] = .5;
-    Object.assign(s.assist, { engaged: true, slow: .6, driftYaw: .3, driftPitch: -.2 });
+    Object.assign(s.assist, { engaged: true, scale: 1.5 });
     Object.assign(s.muzzle, { x: 1, y: 2, z: 3, valid: true, weight: 1 });
     s.weapon.heat = 50; s.weapon.sinceShot = .1; s.input.pressSerial = 5; s.weapon.handledPress = 2;
     resetShooterFeel(s);
     expect([s.aim.blend, s.aim.fireHold, s.aim.spreadHalf]).toEqual([0, 0, 0]);
     for (const value of Object.values(s.camFx)) expect(value).toBe(0);
-    expect(s.assist.slow).toBe(0); expect(s.assist.driftYaw).toBe(0); expect(s.assist.driftPitch).toBe(0); expect(s.assist.engaged).toBe(false);
+    expect(s.assist.engaged).toBe(false);
     expect(s.aim.acquired).toBe(false); expect(s.aim.target).toBe(-1); expect(s.muzzle.valid).toBe(false);
     expect(s.weapon.heat).toBe(0); expect(s.weapon.sinceShot).toBe(Infinity); expect(s.weapon.handledPress).toBe(s.input.pressSerial);
-    lookGain(s, 3, -2, out);
-    expect(out.x).toBe(3); expect(out.y).toBe(-2);
+    expect(aimGain(s.aim.blend)).toBe(1);
   });
 });
 describe('fire and aim helpers', () => {
@@ -61,11 +59,12 @@ describe('fire and aim helpers', () => {
     pressAim(s, true); expect(s.input.aimLatched).toBe(false);
     pressAim(s, false); expect(s.input.aim).toBe(true); releaseAim(s); expect(s.input.aim).toBe(false);
   });
-  it('picks the movement mode and the engaged window', () => {
+  it('picks the movement mode (never a hip-fire cap) and the engaged window', () => {
     const s = createShooter();
     expect(moveMode(s)).toBe(0); expect(engaged(s)).toBe(false);
-    s.input.fire = true; expect(moveMode(s)).toBe(1); s.input.fire = false;
-    s.weapon.sinceShot = .29; expect(moveMode(s)).toBe(1);
+    // Garo 2026-09-26: firing never changes the movement mode; only a held aim does.
+    s.input.fire = true; expect(moveMode(s)).toBe(0); expect(engaged(s)).toBe(true); s.input.fire = false;
+    s.weapon.sinceShot = .29; expect(moveMode(s)).toBe(0);
     s.weapon.sinceShot = .3; expect(moveMode(s)).toBe(0); expect(engaged(s)).toBe(true);
     s.weapon.sinceShot = .99; expect(engaged(s)).toBe(true);
     s.weapon.sinceShot = 1; expect(engaged(s)).toBe(false);
@@ -91,33 +90,14 @@ describe('event ring', () => {
     readEvents(s, cursor, read); expect(serials).toEqual([21]);
   });
 });
-describe('look gain and friction', () => {
-  it('passes input through bit-exactly while idle', () => {
-    const s = createShooter();
-    for (const [dx, dy] of [[3, -2], [0.1 + 0.2, -1e-17], [-123.456, 7e5]]) {
-      lookGain(s, dx, dy, out); expect(out.x).toBe(dx); expect(out.y).toBe(dy);
-    }
-  });
-  it('scales by the ADS gain at full blend', () => {
-    const s = createShooter(); s.aim.blend = 1;
+describe('look gain', () => {
+  it('is exactly 1 while idle and the ADS zoom gain at full blend; there is no friction anywhere', () => {
+    expect(aimGain(0)).toBe(1);
     expect(Math.abs(ADS_GAIN - .73196)).toBeLessThan(1e-5);
-    lookGain(s, 10, -4, out);
-    expect(out.x).toBeCloseTo(10 * ADS_GAIN, 12); expect(out.y).toBeCloseTo(-4 * ADS_GAIN, 12);
-  });
-  it('slows against the drift, not with it, and follows the steering device at once', () => {
+    expect(aimGain(1)).toBeCloseTo(ADS_GAIN, 12); expect(aimGain(.5)).toBeCloseTo(1 + (ADS_GAIN - 1) / 2, 12);
     const s = createShooter();
-    Object.assign(s.assist, { engaged: true, slow: .6, driftYaw: .5, driftPitch: 0, scale: 1 }); s.input.lookSource = 'touch';
-    expect(frictionNow(s)).toBeCloseTo(.6, 12);
-    lookGain(s, -5, 2, out); expect(out.x).toBe(-5); expect(out.y).toBeCloseTo(2 * .4, 12);
-    lookGain(s, 5, 0, out); expect(out.x).toBeCloseTo(5 * .4, 12);
-    s.input.lookSource = 'trackpad'; expect(frictionNow(s)).toBeCloseTo(.36, 12);
-    for (const source of ['tap', 'mouse'] as const) {
-      s.input.lookSource = source; expect(frictionNow(s)).toBe(0);
-      lookGain(s, 5, -3, out); expect(out.x).toBe(5); expect(out.y).toBe(-3);
-    }
-    s.input.lookSource = 'touch'; s.assist.engaged = false; expect(frictionNow(s)).toBe(0);
-    s.assist.engaged = true; s.assist.scale = 1.5; expect(frictionNow(s)).toBe(MAX_SLOW);
-    s.assist.scale = 0; expect(frictionNow(s)).toBe(0);
+    expect(s.assist).toEqual({ engaged: false, scale: 1 });
+    expect('slow' in s.assist).toBe(false); expect('driftYaw' in s.assist).toBe(false);
   });
 });
 describe('flash gate', () => {

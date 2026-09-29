@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { lookGain, moveMode, pressAim, pressFire, releaseAim, releaseFire, resetShooterFeel, tapShot, type ShooterState, type Vec3 } from '../src/game/combat';
+import { moveMode, pressAim, pressFire, releaseAim, releaseFire, resetShooterFeel, tapShot, type ShooterState, type Vec3 } from '../src/game/combat';
 import { createAssistMemory } from '../src/game/aimAssist';
 import { createDroneSim, type DroneSim } from '../src/game/drones';
 import { ARM_HOLD, createStepContext, droneContext, stepShooter, type AudioSink, type StepContext } from '../src/game/shooterStep';
@@ -107,28 +107,27 @@ describe('shooter step', () => {
     expect(q.s.clock).toBeLessThan(2.6); expect(q.s.weapon.lock).toBeGreaterThan(0);
     expect(q.s.events.some(e => e.kind === 'overheat')).toBe(true); expect(q.played).toContain('overheat');
   });
-  it('reports hip-fire and aim movement modes', () => {
+  it('reports the aim movement mode; firing keeps mode 0 (no hip-fire cap)', () => {
     const r = rig(); expect(moveMode(r.s)).toBe(0);
-    pressFire(r.s, 'keys'); step(r); expect(moveMode(r.s)).toBe(1);
+    pressFire(r.s, 'keys'); step(r); expect(moveMode(r.s)).toBe(0);
     releaseFire(r.s, 'keys'); pressAim(r.s, false); step(r); expect(moveMode(r.s)).toBe(2);
   });
   it('returns every feel channel to exactly 0 within 3 s of the last shot, and then casts no aim ray', () => {
     const at = { x: 0, y: 30, z: 60 }, r = rig({ x: 0, y: 0, z: -1 }, at, 40);
     r.s.drones.hp[0] = 100; // survives the burst, so the assist stays engaged on it
     r.s.input.lookSource = 'touch'; pressAim(r.s, false); pressFire(r.s, 'touch'); track(r, 40);
-    expect(r.s.aim.blend).toBe(1); expect(r.s.assist.slow).toBeGreaterThan(0); expect(r.s.camFx.kickP).not.toBe(0);
+    expect(r.s.aim.blend).toBe(1); expect(r.s.assist.engaged).toBe(true); expect(r.s.camFx.kickP).not.toBe(0);
     releaseFire(r.s, 'touch'); releaseAim(r.s); step(r, 180);
-    expect(r.s.aim.blend).toBe(0); expect(r.s.aim.fireHold).toBe(0); expect(r.s.assist.slow).toBe(0);
+    expect(r.s.aim.blend).toBe(0); expect(r.s.aim.fireHold).toBe(0); expect(r.s.assist.engaged).toBe(false);
     for (const [k, v] of Object.entries(r.s.camFx)) expect([k, v]).toEqual([k, 0]);
     const casts = r.world.casts; step(r, 30); expect(r.world.casts).toBe(casts);
   });
-  it('passes look through exactly after resetShooterFeel from an engaged touch state', () => {
-    const at = { x: 0, y: 30, z: 60 }, r = rig({ x: 0, y: 0, z: -1 }, at, 40), out = { x: 0, y: 0 };
+  it('an engaged touch hold on a target leaves the assist with no slow or drift, and resetShooterFeel disengages it', () => {
+    const at = { x: 0, y: 30, z: 60 }, r = rig({ x: 0, y: 0, z: -1 }, at, 40);
     r.s.input.lookSource = 'touch'; pressFire(r.s, 'touch'); track(r, 5);
-    // Against the target's drift, so the dynamic boost does not lift the friction.
-    const dx = r.s.assist.driftYaw > 0 ? 3 : -3;
-    expect(r.s.assist.slow).toBeCloseTo(.6, 12); expect(lookGain(r.s, dx, -2, out).x).toBeCloseTo(dx * .4, 12);
-    resetShooterFeel(r.s); expect(lookGain(r.s, dx, -2, out)).toEqual({ x: dx, y: -2 });
+    expect(r.s.assist.engaged).toBe(true); expect(r.s.aim.target).toBe(0);
+    expect(r.s.assist).toEqual({ engaged: true, scale: 1 });
+    resetShooterFeel(r.s); expect(r.s.assist).toEqual({ engaged: false, scale: 1 });
   });
   it('turns the blaster off on a frame fault, resets the feel and ignores later frames', () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});

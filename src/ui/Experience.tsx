@@ -27,12 +27,11 @@ const Scene = dynamic(() => import('@/world/Scene'), { ssr: false });
 const Reticle = () => <div className={styles.reticle} aria-hidden="true"><span /></div>;
 const loadHud = () => import('./ShooterHud');
 const ShooterHud = dynamic(loadHud, { ssr: false, loading: Reticle });
-// The touch controls (stick, look, cluster) and Fire/Aim are chunks too: loaded right after hydration, and Begin waits for them.
+// The touch controls (stick, look, cluster) are a chunk too: loaded right after hydration, and Begin waits for them.
 // The loaded component is held in state (not next/dynamic, whose React.lazy suspends on every first mount), so the surface is
 // there on the very frame Begin starts play and the first click or touch never lands on nothing. No static import of
 // './TouchControls' anywhere on the landing path.
 const loadTouch = () => import('./TouchControls');
-const loadFire = () => import('./FireControls');
 // Blaster off, twin touch: the flight lessons still run (ShooterHud mounts them when the blaster is on). Its own small chunk.
 const ControlsHint = dynamic(() => import('./ControlsHint'), { ssr: false, loading: () => null });
 // Flight settings open only after Begin, so they are a chunk warmed then: settings copy never grows the landing first load.
@@ -67,8 +66,8 @@ export default function Experience() {
   useEffect(() => {
     if (hydrated) void loadTouch().then(m => setTouchControls(() => m.default)).catch(() => {}).finally(() => setTouchReady(true));
   }, [hydrated]);
-  // Warm the blaster UI chunks after hydration so the first aim never waits on them; with the blaster off nothing is requested.
-  useEffect(() => { if (hydrated && state.shooter) { void loadHud().catch(() => {}); void loadFire().catch(() => {}); } }, [hydrated, state.shooter]);
+  // Warm the blaster HUD chunk after hydration so the first aim never waits on it; with the blaster off nothing is requested.
+  useEffect(() => { if (hydrated && state.shooter) void loadHud().catch(() => {}); }, [hydrated, state.shooter]);
   useEffect(() => { if (state.started) void loadPanel().catch(() => {}); }, [state.started]);
   useEffect(() => {
     if (hydrated && lab !== 'standard' && !LabControls) void loadLab().then(m => setLabControls(() => m.default)).catch(() => labFault(LAB_LOAD_FAILED));
@@ -79,6 +78,14 @@ export default function Experience() {
     if (lab === 'standard') delete html.dataset.controls; else html.dataset.controls = lab;
     return () => { delete html.dataset.controls; };
   }, [lab]);
+  // html[data-touch-blast]: Standard, blaster on, classic one thumb. With html[data-input=touch] the CSS hides the crosshair (the
+  // finger aims: tap a drone) and moves the hit marker to the tap, as the lab does. A desktop with the same save keeps its reticle.
+  const touchBlast = lab === 'standard' && state.shooter && state.touchScheme === 'classic';
+  useEffect(() => {
+    const html = document.documentElement;
+    if (touchBlast) html.dataset.touchBlast = ''; else delete html.dataset.touchBlast;
+    return () => { delete html.dataset.touchBlast; };
+  }, [touchBlast]);
   // html dataset.labBar: while the header bar shows, the bands under the header move down by --lab-row (Experience.module.css).
   const bar = state.started && !failed;
   useEffect(() => {
@@ -155,7 +162,7 @@ export default function Experience() {
           <Telemetry />
           {/* Twin touch: the cluster's Rise/Descend replace Lift/Land, so CSS hides this under html[data-input=touch]. */}
           {/* In a lab scheme Lift/Land is always shown (data-twin false): the lab has no Rise/Descend. */}
-          <div className={styles.actions} data-ghost-avoid="" data-shooter={String(state.shooter)} data-fire={String(state.shooter && !state.autoFire)} data-twin={String(twin && standard)}>
+          <div className={styles.actions} data-ghost-avoid="" data-shooter={String(state.shooter)} data-twin={String(twin && standard)}>
             {/* A mouse click activates Lift/Land without focusing it, so the next Space still reaches flight (Tab + Space works). */}
             <button className={styles.action} onMouseDown={e => { if (!touchMode()) e.preventDefault(); }} onClick={() => { runtime.lift = true; }}><span aria-hidden="true">{state.flying ? '↓' : '↑'}</span>{state.landing ? 'Cancel landing' : state.flying ? 'Land' : 'Lift'}</button>
           </div>

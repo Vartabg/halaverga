@@ -9,12 +9,7 @@ const controls = (p: Page) => p.evaluate(() => document.documentElement.dataset.
 const checkedLab = (p: Page) => p.getByTestId('lab-bar').locator('[aria-checked="true"]').getAttribute('data-lab');
 const heading = async (p: Page) => (await tel(p)).heading;
 const turned = (a: number, b: number) => Math.abs(Math.atan2(Math.sin(b - a), Math.cos(b - a)));
-// Standard on a touch screen uses the twin cluster, whose Rise button reads 'Lift off' on the ground (the header Lift is hidden).
-async function liftTwin(p: Page) {
-  await p.getByRole('button', { name: 'Lift off', exact: true }).tap();
-  await expect.poll(async () => (await tel(p)).flying).toBe(true);
-  await p.waitForTimeout(1200);
-}
+// Standard on a touch screen is the classic one thumb since 2026-09-26: the Lift/Land button shows, as on a desktop (lab-browser lift).
 
 test('while flying, a click on Brush switches at once: no pause, no focus taken, no stuck movement', async ({ browser }) => {
   const t = await labPage(browser, 'standard'), { page } = t, bar = page.getByTestId('lab-bar');
@@ -140,7 +135,7 @@ for (const v of MATRIX) {
     const t = await labPage(browser, 'standard', { touch: v.touch, viewport: { width: v.width, height: v.height } }), { page } = t;
     await expect(page.getByTestId('lab-bar')).toBeVisible();
     for (const phase of ['ground', 'air'] as const) {
-      if (phase === 'air') await (v.touch ? liftTwin(page) : lift(page));
+      if (phase === 'air') await lift(page, v.touch);
       const r = await page.evaluate(sel => {
         const bar = document.querySelector('[data-testid="lab-bar"]') as HTMLElement, b = bar.getBoundingClientRect();
         const segs = [...bar.querySelectorAll('[role="radio"]')].map(s => { const q = s.getBoundingClientRect(); return { w: q.width, h: q.height }; });

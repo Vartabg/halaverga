@@ -8,11 +8,13 @@ export type TrackpadProfile = 'simple' | 'free' | 'captured' | 'flow';
  * 4: the classic free trackpad is the desktop default again (Garo 2026-09-24). A save from before 4 holding 'simple' returns to 'free'.
  * 5: easier 360 turns (Garo 2026-09-25). A save from before 5 turns look acceleration and sustained edges on and gains edge rest on;
  *    a save at 5 or later keeps its own choices.
+ * 6: one-finger flight is the phone default again (Garo 2026-09-26). A save from before 6 moves touchScheme to 'classic' (the twin
+ *    default of 3-5 cannot be told apart from a choice); an explicit 'twin' saved at 6 or later persists.
  */
-export const CONTROLS_VERSION = 5;
+export const CONTROLS_VERSION = 6;
 export type TouchScheme = 'twin' | 'classic';
 export type HintSeries = 'touch' | 'simple' | 'mouse';
-/** The Gesture Lab (docs: gesture lab spec 8). 'standard' is the restored desktop + twin-stick controls and stays the default. */
+/** The Gesture Lab (docs: gesture lab spec 8). 'standard' is the restored desktop controls and, on a phone, one-finger flight with tap-a-drone; it stays the default. */
 export type ControlLab = 'standard' | 'draw' | 'conduct' | 'brush';
 export const CONTROL_LABS: readonly ControlLab[] = ['standard', 'draw', 'conduct', 'brush'];
 export const isControlLab = (v: unknown): v is ControlLab => typeof v === 'string' && (CONTROL_LABS as readonly string[]).includes(v);
@@ -38,8 +40,8 @@ type GameState = {
   /** Twin look thumb: a fast swipe that rests at an edge keeps turning (v5, on by default). */
   edgeRest: boolean;
   controlSize: number; controlOpacity: number; flyWhereILook: boolean; homeTipSeen: boolean;
-  /** Gesture Lab scheme, and 'Shots slow me down' (off: lab shots skip the hip-fire speed clamp, gesture.exemptHip). */
-  controlLab: ControlLab; labShotsSlow: boolean;
+  /** Gesture Lab scheme. */
+  controlLab: ControlLab;
   /** Runtime only: a landable surface is within reach below (Descend reads Land), the Leave card, the pinch-zoom note, and a held
    *  Descend that the clearance assist stopped with no landable spot near (Descend reads "No landing"). */
   nearGround: boolean; leavePrompt: boolean; zoomNote: boolean; descendBlocked: boolean;
@@ -60,8 +62,8 @@ export const useGame = create<GameState>((set) => ({
   lookSensitivity: 1, flowIntroSeen: false,
   shooter: true, aimToggle: false, aimAssist: 1, controlsVersion: CONTROLS_VERSION,
   autoFire: true, aimButton: true, hintProgress: { touch: 0, simple: 0, mouse: 0 }, hintVisible: false,
-  touchScheme: 'twin', touchLook: 1, touchAim: 1, lookAccel: true, edgeRest: true, invertY: false, flipSides: false,
-  controlSize: 1, controlOpacity: .85, flyWhereILook: false, homeTipSeen: false, controlLab: 'standard', labShotsSlow: false,
+  touchScheme: 'classic', touchLook: 1, touchAim: 1, lookAccel: true, edgeRest: true, invertY: false, flipSides: false,
+  controlSize: 1, controlOpacity: .85, flyWhereILook: false, homeTipSeen: false, controlLab: 'standard',
   nearGround: false, leavePrompt: false, zoomNote: false, descendBlocked: false, voteOpen: false, voteNudge: false,
   flying: false, landing: false, canLand: false, nearTerminal: false, boundaryNear: false, clearanceActive: false, inputEpoch: 0,
   checkpoint: START, discovered: false, message: '', set,
@@ -71,7 +73,7 @@ const STORAGE = 'halaverga-flight-v1';
 // writes exactly these keys; tests/persistence.test.ts pins hydrateGame to
 // restore every entry and to ignore runtime-only state.
 export const PERSISTED_KEYS = ['checkpoint', 'camera', 'quality', 'reduced', 'muted', 'discovered', 'tapControls', 'desktopMode', 'trackpadSteering', 'sustainedEdges', 'reverseScroll', 'cruiseSpeed', 'heroPoses', 'lookSensitivity', 'flowIntroSeen', 'shooter', 'aimToggle', 'aimAssist', 'controlsVersion', 'autoFire', 'aimButton', 'hintProgress',
-  'touchScheme', 'touchLook', 'touchAim', 'lookAccel', 'edgeRest', 'invertY', 'flipSides', 'controlSize', 'controlOpacity', 'flyWhereILook', 'homeTipSeen', 'controlLab', 'labShotsSlow'] as const;
+  'touchScheme', 'touchLook', 'touchAim', 'lookAccel', 'edgeRest', 'invertY', 'flipSides', 'controlSize', 'controlOpacity', 'flyWhereILook', 'homeTipSeen', 'controlLab'] as const;
 /** [min, max, default] for the numeric touch settings. */
 export const TOUCH_RANGES = { touchLook: [.5, 2, 1], touchAim: [.5, 1.5, 1], controlSize: [.85, 1.2, 1], controlOpacity: [.4, 1, .85] } as const;
 const ranged = (v: unknown, [lo, hi, fallback]: readonly [number, number, number]) =>
@@ -88,6 +90,8 @@ export function hydrateGame() {
     const before3 = version < 3, hints = validHintProgress(saved.hintProgress);
     // Version 5 turns the turning aids on for every older save; from 5 on the saved choice holds (missing or invalid: on).
     const before5 = version < 5;
+    // Version 6: one-finger flight is the phone default again; only a twin choice saved at 6 or later is kept.
+    const before6 = version < 6;
     if (before3) hints.touch = 0;
     useGame.setState({
       checkpoint: validCheckpoint(saved.checkpoint) ? saved.checkpoint : START,
@@ -110,13 +114,13 @@ export function hydrateGame() {
       controlsVersion: Math.max(CONTROLS_VERSION, version),
       autoFire: saved.autoFire !== false, aimButton: before3 || strict(saved.aimButton, true),
       hintProgress: hints,
-      touchScheme: saved.touchScheme === 'classic' ? 'classic' : 'twin',
+      touchScheme: !before6 && saved.touchScheme === 'twin' ? 'twin' : 'classic',
       touchLook: ranged(saved.touchLook, TOUCH_RANGES.touchLook), touchAim: ranged(saved.touchAim, TOUCH_RANGES.touchAim),
       lookAccel: before5 || strict(saved.lookAccel, true), edgeRest: before5 || strict(saved.edgeRest, true), invertY: strict(saved.invertY, false), flipSides: strict(saved.flipSides, false),
       controlSize: ranged(saved.controlSize, TOUCH_RANGES.controlSize), controlOpacity: ranged(saved.controlOpacity, TOUCH_RANGES.controlOpacity),
       flyWhereILook: strict(saved.flyWhereILook, false), homeTipSeen: strict(saved.homeTipSeen, false),
       // No migration: a save without a lab choice (every save before the lab) plays the standard controls.
-      controlLab: isControlLab(saved.controlLab) ? saved.controlLab : 'standard', labShotsSlow: strict(saved.labShotsSlow, false),
+      controlLab: isControlLab(saved.controlLab) ? saved.controlLab : 'standard',
     });
   } catch { useGame.setState({ reduced: matchMedia('(prefers-reduced-motion: reduce)').matches }); }
 }

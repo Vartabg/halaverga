@@ -4,7 +4,7 @@ import { look, runtime } from '../src/game/runtime';
 import { useGame } from '../src/game/store';
 import { advanceFlightPose, angleDelta, FACING, type Pose } from '../src/game/presentation';
 import { carve, resetCarve } from '../src/game/carve';
-import { applyEdgeTurns, resetEdgeTurns } from '../src/game/edgeTurn';
+import { applyEdgeTurns, resetEdgeTurns, thumbTurn } from '../src/game/edgeTurn';
 import { EdgeRest } from '../src/game/lookEdgeRest';
 import { touchLook } from '../src/game/touchLook';
 import { AdaptiveThumbs } from '../src/game/adaptiveThumbs';
@@ -47,6 +47,7 @@ class Flight {
   step(forward: number, surge: boolean, o: { lab?: boolean; rated?: boolean; carveOn?: boolean } = {}) {
     if (o.lab) gestureBefore(DT, P, ctx, runtime);
     applyEdgeTurns(DT, { sustainedEdges: true, reduced: this.reduced, shooter: false });
+    thumbTurn(DT); // the classic one thumb's own rate line (no-op unless runtime.thumb.active)
     const intent = { forward, strafe: 0, vertical: 0, precise: gesture.live ? true as const : undefined };
     carve(this.v, runtime.yaw, DT, o.carveOn ?? (moving(intent) || surge || gesture.live), 1);
     this.v = advanceVelocity(this.v, intent, runtime.yaw, 0, true, surge, DT);
@@ -83,7 +84,7 @@ beforeEach(() => {
   runtime.yaw = 0; runtime.pitch = -.12; ctx.clock = 0; resetCarve(); resetEdgeTurns();
   runtime.trackpad.active = false; runtime.trackpad.outside = 0; runtime.trackpad.outsideAge = 0; runtime.trackpad.edgeTurn = runtime.trackpad.edgePitch = 0;
   Object.assign(runtime.thumb, { active: false, throttle: 0, strafe: 0, edgeTurn: 0, edgePitch: 0 }); runtime.stick.edgeTurn = 0;
-  const s = runtime.shooter; s.aim.blend = 0; s.assist.slow = 0; s.assist.engaged = false;
+  const s = runtime.shooter; s.aim.blend = 0; s.assist.engaged = false;
   useGame.setState({ reduced: false, lookAccel: true, edgeRest: true, touchLook: 1, touchAim: 1, invertY: false, aimAssist: 0 });
   clearGesture(); gesture.scheme = 'off'; gesture.step = null; gesture.reduced = false; gesture.override = false;
 });
@@ -133,23 +134,36 @@ describe('phone twin sticks: a fast swipe that ends in a rest band keeps turning
   }
 });
 
-/** Classic one thumb: touch at 600 px, drag to 25 px from the right edge (the drag looks and sets the throttle), then rest. */
+/** Classic one thumb (main 7945430, Garo 2026-09-26): touch at 600 px, drag to the right edge (the drag looks and sets the throttle),
+ * then rest there: the edge hold is rate control at 1.5 rad/s (about 4.2 s per 360 from the rest alone), direct, never carved. */
 function classic(reduced: boolean, drag = true) {
   const [w, h] = LAND, f = new Flight(reduced);
   if (drag) {
-    const c = new AdaptiveThumbs(); c.start(1, 600, 200);
+    const c = new AdaptiveThumbs(); c.start(1, 600, 200); c.activate();
     for (let k = 1; k <= 9; k++) {
-      c.move(1, 600 + (w - 25 - 600) * minJerk(k / 9), 200, w, h); look(c.output.lookX, c.output.lookY);
+      c.move(1, 600 + (w - 600) * minJerk(k / 9), 200, w, h); look(c.output.lookX, c.output.lookY);
       Object.assign(runtime.thumb, { active: c.active, throttle: c.output.forward, strafe: c.output.strafe, edgeTurn: c.output.edgeTurn, edgePitch: c.output.edgePitch });
-      f.step(runtime.thumb.throttle, true, { rated: false });
+      f.step(runtime.thumb.throttle, true, { rated: false, carveOn: false });
     }
-  } else Object.assign(runtime.thumb, { active: true, throttle: thumbThrottle(w - 25 - 600), strafe: 0, edgeTurn: thumbEdge(w - 25, w), edgePitch: 0 });
-  while (f.t < 6 && f.done === Infinity) f.step(runtime.thumb.throttle, true);
+  } else Object.assign(runtime.thumb, { active: true, throttle: thumbThrottle(w - 600), strafe: 0, edgeTurn: thumbEdge(w, w), edgePitch: 0 });
+  while (f.t < 6 && f.done === Infinity) f.step(runtime.thumb.throttle, true, { carveOn: false });
   return f;
 }
-describe('phone one thumb: resting 25 px from the edge keeps turning', () => {
-  it('360 in 2.1 s or less', () => expectFull('classic thumb 25 px in', classic(false), 2.1));
-  it('reduced motion, from the rest: within 2.5 rad/s, 2.5 s or more', () => expectReduced('classic thumb rest', classic(true, false)));
+/** Classic keeps main's uncarved travel: the velocity blend lags a 1.5 rad/s turn by atan(1.5/4) = 21 deg (plus the drag's remnant),
+ * which is the model Garo asked back. So the time, the body bound and the bank are checked; the lag is recorded, not bounded. */
+function expectClassic(name: string, f: Flight, max: number) {
+  rows.push(`${name}: ${f.done.toFixed(2)} s, lag ${(f.lag / DEG).toFixed(1)} deg (main's blend, uncarved), bank ${f.bank.toFixed(2)}`);
+  expect(f.done, name).toBeLessThanOrEqual(max);
+  expect(f.over, `${name} body bound`).toBe(0); expect(f.bank, `${name} bank`).toBeLessThanOrEqual(.6 + 1e-9);
+}
+describe('phone one thumb: holding at the edge keeps turning at main\'s 1.5 rad/s', () => {
+  it('drag to the edge and hold: 360 in 4.3 s or less (the drag itself turns about 69 deg)', () => expectClassic('classic thumb edge hold', classic(false), 4.3));
+  it('from the rest alone: 360 in 4.19 s, within a step', () => {
+    const f = classic(false, false);
+    rows.push(`classic thumb rest alone: ${f.done.toFixed(2)} s`);
+    expect(Math.abs(f.done - 2 * Math.PI / 1.5)).toBeLessThanOrEqual(DT + 1e-9); expect(f.peak).toBeCloseTo(1.5, 9);
+  });
+  it('reduced motion, from the rest: the same 1.5 rad/s (within 2.5), 2.5 s or more', () => expectReduced('classic thumb rest', classic(true, false)));
 });
 
 /** Desktop free cursor while cruising: centre to the right edge (a direct look), then hold there or slide off the side. */

@@ -6,15 +6,15 @@ import { useGame, persistGame } from './store';
 import { runtime, readIntent, clearInput, arrowLook } from './runtime';
 import { advanceVelocity, boundMovement, landingVelocity, moving, setVec, START, FOOT } from './motion';
 import { presentation } from './presentation';
-import { applyEdgeTurns } from './edgeTurn';
+import { applyEdgeTurns, thumbTurn } from './edgeTurn';
 import { carve } from './carve';
 import { FlightSafety } from './FlightSafety';
 import { boundaryDistance, CLEARANCE, nearestTerminal, removeInward, softenBounds } from './navigation';
 import { sweepTurn } from './turnSweep';
 import { moveMode } from './combat';
-import { aimVelocity, hipVelocity } from './aimMotion';
+import { aimVelocity } from './aimMotion';
 import { levelFlight, probeBelow, touchBlockedStep, touchLandStep, LAND_WINDOW } from './touchFlight';
-import { gestureBase, gestureBefore, gestureOffset, gestureVelocity, labMode } from './gesture/applyGesture';
+import { gestureBase, gestureBefore, gestureOffset, gestureVelocity } from './gesture/applyGesture';
 import { clearGesture, gesture } from './gesture/bus';
 import { createGestureCtx } from './gestureCtx';
 const direction = new Vector3(), baseScratch = { x: 0, y: 0, z: 0 };
@@ -73,7 +73,8 @@ export default function Player() {
     const intent = readIntent();
     const k = runtime.keys;
     const pointerFlight = runtime.thumb.active || runtime.trackpad.active;
-    applyEdgeTurns(dt, state); // cursor, classic thumb and twin look rest (edgeTurn.ts)
+    applyEdgeTurns(dt, state); // cursor and twin look rest (edgeTurn.ts)
+    thumbTurn(dt); // classic one thumb: main 7945430's edge hold, 1.5 rad/s, direct (Garo 2026-09-26)
     // Blaster on: arrows get a fine first step and the ADS gain (arrowLook). Off: main's exact lines, bit for bit.
     if (state.shooter) arrowLook(dt);
     else {
@@ -92,16 +93,17 @@ export default function Player() {
     }
     // PR #12: the one-finger 'simple' trackpad profile looks without thrusting; every other gesture still surges.
     const gestureThrust = runtime.thumb.active || (runtime.trackpad.active && state.trackpadSteering !== 'simple');
-    const mode = state.shooter ? labMode(moveMode(runtime.shooter)) : 0, surge = runtime.surge || gestureThrust || runtime.stick.boost || gesture.surge;
+    // Shooting never touches flight speed: mode 2 (ADS hover) only for a held Q or Aim; firing keeps whatever the flight was doing.
+    const mode = state.shooter ? moveMode(runtime.shooter) : 0, surge = runtime.surge || gestureThrust || runtime.stick.boost || gesture.surge;
     // Twin touch flies level: altitude comes only from Rise and Descend, so aiming never climbs or dives (ADS pitch lift included).
     const fp = levelFlight(state) ? 0 : runtime.pitch;
     // The branches build on the velocity without last step's lab offset (gestureBase), so offsets never compound.
     const vb = gestureBase(runtime.velocity, baseScratch);
     // A fast steered turn carves: travel follows the view instead of skidding (carve.ts). A look flick while coasting keeps its drift.
-    carve(vb, runtime.yaw, dt, flying && !runtime.landGoal && (moving(intent) || surge || gesture.live), runtime.poseEpoch);
+    // The classic one thumb never carves: its 1.5 rad/s edge hold is below the carve threshold and its travel is main's.
+    carve(vb, runtime.yaw, dt, flying && !runtime.landGoal && !runtime.thumb.active && (moving(intent) || surge || gesture.live), runtime.poseEpoch);
     let v = runtime.landGoal ? landingVelocity(p, runtime.landGoal)
       : mode === 2 ? aimVelocity(vb, intent, runtime.yaw, fp, flying, dt)
-      : mode === 1 ? hipVelocity(vb, intent, runtime.yaw, fp, flying, surge, dt)
       : advanceVelocity(vb, intent, runtime.yaw, fp, flying, surge, dt);
     gestureVelocity(v, runtime.landGoal, flying);
     if (liftTime.current > 0) { v.y = 6; liftTime.current -= dt; }

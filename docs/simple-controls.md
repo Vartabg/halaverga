@@ -1,6 +1,6 @@
 # Simple-by-default controls
 
-> Superseded as the desktop default on 2026-09-24 (controls version 4): the classic free-cursor trackpad is the desktop default again, with a click while stopped firing (see [DECISIONS.md](DECISIONS.md)). One finger + keyboard is still available in Flight settings and at `/?trackpad=simple`. Touch controls are unchanged.
+> Superseded as the desktop default on 2026-09-24 (controls version 4): the classic free-cursor trackpad is the desktop default again, with a click while stopped firing (see [DECISIONS.md](DECISIONS.md)). One finger + keyboard is still available in Flight settings and at `/?trackpad=simple`. On the phone, superseded on 2026-09-26 (controls version 6): the one thumb is the default again and shoots by tapping a drone; auto-fire and the Fire button belong to the opt-in Two thumbs scheme only ([touch-controls.md](touch-controls.md)).
 
 2026-09-23, branch `codex/shooter`. Spec: "Simple-by-default controls: implementation spec, revision 2".
 
@@ -9,12 +9,12 @@
 Garo asked: "how can we make them so simple that it wont intimidate people?" The approved answer ("yes build it after the cannon and trackpad"):
 
 1. Two verbs at the start: move and shoot. One hand moves; the other aims and shoots, on every device.
-2. Touch auto-fire on by default: the suit fires when the crosshair rests on a live drone with line of sight. The Fire button is hidden while auto-fire is on, and a setting brings it back. Trackpad and mouse keep click-to-fire.
-3. Advanced controls (Aim, vent timing, tap controls) sit under **More controls**. Aim assist and automatic cooling carry beginners; vent timing still works with a Fire button or C but is not taught. On a touch screen that means Auto-fire off, since auto-fire never presses during a lock and a phone has no C key.
+2. Touch auto-fire on by default: the suit fires when the crosshair rests on a live drone with line of sight. The Fire button is hidden while auto-fire is on, and a setting brings it back. Trackpad and mouse keep click-to-fire. **Since 2026-09-26 this holds for Two thumbs only; One thumb (the default) has no auto-fire and no Fire button: tap a drone to blast it.**
+3. Advanced controls (Aim, vent timing, tap controls) sit under **More controls**. The shot magnet (the old "Aim assist"; it bends shots, never the view) and automatic cooling carry beginners; vent timing still works with a Fire button or C but is not taught. On a touch screen that means Auto-fire off, since auto-fire never presses during a lock and a phone has no C key.
 4. Progressive hints, one at a time, replace the one-line wall of instructions. Each hint goes away once its action is done, is saved, and never repeats.
 5. At most two play buttons on a phone: Lift/Land, and Fire only when auto-fire is off.
 
-   **Superseded on touch (2026-09-24):** with the default Two thumbs scheme, Fire is always visible while the blaster is on and auto-fire is an assist (a Fire press overrides it); Rise, Descend and Aim are also shown. The One thumb (classic) scheme and tap controls keep this rule. Pending Garo's confirmation; see `docs/touch-controls.md` and the 2026-09-24 entry in `docs/DECISIONS.md`.
+   **Two thumbs (2026-09-24, opt-in since 2026-09-26):** Fire is always visible while the blaster is on and auto-fire is an assist (a Fire press overrides it); Rise, Descend and Aim are also shown. One thumb (the default) and tap controls keep the one-button rule: Lift/Land alone; see `docs/touch-controls.md` and the 2026-09-24 and 2026-09-26 entries in `docs/DECISIONS.md`.
 
 ## Design principles
 
@@ -51,30 +51,30 @@ Rules:
 
 Thumbs:
 
-- **One thumb**: the drag flies and steers the view, which is the aim. Auto-fire shoots at the resting crosshair; thumb roles never change.
+- **One thumb** (the default since 2026-09-26): the drag flies and steers the view. There is no auto-fire and no crosshair: a quick tap on a drone fires a 3-shot aimed burst; thumb roles never change.
 - **Two thumbs**: left moves, right looks and aims.
 - **No thumb**: it still fires if the crosshair rests on a drone. Heat and the lock cap it.
 
-### Auto-fire never brakes flight (Garo confirmed, 2026-09-23)
+### Auto-fire never brakes flight (Garo confirmed, 2026-09-23; since 2026-09-26 no trigger does)
 
-`ShooterInput.auto` marks a trigger hold owned by auto-fire. Any manual press (`pressFire`, `tapShot`) clears it; `releaseFire` and `resetShooterInput` keep it, so the trailing HIP_HOLD/ENGAGED_HOLD window after an auto-fire hold is exempt too; `resetShooterFeel` clears it.
+`ShooterInput.auto` marks a trigger hold owned by auto-fire. Any manual press (`pressFire`, `tapShot`) clears it; `releaseFire` and `resetShooterInput` keep it; `resetShooterFeel` clears it. It still tells the arm and the drones an auto-fire hold from a manual one.
 
-- `moveMode(s)` returns 1 (the 13 m/s hip clamp) only for a manual hold: `aimHeld ? 2 : !auto && (fire || sinceShot < HIP_HOLD) ? 1 : 0`. An auto-fire flyby keeps main's cruise speed.
-- `engaged(s)` (assist friction, arrow finesse) is false for auto-fire alone, so `frictionNow` is 0 and `lookGain` is exact identity when not aiming.
+- `moveMode(s)` is `aimHeld ? 2 : 0`: the ADS hover for a held Q, right button or Aim, and otherwise main's flight. There is no hip clamp for any trigger, auto-fire or manual (`hipVelocity` and mode 1 are deleted), and the 0.3 s `HIP_HOLD` window after a shot only poses the arm (`aim.combat`).
+- `runtime.look()` applies only the ADS zoom gain: there is no look friction from any source (`lookGain`, `frictionNow` and `ASSIST_PROFILE.friction` are deleted). `engaged(s)` now only gates the shot magnet's cone and the arrow-key finesse.
 - `threat(s)` = `aimHeld || fire || sinceShot < ENGAGED_HOLD` still counts auto-fire, so drones still notice, telegraph and dodge (`droneContext.threat = threat(s)`).
 - The arm pose and `aim.combat` are unchanged: the suit still raises the cannon when it fires.
 
-Why: a flyby must not steal flight. Auto-fire presses whenever the crosshair crosses a drone, so obeying the hip cap would brake the player at every pass without them asking to shoot. Rejected alternative: auto-fire obeys the hip cap and friction like a manual hold (brakes flybys to 13 m/s). Unit tests prove the no-brake rule at 25 m/s (`tests/auto-fire.test.ts`).
+Why: a flyby must not steal flight. Auto-fire presses whenever the crosshair crosses a drone, so a hip cap would brake the player at every pass without them asking to shoot; on 2026-09-26 Garo removed the cap and the friction for manual fire too (post-mortem in `DECISIONS.md`). Unit tests prove the no-brake rule at 25 m/s (`tests/auto-fire.test.ts`) and at 34 m/s with a manual press (`tests/classic-thumb.test.ts`), and that `look()` is identity with a drone acquired.
 
 ## More controls (`src/ui/MoreControls.tsx`, Unit B)
 
-Blaster on: a `<details>` in the test panel, open at first only if one of its settings is already off its default. It holds Show tap controls · no dragging; Show Aim button on touch screens; Hold to aim / Toggle aim; Aim assist Off / Standard / Strong; and a short note on Q, right click, the Aim button and cooling (on a touch screen venting needs Auto-fire off).
+Blaster on: a `<details>` in the test panel, open at first only if one of its settings is already off its default. It holds Show tap controls · no dragging; Show Aim button on touch screens; Hold to aim / Toggle aim; Shot magnet (shots bend toward drones) Off / Standard / Strong (the old "Aim assist"; since 2026-09-26 it never slows the view); and a short note on Q, right click, the Aim button and cooling (on a touch screen venting needs Auto-fire off).
 
 Blaster off: no disclosure. The tap checkbox renders in main's place with main's text, and the TrackpadSettings and Field guide copy keep main's wording, so the panel matches main.
 
 Q still aims on every device. Vent timing still works with a Fire button or C but is not taught.
 
-On a touch screen (`pointer: coarse`) the Suit blaster section (with Auto-fire) comes first in Flight settings, above main's desktop and trackpad sections, with a one-line caption: "The suit fires when the crosshair rests on a drone. Turn off for a Fire button." Fine pointers keep the mouse and trackpad caption. Since 2026-09-24 the setting reads **Auto-fire assist on touch screens**; with Two thumbs (the default) the caption ends "The Fire button is always there too.", and One thumb (classic) keeps the caption above.
+On a touch screen (`pointer: coarse`) the Suit blaster section comes first in Flight settings, above main's desktop and trackpad sections, with a one-line caption. One thumb (the default): "One thumb flies. Tap a drone to blast it.", and no Auto-fire setting. Two thumbs: the **Auto-fire assist on touch screens** checkbox and "The suit fires when the crosshair rests on a drone. The Fire button is always there too." Fine pointers keep the mouse and trackpad caption.
 
 ## Progressive hints (`src/ui/hintSteps.ts`, `ControlsHint`, Unit C)
 
@@ -109,11 +109,10 @@ The 5-shot fallback and the 20 s timeout are deviations from the approved plan t
 
 ## Buttons and blaster-off identity
 
-- Phone default: Lift/Land only. Auto-fire off: Lift/Land + Fire. The Aim button only after opting in under More controls. Header buttons and the Municipal record button are not play controls.
-- `.actions[data-fire]` moves Lift/Land aside only when Fire shows; otherwise it sits in main's bottom-right spot.
+- Phone default (One thumb): Lift/Land only, in main's bottom-right spot; no Fire or Aim button at any setting. Two thumbs: the cluster (Fire, Aim, Rise, Descend) replaces Lift/Land. Header buttons and the Municipal record button are not play controls.
 - Blaster off (the setting, or `?shooter=0`): no Fire controls, Lift/Land in main's spot, main's touch hint unchanged (also with tap controls), SimpleTrackpadHud's blaster-off branch rendering main's exact output, `Shooter.tsx` unmounted (auto-fire never runs), no controls hint.
 
-  **Superseded on touch (2026-09-24), for touch flight controls only:** with the blaster off, touch uses the Two thumbs scheme by default (stick, look, Rise and Descend; no Fire or Aim) and its hint series ends on "Hold Descend to land". One thumb (classic) with the blaster off still matches main. Desktop with the blaster off still matches main. Pending Garo's confirmation.
+  Two thumbs (opt-in) with the blaster off keeps its stick, look, Rise and Descend (no Fire or Aim) and its hint series ends on "Hold Descend to land". One thumb (the default) with the blaster off matches main. Desktop with the blaster off matches main.
 
 ## Accepted exception
 
@@ -123,7 +122,7 @@ In the free and captured trackpad profiles, main's bottom flight legend stays ne
 
 1. Auto-fire never slows flight: no hip cap and no friction from auto-fire alone.
 2. The 5-shot fallback, and the 20 s timeout on the shoot and keys steps (a timeout is never saved).
-3. With Aim assist Off, auto-fire is body-only.
+3. With the shot magnet (then "Aim assist") Off, auto-fire is body-only.
 4. Tap controls sit under More controls with the blaster on. With it off they stay where main has them, because blaster off must match main.
 5. The free and captured profiles keep main's bottom legend next to the 6 s line.
 

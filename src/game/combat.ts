@@ -17,20 +17,20 @@ export const BOUNDARY_GROUPS = 0x0002ffff, SHOT_GROUPS = 0x00040001;
 export const ONLY_FIXED = 6;
 export const DRONE_RADIUS = .9, EYE_RADIUS = .32, EYE_FORWARD = .72, DRONE_HP = 6;
 export const HEAT = { max: 100, lock: 1.6, ventAt: .8, ventHalf: .11 } as const;
-/** Seconds after the last shot that still count as hip fire (speed cap) and as engaged (assist, perception). */
+/** Seconds after the last shot that still count as combat (arm and HUD pose) and as engaged (magnet, perception). Neither has any
+ *  movement or look effect: firing never caps speed or stiffens the view (Garo 2026-09-26). */
 export const HIP_HOLD = .3, ENGAGED_HOLD = 1;
 /** Exponential blends snap to their target inside this distance, so idle state returns to exactly 0 (bit-identical to main). */
 export const SNAP = 1e-4;
 /** tan(25)/tan(32.5): ADS zoom tan(ads/2)/tan(hip/2) at every hip FOV (cameraFx.adsFovOf), so the look gain keeps crosshair speed. */
 export const ADS_GAIN = Math.tan(25 * Math.PI / 180) / Math.tan(32.5 * Math.PI / 180);
-/** Aim-assist scale per steering device. Friction is read at look() time, so switching device takes effect at once. */
-export const ASSIST_PROFILE: Record<LookSource, { friction: number; magnet: number }> = { touch: { friction: 1, magnet: 1 },
-  tap: { friction: 0, magnet: 1.5 }, trackpad: { friction: .6, magnet: .75 }, mouse: { friction: 0, magnet: .5 } }, MAX_SLOW = .85;
+/** Shot-magnet scale per steering device (the only aim assist left: look() is never slowed). */
+export const ASSIST_PROFILE: Record<LookSource, { magnet: number }> = { touch: { magnet: 1 }, tap: { magnet: 1.5 }, trackpad: { magnet: .75 }, mouse: { magnet: .5 } };
 
 export type ShooterInput = {
   fire: boolean; fireSource: FireSource; aim: boolean; aimLatched: boolean;
   /** Bumped on every fire press (never reset), so a press and release inside one frame still fires once. */
-  pressSerial: number; touchId: number | null; lookSource: LookSource; tapFireUntil: number; /** The current or most recent trigger hold was auto-fire's (never slows flight or adds friction). */ auto: boolean;
+  pressSerial: number; touchId: number | null; lookSource: LookSource; tapFireUntil: number; /** The current or most recent trigger hold was auto-fire's (not 'engaged': the magnet and perception ignore it). */ auto: boolean;
 };
 export type WeaponState = {
   acc: number; heat: number; spreadHeat: number; lock: number; lockT: number; sinceShot: number;
@@ -51,8 +51,8 @@ export type CamFx = {
   fovShot: number; fovShotV: number; fovKill: number; fovKillV: number;
   trauma: number; shakeP: number; shakeY: number;
 };
-/** slow is the zone strength before the device profile and the strength setting (lookGain applies both). */
-export type Assist = { slow: number; driftYaw: number; driftPitch: number; engaged: boolean; scale: number };
+/** engaged: a manual trigger or aim is live (the magnet cone applies); scale: the strength setting. No friction, no drift. */
+export type Assist = { engaged: boolean; scale: number };
 export type DroneTarget = { c: Vec3; r: number; eye: Vec3; eyeR: number; alive: boolean; los: boolean };
 /** Struct-of-arrays drone state. drones.ts is the only writer; the renderer, effects and the shooter read it. */
 export type DroneField = {
@@ -91,7 +91,7 @@ export function createShooter(): ShooterState {
       point: v3(), dist: SHOT_RANGE, blocked: false, blend: 0, fireHold: 0, spreadHalf: 0, combat: false, acquired: false, target: -1 },
     muzzle: { x: 0, y: 0, z: 0, valid: false, weight: 0 },
     camFx: { kickP: 0, kickY: 0, kickPv: 0, kickYv: 0, fovShot: 0, fovShotV: 0, fovKill: 0, fovKillV: 0, trauma: 0, shakeP: 0, shakeY: 0 },
-    assist: { slow: 0, driftYaw: 0, driftPitch: 0, engaged: false, scale: 1 },
+    assist: { engaged: false, scale: 1 },
     drones: createDroneField(),
     targets: list(() => ({ c: v3(), r: DRONE_RADIUS, eye: v3(), eyeR: EYE_RADIUS, alive: false, los: false })),
     events: Array.from({ length: EVENT_RING }, () => ({ serial: 0, kind: 'miss' as EventKind, t: 0, from: v3(), point: v3(), normal: { x: 0, y: 1, z: 0 }, drone: -1 })),
@@ -110,7 +110,7 @@ export function resetShooterFeel(s: ShooterState) {
   a.blend = 0; a.fireHold = 0; a.spreadHalf = 0; a.combat = false; a.acquired = false; a.target = -1; a.blocked = false;
   w.acc = 0; w.heat = 0; w.spreadHeat = 0; w.lock = 0; w.lockT = 0; w.sinceShot = Infinity; w.pending = false; w.handledPress = s.input.pressSerial;
   fx.kickP = fx.kickY = fx.kickPv = fx.kickYv = fx.fovShot = fx.fovShotV = fx.fovKill = fx.fovKillV = fx.trauma = fx.shakeP = fx.shakeY = 0;
-  as.slow = 0; as.driftYaw = 0; as.driftPitch = 0; as.engaged = false;
+  as.engaged = false;
   s.muzzle.valid = false; s.muzzle.weight = 0;
 }
 export function pressFire(s: ShooterState, source: Exclude<FireSource, 'none'>) { s.input.fire = true; s.input.fireSource = source; s.input.pressSerial++; s.input.auto = false; }
@@ -124,9 +124,9 @@ export function tapShot(s: ShooterState) { s.input.pressSerial++; s.input.auto =
 export function pressAim(s: ShooterState, toggle: boolean) { if (toggle) s.input.aimLatched = !s.input.aimLatched; else s.input.aim = true; }
 export const releaseAim = (s: ShooterState) => { s.input.aim = false; };
 export const aimHeld = (s: ShooterState) => s.input.aim || s.input.aimLatched;
-/** 0 = normal flight, 1 = hip fire (13 m/s cap), 2 = ADS hover-strafe. Auto-fire holds never cap speed here or add friction (engaged); threat still counts them. */
-export function moveMode(s: ShooterState): 0 | 1 | 2 {
-  return aimHeld(s) ? 2 : !s.input.auto && (s.input.fire || s.weapon.sinceShot < HIP_HOLD) ? 1 : 0;
+/** 0 = normal flight, 2 = ADS hover-strafe (a held Q, right button or Aim). Firing never changes the mode: there is no hip-fire speed cap. */
+export function moveMode(s: ShooterState): 0 | 2 {
+  return aimHeld(s) ? 2 : 0;
 }
 export const engaged = (s: ShooterState) => aimHeld(s) || !s.input.auto && (s.input.fire || s.weapon.sinceShot < ENGAGED_HOLD);
 export const threat = (s: ShooterState) => aimHeld(s) || s.input.fire || s.weapon.sinceShot < ENGAGED_HOLD;
@@ -142,24 +142,8 @@ export function readEvents(s: ShooterState, cursor: { last: number }, fn: (e: Sh
   for (let n = Math.max(cursor.last + 1, s.eventSerial - EVENT_RING + 1); n <= s.eventSerial; n++) fn(s.events[(n - 1) % EVENT_RING]);
   cursor.last = s.eventSerial;
 }
+/** ADS zoom gain on look input: crosshair speed on screen stays the same through the zoom. 1 at blend 0 (look is then bit-exact). */
 export const aimGain = (a: number) => 1 + (ADS_GAIN - 1) * a;
-/** Effective friction (0..MAX_SLOW) for the current steering device, strength setting and engagement. */
-export function frictionNow(s: ShooterState) {
-  if (!s.assist.engaged || s.assist.slow === 0) return 0;
-  return Math.min(MAX_SLOW, s.assist.slow * ASSIST_PROFILE[s.input.lookSource].friction * s.assist.scale);
-}
-/**
- * Scales one look() delta by the ADS gain and the aim-assist friction. Dynamic boost: an axis whose input moves the view
- * the same way the target drifts is not slowed. Returns the input unchanged (bit-exact) while the shooter is idle.
- */
-export function lookGain(s: ShooterState, dx: number, dy: number, out: { x: number; y: number }) {
-  const a = s.aim.blend, slow = frictionNow(s);
-  if (a === 0 && slow === 0) { out.x = dx; out.y = dy; return out; }
-  const g = aimGain(a);
-  out.x = dx * g * (-dx * s.assist.driftYaw > 0 ? 1 : 1 - slow);
-  out.y = dy * g * (-dy * s.assist.driftPitch > 0 ? 1 : 1 - slow);
-  return out;
-}
 /** WCAG 2.3.1 gate over 3 slots at hist[offset..offset+2]: false when 3 flashes already fell in the last 1 s; else records t. */
 export function flashGate(hist: Float64Array, offset: number, t: number) {
   let oldest = offset;

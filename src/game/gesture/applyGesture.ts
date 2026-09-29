@@ -80,11 +80,6 @@ export function gestureOffset(v: Vec, apply = true): Vec {
   return v;
 }
 
-/** Hip clamp: only mode 1 is exempt, only while a lab scheme is on and exemptHip is set. Mode 2 (ADS) always stays. */
-export function labMode(m: 0 | 1 | 2): 0 | 1 | 2 {
-  return m === 1 && gesture.scheme !== 'off' && gesture.exemptHip ? 0 : m;
-}
-
 const snap = (c: number) => (Math.abs(c) < SNAP_INTENT ? 0 : c);
 /**
  * The gesture contribution to readIntent. Added only when live || !landGoal (a decay tail never cancels a Land), precise only

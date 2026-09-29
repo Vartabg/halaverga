@@ -1,12 +1,10 @@
 'use client';
 import { useState } from 'react';
-import { persistGame, useGame } from '@/game/store';
 import LabSwitch from './LabSwitch';
 import { exportStats, flushLabStats, LAB_IDS, LAB_NAMES, labStats, resetLabStats, statsTable } from './labStats';
 import { strokeLog } from './strokeLog';
 import styles from './Lab.module.css';
-// Flight settings' Gesture Lab section (spec 8, 11): the switch, the 'Shots slow me down' option, and the local side-by-side table
-// with its exports. Everything stays on this device; the exports are files the player saves.
+// Flight settings' Gesture Lab section (spec 8, 11): the switch and the local side-by-side table with its exports. Everything stays on this device; the exports are files the player saves.
 function download(name: string, text: string) {
   const url = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
   const a = document.createElement('a'); a.href = url; a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
@@ -32,10 +30,7 @@ export function LabStatsTable() {
 }
 
 export default function LabPanel() {
-  const lab = useGame(s => s.controlLab), slow = useGame(s => s.labShotsSlow);
   return <section aria-label="Control lab">
     <LabSwitch name="control-lab-settings" />
-    {lab !== 'standard' && <label className={styles.check}><input type="checkbox" checked={slow}
-      onChange={e => { useGame.setState({ labShotsSlow: e.target.checked }); persistGame(); }} /> Shots slow me down</label>}
   </section>;
 }

@@ -4,10 +4,10 @@ import { describe, expect, it } from 'vitest';
 import { clearGesture, gesture } from '../src/game/gesture/bus';
 
 describe('gesture bus', () => {
-  it('clearGesture keeps scheme, step, exemptHip and reduced, zeroes the rest and bumps epoch', () => {
+  it('clearGesture keeps scheme, step and reduced, zeroes the rest and bumps epoch', () => {
     const step = () => {};
     const g = gesture;
-    g.scheme = 'conduct'; g.step = step; g.exemptHip = false;
+    g.scheme = 'conduct'; g.step = step;
     g.live = true; g.surge = true; g.velocityOn = true; g.override = true; g.landArmed = true;
     g.intent.forward = .5; g.intent.strafe = -.3; g.intent.vertical = .2;
     g.yawRate = 1; g.pitchRate = -1; g.spin = 3;
@@ -16,7 +16,8 @@ describe('gesture bus', () => {
     g.facing = 2; g.request = { kind: 'land', x: 1, y: 2, z: 3 }; g.reduced = true;
     const epoch = g.epoch, intent = g.intent, velocity = g.velocity, offset = g.offset;
     clearGesture();
-    expect(g.scheme).toBe('conduct'); expect(g.step).toBe(step); expect(g.exemptHip).toBe(false); expect(g.reduced).toBe(true);
+    expect(g.scheme).toBe('conduct'); expect(g.step).toBe(step); expect(g.reduced).toBe(true);
+    expect('exemptHip' in g).toBe(false); // no hip-fire clamp to exempt from since 2026-09-26
     expect(g.epoch).toBe(epoch + 1);
     expect([g.live, g.surge, g.velocityOn, g.override, g.landArmed]).toEqual([false, false, false, false, false]);
     expect(g.intent).toEqual({ forward: 0, strafe: 0, vertical: 0 });
@@ -25,7 +26,7 @@ describe('gesture bus', () => {
     expect(g.request).toBeNull();
     // Zeroed in place: holders of the nested objects see the clear, and nothing was allocated.
     expect(g.intent).toBe(intent); expect(g.velocity).toBe(velocity); expect(g.offset).toBe(offset);
-    g.scheme = 'off'; g.step = null; g.exemptHip = true; g.reduced = false; clearGesture();
+    g.scheme = 'off'; g.step = null; g.reduced = false; clearGesture();
   });
   it('bus.ts has no import lines (landing-safe)', () => {
     const src = readFileSync(fileURLToPath(new URL('../src/game/gesture/bus.ts', import.meta.url)), 'utf8');

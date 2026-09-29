@@ -1,6 +1,6 @@
 // Right-thumb look (landing-safe). Relative drag, no smoothing, no slop, no inertia. Slow drags turn exactly radPerPx per pixel;
 // fast swipes turn further (velocity gain, on by default, off under reduced motion). It goes through runtime.look(), so CameraRig
-// stays the only camera writer and aim-assist friction and the ADS gain still apply.
+// stays the only camera writer and the ADS gain applies; there is no look friction (2026-09-26).
 import { look, runtime } from './runtime';
 import { useGame } from './store';
 /**

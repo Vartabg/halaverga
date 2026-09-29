@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { touchLook } from '../src/game/touchLook';
 import { thumbEdge, deskEdge } from '../src/game/thumbFlight';
 import { exitKind } from '../src/game/trackpadFlight';
-import { applyEdgeTurns, resetEdgeTurns, EDGE } from '../src/game/edgeTurn';
+import { applyEdgeTurns, resetEdgeTurns, thumbTurn, EDGE, THUMB } from '../src/game/edgeTurn';
 import { EdgeRest } from '../src/game/lookEdgeRest';
 import { computeLayout } from '../src/game/touchLayout';
 import { clearInput, runtime, startTrackpad } from '../src/game/runtime';
@@ -17,7 +17,7 @@ beforeEach(() => {
   useGame.setState({ touchLook: 1, touchAim: 1, lookAccel: true, reduced: false, invertY: false, aimAssist: 0, edgeRest: true });
   clearInput(true); resetEdgeTurns();
   runtime.yaw = 0; runtime.pitch = 0;
-  const s = runtime.shooter; s.aim.blend = 0; s.assist.slow = 0; s.assist.engaged = false;
+  const s = runtime.shooter; s.aim.blend = 0; s.assist.engaged = false;
 });
 afterEach(() => { clearInput(true); resetEdgeTurns(); useGame.setState(useGame.getInitialState()); });
 /** A min-jerk look swipe of px over ms at 60 Hz, fed through touchLook; returns the yaw turned in degrees. */
@@ -53,24 +53,49 @@ describe('twin look acceleration (1.2a)', () => {
   });
 });
 describe('edge factors (1.3, 1.5)', () => {
-  it('classic thumb: 1 within 16 px, 0 at 64 px, 0.9 or more at 25 px; symmetric', () => {
-    const w = 1000;
-    expect(thumbEdge(w - 16, w)).toBe(1); expect(thumbEdge(w - 4, w)).toBe(1); expect(thumbEdge(16, w)).toBe(-1);
-    expect(thumbEdge(w - 64, w)).toBe(0); expect(thumbEdge(64, w)).toBe(0);
-    expect(thumbEdge(w - 25, w)).toBeGreaterThanOrEqual(.9); expect(thumbEdge(25, w)).toBeLessThanOrEqual(-.9);
+  it('classic thumb is main 7945430 again: linear over min(44, 0.1 x size) px, 1 only at the edge; symmetric', () => {
+    for (const w of [393, 852, 1000]) {
+      const m = Math.min(44, w * .1);
+      expect(thumbEdge(w, w)).toBe(1); expect(thumbEdge(0, w)).toBe(-1); expect(thumbEdge(w / 2, w)).toBe(0);
+      expect(thumbEdge(w - m, w)).toBe(0); expect(thumbEdge(m, w)).toBe(0);
+      expect(thumbEdge(w - m / 2, w)).toBeCloseTo(.5, 12); expect(thumbEdge(m / 2, w)).toBeCloseTo(-.5, 12);
+      expect(thumbEdge(w - 8, w)).toBeCloseTo((m - 8) / m, 12);
+    }
   });
   it('desktop: full within 12 px, 0 at 72 px on a wide screen', () => {
     expect(deskEdge(1440, 1440)).toBe(1); expect(deskEdge(1440 - 12, 1440)).toBe(1); expect(deskEdge(1440 - 72, 1440)).toBe(0);
     expect(deskEdge(720, 1440)).toBe(0); expect(deskEdge(0, 1440)).toBe(-1);
   });
 });
-describe('applyEdgeTurns (1.4)', () => {
-  it('classic thumb resting 25 px in: a 360 in 2.1 s or less (was 8.4 s)', () => {
-    Object.assign(runtime.thumb, { active: true, edgeTurn: thumbEdge(1000 - 25, 1000) });
-    const t = timeTo360();
-    expect(t).toBeLessThanOrEqual(2.1);
+describe('classic thumb rate control (Garo 2026-09-26: main 7945430, not an edgeTurn.ts source)', () => {
+  const spin = (p = prefs, reduced = false) => {
+    for (let t = DT; t <= 10 + 1e-9; t += DT) { applyEdgeTurns(DT, { ...p, reduced }); thumbTurn(DT); if (Math.abs(runtime.yaw) >= FULL) return t; }
+    return Infinity;
+  };
+  it('a thumb held at the edge turns 360 in about 4.19 s at 1.5 rad/s, direct (no slew), the same under reduced motion and ADS', () => {
+    Object.assign(runtime.thumb, { active: true, edgeTurn: thumbEdge(1000, 1000) });
+    thumbTurn(DT); expect(runtime.yaw).toBeCloseTo(-THUMB.yaw * DT, 12); // full rate from the first step
+    runtime.yaw = 0;
+    const t = spin();
+    expect(Math.abs(t - 2 * Math.PI / 1.5)).toBeLessThanOrEqual(.1);
     expect(runtime.yaw).toBeLessThan(0); // right edge turns right
+    runtime.yaw = 0; expect(Math.abs(spin(prefs, true) - t)).toBeLessThanOrEqual(DT + 1e-9);
+    runtime.yaw = 0; runtime.shooter.aim.blend = 1; expect(Math.abs(spin({ ...prefs, shooter: true }) - t)).toBeLessThanOrEqual(DT + 1e-9);
+    runtime.shooter.aim.blend = 0;
   });
+  it('applyEdgeTurns ignores the classic thumb, and an inactive thumb turns nothing', () => {
+    Object.assign(runtime.thumb, { active: true, edgeTurn: 1, edgePitch: 1 });
+    for (let i = 0; i < 60; i++) applyEdgeTurns(DT, prefs);
+    expect(runtime.yaw).toBe(0); expect(runtime.pitch).toBe(0);
+    Object.assign(runtime.thumb, { active: false, edgeTurn: 1, edgePitch: 1 });
+    for (let i = 0; i < 60; i++) thumbTurn(DT);
+    expect(runtime.yaw).toBe(0); expect(runtime.pitch).toBe(0);
+    Object.assign(runtime.thumb, { active: true, edgeTurn: 0, edgePitch: -1 });
+    for (let i = 0; i < 60; i++) thumbTurn(DT);
+    expect(runtime.pitch).toBeCloseTo(-1, 9); // pitch 1 rad/s, clamped to [-1.3, 1.25]
+  });
+});
+describe('applyEdgeTurns (1.4)', () => {
   it('desktop cursor held at the edge with sustained edges: 1.9 s or less', () => {
     startTrackpad(); runtime.trackpad.edgeTurn = 1;
     expect(timeTo360()).toBeLessThanOrEqual(1.9);

@@ -17,6 +17,17 @@ describe('runtime look with the shooter', () => {
     expect(runtime.pitch).toBe(Math.max(-1.3, Math.min(1.25, -.12 - -4 * .003 * 1.3)));
     runtime.pitch = 1.2; look(0, -100, 1); expect(runtime.pitch).toBe(1.25);
   });
+  it('is identity with a drone acquired and the trigger held (no aim-assist friction anywhere, Garo 2026-09-26)', () => {
+    const t = s.targets[0]; s.drones.count = 1; t.alive = true; t.los = true; Object.assign(t.c, { x: 0, y: 0, z: -20 });
+    s.aim.acquired = true; s.aim.target = 0; s.assist.engaged = true; s.assist.scale = 1.5;
+    // A held touch trigger (set directly: the shared pressSerial is pinned by a later test).
+    s.input.fire = true; s.input.fireSource = 'touch'; s.input.lookSource = 'touch';
+    look(10, -4, 1.3);
+    expect(runtime.yaw).toBe(.2 - 10 * .003 * 1.3);
+    expect(runtime.pitch).toBe(Math.max(-1.3, Math.min(1.25, -.12 - -4 * .003 * 1.3)));
+    for (const src of ['trackpad', 'mouse', 'tap'] as const) { s.input.lookSource = src; runtime.yaw = 0; look(7, 0); expect(runtime.yaw).toBe(-7 * .003); }
+    clearInput();
+  });
   it('scales the yaw delta by the ADS gain at full blend', () => {
     s.aim.blend = 1;
     look(10, 0, 1.3);

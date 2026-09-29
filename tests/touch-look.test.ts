@@ -6,7 +6,7 @@ import { ADS_GAIN } from '../src/game/combat';
 beforeEach(() => {
   useGame.setState({ touchLook: 1, touchAim: 1, lookAccel: false, reduced: false, invertY: false, aimAssist: 0 });
   runtime.yaw = 0; runtime.pitch = 0; runtime.stick.lookTravel = 0;
-  const s = runtime.shooter; s.aim.blend = 0; s.assist.slow = 0; s.assist.engaged = false;
+  const s = runtime.shooter; s.aim.blend = 0; s.assist.engaged = false;
 });
 describe('touch look', () => {
   it('turns exactly .0052 rad of yaw per pixel and .8x that in pitch, drag up looks up', () => {

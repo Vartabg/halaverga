@@ -8,17 +8,17 @@ const NON_DEFAULT: Record<PersistedKey, unknown> = {
   checkpoint: { x: 30, y: 61.415, z: -38 }, camera: 'first', quality: 'low', reduced: true, muted: false, discovered: true,
   tapControls: true, desktopMode: 'mouse', trackpadSteering: 'captured', sustainedEdges: false, reverseScroll: true,
   cruiseSpeed: 20, heroPoses: false, lookSensitivity: 1.7, flowIntroSeen: true, shooter: false, aimToggle: true, aimAssist: 1.5,
-  controlsVersion: 6, autoFire: false, aimButton: false, hintProgress: { touch: 2, simple: 3, mouse: 1 },
-  touchScheme: 'classic', touchLook: 1.6, touchAim: .7, lookAccel: false, edgeRest: false, invertY: true, flipSides: true,
-  controlSize: 1.15, controlOpacity: .5, flyWhereILook: true, homeTipSeen: true, controlLab: 'brush', labShotsSlow: true,
+  controlsVersion: 7, autoFire: false, aimButton: false, hintProgress: { touch: 2, simple: 3, mouse: 1 },
+  touchScheme: 'twin', touchLook: 1.6, touchAim: .7, lookAccel: false, edgeRest: false, invertY: true, flipSides: true,
+  controlSize: 1.15, controlOpacity: .5, flyWhereILook: true, homeTipSeen: true, controlLab: 'brush',
 };
 const DEFAULTS: Record<PersistedKey, unknown> = {
   checkpoint: START, camera: 'third', quality: 'high', reduced: false, muted: true, discovered: false,
   tapControls: false, desktopMode: 'trackpad', trackpadSteering: 'free', sustainedEdges: true, reverseScroll: false,
   cruiseSpeed: 8, heroPoses: true, lookSensitivity: 1, flowIntroSeen: false, shooter: true, aimToggle: false, aimAssist: 1,
-  controlsVersion: 5, autoFire: true, aimButton: true, hintProgress: { touch: 0, simple: 0, mouse: 0 },
-  touchScheme: 'twin', touchLook: 1, touchAim: 1, lookAccel: true, edgeRest: true, invertY: false, flipSides: false,
-  controlSize: 1, controlOpacity: .85, flyWhereILook: false, homeTipSeen: false, controlLab: 'standard', labShotsSlow: false,
+  controlsVersion: 6, autoFire: true, aimButton: true, hintProgress: { touch: 0, simple: 0, mouse: 0 },
+  touchScheme: 'classic', touchLook: 1, touchAim: 1, lookAccel: true, edgeRest: true, invertY: false, flipSides: false,
+  controlSize: 1, controlOpacity: .85, flyWhereILook: false, homeTipSeen: false, controlLab: 'standard',
 };
 const expectAll = (table: Record<PersistedKey, unknown>) => {
   const s = useGame.getState();
@@ -59,14 +59,14 @@ describe('persistence', () => {
       expect([raw, useGame.getState().trackpadSteering, useGame.getState().camera]).toEqual([raw, want, 'first']);
     }
   });
-  it('writes controls version 5 after a migration, so a later explicit simple choice survives', () => {
+  it('writes controls version 6 after a migration, so a later explicit simple choice survives', () => {
     saved[STORAGE] = JSON.stringify({ trackpadSteering: 'simple', desktopMode: 'trackpad', controlsVersion: 3 });
-    hydrateGame(); expect(useGame.getState().controlsVersion).toBe(5);
-    persistGame(); expect(JSON.parse(saved[STORAGE])).toMatchObject({ trackpadSteering: 'free', controlsVersion: 5 });
+    hydrateGame(); expect(useGame.getState().controlsVersion).toBe(6);
+    persistGame(); expect(JSON.parse(saved[STORAGE])).toMatchObject({ trackpadSteering: 'free', controlsVersion: 6 });
     useGame.setState({ trackpadSteering: 'simple' }); persistGame();
     hydrateGame(); expect(useGame.getState().trackpadSteering).toBe('simple');
-    expect(JSON.parse(saved[STORAGE]).controlsVersion).toBe(5);
-    for (const [raw, want] of [[undefined, 5], [0, 5], [1, 5], [2, 5], [3, 5], [4, 5], [5, 5], [7, 7]] as const)
+    expect(JSON.parse(saved[STORAGE]).controlsVersion).toBe(6);
+    for (const [raw, want] of [[undefined, 6], [0, 6], [1, 6], [2, 6], [3, 6], [4, 6], [5, 6], [6, 6], [7, 7]] as const)
       { saved[STORAGE] = JSON.stringify({ controlsVersion: raw }); hydrateGame(); expect([raw, useGame.getState().controlsVersion]).toEqual([raw, want]); }
   });
   it('leaves desktopMode, the touch fields and a v3 hint progress alone when simple returns to free', () => {
@@ -74,7 +74,7 @@ describe('persistence', () => {
       hintProgress: { touch: 3, simple: 2, mouse: 1 }, touchScheme: 'classic', flyWhereILook: true });
     hydrateGame(); const s = useGame.getState();
     expect([s.trackpadSteering, s.desktopMode, s.aimButton, s.hintProgress, s.touchScheme, s.flyWhereILook, s.controlsVersion])
-      .toEqual(['free', 'mouse', false, { touch: 3, simple: 2, mouse: 1 }, 'classic', true, 5]);
+      .toEqual(['free', 'mouse', false, { touch: 3, simple: 2, mouse: 1 }, 'classic', true, 6]);
   });
   it('writes exactly the authoritative persisted key list', () => {
     persistGame();
@@ -153,15 +153,30 @@ describe('persistence', () => {
     saved[STORAGE] = JSON.stringify({ hintProgress: 'x' });
     hydrateGame(); expect(useGame.getState().hintProgress).toEqual(zeros);
   });
-  it('migrates a v2 save to the industry touch controls: Aim shown, touch hints restart, twin scheme, version 5', () => {
+  it('migrates a v2 save: Aim shown, touch hints restart, the classic one thumb (v6), version 6', () => {
     for (const version of [2, undefined, 1]) {
       saved[STORAGE] = JSON.stringify({ controlsVersion: version, aimButton: false, hintProgress: { touch: 2, simple: 3, mouse: 4 }, camera: 'first' });
-      useGame.setState({ touchScheme: 'classic' });
+      useGame.setState({ touchScheme: 'twin' });
       hydrateGame();
       const s = useGame.getState();
       expect([version, s.aimButton, s.hintProgress, s.touchScheme, s.controlsVersion, s.camera])
-        .toEqual([version, true, { touch: 0, simple: 3, mouse: 4 }, 'twin', 5, 'first']);
+        .toEqual([version, true, { touch: 0, simple: 3, mouse: 4 }, 'classic', 6, 'first']);
     }
+  });
+  it('v6 (Garo 2026-09-26): saves below 6 move to the classic one thumb, a twin choice saved at 6 or later persists', () => {
+    for (const version of [3, 4, 5]) {
+      saved[STORAGE] = JSON.stringify({ controlsVersion: version, touchScheme: 'twin' });
+      hydrateGame(); expect([version, useGame.getState().touchScheme, useGame.getState().controlsVersion]).toEqual([version, 'classic', 6]);
+    }
+    for (const version of [6, 7]) {
+      saved[STORAGE] = JSON.stringify({ controlsVersion: version, touchScheme: 'twin' });
+      hydrateGame(); expect([version, useGame.getState().touchScheme]).toEqual([version, 'twin']);
+      saved[STORAGE] = JSON.stringify({ controlsVersion: version, touchScheme: 'classic' });
+      hydrateGame(); expect([version, useGame.getState().touchScheme]).toEqual([version, 'classic']);
+    }
+    saved[STORAGE] = JSON.stringify({ controlsVersion: 6 }); hydrateGame(); expect(useGame.getState().touchScheme).toBe('classic');
+    // Choosing twin now saves at 6 and survives the next load.
+    useGame.setState({ touchScheme: 'twin' }); persistGame(); hydrateGame(); expect(useGame.getState().touchScheme).toBe('twin');
   });
   it('keeps every choice in a v3 save', () => {
     saved[STORAGE] = JSON.stringify({ controlsVersion: 3, aimButton: false, hintProgress: { touch: 3, simple: 1, mouse: 0 },
@@ -177,7 +192,7 @@ describe('persistence', () => {
       ['touchAim', 3, 1.5], ['touchAim', 0, .5], ['touchAim', null, 1],
       ['controlSize', 2, 1.2], ['controlSize', .2, .85], ['controlSize', '1.1', 1],
       ['controlOpacity', 5, 1], ['controlOpacity', 0, .4], ['controlOpacity', [], .85],
-      ['touchScheme', 'thumbs', 'twin'], ['touchScheme', 'classic', 'classic'],
+      ['touchScheme', 'thumbs', 'classic'], ['touchScheme', 'classic', 'classic'],
       ['invertY', 1, false], ['flipSides', 'true', false], ['flyWhereILook', 0, false], ['homeTipSeen', {}, false],
     ];
     for (const [key, raw, want] of table) {
@@ -191,7 +206,7 @@ describe('persistence', () => {
       saved[STORAGE] = JSON.stringify({ controlsVersion: version, lookAccel: false, sustainedEdges: false, camera: 'first' });
       useGame.setState({ lookAccel: false, sustainedEdges: false, edgeRest: false });
       hydrateGame(); const s = useGame.getState();
-      expect([version, s.lookAccel, s.sustainedEdges, s.edgeRest, s.camera, s.controlsVersion]).toEqual([version, true, true, true, 'first', 5]);
+      expect([version, s.lookAccel, s.sustainedEdges, s.edgeRest, s.camera, s.controlsVersion]).toEqual([version, true, true, true, 'first', 6]);
     }
     saved[STORAGE] = JSON.stringify({ controlsVersion: 5, lookAccel: false, sustainedEdges: false, edgeRest: false });
     hydrateGame();

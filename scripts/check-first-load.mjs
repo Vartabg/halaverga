@@ -6,6 +6,7 @@ const root = fileURLToPath(new URL('..', import.meta.url));
 const SCENE = ['WebGLRenderer', 'isVector3', '@react-three', 'BufferGeometry', 'powerHero', 'bankLeft'];
 // Minification-safe blaster markers: CSS module class prefixes, data-testids, a DOM API name and settings copy, never
 // component identifiers (the minifier renames those). runtime.shooter's plain state (combat.ts) is an accepted exception.
+// 'FireControls-module' is deleted (2026-09-26); the marker stays so a reintroduced Fire button never lands on the landing page.
 const SHOOTER = ['ShooterHud-module', 'FireControls-module', 'shooter-hud', 'fire-button', 'createDynamicsCompressor', 'drones and shooting'];
 // The touch controls (stick, look, cluster) are a chunk warmed after hydration (Experience loads them with next/dynamic).
 const TOUCH = ['TouchControls-module', 'rise-button', 'touch-stick'];

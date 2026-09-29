@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { DRONE_RADIUS, HIP_HOLD, PHASE, createShooter, engaged, frictionNow, lookGain, moveMode, pressFire, releaseFire,
+import { DRONE_RADIUS, HIP_HOLD, PHASE, createShooter, engaged, moveMode, pressFire, releaseFire,
   resetShooterFeel, resetShooterInput, tapShot, threat, type LookSource, type ShooterState, type Vec3 } from '../src/game/combat';
 import { AUTO_FIRE, autoFire, autoFireTarget, resetAutoFire, stepAutoFire } from '../src/game/autoFire';
 import { advanceAssist, createAssistMemory } from '../src/game/aimAssist';
@@ -127,17 +127,16 @@ describe('auto-fire external reset', () => {
 });
 
 describe('auto-fire never brakes flight', () => {
-  it('keeps normal flight and exact look while it holds and through its trailing window; a manual press restores hip fire', () => {
-    hold(); const out = { x: 0, y: 0 };
+  it('keeps normal flight while it holds and through its trailing window; a manual press engages the magnet but never brakes', () => {
+    hold();
     expect(moveMode(s)).toBe(0); expect(engaged(s)).toBe(false); expect(threat(s)).toBe(true);
-    expect(lookGain(s, .013, -.007, out)).toEqual({ x: .013, y: -.007 });
     s.aim.acquired = false; run(1 / 60, 10); expect(s.input.fire).toBe(false);
     s.weapon.sinceShot = HIP_HOLD / 2; expect(moveMode(s)).toBe(0); expect(engaged(s)).toBe(false); expect(threat(s)).toBe(true);
-    pressFire(s, 'keys'); expect(moveMode(s)).toBe(1); expect(engaged(s)).toBe(true);
+    pressFire(s, 'keys'); expect(moveMode(s)).toBe(0); expect(engaged(s)).toBe(true);
     s.input.auto = true; tapShot(s); expect(s.input.auto).toBe(false);
     s.input.auto = true; resetShooterFeel(s); expect(s.input.auto).toBe(false);
   });
-  it('adds no assist friction for a drone in the zone while auto-fire holds, unlike a manual hold', () => {
+  it('never counts as engaged for a drone in the zone while auto-fire holds, unlike a manual hold (neither slows the view)', () => {
     const o: Vec3 = { x: 0, y: 0, z: 0 }, d: Vec3 = { x: 0, y: 0, z: -1 };
     const setup = () => {
       fresh(); s.drones.count = 1; s.drones.phase[0] = PHASE.alert;
@@ -146,11 +145,11 @@ describe('auto-fire never brakes flight', () => {
     setup(); expect(untilPress(1 / 60)).toBeLessThan(Infinity); expect(s.input.auto).toBe(true); // auto-fire's own hold
     const mem = createAssistMemory();
     for (let k = 0; k < 30; k++) advanceAssist(s, mem, o, d, 65, 1, 1 / 60);
-    expect(s.aim.acquired).toBe(true); expect(s.assist.engaged).toBe(false); expect(frictionNow(s)).toBe(0);
-    setup(); pressFire(s, 'touch'); // a manual Fire-button hold engages the assist as before
+    expect(s.aim.acquired).toBe(true); expect(s.assist.engaged).toBe(false);
+    setup(); pressFire(s, 'touch'); // a manual Fire-button hold engages the magnet as before
     const m2 = createAssistMemory();
     for (let k = 0; k < 30; k++) advanceAssist(s, m2, o, d, 65, 1, 1 / 60);
-    expect(s.assist.engaged).toBe(true); expect(frictionNow(s)).toBeGreaterThan(0);
+    expect(s.assist.engaged).toBe(true); expect(s.assist).toEqual({ engaged: true, scale: 1 });
   });
 });
 
@@ -188,7 +187,7 @@ describe('auto-fire through stepShooter', () => {
       if (r.s.stats.shots > 0) tShot = r.s.clock;
       if (autoFire.holding) {
         sawThreat ||= droneContext.threat;
-        expect(moveMode(r.s)).toBe(0); expect(engaged(r.s)).toBe(false); expect(frictionNow(r.s)).toBe(0);
+        expect(moveMode(r.s)).toBe(0); expect(engaged(r.s)).toBe(false);
       }
     }
     expect(tAcq).toBeGreaterThan(0);
@@ -207,7 +206,7 @@ describe('auto-fire through stepShooter', () => {
     for (let k = 0; k < 120; k++) {
       track(r, 20 * DEG);
       expect(r.s.aim.acquired).toBe(false);
-      expect([r.s.aim.blend, r.s.aim.fireHold, r.s.assist.slow]).toEqual([0, 0, 0]);
+      expect([r.s.aim.blend, r.s.aim.fireHold, r.s.assist.engaged]).toEqual([0, 0, false]);
       for (const [key, v] of Object.entries(r.s.camFx)) expect([key, v]).toEqual([key, 0]);
     }
     expect(r.s.stats.shots).toBe(0); expect(r.s.input.pressSerial).toBe(0);

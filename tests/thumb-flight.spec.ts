@@ -83,6 +83,8 @@ test('rotation releases both thumbs and keeps playing, without changing the view
   await page.waitForTimeout(650);
   // Touch play: a rotation releases held input (the suit coasts to a hover) and never pauses.
   await page.setViewportSize({ width: 852, height: 393 }); await page.waitForTimeout(400);
+  // The contacts expire in the rotation event itself: the surface reads idle at once, as main's remount did (review 2026-09-26).
+  await expect(page.getByTestId('flight-surface')).toHaveAttribute('data-control-mode', 'idle');
   const heading = await telemetry.getAttribute('data-heading');
   await expect.poll(async () => Number(await telemetry.getAttribute('data-speed')), { timeout: 1500 }).toBeLessThan(.5);
   expect(await telemetry.getAttribute('data-heading')).toBe(heading);

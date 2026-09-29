@@ -2,7 +2,7 @@ import type { Vector3 } from 'three';
 import { SPEED, START, moving, setVec, type Intent } from './motion';
 import { useGame } from './store';
 import { flowSpeed, type CaptureState } from './flowFlight';
-import { aimGain, createShooter, engaged, resetShooterInput, lookGain, releaseFire } from './combat';
+import { aimGain, createShooter, engaged, resetShooterInput, releaseFire } from './combat';
 import { clearGesture, gesture } from './gesture/bus';
 import { gestureIntent, type GestureIntentOut } from './gesture/applyGesture';
 // The landing page imports this module, so vectors stay plain objects and three.js is imported for types only; a value import would load the 3D bundle with the page.
@@ -35,7 +35,6 @@ export const runtime = {
 };
 /** Held Descend sinks at this fraction of full flight speed (0.7 x 13 = 9.1 m/s). */
 export const DESCEND_RATE = .7;
-const lookScratch = { x: 0, y: 0 };
 /** Rise and Descend: both held hover; a Descend already spent on a landing approach no longer sinks. */
 function stickVertical() {
   const st = runtime.stick;
@@ -121,10 +120,11 @@ export function releaseKeys() {
   if (s.input.fireSource === 'keys') releaseFire(s, 'keys');
 }
 export function toggleSurge() { runtime.surge = !runtime.surge; }
+/** Look input. The only shooter effect is the ADS zoom gain (1 at blend 0): no aim-assist friction anywhere (Garo 2026-09-26). */
 export function look(dx: number, dy: number, sensitivity = 1) {
-  lookGain(runtime.shooter, dx, dy, lookScratch);
-  runtime.yaw -= lookScratch.x * 0.003 * sensitivity;
-  runtime.pitch = Math.max(-1.3, Math.min(1.25, runtime.pitch - lookScratch.y * 0.003 * sensitivity));
+  const g = aimGain(runtime.shooter.aim.blend);
+  runtime.yaw -= dx * g * 0.003 * sensitivity;
+  runtime.pitch = Math.max(-1.3, Math.min(1.25, runtime.pitch - dy * g * 0.003 * sensitivity));
 }
 export function releaseThumb() {
   runtime.thumb = { active: false, throttle: 0, strafe: 0, edgeTurn: 0, edgePitch: 0, bank: 0 };

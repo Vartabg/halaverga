@@ -1,8 +1,9 @@
 import { expect, test } from '@playwright/test';
-import { fov, hud, resume, touchPage } from './shooter-browser';
+import { autoTouchPage, fov, hud, resume } from './shooter-browser';
 // The phone-landscape camera (cameraFx.shortWeight): a 95 deg horizontal cap narrows the hip FOV to 53.4 on an 852x393 screen, ADS
 // keeps the same zoom (about 40.5), and rotating to portrait or a desktop window gives back exactly 65, with no glide.
-// Emulation only: not iPhone validation.
+// Emulation only: not iPhone validation. The classic one thumb has no Aim button (tap a drone to blast), so ADS is Q with
+// 'Toggle aim' (aimToggle), the same latch the touch Aim button used.
 const PORTRAIT = { width: 393, height: 852 }, LANDSCAPE = { width: 852, height: 393 }, DESKTOP = { width: 1440, height: 1000 };
 type Page = import('@playwright/test').Page;
 const near = (want: number, tol: number) => async (p: Page) => Math.abs(await fov(p) - want) <= tol;
@@ -10,13 +11,12 @@ const distance = async (p: Page) => Number(await p.getByTestId('flight-telemetry
 const SE = { width: 375, height: 667 }, SE_SAFARI = { width: 375, height: 548 }; // iPhone SE portrait: full height, and 100svh with toolbars
 
 test('landscape narrows the hip and ADS field; rotation snaps between 53.4 and 65.0 without a glide', async ({ browser }) => {
-  const t = await touchPage(browser, LANDSCAPE), { page } = t;
+  const t = await autoTouchPage(browser, LANDSCAPE, { aimToggle: true }), { page } = t;
   await page.waitForTimeout(1200);
   await expect(hud(page)).toHaveAttribute('data-fov', '53.4');
-  const aim = page.locator('[data-shooter-controls]').getByRole('button', { name: 'Aim' });
-  await aim.tap(); await expect(hud(page)).toHaveAttribute('data-aiming', 'true');
+  await page.keyboard.press('KeyQ'); await expect(hud(page)).toHaveAttribute('data-aiming', 'true');
   await expect.poll(() => near(40.45, .2)(page)).toBe(true);
-  await aim.tap(); await expect(hud(page)).toHaveAttribute('data-aiming', 'false');
+  await page.keyboard.press('KeyQ'); await expect(hud(page)).toHaveAttribute('data-aiming', 'false');
   await expect(hud(page)).toHaveAttribute('data-fov', '53.4');
   // A glide at the base FOV's rate 3 would need about 1.8 s to settle within .05 deg; the shift lands at once.
   await page.setViewportSize(PORTRAIT); await expect(hud(page)).toHaveAttribute('data-fov', '65.0', { timeout: 700 });
@@ -26,17 +26,16 @@ test('landscape narrows the hip and ADS field; rotation snaps between 53.4 and 6
 });
 
 test('reduced camera motion holds the landscape field at 53.4, aiming or not', async ({ browser }) => {
-  const t = await touchPage(browser, LANDSCAPE, { reduced: true }), { page } = t;
+  const t = await autoTouchPage(browser, LANDSCAPE, { reduced: true, aimToggle: true }), { page } = t;
   await page.waitForTimeout(800);
   await expect(hud(page)).toHaveAttribute('data-fov', '53.4');
-  const aim = page.locator('[data-shooter-controls]').getByRole('button', { name: 'Aim' });
-  await aim.tap(); await expect(hud(page)).toHaveAttribute('data-aiming', 'true');
+  await page.keyboard.press('KeyQ'); await expect(hud(page)).toHaveAttribute('data-aiming', 'true');
   await page.waitForTimeout(600); await expect(hud(page)).toHaveAttribute('data-fov', '53.4');
   expect(t.errors).toEqual([]); await t.context.close();
 });
 
 test('a short portrait phone keeps the portrait camera; only landscape brings the boom closer', async ({ browser }) => {
-  const t = await touchPage(browser, SE), { page } = t;
+  const t = await autoTouchPage(browser, SE), { page } = t;
   await page.waitForTimeout(1200);
   const tall = await distance(page);
   await expect(hud(page)).toHaveAttribute('data-fov', '65.0');
@@ -68,12 +67,11 @@ const drawn = (p: Page, { width, height }: { width: number; height: number }) =>
 }, width / height);
 
 test('rotating while paused re-frames the frozen view at once, at the hip and in ADS', async ({ browser }) => {
-  const t = await touchPage(browser, LANDSCAPE, undefined, renderTap), { page } = t;
+  const t = await autoTouchPage(browser, LANDSCAPE, { aimToggle: true }, '/', renderTap), { page } = t;
   await page.waitForTimeout(1200);
   const pause = page.getByRole('button', { name: 'Pause expedition' }), paused = page.getByRole('button', { name: 'Resume flight' });
-  const aim = page.locator('[data-shooter-controls]').getByRole('button', { name: 'Aim' });
   for (const [aiming, hip, portrait] of [[false, '53.44', '65.00'], [true, '40.45', '50.00']] as const) {
-    if (aiming) { await aim.tap(); await expect(hud(page)).toHaveAttribute('data-aiming', 'true'); await page.waitForTimeout(500); }
+    if (aiming) { await page.keyboard.press('KeyQ'); await expect(hud(page)).toHaveAttribute('data-aiming', 'true'); await page.waitForTimeout(500); }
     await pause.tap(); await expect(paused).toBeVisible();
     await page.setViewportSize(PORTRAIT); await expect.poll(() => drawn(page, PORTRAIT), { timeout: 1500 }).toBe(portrait);
     await page.setViewportSize(LANDSCAPE); await expect.poll(() => drawn(page, LANDSCAPE), { timeout: 1500 }).toBe(hip);

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { AIM_MOVE, aimVelocity, hipVelocity } from '../src/game/aimMotion';
+import { AIM_MOVE, aimVelocity } from '../src/game/aimMotion';
 import { SPEED, advanceVelocity, type Intent, type Vec } from '../src/game/motion';
+import { createShooter, moveMode, pressFire } from '../src/game/combat';
 
 const RATES = [30, 60, 120, 165];
 const speed = (v: Vec) => Math.hypot(v.x, v.y, v.z);
@@ -49,36 +50,17 @@ describe.each(RATES)('ADS movement at %i Hz', hz => {
   });
 });
 
-describe.each(RATES)('hip-fire movement at %i Hz', hz => {
-  it('clamps a 34 m/s surge to <= 13.5 m/s by .6 s, never below 12.5 while held', () => {
+// Garo 2026-09-26: firing never brakes flight. There is no hip-fire velocity any more; a held trigger keeps mode 0 and the plain
+// advanceVelocity, so a 34 m/s surge stays 34 m/s for as long as the trigger is down and through the 0.3 s trailing window.
+describe.each(RATES)('firing never caps speed at %i Hz', hz => {
+  it('keeps a 34 m/s surge at 34 m/s with the trigger held and just after a shot', () => {
+    const s = createShooter(); pressFire(s, 'touch');
+    expect(moveMode(s)).toBe(0);
+    s.weapon.sinceShot = .1; expect(moveMode(s)).toBe(0);
     let min = Infinity;
-    const { v } = run(cruise(), hz, .6, (v, dt) => hipVelocity(v, intent(1), 0, 0, true, true, dt));
-    expect(speed(v)).toBeLessThanOrEqual(13.5);
-    run(cruise(), hz, 3, (v, dt) => hipVelocity(v, intent(1), 0, 0, true, true, dt), w => { min = Math.min(min, speed(w)); });
-    expect(min).toBeGreaterThanOrEqual(12.5);
-    expect(Math.abs(speed(run(cruise(), hz, 3, (v, dt) => hipVelocity(v, intent(1), 0, 0, true, true, dt)).v) - 13)).toBeLessThan(.05);
-    expect(speed(run(cruise(), hz, 3, (v, dt) => hipVelocity(v, intent(1), 0, .4, true, true, dt)).v)).toBeCloseTo(13, 1);
-  });
-  it('keeps an 8 m/s pointer cruise bit-identical to normal flight', () => {
-    const i = intent(8 / 34);
-    let v: Vec = { x: 0, y: 0, z: -8 };
-    for (let k = 0; k < 2 * hz; k++) {
-      const next = hipVelocity(v, i, 0, 0, true, true, 1 / hz);
-      expect(next).toEqual(advanceVelocity(v, i, 0, 0, true, true, 1 / hz));
-      expect(Math.abs(speed(next) - 8)).toBeLessThanOrEqual(.05); v = next;
-    }
-  });
-  it('matches advanceVelocity without surge below 13.5 m/s and on the ground', () => {
-    for (const [v, i, yaw, pitch] of [[{ x: 3, y: 1, z: -12 }, intent(1, .3), .4, .2], [{ x: 0, y: 0, z: 0 }, intent(), 0, 0],
-      [{ x: -9, y: 0, z: 9 }, intent(0, -1, 1), 2, -.5]] as const) {
-      expect(hipVelocity(v, i, yaw, pitch, true, false, 1 / hz)).toEqual(advanceVelocity(v, i, yaw, pitch, true, false, 1 / hz));
-      expect(hipVelocity(v, i, yaw, pitch, false, true, 1 / hz)).toEqual(advanceVelocity(v, i, yaw, pitch, false, true, 1 / hz));
-    }
-  });
-  it('brakes faster than normal flight would', () => {
-    const t = (step: (v: Vec, dt: number) => Vec) => { let at = Infinity; run(cruise(), hz, 3, step, (w, s) => { if (speed(w) <= 13.5 && at === Infinity) at = s; }); return at; };
-    const hip = t((v, dt) => hipVelocity(v, intent(1), 0, 0, true, true, dt));
-    const plain = t((v, dt) => advanceVelocity(v, intent(1), 0, 0, true, false, dt));
-    expect(hip).toBeLessThanOrEqual(.6); expect(plain).toBeGreaterThan(.9);
+    const { v } = run(cruise(), hz, 3, (v, dt) => moveMode(s) === 2 ? aimVelocity(v, intent(1), 0, 0, true, dt) : advanceVelocity(v, intent(1), 0, 0, true, true, dt),
+      w => { min = Math.min(min, speed(w)); });
+    expect(min).toBeGreaterThanOrEqual(SPEED.surge - 1e-6); expect(speed(v)).toBeCloseTo(SPEED.surge, 6);
+    expect(moveMode(s)).toBe(0);
   });
 });

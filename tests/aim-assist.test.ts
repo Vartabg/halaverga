@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { advanceAssist, bestTarget, createAssistMemory, fovScale, magnetize, ZONES } from '../src/game/aimAssist';
-import { aimGain, createShooter, frictionNow, lookGain, pressAim, pressFire, type ShooterState, type Vec3 } from '../src/game/combat';
+import { createShooter, pressAim, pressFire, type ShooterState, type Vec3 } from '../src/game/combat';
 import { adsFovOf, hipFovFor } from '../src/game/cameraFx';
 import { readFileSync } from 'node:fs';
 
@@ -16,49 +16,14 @@ const rhoDeg = (dist: number) => Math.asin(s.targets[0].r / dist) / DEG;
 const step = (n: number, dt: number, strength = 1, fov = 65) => { for (let k = 0; k < n; k++) advanceAssist(s, mem, O, D, fov, strength, dt); };
 beforeEach(() => { s = createShooter(); mem = createAssistMemory(); s.input.lookSource = 'touch'; });
 
-describe('friction', () => {
-  it('stays 0 while not engaged, even inside the inner zone', () => {
-    place(0, 20, rhoDeg(20) * .5);
+
+describe('no look friction (Garo 2026-09-26)', () => {
+  it('advanceAssist never carries a slow or drift, engaged or not, inside the inner zone', () => {
+    place(0, 20, rhoDeg(20) * .5); pressAim(s, false);
     step(60, 1 / 60);
-    expect(s.assist.engaged).toBe(false); expect(s.aim.acquired).toBe(true); expect(s.aim.target).toBe(0);
-    expect(s.assist.slow).toBe(0); expect(frictionNow(s)).toBe(0);
-  });
-  it('ramps to exactly .6 in about 10 ms (zone 2, hip) and releases at 4/s to exactly 0', () => {
-    place(0, 20, rhoDeg(20) + .3); pressAim(s, false);
-    step(1, .005); expect(s.assist.slow).toBeCloseTo(.3, 12);
-    step(1, .005); expect(s.assist.slow).toBe(.6); expect(frictionNow(s)).toBe(.6);
-    s.input.aim = false; s.input.aimLatched = false;
-    step(1, .05); expect(s.assist.engaged).toBe(false); expect(s.assist.slow).toBeCloseTo(.4, 12);
-    step(5, .05); expect(s.assist.slow).toBe(0); expect(frictionNow(s)).toBe(0);
-  });
-  it('uses the outer zone base strength and the ADS blend', () => {
-    place(0, 20, rhoDeg(20) + 1.5); pressFire(s, 'touch');
-    step(10, 1 / 60); expect(s.assist.slow).toBe(ZONES.hipSlowOuter);
-    s.aim.blend = 1; step(1, 1 / 60); expect(s.aim.acquired).toBe(false); expect(s.assist.slow).toBeCloseTo(.5 - 4 / 60, 12);
-    place(0, 20, rhoDeg(20) + .3); step(10, 1 / 60); expect(s.assist.slow).toBe(ZONES.adsSlowInner);
-  });
-  it('applies the device profile at read time: touch .6, tap and mouse 0 at once', () => {
-    place(0, 20, rhoDeg(20)); pressAim(s, true); step(10, 1 / 60);
-    expect(frictionNow(s)).toBe(.6);
-    s.input.lookSource = 'tap'; expect(frictionNow(s)).toBe(0);
-    s.input.lookSource = 'mouse'; expect(frictionNow(s)).toBe(0);
-    s.input.lookSource = 'trackpad'; expect(frictionNow(s)).toBeCloseTo(.36, 12);
-    expect(s.assist.slow).toBe(.6);
-  });
-  it('never shrinks a tap nudge: look(75, 0) turns exactly 75 * .003 * aimGain(blend)', () => {
-    s.input.lookSource = 'tap'; place(0, 20, rhoDeg(20)); pressAim(s, true); step(10, 1 / 60);
-    expect(s.aim.acquired).toBe(true); expect(s.assist.slow).toBe(.6);
-    const out = { x: 0, y: 0 };
-    for (const blend of [0, .5, 1]) {
-      s.aim.blend = blend; lookGain(s, 75, 0, out);
-      expect(out.x * .003).toBe(75 * aimGain(blend) * .003); expect(out.y).toBe(0);
-    }
-  });
-  it('slows touch input by the friction, and caps at .85 at strength 1.5', () => {
-    place(0, 20, rhoDeg(20)); pressAim(s, true); step(10, 1 / 60);
-    const out = { x: 0, y: 0 }; lookGain(s, 10, 0, out); expect(out.x).toBeCloseTo(10 * (1 - .6), 12);
-    step(1, 1 / 60, 1.5); expect(s.assist.scale).toBe(1.5); expect(frictionNow(s)).toBe(.85);
-    step(1, 1 / 60, 0); expect(s.assist.engaged).toBe(false); expect(frictionNow(s)).toBe(0);
+    expect(s.assist.engaged).toBe(true); expect(s.aim.acquired).toBe(true); expect(s.aim.target).toBe(0);
+    expect(s.assist).toEqual({ engaged: true, scale: 1 });
+    s.input.aim = false; step(1, 1 / 60); expect(s.assist.engaged).toBe(false);
   });
 });
 
@@ -102,29 +67,6 @@ describe('zones', () => {
   });
 });
 
-describe('drift', () => {
-  it('is positive for a target moving left (yaw increasing) and resets to exactly 0 when disengaged', () => {
-    pressAim(s, true);
-    const rate = .05, dt = 1 / 60; // rad/s to the left, staying inside the zone
-    for (let k = 0; k < 60; k++) { place(0, 20, rate * k * dt / DEG); advanceAssist(s, mem, O, D, 65, 1, dt); }
-    expect(s.assist.driftYaw).toBeGreaterThan(0); expect(s.assist.driftYaw).toBeCloseTo(rate, 3);
-    expect(Math.abs(s.assist.driftPitch)).toBeLessThan(1e-9);
-    // Looking left (dx < 0 turns yaw up) follows the drift: no slow. Looking right is slowed.
-    const out = { x: 0, y: 0 }; s.aim.blend = 0;
-    lookGain(s, -10, 0, out); expect(out.x).toBe(-10); lookGain(s, 10, 0, out); expect(out.x).toBeLessThan(10);
-    s.input.aimLatched = false; step(1, dt);
-    expect(s.assist.driftYaw).toBe(0); expect(s.assist.driftPitch).toBe(0); expect(mem.valid).toBe(false);
-  });
-  it('tracks rising targets in pitch, holds at dt 0 and resets on a target change', () => {
-    pressAim(s, true);
-    for (let k = 0; k < 60; k++) { place(0, 20, 0, 3 * k / 60); advanceAssist(s, mem, O, D, 65, 1, 1 / 60); }
-    expect(s.assist.driftPitch).toBeCloseTo(3 * DEG, 3); expect(s.aim.target).toBe(0);
-    const held = s.assist.driftPitch; advanceAssist(s, mem, O, D, 65, 1, 0); expect(s.assist.driftPitch).toBe(held);
-    s.targets[0].alive = false; place(1, 20, 0);
-    advanceAssist(s, mem, O, D, 65, 1, 1 / 60);
-    expect(s.aim.target).toBe(1); expect(s.assist.driftPitch).toBe(0); expect(s.assist.driftYaw).toBe(0); expect(mem.valid).toBe(true);
-  });
-});
 
 describe('magnetize', () => {
   const at = (dist: number, offDeg: number, opts: { ads?: number; bloom?: number; src?: 'touch' | 'mouse' | 'tap'; strength?: number } = {}) => {
@@ -166,7 +108,9 @@ describe('purity', () => {
     expect(rest2).toEqual(rest);
     expect({ ...m2, acquired: 0, target: 0 }).toEqual({ ...aim, acquired: 0, target: 0 });
     expect(m2.acquired).toBe(true); expect(m2.target).toBe(0); expect(aim.target).toBe(-1);
-    expect(a2.engaged).toBe(true); expect(assist.slow).toBe(0); expect(a2.slow).toBeGreaterThan(0);
+    expect(a2.engaged).toBe(true); expect(assist.engaged).toBe(false);
+    // No friction and no drift since 2026-09-26: the assist record holds only engaged and scale.
+    expect(Object.keys(a2).sort()).toEqual(['engaged', 'scale']);
   });
   it('stays landing-safe and seeded', () => {
     for (const file of ['aimAssist', 'aimMotion']) {

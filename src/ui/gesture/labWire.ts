@@ -14,18 +14,14 @@ import type { LabScheme } from './LabFallback';
 import { reportGuide } from './guideSteps';
 import { count, labStats } from './labStats';
 import { REJECT_BOTTOM } from './pointerArbiter';
+import { markAt, markTap } from './tapMark';
+export { markTap };
 
 /** A swipe down that ends within this many px of the land target's screen point lands there. */
 const LAND_AT_PX = 64;
 const screen = { x: 0, y: 0 };
 const frame = () => (labAimFrame.t > 0 ? labAimFrame : null);
 const flying = () => useGame.getState().flying;
-/** Moves the lab hit marker (see markTap) to a screen point. */
-function markAt(x: number, y: number) {
-  const st = document.documentElement.style;
-  st.setProperty('--lab-tap-x', `${Math.round(x)}px`); st.setProperty('--lab-tap-y', `${Math.round(y)}px`);
-}
-
 /** Brush's host over the runtime, the lasso and the aimed-shot chain. One lasso and one scratch slot, reused. */
 function brushHost(): BrushHost {
   const s = runtime.shooter, lasso = createLasso(), one = new Int8Array(1);
@@ -74,8 +70,3 @@ export function countLabOut(id: LabScheme, o: Readonly<ArbiterOut>) {
   else if (o.type === 'cancel') count(labStats(), id, 'pointerCancels');
 }
 
-/** Tap to Blast has no crosshair: the shooter HUD (hit marker, heat ring) moves to the latest shot's tap point (CSS variables that
- * html[data-controls] reads). */
-export function markTap(o: Readonly<ArbiterOut>) {
-  if (o.type === 'burst' || o.type === 'blastNow' || o.type === 'miss' || o.type === 'sustain') markAt(o.x, o.y);
-}

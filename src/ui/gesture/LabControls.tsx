@@ -56,7 +56,7 @@ export default function LabControls({ scheme: id, onError }: Props) {
     const s = runtime.shooter, previousLook = s.input.lookSource;
     const step = (dt: number, pos: Vec, ctx: GestureCtx) => scheme.step(dt, pos, ctx);
     resetGestureApply(); clearGesture(); releaseThumb();
-    gesture.scheme = scheme.id; gesture.step = step; gesture.exemptHip = !useGame.getState().labShotsSlow;
+    gesture.scheme = scheme.id; gesture.step = step;
     const ribbon = (scheme as Scheme & { ribbon?: RibbonPath }).ribbon ?? null;
     if (ribbon) ribbonLink.path = ribbon;
     s.input.lookSource = 'tap';

@@ -29,7 +29,7 @@ With the blaster on, every lab scheme uses **Tap to Blast**: tap a drone to shoo
 ### Standard (default)
 
 - **Mac**: click the open scene to lift and cruise. Move the pointer to steer, and hold it near an edge to keep turning. Two-finger scroll changes speed. Click again to brake and hover, and drag while hovering to look. With the blaster on, a click while hovering or on the ground fires, a drag looks, and W or Space starts flying. The keyboard (WASD, the arrows, R/F, Space, Shift, Escape, E) works as before.
-- **Phone**: move with the left thumb, look with the right, and use Rise/Descend and Fire on the cluster. See [touch-controls.md](touch-controls.md).
+- **Phone**: one thumb (since 2026-09-26): hold to fly, slide to steer, hold near an edge to keep turning, let go to hover, and tap a drone to blast it. Two thumbs (opt-in under Touch controls): move with the left thumb, look with the right, Rise/Descend and Fire on the cluster. See [touch-controls.md](touch-controls.md).
 
 ### Draw the flight
 

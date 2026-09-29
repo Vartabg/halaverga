@@ -45,9 +45,9 @@ describe('acquired cue', () => {
   };
   const rho = (dist: number) => Math.asin(s.targets[0].r / dist) / DEG;
   const run = (strength = 1) => { const mem = createAssistMemory(); for (let k = 0; k < 10; k++) advanceAssist(s, mem, O, D, 65, strength, 1 / 60); };
-  it('mouse at the hip: friction in the outer zone, but amber only inside the magnet cone', () => {
+  it('mouse at the hip: a target in the outer zone, but amber only inside the magnet cone', () => {
     s = createShooter(); s.input.lookSource = 'mouse'; pressFire(s, 'click');
-    place(30, rho(30) + 1.5); run(); expect(s.aim.acquired).toBe(false); expect(s.assist.slow).toBeGreaterThan(0);
+    place(30, rho(30) + 1.5); run(); expect(s.aim.acquired).toBe(false); expect(s.aim.target).toBe(0);
     place(30, rho(30) + .5); run(); expect(s.aim.acquired).toBe(true);
   });
   it('follows the magnet falloff past 60 m and the body alone with assist off', () => {

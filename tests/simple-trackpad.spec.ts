@@ -146,12 +146,12 @@ test('controls v5: an old free opens free, a v3 simple returns to free, a v4 sim
   expect(await open({ trackpadSteering: 'free', camera: 'first' })).toBe('free');
   await expect(page.getByTestId('simple-trackpad-hud')).toHaveCount(0);
   expect(await open({ trackpadSteering: 'simple', controlsVersion: 3, camera: 'first' })).toBe('free');
-  expect(await stored()).toMatchObject({ trackpadSteering: 'free', controlsVersion: 5, camera: 'first' });
+  expect(await stored()).toMatchObject({ trackpadSteering: 'free', controlsVersion: 6, camera: 'first' });
   // v4 -> v5: the steering choice holds, and the turning aids (sustained edges, edge rest, look acceleration) come back on.
   expect(await open({ trackpadSteering: 'simple', controlsVersion: 4, sustainedEdges: false, edgeRest: false, lookAccel: false })).toBe('simple');
-  expect(await stored()).toMatchObject({ trackpadSteering: 'simple', controlsVersion: 5, sustainedEdges: true, edgeRest: true, lookAccel: true });
+  expect(await stored()).toMatchObject({ trackpadSteering: 'simple', controlsVersion: 6, sustainedEdges: true, edgeRest: true, lookAccel: true });
   expect(await open({ trackpadSteering: 'simple', controlsVersion: 5, sustainedEdges: false, edgeRest: false, lookAccel: false })).toBe('simple');
-  expect(await stored()).toMatchObject({ trackpadSteering: 'simple', controlsVersion: 5, sustainedEdges: false, edgeRest: false, lookAccel: false });
+  expect(await stored()).toMatchObject({ trackpadSteering: 'simple', controlsVersion: 6, sustainedEdges: false, edgeRest: false, lookAccel: false });
 });
 for (const blaster of [true, false]) test(`on the ground after a pause, one click ${blaster ? 'restores free looking on the ground' : 'lifts into hover (PR #12)'}`, async ({ page }) => {
   const errors: string[] = []; page.on('pageerror', e => errors.push(e.message));

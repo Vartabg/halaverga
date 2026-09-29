@@ -21,8 +21,10 @@ import { useGame } from '@/game/store';
 import { clearInput } from '@/game/runtime';
 import EnvironmentLight from './EnvironmentLight';
 import { labFault } from '@/ui/labSwitch';
+import { useTouchCapable } from '@/ui/useTouchCapable';
 // The Gesture Lab's scene parts load only when a lab scheme is on (spec 10): the drone screen history (-9), Draw's world probe
-// (-45) and ribbon, and the hero trail. The standard controls never fetch them.
+// (-45) and ribbon, and the hero trail. The standard controls fetch only the drone screen history, and only for the classic one
+// thumb with the blaster on (tap a drone to blast, 2026-09-26).
 const GestureTrack = lazy(() => import('./GestureTrack'));
 const DrawProbe = lazy(() => import('./DrawProbe'));
 const GestureRibbon = lazy(() => import('./GestureRibbon'));
@@ -44,10 +46,16 @@ function ShooterLayer() {
   return shooter ? <Boundary fallback={null} onError={() => shooterFault('render', null)}><Shooter /><Drones /><ShotFx /><ImpactFx />
     <Suspense fallback={null}><ArmCannon /></Suspense></Boundary> : null;
 }
+/** Standard on the classic one thumb, blaster on, touch-capable device: the drone screen history alone (the tap pick reads it).
+ *  A desktop that has never shown touch mounts nothing here, so its Standard stays as it was. A failure only leaves it out. */
+function TapTrack() {
+  const on = useGame(s => s.shooter && s.touchScheme === 'classic' && s.controlLab === 'standard'), capable = useTouchCapable();
+  return on && capable ? <Boundary fallback={null} onError={() => {}}><Suspense fallback={null}><GestureTrack /></Suspense></Boundary> : null;
+}
 /** Mounted inside Physics (DrawProbe queries the world). A load or render error returns the session to the standard controls. */
 function LabLayer() {
   const lab = useGame(s => s.controlLab);
-  if (lab === 'standard') return null;
+  if (lab === 'standard') return <TapTrack />;
   return <Boundary key={lab} fallback={null} onError={() => labFault('The Gesture Lab scene failed. Standard controls are on.')}>
     <Suspense fallback={null}><GestureTrack />{lab === 'draw' && <><DrawProbe /><GestureRibbon /></>}<HeroTrail /></Suspense>
   </Boundary>;

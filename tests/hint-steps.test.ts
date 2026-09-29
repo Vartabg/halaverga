@@ -60,7 +60,7 @@ describe('hintText', () => {
     expect(hintText('simple', 0, on)).toBe(simple[0]); expect(hintText('mouse', 0, on)).toBe(mouse[0]);
     expect(hintText('tap', 0, on)).toBe('Tap pad: Fire and Aim toggle');
     expect(hintText('line', 0, on)).toBe('Hold C to fire');
-    expect(hintText('classic', 0, on)).toBe('One thumb: drag to fly');
+    expect(hintText('classic', 0, on)).toBe('Drag to fly · tap a drone');
     expect(hintText('none', 0, on)).toBeNull();
   });
   it('shows nothing once a series is done', () => {

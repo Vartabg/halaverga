@@ -42,7 +42,8 @@
   .chain,.hint{color:CanvasText;background:Canvas;text-shadow:none}
   .hint{border-color:CanvasText}
 }
-/* Gesture Lab (html[data-controls], spec 3.6): the finger aims, so there is no crosshair; the hit marker and heat ring follow the
-   latest tap (labWire.markTap sets the variables) and start at the centre. */
-:global(html[data-controls]) .hud{left:var(--lab-tap-x,50%);top:var(--lab-tap-y,50%)}
-:global(html[data-controls]) .cross{display:none}
+/* Gesture Lab (html[data-controls], spec 3.6) and the classic one thumb on a touch screen (html[data-input=touch][data-touch-blast],
+   tap a drone to blast): the finger aims, so there is no crosshair; the hit marker and heat ring follow the latest tap
+   (tapMark.ts sets the variables) and start at the centre. */
+:global(html[data-controls]) .hud,:global(html[data-input=touch][data-touch-blast]) .hud{left:var(--lab-tap-x,50%);top:var(--lab-tap-y,50%)}
+:global(html[data-controls]) .cross,:global(html[data-input=touch][data-touch-blast]) .cross{display:none}

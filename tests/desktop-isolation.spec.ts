@@ -6,8 +6,8 @@ import { begin, seed } from './shooter-browser';
 const TOUCH_UI = ['[data-testid="touch-layer"]', '[data-testid="touch-stick"]', '[data-testid="touch-ghost"]',
   '[data-testid="rise-button"]', '[data-testid="fire-button"]', '[data-shooter-controls]'];
 const SAVES: [string, Record<string, unknown>][] = [
-  ['twin (default touch scheme)', { shooter: true, trackpadSteering: 'free', controlsVersion: 4 }],
-  ['classic touch scheme', { shooter: true, touchScheme: 'classic', trackpadSteering: 'free', controlsVersion: 4 }],
+  ['classic one thumb (the default touch scheme since v6)', { shooter: true, trackpadSteering: 'free', controlsVersion: 6 }],
+  ['twin touch scheme (chosen)', { shooter: true, touchScheme: 'twin', trackpadSteering: 'free', controlsVersion: 6 }],
 ];
 const VIEWPORTS = [{ width: 1440, height: 900 }, { width: 325, height: 928 }];
 const pauseCard = (p: Page) => p.getByRole('button', { name: 'Resume flight' });

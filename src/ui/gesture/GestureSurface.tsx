@@ -2,12 +2,13 @@ import { useEffect, useRef } from 'react';
 import { look, runtime } from '@/game/runtime';
 import { useGame } from '@/game/store';
 import { touchMode } from '@/game/pointerMode';
-import { holdAimed, queueAimedBurst } from '@/game/gesture/aimedShot';
+import { holdAimed } from '@/game/gesture/aimedShot';
 import { clearGesture } from '@/game/gesture/bus';
-import { labAimFrame } from '@/game/gesture/screenRay';
 import { createStrokeBuffer } from '@/game/gesture/strokeBuffer';
 import { classify } from '@/game/gesture/strokeFeatures';
-import { pick as pickDrone, tapRay } from '@/game/gesture/tapBlast';
+import { blastAt, pickAt } from '@/game/gesture/tapFire';
+import { labAimFrame } from '@/game/gesture/screenRay';
+import { tapRay } from '@/game/gesture/tapBlast';
 import { BOTTOM_BAND, EDGE_STRIP } from '@/game/gesture/tuning';
 import type { ArbiterEvent, ArbiterEventType, ArbiterOut, PointerKind, Scheme, StrokeClass, StrokeView } from '@/game/gesture/types';
 import { headerBand, readInsets, viewportBox } from '../touchInsets';
@@ -42,18 +43,20 @@ const tailFor = (p: GestureSurfaceProps) => inkTailMs(p.scheme.id, p.tailMs);
 type Extras = { handle?(o: ArbiterOut): boolean; view?: { committed?: boolean; whirl?: boolean }; clickStarts?(x: number, y: number): boolean };
 const kindOf = (t: string): PointerKind => t === 'mouse' ? 'mouse' : t === 'pen' ? 'pen' : 'touch';
 const tagLook = () => { runtime.shooter.input.lookSource = 'tap'; };
-const defaultPick = (x: number, y: number, t: number) => pickDrone(x, y, t, runtime.shooter.targets, runtime.shooter.drones.count);
+const defaultPick = pickAt;
 const defaultBlaster = () => useGame.getState().shooter;
 const dir = { x: 0, y: 0, z: -1 };
-/** Tap to Blast (spec 3.4): the finger aims through the published camera frame; trackAimed re-aims at a picked drone. */
+/** Tap to Blast (spec 3.4): the finger aims through the published camera frame; trackAimed re-aims at a picked drone (tapFire.ts). */
 function shoot(o: ArbiterOut) {
   const s = runtime.shooter;
   if (!useGame.getState().shooter) return;
-  if (labAimFrame.t > 0) tapRay(labAimFrame, o.x, o.y, dir); else { dir.x = s.aim.dir.x; dir.y = s.aim.dir.y; dir.z = s.aim.dir.z; }
   if (o.drone >= 0) reportGuide('tap-drone');
-  if (o.type === 'burst' || o.type === 'blastNow') queueAimedBurst(s, dir, o.drone);
-  else if (o.type === 'miss') queueAimedBurst(s, dir, -1, 1);
-  else holdAimed(s, dir, o.drone, o.type === 'sustainEnd');
+  if (o.type === 'burst' || o.type === 'blastNow') blastAt(o.x, o.y, o.drone);
+  else if (o.type === 'miss') blastAt(o.x, o.y, -1, 1);
+  else {
+    if (labAimFrame.t > 0) tapRay(labAimFrame, o.x, o.y, dir); else { dir.x = s.aim.dir.x; dir.y = s.aim.dir.y; dir.z = s.aim.dir.z; }
+    holdAimed(s, dir, o.drone, o.type === 'sustainEnd');
+  }
 }
 
 export default function GestureSurface(props: GestureSurfaceProps) {

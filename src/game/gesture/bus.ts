@@ -27,8 +27,6 @@ export const gesture = {
   /** Body-only roll in radians (the camera never rolls). */
   spin: 0,
   facing: 0 as GestureFacing,
-  /** Gesture shots skip the mode-1 hip clamp ('Shots slow me down' off). */
-  exemptHip: true,
   /** Keyboard movement is active this step; every scheme drops its path or program on its next step. */
   override: false,
   landArmed: false,
@@ -43,7 +41,7 @@ export type GestureBus = typeof gesture;
 
 export const LIFT_REQUEST = { kind: 'lift' } as const;
 
-/** Zeroes every live output. Keeps scheme, step, exemptHip and reduced; bumps epoch. */
+/** Zeroes every live output. Keeps scheme, step and reduced; bumps epoch. */
 export function clearGesture() {
   const g = gesture;
   g.live = false; g.surge = false; g.velocityOn = false; g.override = false; g.landArmed = false;

@@ -23,9 +23,10 @@ export async function resume(page: Page) {
 }
 export type Touch = { id: number; x: number; y: number };
 type Viewport = { width: number; height: number };
-/** The legacy touch specs cover the one-thumb scheme: saves are version 3 (no migration), classic, Aim button off. */
+/** The one-thumb specs: a version 3 save (which lands on classic anyway since controls version 6), classic, Aim button off. */
 export const CLASSIC = { controlsVersion: 3, touchScheme: 'classic', aimButton: false } as const;
-/** A classic touch page after Begin (auto-fire on unless `saved` says otherwise). `init` runs before the app's scripts. */
+/** A classic one-thumb touch page after Begin (the phone default since 2026-09-26: no Fire/Aim, no auto-fire; tap a drone to blast).
+ *  `init` runs before the app's scripts. */
 export async function autoTouchPage(browser: Browser, viewport: Viewport, saved?: Record<string, unknown>, url = '/', init?: () => void) {
   const context = await browser.newContext({ viewport, isMobile: true, hasTouch: true });
   const page = await context.newPage(), errors: string[] = [];
@@ -41,19 +42,13 @@ export async function autoTouchPage(browser: Browser, viewport: Viewport, saved?
   const thumb: Touch = { id: 1, x: Math.round(viewport.width * .25), y: Math.round(viewport.height * .7) };
   return { context, page, cdp, send, thumb, errors, surface: page.getByTestId('flight-surface') };
 }
-/** The Fire/Aim specs: auto-fire off and the Aim button on, so every existing Fire and Aim check keeps its controls. */
-export async function touchPage(browser: Browser, viewport: Viewport, saved?: Record<string, unknown>, init?: () => void) {
-  const t = await autoTouchPage(browser, viewport, { autoFire: false, aimButton: true, ...saved }, '/', init), fire = t.page.getByTestId('fire-button');
-  await expect(fire).toBeVisible();
-  const box = (await fire.boundingBox())!;
-  const trigger: Touch = { id: 2, x: Math.round(box.x + box.width / 2), y: Math.round(box.y + box.height / 2) };
-  return { ...t, fire, box, trigger };
-}
 export type Pt = { x: number; y: number };
 export type SafeInsets = { top: number; right: number; bottom: number; left: number };
 type Box = { x: number; y: number; width: number; height: number };
 /**
- * The default twin-stick touch page after Begin: fresh storage unless `saved` is given (the look-gain specs pass { aimAssist: 0 }).
+ * The twin-stick touch page after Begin. Twin is opt-in since controls version 6 (the phone default is the classic one thumb), so the
+ * save always carries touchScheme 'twin' at version 6 or later (a lower `controlsVersion` in `saved` is raised: below 6 it would
+ * migrate to classic); the look-gain specs pass { aimAssist: 0 }.
  * `insets` asks Chrome for a safe-area override (CDP Emulation.setSafeAreaInsetsOverride, where supported; `insetsApplied` says
  * whether it took). `touch` tracks every finger so each touchStart/touchMove carries all active contacts; `up` lifts only its own.
  */
@@ -61,7 +56,7 @@ export async function twinTouchPage(browser: Browser, viewport: Viewport, saved?
   const context = await browser.newContext({ viewport, isMobile: true, hasTouch: true });
   const page = await context.newPage(), errors: string[] = [];
   page.on('pageerror', e => errors.push(e.message));
-  if (saved) await seed(page, saved);
+  await seed(page, { touchScheme: 'twin', ...saved, controlsVersion: Math.max(6, Number(saved?.controlsVersion) || 0) });
   const cdp = await context.newCDPSession(page);
   let insetsApplied = false;
   if (insets) try {

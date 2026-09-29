@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { advanceVelocity, type Intent, type Vec } from '../src/game/motion';
 import { createShooter, pressFire, type FireSource } from '../src/game/combat';
 import { clearGesture, gesture } from '../src/game/gesture/bus';
-import { gestureBase, gestureBefore, gestureIntent, gestureOffset, gestureVelocity, labMode, NO_LANDING, resetGestureApply,
+import { gestureBase, gestureBefore, gestureIntent, gestureOffset, gestureVelocity, NO_LANDING, resetGestureApply,
   type GestureHost, type GestureIntentOut } from '../src/game/gesture/applyGesture';
 import type { GestureCtx } from '../src/game/gesture/types';
 import { OFFSET_JERK, SNAP_INTENT } from '../src/game/gesture/tuning';
@@ -37,7 +37,7 @@ function ctxOf(canLand: boolean) {
 }
 
 describe('applyGesture', () => {
-  beforeEach(() => { gesture.scheme = 'conduct'; gesture.exemptHip = true; clearGesture(); resetGestureApply(); });
+  beforeEach(() => { gesture.scheme = 'conduct'; clearGesture(); resetGestureApply(); });
   afterEach(() => { gesture.scheme = 'off'; gesture.step = null; clearGesture(); resetGestureApply(); });
 
   it('a 0.45 s flick envelope integrates to its displacement and velocity returns to baseline', () => {
@@ -55,11 +55,6 @@ describe('applyGesture', () => {
       expect(len(v)).toBeLessThanOrEqual(last + 1e-9); last = len(v); minBase = Math.min(minBase, base.x);
     });
     expect(minBase).toBeGreaterThanOrEqual(-1e-9);
-  });
-  it('labMode keeps mode 2 and exempts only mode 1 while a scheme is on and exemptHip is set', () => {
-    expect([labMode(0), labMode(1), labMode(2)]).toEqual([0, 0, 2]);
-    gesture.exemptHip = false; expect(labMode(1)).toBe(1);
-    gesture.exemptHip = true; gesture.scheme = 'off'; expect(labMode(1)).toBe(1);
   });
   it('a land request is ignored when canLand is false and sets the message; lift and a valid land pass through', () => {
     const host: GestureHost = { yaw: 0, pitch: 0, lift: false };

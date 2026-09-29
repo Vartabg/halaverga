@@ -1,6 +1,6 @@
 // Touch auto-fire (pure, landing-safe): while the player steers by touch and a centred shot would connect, the trigger is held with
-// source 'touch' and input.auto = true, so the weapon's own automatic rate does the rest. An auto-fire hold never slows flight or adds
-// aim-assist friction (combat.ts moveMode/engaged), but drones still perceive it (combat.ts threat). Plain numbers only: no
+// source 'touch' and input.auto = true, so the weapon's own automatic rate does the rest. An auto-fire hold never slows flight: no
+// trigger does (combat.ts moveMode is 0 or 2), and there is no look friction (2026-09-26); drones still perceive it (combat.ts threat). Plain numbers only: no
 // three/React Three/Rapier imports and no allocation after module load. See docs/simple-controls.md.
 import { pressFire, releaseFire, type ShooterState } from './combat';
 

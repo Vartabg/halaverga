@@ -40,7 +40,7 @@ test('fresh page: free is saved as v5, clicks fire once on the ground and in hov
   expect(await page.evaluate(() => (window as unknown as { locked?: boolean }).locked ?? false)).toBe(false);
   // A reload saves on pagehide (the game was started), so the stored profile is readable afterwards.
   await page.reload();
-  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('halaverga-flight-v1')!))).toMatchObject({ trackpadSteering: 'free', controlsVersion: 5 });
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('halaverga-flight-v1')!))).toMatchObject({ trackpadSteering: 'free', controlsVersion: 6 });
   expect(errors).toEqual([]);
 });
 

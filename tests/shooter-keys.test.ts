@@ -121,9 +121,9 @@ describe('look source and selector', () => {
   });
   it('covers the tap pad, the Fire/Aim wrapper and the Gesture Lab surface', () => {
     expect(OWN_LOOK_SELECTOR).toContain('[aria-label="Tap flight controls"]');
-    expect(OWN_LOOK_SELECTOR).toContain('[data-shooter-controls]');
     expect(OWN_LOOK_SELECTOR).toContain('[data-gesture-surface]');
-    expect(OWN_LOOK_SELECTOR.split(',').map(p => p.trim())).toEqual(['[aria-label="Tap flight controls"]', '[data-shooter-controls]', '[data-gesture-surface]']);
+    // No Fire/Aim controls since 2026-09-26 (the classic one thumb taps a drone; the twin cluster tags its own pointers).
+    expect(OWN_LOOK_SELECTOR.split(',').map(p => p.trim())).toEqual(['[aria-label="Tap flight controls"]', '[data-gesture-surface]']);
   });
 });
 it('resetShooterInput after holds clears everything but keeps the serial', () => {
