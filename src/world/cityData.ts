@@ -47,12 +47,32 @@ export function makeCity() {
   k.box(-4, 52, -230, 9, 3.2, 5.5, colors.concrete);
   k.box(5, 50.8, -230, 7, 3.2, 5.5, colors.concrete, false, 0, -.12);
 
-  // Arrival terrace: framed observation deck overlooking the flooded canal
+  // Arrival terrace: framed observation deck with planters and shattered balustrade
   k.box(0, 19, 65, 24, 2, 20, colors.concrete, true);
   k.box(0, 20.04, 65, 22.8, .06, 18.8, colors.road);
   k.box(0, 9, 65, 18, 18, 14, '#7f7776', true);
-  // Tactile amber safety warning border along the departure edge
   k.box(0, 20.07, 55.6, 22.4, .025, .5, colors.amber);
+  // Overgrown planter islands and observation lounge on terrace
+  for (const side of [-1, 1]) {
+    k.box(side * 6.5, 20.6, 68, 3.8, .8, 2.6, colors.concrete, true);
+    k.box(side * 6.5, 20.95, 68, 3.4, .2, 2.2, colors.moss);
+  }
+  // Weathered observation bench along the right terrace flank
+  k.box(5.8, 20.35, 61.5, 1.2, .45, 2.8, colors.concrete, true, 0, -.06);
+  k.box(5.8, 20.6, 61.5, 1.0, .07, 2.6, '#9c8c78', false, 0, -.06);
+  k.box(4.9, 20.35, 60.2, .8, .6, .8, '#82786a', true, .2);
+  k.box(4.9, 20.68, 60.2, .84, .06, .84, colors.amber, false, .2);
+
+  // Field power accumulator and survey case along the left terrace flank
+  k.box(-5.2, 20.35, 61.5, 1.1, .55, 1.5, '#4a5350', true, -.08);
+  k.box(-5.2, 20.66, 61.5, .9, .07, 1.3, colors.steel, false, -.08);
+  k.box(-5.2, 20.45, 62.26, .35, .18, .04, colors.cyan);
+  // Shattered glass balustrade along departure rim
+  for (const x of [-8, -4, 0, 4, 8]) k.box(x, 20.8, 55.4, .1, 1.2, .1, colors.steel);
+  k.box(-6, 20.7, 55.4, 3.6, .9, .06, colors.glass);
+  k.box(-2, 20.35, 55.4, 3.6, .35, .06, colors.glass);
+  k.box(2, 20.7, 55.4, 3.6, .9, .06, colors.glass);
+  k.box(6, 20.4, 55.4, 3.6, .45, .06, colors.glass);
   for (const x of [-9, 9]) {
     k.box(x, 21.2, 69, .14, 2.2, 10, colors.steel);
     k.box(x, 22.25, 69, .2, .13, 10, colors.white);
@@ -68,6 +88,17 @@ export function makeCity() {
   k.box(-7, 21.7, 58.65, 1.1, .6, .08, colors.cyan);
   k.box(-6.3, 21.5, 58.65, .08, .15, .09, colors.amber);
   k.box(6, 20.25, 55.3, 5, .45, 2, colors.concrete, true, .23, -.14);
+
+  // Floating canal flotsam, timber, and wetland mats
+  for (const [x, z, w, d, rot] of [[-4, 24, .45, 4.8, .35], [6, -12, .5, 5.2, -.4], [-6, -48, .45, 6.2, .28], [4, -82, .55, 5.5, -.15]] as const)
+    k.box(x, .18, z, w, .25, d, '#524032', false, rot);
+  for (const [x, z, w, d] of [[-11, 18, 5, 6], [10, -28, 6, 7], [-10, -72, 5.5, 8], [9, -110, 6.5, 9]] as const)
+    k.box(x, .12, z, w, .02, d, colors.moss);
+  car(k, -11.5, -.4, 6, '#496068', .32);
+  car(k, 10.8, -.6, -55, '#5d736a', -.25);
+  k.box(-5, .6, -2, .6, 1.2, .6, colors.amber);
+  k.box(7, .6, -65, .6, 1.2, .6, colors.amber);
+
   // Ruptured elevated road: a navigable opening, visible reinforcing steel.
   for (const side of [-1, 1]) {
     k.box(side * 31, 15, -1, 42, 1.1, 9, colors.concrete, true);
@@ -75,15 +106,29 @@ export function makeCity() {
     k.box(side * 36, 7, -1, 2.2, 15, 3, colors.concrete, true);
     for (const z of [-5, 3]) k.box(side * 34, 16.2, z, 35, .55, .3, colors.concrete);
     for (let i = 0; i < 5; i++) k.box(side * 8, 14.9, -3 + i, 7, .09, .09, '#44434d');
+    // Leaning solar streetlights along the sidewalk
+    for (let z = -130; z < 70; z += 36) {
+      k.box(side * 17.5, 5, z, .14, 6.5, .14, colors.steel, false, 0, side * .12);
+      k.box(side * 16.5, 8.2, z, 2.2, .1, .5, colors.edge, false, 0, side * .12);
+    }
   }
   k.box(7, 7.5, -1, 17, 1.2, 8, colors.concrete, true, .05, 1.17);
   // A marked roof offers another safe destination.
   k.box(30, 61.39, -38, 8, .05, 8, '#b5bb94', true);
   k.box(30, 61.43, -38, .25, .02, 4, colors.white);
   k.box(30, 61.43, -38, 4, .02, .25, colors.white);
+
+  // Evacuation traffic jam: stranded autonomous electric pods
   car(k, -24, 2.1, 45, '#b77755', .1);
+  car(k, -25, 2.1, 28, '#708892', -.2);
+  car(k, -27, 2.1, 12, '#85786c', .15);
+  car(k, 27, 2.1, 38, '#946654', .25);
   car(k, 26, 2.1, -17, '#a5aa9f', -.12);
+  car(k, 25, 2.1, -38, '#627a6f', -.18);
   car(k, -26, 2.1, -76, '#809999', .18);
+  car(k, -24, 2.1, -112, '#7c6d7e', .3);
+  car(k, 28, 2.1, -135, '#8a8878', -.12);
+
   k.box(-22, 3.5, -48, 2.7, 2.5, 9, '#a29069', true);
   k.box(-22, 3.8, -43.45, 2.3, 1.5, .08, colors.glass);
   for (let i = 0; i < 40; i++) {
