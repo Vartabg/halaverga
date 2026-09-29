@@ -37,6 +37,9 @@ async function openFromPause(page: Page, touch = false) {
 /** Land from a hover: Land needs a flat surface under the reticle, so drag to look down at the ground first (trackpad.spec). */
 async function land(page: Page) {
   await page.mouse.move(720, 450); await page.mouse.down(); await page.mouse.move(720, 800, { steps: 15 }); await page.mouse.up();
+  // Land glides to the surface under the reticle, so it is clicked only once the look-down has settled. Under load the hint can
+  // show mid-drag, and a landing from a half-turned view ends a few metres forward, where the next landing finds no flat ground.
+  await expect.poll(async () => (await tel(page)).pitch).toBeLessThan(-1.1);
   await expect(page.getByText('SURFACE IN REACH · LAND')).toBeVisible();
   await page.getByRole('button', { name: 'Land', exact: true }).click();
 }
@@ -120,9 +123,11 @@ test('eligible: a landing auto-opens the card and pauses, an early tap does noth
   await mock(page, [200]);
   await lift(page);
   await land(page);
-  // Wait on the card itself (not the 350 ms telemetry stamp), so the probe below runs inside the 400 ms guard.
+  // A finger already down when the card opens keeps the guard on (up to GUARD_MAX_MS), so the early tap below does not depend on how
+  // fast this script reacts: under load the fixed 400 ms window could pass before the probe and the click ran.
+  await page.mouse.move(720, 450); await page.mouse.down();
   await card(page).waitFor({ state: 'visible', timeout: 30000 });
-  // Within the guard, a pointer at Skip reaches the scrim, never the button; a real click there changes nothing.
+  // With the guard on, a pointer at Skip reaches the scrim, never the button; releasing over it changes nothing.
   const probe = await page.evaluate(() => {
     const c = document.querySelector('[data-testid=vote-card]')!, skip = [...c.querySelectorAll('button')].find(b => b.textContent === 'Skip')!;
     const r = skip.getBoundingClientRect(), x = r.x + r.width / 2, y = r.y + r.height / 2;
@@ -130,7 +135,7 @@ test('eligible: a landing auto-opens the card and pauses, an early tap does noth
   });
   expect(probe.guard).toBe(true);
   expect(probe.hit).toBe(false);
-  await page.mouse.click(probe.x, probe.y);
+  await page.mouse.move(probe.x, probe.y); await page.mouse.up();
   await expect(card(page)).toBeVisible();
   await expect(page.getByRole('button', { name: 'Pause expedition' })).toHaveCount(0); // auto-open paused the game
   await expect(card(page)).not.toHaveAttribute('data-guard', /.*/);

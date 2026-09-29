@@ -118,7 +118,7 @@ export default function Experience() {
   const seriesOpen = twin && !state.tapControls && state.hintProgress.touch < HINT_STEPS.touch;
   const reticle = <Reticle />;
   const pill = standard && trackpadPill({ steering: state.trackpadSteering, shooter: state.shooter, cruising: state.trackpadFlying, flying: state.flying, canLand: state.canLand });
-  const flightHint = state.message || (state.flying && state.canLand ? 'SURFACE IN REACH · LAND' : state.boundaryNear ? 'SURVEY LIMIT · TURN BACK' : state.flying && state.descendBlocked ? 'NO LANDING BELOW · MOVE TO OPEN GROUND' : state.clearanceActive ? 'CLEARANCE ASSIST · STEER AROUND' : '');
+  const flightHint = state.message || (state.flying && state.canLand ? 'SURFACE IN REACH · LAND' : state.limitCue && state.limitCue !== 'solid' ? state.limitHint : state.flying && state.descendBlocked ? 'NO LANDING BELOW · MOVE TO OPEN GROUND' : state.limitHint);
   useEffect(() => {
     if (!state.message) return;
     const id = setTimeout(() => useGame.setState({ message: '' }), 4000); return () => clearTimeout(id);
@@ -172,7 +172,8 @@ export default function Experience() {
           {standard && !state.flying && !state.hintVisible && !seriesOpen && !(state.shooter && state.tapControls) && <div className={styles.touchHint} aria-hidden="true">{twin ? 'LEFT THUMB MOVES · RIGHT THUMB LOOKS' : 'ONE THUMB TO FLY · TWO TO MOVE + LOOK'}</div>}
           {standard && state.desktopMode === 'trackpad' && state.trackpadSteering === 'flow' && <FlowHud />}
           {standard && state.desktopMode === 'trackpad' && state.trackpadSteering === 'simple' && <SimpleTrackpadHud />}
-          {state.desktopMode === 'trackpad' && pill && <div className={styles.trackpadHint}>{pill}</div>}
+          {/* One message at a time: a limit cue owns the pill while it shows. */}
+          {state.desktopMode === 'trackpad' && pill && !state.limitHint && <div className={styles.trackpadHint}>{pill}</div>}
         </>}
         {state.paused && !state.panel && !state.journal && !failed && !state.voteOpen && <PauseCard ready={ready} onEnter={enter} />}
         {!failed && <VoteLayer onResume={enter} />}

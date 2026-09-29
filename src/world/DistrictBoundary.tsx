@@ -7,6 +7,7 @@ import { BOUNDARY_GROUPS } from '@/game/combat';
 import { boundaryDistance } from '@/game/navigation';
 import { runtime } from '@/game/runtime';
 import { useGame } from '@/game/store';
+import BoundaryFaces from './BoundaryFaces';
 const axis = new Vector3(0, 0, 1);
 export default function DistrictBoundary() {
   const width = WORLD.maxX - WORLD.minX, depth = WORLD.maxZ - WORLD.minZ;
@@ -37,6 +38,7 @@ export default function DistrictBoundary() {
       <CuboidCollider args={[width / 2 + 4, 1, depth / 2 + 4]} position={[0, -1.4, centre[2]]} />
     </RigidBody>
     <lineSegments geometry={frame} material={line} position={centre} />
+    <BoundaryFaces />
     <mesh ref={cue} visible={false}><ringGeometry args={[.65, .73, 32]} /><meshBasicMaterial color="#ffe2ab" transparent opacity={.65} depthWrite={false} side={2} /></mesh>
   </>;
 }

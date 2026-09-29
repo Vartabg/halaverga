@@ -13,9 +13,13 @@ import { markAt } from './gesture/tapMark';
 // slides TAP_SLOP_TOUCH: a quick lift blasts while the first thumb flies on untouched; otherwise it joins the thumbs where it is
 // (main's move/look handoff, at most 250 ms late). Every second finger is held that way (thumbGate.ts), so a tap that misses a drone
 // never stalls the flying thumb. No Fire or Aim button, no auto-fire.
+/** Fingers down on the classic surface, across mounts: pause and resume remount the controls (Experience keys them by pause state), so
+ *  a finger still down at the next mount is known here and takes a fresh grip on its first move (limits plan S8). Cleared by any lift. */
+const held = new Set<number>();
 export function useClassicThumbs(surface: RefObject<HTMLDivElement | null>) {
   const markers = useRef<(HTMLDivElement | null)[]>([]);
-  // Contacts that were down when held input was released (runtime.touchEpoch moved): ignored until they lift.
+  // Contacts that were down when held input was released (runtime.touchEpoch moved): the primary one takes a fresh grip on its next
+  // move (thumbGate.rearm); any other is ignored until it lifts.
   const epoch = useRef(runtime.touchEpoch), stale = useRef(new Set<number>());
   const syncRef = useRef<() => void>(() => {}), expire = useRef<() => boolean>(() => false);
   const gateRef = useRef<ThumbGate | null>(null);
@@ -53,7 +57,10 @@ export function useClassicThumbs(surface: RefObject<HTMLDivElement | null>) {
     // expire the contacts in the same event, so the surface reads idle at once as main's remount did, not on the next pointer event.
     const rotated = () => { expire.current(); };
     addEventListener('resize', rotated); screen.orientation?.addEventListener('change', rotated);
+    const lifted = (e: globalThis.PointerEvent) => { held.delete(e.pointerId); };
+    addEventListener('pointerup', lifted, true); addEventListener('pointercancel', lifted, true);
     return () => {
+      removeEventListener('pointerup', lifted, true); removeEventListener('pointercancel', lifted, true);
       removeEventListener('resize', rotated); screen.orientation?.removeEventListener('change', rotated);
       gate.dispose();
       releaseThumb();
@@ -72,10 +79,14 @@ export function useClassicThumbs(surface: RefObject<HTMLDivElement | null>) {
     const drone = droneAt(e);
     e.currentTarget.setPointerCapture(e.pointerId);
     // Another contact settles a pending second finger into a thumb first, so a third finger still blocks the thumbs as on main.
+    held.add(e.pointerId);
     gate.down(e.pointerId, e.clientX, e.clientY, e.timeStamp, drone);
   };
   const move = (e: PointerEvent<HTMLDivElement>) => {
-    if (expired()) return;
+    expired();
+    // A finger that outlived a pause, a reset or a rotation: this mount's gate never saw it go down (or expired it). Fresh grip here.
+    const outlived = stale.current.delete(e.pointerId) || (held.has(e.pointerId) && !controls.contacts.has(e.pointerId) && !gate.busy);
+    if (e.isPrimary && outlived) { runtime.shooter.input.lookSource = 'touch'; gate.rearm(e.pointerId, e.clientX, e.clientY, e.timeStamp); }
     if (!gate.move(e.pointerId, e.clientX, e.clientY, window.innerWidth, window.innerHeight)) return;
     look(controls.output.lookX, controls.output.lookY); sync();
   };
@@ -91,6 +102,9 @@ export function useClassicThumbs(surface: RefObject<HTMLDivElement | null>) {
   };
   const cancel = (e: PointerEvent<HTMLDivElement>) => {
     expired();
+    // Pause unmounts the surface, so the captured pointer is lost while the finger is still down: it keeps its place in `stale` and
+    // takes a fresh grip on its next move. A real cancel or lift means the finger is gone.
+    if (e.type === 'lostpointercapture' && stale.current.has(e.pointerId)) return;
     if (stale.current.delete(e.pointerId)) return;
     gate.cancel(e.pointerId);
   };

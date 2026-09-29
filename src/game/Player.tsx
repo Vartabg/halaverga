@@ -4,12 +4,18 @@ import { useThree } from '@react-three/fiber';
 import { Vector3 } from 'three';
 import { useGame, persistGame } from './store';
 import { runtime, readIntent, clearInput, arrowLook } from './runtime';
-import { advanceVelocity, boundMovement, landingVelocity, moving, setVec, START, FOOT } from './motion';
+import { advanceVelocity, boundMovement, flightTarget, landingVelocity, moving, setVec, START, FOOT } from './motion';
 import { presentation } from './presentation';
 import { applyEdgeTurns, thumbTurn } from './edgeTurn';
 import { carve } from './carve';
 import { FlightSafety } from './FlightSafety';
-import { boundaryDistance, CLEARANCE, nearestTerminal, removeInward, softenBounds } from './navigation';
+import { CLEARANCE, nearestTerminal, removeInward } from './navigation';
+import { resetLimitSteer } from './limitSteer';
+import { driveLimits } from './limitDrive';
+import { limitStep, resetCueHold } from './limitStep';
+import { readScrape, scrape } from './scrape';
+import { inputKind, limitHint } from './limitCopy';
+import { touchMode } from './pointerMode';
 import { sweepTurn } from './turnSweep';
 import { moveMode } from './combat';
 import { aimVelocity } from './aimMotion';
@@ -54,13 +60,13 @@ export default function Player() {
       const checkpoint = safe.checkpoint(state.checkpoint);
       b.setTranslation(checkpoint, true); b.setNextKinematicTranslation(checkpoint);
       setVec(runtime.position, checkpoint.x, checkpoint.y, checkpoint.z); runtime.poseEpoch++;
-      clearInput(true); liftTime.current = 0;
+      clearInput(true); liftTime.current = 0; resetLimitSteer();
       useGame.setState({ flying: false, landing: false, checkpoint, message: 'Suit restored to a clear landing.' });
       return;
     }
     if (runtime.reset) {
       b.setTranslation(START, true); b.setNextKinematicTranslation(START); setVec(runtime.position, START.x, START.y, START.z);
-      clearInput(true); runtime.reset = false; runtime.yaw = 0; runtime.pitch = -.12; runtime.poseEpoch++; liftTime.current = 0;
+      clearInput(true); runtime.reset = false; runtime.yaw = 0; runtime.pitch = -.12; runtime.poseEpoch++; liftTime.current = 0; resetLimitSteer();
       useGame.setState({ flying: false, landing: false, checkpoint: START }); persistGame(); return;
     }
     // Held Descend: start the landing before the intent is read, so its sink is already dropped this step.
@@ -95,8 +101,14 @@ export default function Player() {
     const gestureThrust = runtime.thumb.active || (runtime.trackpad.active && state.trackpadSteering !== 'simple');
     // Shooting never touches flight speed: mode 2 (ADS hover) only for a held Q or Aim; firing keeps whatever the flight was doing.
     const mode = state.shooter ? moveMode(runtime.shooter) : 0, surge = runtime.surge || gestureThrust || runtime.stick.boost || gesture.surge;
+    // Limits (plan 2026-09-28): near a wall, the sky, the water or a solid face a pressed suit turns toward open air; the pilot's own turn
+    // wins, and so does the aim (trigger held). Twin touch flies level, so its view pitch is left alone. A drawn (velocity-steered) Lab
+    // stroke flies by velocity, not by heading, so nothing turns there. Any step it does not run drops the latches (limitDrive.ts).
+    const level = levelFlight(state);
+    driveLimits(runtime, { on: flying && !runtime.landGoal && mode !== 2 && !(gesture.live && gesture.velocityOn), dt, p, v: runtime.velocity, speed: runtime.speed, intent,
+      surge, level, aiming: state.shooter && runtime.shooter.input.fire, contact: runtime.clearance, scrape, safe });
     // Twin touch flies level: altitude comes only from Rise and Descend, so aiming never climbs or dives (ADS pitch lift included).
-    const fp = levelFlight(state) ? 0 : runtime.pitch;
+    const fp = level ? 0 : runtime.pitch;
     // The branches build on the velocity without last step's lab offset (gestureBase), so offsets never compound.
     const vb = gestureBase(runtime.velocity, baseScratch);
     // A fast steered turn carves: travel follows the view instead of skidding (carve.ts). A look flick while coasting keeps its drift.
@@ -109,22 +121,22 @@ export default function Player() {
     if (liftTime.current > 0) { v.y = 6; liftTime.current -= dt; }
     gestureOffset(v, flying && !runtime.landGoal);
     const from = { ...runtime.velocity }, chosen = v;
-    runtime.clearance.active = false; runtime.clearance.boundary = boundaryDistance(p) < 12;
+    runtime.clearance.active = false; runtime.clearance.cue = '';
     if (flying && !runtime.landGoal) {
-      v = softenBounds(p, v);
-      const anticipated = safe.anticipate(p, v); v = anticipated.velocity;
-      if (anticipated.contact) {
+      // The soft limiter, the look-ahead sweep, the full-speed slide at the ceiling and water, and the cue (limitStep.ts).
+      const limited = limitStep(safe, p, v, flightTarget(intent, runtime.yaw, fp, flying, surge), from); v = limited.velocity; runtime.clearance.cue = limited.cue;
+      if (limited.contact) {
         runtime.clearance.active = true;
-        const w = anticipated.contact.witness1, n = new Vector3().copy(anticipated.contact.normal1).normalize();
+        const w = limited.contact.witness1, n = new Vector3().copy(limited.contact.normal1).normalize();
         setVec(runtime.clearance.point, w.x, w.y, w.z); setVec(runtime.clearance.normal, n.x, n.y, n.z);
       }
-    }
+    } else resetCueHold();
     setVec(runtime.velocity, v.x, v.y, v.z);
     if (flying) { c.disableSnapToGround(); c.disableAutostep(); c.setMaxSlopeClimbAngle(Math.PI / 2); c.setMinSlopeSlideAngle(0); }
     else { c.enableSnapToGround(.3); c.enableAutostep(.35, .2, true); c.setMaxSlopeClimbAngle(Math.PI / 4); c.setMinSlopeSlideAngle(Math.PI / 6); }
     const movement = boundMovement(p, { x: v.x * dt, y: v.y * dt, z: v.z * dt }, flying);
     c.computeColliderMovement(col, movement);
-    const actual = c.computedMovement();
+    const actual = c.computedMovement(); readScrape(c, scrape);
     for (let i = 0; i < c.numComputedCollisions(); i++) {
       const hit = c.computedCollision(i);
       if (hit) { const corrected = removeInward(runtime.velocity, hit.normal1); setVec(runtime.velocity, corrected.x, corrected.y, corrected.z); }
@@ -177,7 +189,7 @@ export default function Player() {
       const nearTerminal = terminal !== null;
       runtime.location = terminal ? terminal.location : next.y > 50 ? 'Upper skyline' : next.y < 6 ? 'Flooded boulevard' : next.z < 15 ? 'Broken viaduct' : 'Arrival terrace';
       const nearGround = flying && probeBelow(world, rapier, col, safe, runtime.position, FOOT + LAND_WINDOW) !== null;
-      useGame.setState({ canLand: !!runtime.landTarget, nearTerminal, nearGround, boundaryNear: runtime.clearance.boundary, clearanceActive: runtime.clearance.active });
+      useGame.setState({ canLand: !!runtime.landTarget, nearTerminal, nearGround, limitCue: runtime.clearance.cue, limitHint: limitHint(flying ? runtime.clearance.cue : '', inputKind(touchMode(), state.trackpadSteering, state.desktopMode)), clearanceActive: runtime.clearance.active });
     }
   });
   return <RigidBody ref={body} type="kinematicPosition" colliders={false} position={[spawn.current.x, spawn.current.y, spawn.current.z]}>

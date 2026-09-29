@@ -102,6 +102,15 @@ export class ThumbGate {
     this.hooks.changed();
     return { kind: 'thumb', blast: quick ? { x, y, drone: tap!.drone } : null };
   }
+  /**
+   * A finger that was still down when held input was released (pause, resume, reset, rotation): a fresh one-thumb grip where it is,
+   * flying at once, with no 180 ms hold. It used to stay dead until every finger lifted (limits plan S8). The caller resets the gate first.
+   */
+  rearm(id: number, x: number, y: number, t: number) {
+    this.down(id, x, y, t, -1);
+    if (this.thumbs.mode !== 'single') return;
+    this.clearHold(); this.thumbs.activate(); this.hooks.changed();
+  }
   /** A cancelled contact: a pending one just drops; a thumb ends everything (returns whether it was ours). */
   cancel(id: number) {
     if (this.pending?.id === id) { this.clearPending(); this.settle(); return true; }

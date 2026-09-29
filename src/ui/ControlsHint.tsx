@@ -23,7 +23,7 @@ const isLocked = () => typeof document !== 'undefined' && !!document.pointerLock
 export default function ControlsHint({ coarse }: { coarse: boolean }) {
   const shooter = useGame(s => s.shooter), tapControls = useGame(s => s.tapControls), desktopMode = useGame(s => s.desktopMode),
     steering = useGame(s => s.trackpadSteering), autoFire = useGame(s => s.autoFire), progress = useGame(s => s.hintProgress),
-    scheme = useGame(s => s.touchScheme);
+    scheme = useGame(s => s.touchScheme), limited = useGame(s => s.limitHint !== '');
   const track = hintTrack({ shooter, coarse, tapControls, desktopMode, steering, scheme });
   const series = track === 'touch' || track === 'simple' || track === 'mouse' ? track : null;
   const [captured, setCaptured] = useState(isLocked), [said, setSaid] = useState(''), [, rerender] = useState(0);
@@ -81,7 +81,8 @@ export default function ControlsHint({ coarse }: { coarse: boolean }) {
   }, [series, track]);
 
   const lineGone = !series && lineAt >= 0 && performance.now() - lineAt >= LINE_MS;
-  const text = lineGone ? null : hintText(track, step, { autoFire, captured, shooter });
+  // One message at a time: a limit cue (EDGE AHEAD ...) owns the pill while it shows, so the controls line never stacks above it.
+  const text = lineGone || limited ? null : hintText(track, step, { autoFire, captured, shooter });
   // Set after mount and on each change, so the live region exists empty first and the first hint is announced too. hintVisible
   // lets the sound notice and the one-finger panel stay quiet while a hint speaks (one message at a time).
   useEffect(() => { setSaid(text ?? ''); useGame.setState({ hintVisible: text !== null }); }, [text]);

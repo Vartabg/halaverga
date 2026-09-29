@@ -160,3 +160,34 @@ describe('review follow-ups (2026-09-28)', () => {
     expect(quick.up(2, 100, 400, TAP_MS, W, H).kind).toBe('tap'); // exactly TAP_MS is still a tap
   });
 });
+
+describe('dead states recover without lifting every finger (limits plan S8)', () => {
+  it('a third finger lifts and then the second: the original thumb flies again on its first move', () => {
+    const g = flying(); const id = 1;
+    g.down(2, 120, 300, 0, -1); vi.advanceTimersByTime(TAP_MS + 10);
+    g.down(3, 200, 400, 300, -1); vi.advanceTimersByTime(TAP_MS + 10);
+    expect(g.thumbs.mode).toBe('blocked');
+    g.up(3, 200, 400, 600, W, H); g.up(2, 120, 300, 620, W, H);
+    expect(g.thumbs.mode).toBe('single'); expect(g.thumbs.contacts.has(id)).toBe(true);
+    g.move(id, 379, 439, W, H);
+    expect(g.thumbs.active).toBe(true); expect(g.thumbs.output.forward).toBeGreaterThan(0);
+  });
+  it('a third finger lifts alone: the two thumbs are back at once (limits review F11), not blocked until every finger lifts', () => {
+    const g = flying();
+    g.down(2, 120, 300, 0, -1); vi.advanceTimersByTime(TAP_MS + 10);
+    g.down(3, 200, 400, 300, -1); vi.advanceTimersByTime(TAP_MS + 10);
+    expect(g.thumbs.mode).toBe('blocked');
+    g.up(3, 200, 400, 600, W, H);
+    expect(g.thumbs.mode).toBe('dual'); expect(g.thumbs.active).toBe(true); expect(g.thumbs.output.forward).toBe(0);
+    g.move(2, 120, 200, W, H); expect(g.thumbs.output.forward).toBeGreaterThan(.5); // the left thumb moves again
+    g.move(1, 400, 380, W, H); expect(g.thumbs.output.lookX).not.toBe(0); // and the right one looks
+  });
+  it('rearm: a finger still down after held input was released is a fresh grip that flies at once', () => {
+    const g = new ThumbGate({ expired: () => false, paused: () => false, changed: () => { changed++; } });
+    g.reset(); g.rearm(7, 200, 500, 1000);
+    expect(g.thumbs.mode).toBe('single'); expect(g.thumbs.active).toBe(true); expect(g.thumbs.output.forward).toBeGreaterThan(0);
+    g.move(7, 200, 440, W, H); expect(g.thumbs.output.forward).toBeGreaterThan(.2); expect(g.thumbs.output.lookX).toBe(0);
+    vi.advanceTimersByTime(400); expect(g.thumbs.active).toBe(true); // the 180 ms hold timer never fires late and resets the throttle
+    expect(g.thumbs.output.forward).toBeGreaterThan(.2);
+  });
+});

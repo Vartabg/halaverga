@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { clearInput, look, runtime, startTrackpad, stopTrackpad, toggleSurge, readIntent, releaseHeldInput, releaseKeys } from '@/game/runtime';
+import { clearInput, look, runtime, startTrackpad, stopTrackpad, toggleSurge, readIntent, releaseHeldInput, releaseKeys, exitOwnPointerLock, unlockExpected } from '@/game/runtime';
 import { moving } from '@/game/motion';
 import { persistGame, useGame } from '@/game/store';
 import { recordGesture } from '@/game/gestureLog';
@@ -77,11 +77,11 @@ export function useInput() {
       orientation = next;
       // Touch: Safari's toolbar resizes change nothing; a rotation releases held input and keeps playing.
       if (touchMode()) { if (flipped) releaseHeldInput(); return; }
-      clearInput(true); if (document.pointerLockElement) document.exitPointerLock(); useGame.setState(s => ({ landing: false, inputEpoch: s.inputEpoch + 1 }));
+      clearInput(true); exitOwnPointerLock(); useGame.setState(s => ({ landing: false, inputEpoch: s.inputEpoch + 1 }));
     };
     const lock = () => {
       if (!document.pointerLockElement) {
-        const expected = runtime.trackpad.unlocking; runtime.trackpad.unlocking = false;
+        const expected = unlockExpected();
         if (useGame.getState().started && !useGame.getState().paused) {
           if (useGame.getState().desktopMode === 'trackpad' && expected) clearInput(); else pause();
         }
