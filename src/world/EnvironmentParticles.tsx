@@ -19,16 +19,17 @@ const particleVertex = `
     float sDot = max(dot(normalize(worldPos - cameraPosition), uSun), 0.0);
     float forwardGlow = pow(sDot, 14.0) * 2.2 + pow(sDot, 4.0) * 0.45;
     float pulse = sin(uTime * 2.4 + aPhase) * 0.22 + 0.78;
+    float heightFade = smoothstep(14.0, 3.0, position.y);
     if (aType < 0.5) {
       vec3 col = mix(vec3(1.0, 0.88, 0.54), vec3(0.85, 0.95, 0.68), sin(aPhase) * 0.5 + 0.5);
       vColor = col * (1.0 + forwardGlow * 1.6);
-      vAlpha = (0.38 + 0.35 * forwardGlow) * pulse;
+      vAlpha = (0.32 + 0.28 * forwardGlow) * pulse * heightFade;
     } else if (aType < 1.5) {
       vColor = vec3(0.68, 0.88, 0.84) * (1.0 + forwardGlow * 0.6);
-      vAlpha = 0.20 * pulse;
+      vAlpha = 0.20 * pulse * heightFade;
     } else {
       vColor = vec3(0.88, 0.94, 1.0);
-      vAlpha = smoothstep(2.5, 12.0, uSpeed) * 0.55 * pulse;
+      vAlpha = smoothstep(2.5, 12.0, uSpeed) * 0.45 * pulse;
     }
   }
 `;
@@ -56,13 +57,13 @@ export default function EnvironmentParticles() {
 
     // 1. Pollen & spores
     for (let i = 0; i < COUNT_POLLEN; i++) {
-      positions[i * 3] = (Math.random() - .5) * 44;
-      positions[i * 3 + 1] = 10 + (Math.random() - .5) * 20;
-      positions[i * 3 + 2] = 50 + (Math.random() - .5) * 44;
-      velocities[i * 3] = (Math.random() - .5) * .6;
-      velocities[i * 3 + 1] = -.12 + (Math.random() - .5) * .2;
-      velocities[i * 3 + 2] = .25 + Math.random() * .6;
-      types[i] = 0; scales[i] = .2 + Math.random() * .18; phases[i] = Math.random() * Math.PI * 2;
+      positions[i * 3] = (Math.random() - .5) * 40;
+      positions[i * 3 + 1] = 1 + Math.random() * 7;
+      positions[i * 3 + 2] = 40 + (Math.random() - .5) * 40;
+      velocities[i * 3] = (Math.random() - .5) * .5;
+      velocities[i * 3 + 1] = -.06 + (Math.random() - .5) * .12;
+      velocities[i * 3 + 2] = .2 + Math.random() * .4;
+      types[i] = 0; scales[i] = .18 + Math.random() * .14; phases[i] = Math.random() * Math.PI * 2;
     }
     // 2. Canal mist
     for (let i = COUNT_POLLEN; i < COUNT_POLLEN + COUNT_MIST; i++) {
@@ -119,7 +120,7 @@ export default function EnvironmentParticles() {
       array[idx + 1] += data.velocities[idx + 1] * elapsed;
       array[idx + 2] += data.velocities[idx + 2] * elapsed;
       if (array[idx] - px > 26) array[idx] -= 52; else if (array[idx] - px < -26) array[idx] += 52;
-      if (array[idx + 1] - py > 18) array[idx + 1] -= 28; else if (array[idx + 1] - py < -10) array[idx + 1] += 28;
+      if (array[idx + 1] > 12) array[idx + 1] = 1; else if (array[idx + 1] < 1) array[idx + 1] = 11;
       if (array[idx + 2] - pz > 26) array[idx + 2] -= 52; else if (array[idx + 2] - pz < -26) array[idx + 2] += 52;
     }
     for (let i = COUNT_POLLEN; i < COUNT_POLLEN + COUNT_MIST; i++) {

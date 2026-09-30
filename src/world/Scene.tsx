@@ -14,7 +14,6 @@ import { useGame } from '@/game/store';
 import { clearInput } from '@/game/runtime';
 import EnvironmentLight from './EnvironmentLight';
 import EnvironmentParticles from './EnvironmentParticles';
-import Flock from './Flock';
 function GraphicsRecovery({ onLoss }: { onLoss: () => void }) {
   const { gl, invalidate } = useThree();
   useEffect(() => {
@@ -38,7 +37,7 @@ export default function Scene({ onLoss }: { onLoss: () => void }) {
     <directionalLight position={[-65, 100, 80]} color="#fff0cd" intensity={3.6} castShadow={quality === 'high'}
       shadow-mapSize={[2048, 2048]} shadow-camera-left={-110} shadow-camera-right={110}
       shadow-camera-top={110} shadow-camera-bottom={-110} shadow-camera-far={380} shadow-bias={-.0002} shadow-normalBias={.09} />
-    <EnvironmentLight /><Sky /><Water /><EnvironmentParticles /><Flock />
+    <EnvironmentLight /><Sky /><Water /><EnvironmentParticles />
     <Suspense fallback={null}>
       <Physics paused={paused} timeStep={1 / 60} updatePriority={-50} gravity={[0, -22, 0]}>
         <City /><DistrictBoundary /><Player /><FlightPresentation /><Suit /><CameraRig />

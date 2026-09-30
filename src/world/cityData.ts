@@ -40,11 +40,10 @@ export function makeCity() {
   // Distant surviving skyline: sculpted silhouettes anchored by the hero Solar Arcology
   for (let i = 0; i < 22; i++) {
     const x = (i - 10.5) * 18, h = 28 + (i * 19 % 38), z = -215 - (i % 4) * 12;
-    // Central landmark: the Solar Arcology twin spires and fractured connecting sky-bridge
-    if (Math.abs(x) < 22) continue;
+    // Keep central flight corridor open and clear of background clutter
+    if (Math.abs(x) < 55) continue;
     k.box(x, h / 2 - 3, z, 12 + i % 4, h, 14, '#6d787e');
-    k.box(x - 2, h + 1, z, 5, 6, 10, '#5f696e');
-    if (i % 3 === 0) k.box(x + 1, h + 4, z, .14, 8, .14, colors.steel);
+    if (i % 3 === 0) k.box(x, h + 2, z, .14, 5, .14, colors.steel);
   }
   // The Solar Arcology: twin towers framing the central canal axis at z = -230
   k.box(-11, 38, -232, 14, 82, 16, '#647076');
@@ -53,9 +52,11 @@ export function makeCity() {
   k.box(11, 34, -228, 13, 74, 15, '#69757b');
   k.box(11, 72, -228, 8, 6, 10, '#556167');
   k.box(11, 77, -228, .2, 10, .2, colors.steel);
-  // Fractured sky-bridge connecting the twin arcology spires across the central flight axis
-  k.box(-4, 52, -230, 9, 3.2, 5.5, colors.concrete);
-  k.box(5, 50.8, -230, 7, 3.2, 5.5, colors.concrete, false, 0, -.12);
+  // Cantilevered observation skybridge decks anchored solidly to each tower
+  k.box(-7.5, 52, -230, 6.5, 2.4, 5, colors.concrete);
+  k.box(7.5, 52, -230, 6.5, 2.4, 5, colors.concrete);
+  k.box(-7.5, 50.4, -230, 6, .8, 4.5, colors.steel);
+  k.box(7.5, 50.4, -230, 6, .8, 4.5, colors.steel);
 
   // Arrival terrace: framed observation deck with pavers, planters and balustrade
   k.box(0, 19, 65, 24, 2, 20, colors.concrete, true);
