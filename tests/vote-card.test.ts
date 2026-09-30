@@ -56,9 +56,9 @@ describe('the card model', () => {
     expect(savedPick(saved('tie'), ['draw'])).toBe('tie');
     expect(savedPick(null, ['draw'])).toBeNull();
   });
-  it('the outcome copy (one table); a 429 says the pick is kept, names no wait and never claims the vote is in', () => {
+  it('the outcome copy (one table); a 429 promises nothing about the pick (CODE-8), names no wait and never claims the vote is in', () => {
     expect(STATUS_TEXT).toEqual({
-      ok: 'Thanks. Your vote is in.', later: 'Voting is busy right now. Your pick is kept. Try again later.', closed: "Voting isn't open right now.",
+      ok: 'Thanks. Your vote is in.', later: 'Voting is busy right now. Try again later.', closed: "Voting isn't open right now.",
       cross: 'Open the game at its own web address, then vote.', invalid: "This page can't send that vote. Reload the page and try again.",
       network: "Couldn't send. Tap Send to try again.", error: "Couldn't send. Tap Send to try again." });
     expect(STATUS_TEXT.later).not.toMatch(/\d|minute|second|hour|in\b.*counted|is in/i);

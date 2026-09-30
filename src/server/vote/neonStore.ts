@@ -2,7 +2,7 @@
 // one Postgres transaction at READ COMMITTED, all or nothing, replies positional. The tables are created lazily inside the first
 // batch of each server instance (idempotent DDL behind an advisory lock). The connection string lives only in the closure and in one
 // request header. Errors are fixed strings: no response body, parameter, key, host or fetch cause ever reaches a message or a log.
-import { parseNeonUrl } from './neonConn';
+import { parseNeonUrl, type NeonUrlOptions } from './neonConn';
 import { CLEAN, CLEAN_EVERY_MS, DDL, MISSING_TABLE, NEON_TIMEOUT_MS, RACE_CODES } from './neonSchema';
 import { SQL, translate, type NeonStmt } from './neonSql';
 import type { FetchLike, VoteStore } from './store';
@@ -22,9 +22,9 @@ async function sqlstate(res: Response): Promise<string | undefined> {
 }
 
 export function createNeonStore(
-  connectionString: string, fetchImpl: FetchLike = fetch, timeoutMs: number = NEON_TIMEOUT_MS, now: () => number = Date.now,
+  connectionString: string, fetchImpl: FetchLike = fetch, timeoutMs: number = NEON_TIMEOUT_MS, now: () => number = Date.now, urlOpts?: NeonUrlOptions,
 ): VoteStore & { callBudgetMs: number } {
-  const conn = parseNeonUrl(connectionString);
+  const conn = parseNeonUrl(connectionString, urlOpts);
   if (!conn) throw fail('bad connection string');
   const { endpoint } = conn;
   let ready = false, lastClean = -Infinity;

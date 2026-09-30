@@ -14,7 +14,7 @@ test('@vote the chip is there from Begin: 0/2 with the seconds, an outline, and 
   await mock(page, [200]);
   await expect(c).toBeVisible();
   await expect.poll(() => shown(page)).toMatch(/^Vote 0\/2 · \d+ s$/);
-  await expect(c).toHaveAccessibleName(/^Vote 0\/2 ?\. Fly two ways for 20 seconds first\.$/); // Chrome may put a space before the tail
+  await expect(c).toHaveAccessibleName(/^Vote 0\/2 · \d+ s ?\. Fly two ways for 20 seconds first\.$/); // CODE-4: the visible seconds are in the name; Chrome may put a space before the tail
   await expect(c).not.toHaveAttribute('data-ready', /.*/);
   expect(await c.getAttribute('aria-label')).toBeNull(); // WCAG 2.5.3: the visible text is inside the name
   const b = await box(c);
@@ -27,7 +27,7 @@ test('@vote 1/2 counts down while a key is held, and reaches the lime 2/2 by its
   const t = await votePage(browser, { 'desktop:draw': 25, 'desktop:cursor': 15 }), { page } = t, c = chip(page);
   await mock(page, [200]);
   await expect.poll(() => shown(page)).toMatch(/^Vote 1\/2 · \d+ s$/);
-  await expect(c).toHaveAccessibleName(/^Vote 1\/2 ?\. Fly one more way for 20 seconds first\.$/);
+  await expect(c).toHaveAccessibleName(/^Vote 1\/2 · \d+ s ?\. Fly one more way for 20 seconds first\.$/);
   await page.waitForTimeout(2600); // Begin's own press is outside the 2 s input window by now
   const first = await seconds(page);
   expect(first).toBeLessThanOrEqual(5); expect(first).toBeGreaterThan(0);
@@ -105,7 +105,7 @@ test('@vote the chip at 1/2 opens the need-more card; Try closes it with no Skip
   await expect.poll(() => shown(page)).toMatch(/^Vote 1\/2/);
   await openFromChip(page);
   await expect(card(page)).toHaveAttribute('data-phase', 'need');
-  await expect(card(page).getByTestId('vote-need-more')).toHaveText('Fly a second way for 20 seconds, then vote. You have flown 1 of 2 so far.');
+  await expect(card(page).getByTestId('vote-need-more')).toHaveText('Fly one more way for 20 seconds, then vote. You have flown 1 of 2 so far.');
   await expect(card(page).getByRole('radio')).toHaveCount(0); await expect(sendBtn(page)).toHaveCount(0);
   const tryBtn = card(page).getByTestId('vote-try'), text = await tryBtn.innerText();
   const label = /^Try (.+) for 20 seconds$/.exec(text)![1];
@@ -124,7 +124,7 @@ test('@vote the need-more card at 0/2: Keep playing leaves no mark, and Escape c
   const t = await votePage(browser, {}), { page } = t;
   await mock(page, [200]);
   await openFromChip(page);
-  await expect(card(page).getByTestId('vote-need-more')).toContainText('You have flown 0 of 2 so far.');
+  await expect(card(page).getByTestId('vote-need-more')).toHaveText('Fly two ways for 20 seconds each, then vote. You have flown 0 of 2 so far.'); // V6
   await card(page).getByRole('button', { name: 'Keep playing' }).click();
   await expect(card(page)).toHaveCount(0); await expect(playing(page)).toBeVisible();
   await chip(page).click();

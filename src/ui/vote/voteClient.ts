@@ -114,11 +114,6 @@ export function tallyLine(r: VoteResults | null, family: VoteDevice): string {
   return f.votes >= 5 ? `About ${f.votes} votes so far on ${family}. ${TALLY_TAIL}` : `Only a few votes so far on ${family}. ${TALLY_TAIL}`;
 }
 
-/** "Tried X of N" and the controls of the family not tried yet, in registry order. */
-export function triedSummary(tried: readonly ControlId[], family: VoteDevice) {
-  const all = controlsFor(family), left = all.filter(c => !tried.includes(c.id));
-  return { count: all.length - left.length, of: all.length, left: left.map(c => c.label) };
-}
 // The card's pure model (tests/vote-card.test.ts): which state shows, whether Send acts, and what it says.
 export type Phase = 'need' | 'ballot' | 'done' | 'closed';
 /** `counted`: tried controls at 20 s (the current control alone does not count). A vote already sent, or a 200, is done. */
@@ -141,7 +136,7 @@ export const ALREADY_TEXT = 'Your vote is in. Thanks.';
 export const PAUSED_TEXT = 'Voting may be paused. You can still try to send.';
 export const STATUS_TEXT: Record<VoteOutcome, string> = {
   ok: 'Thanks. Your vote is in.',
-  later: 'Voting is busy right now. Your pick is kept. Try again later.',
+  later: 'Voting is busy right now. Try again later.', // CODE-8: no "your pick is kept": with blocked storage a closed card keeps nothing
   closed: "Voting isn't open right now.",
   cross: 'Open the game at its own web address, then vote.',
   invalid: "This page can't send that vote. Reload the page and try again.",

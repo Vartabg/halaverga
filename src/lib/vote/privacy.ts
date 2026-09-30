@@ -7,6 +7,7 @@ export const PRIVACY_SHORT =
 export const PRIVACY_FULL =
   'No sign-in, no cookies, no text box. We keep the way you picked (or "can\'t tell"), the ways you tried, the one you flew last, touch or desktop, and the hour you voted. ' +
   'Each vote also keeps a random code, so a resend counts once, and a network group code: a short keyed hash of your network block that changes every day and is shared by about 4,000 different blocks, ' +
-  'so it cannot identify you or follow you across days. Votes are kept until the poll is deleted. ' +
-  'To limit repeat votes we keep keyed hashes of your network address for about a day, and a keyed count of how many votes were sent from your network (a number, not a vote) for up to 30 days; after that they stop counting and are deleted when the store next tidies up. ' +
+  'so on its own it does not identify you or link your votes across days. Votes are kept until the poll is deleted. ' +
+  'To limit repeat votes we keep keyed hashes of your network address and of your network block for about a day, and a keyed count of how many votes were sent from your network (a number, not a vote) for up to 30 days; after that they stop counting and are deleted when the store next tidies up. ' +
+  'The hashes use a secret key that only we hold; whoever held it could test whether a known network voted. ' +
   'On a busy day or from a shared network a vote can be refused (the page says so and nothing is stored). Vercel, our host, keeps its own server logs. Your lab measurements stay on this device.';

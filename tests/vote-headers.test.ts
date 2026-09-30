@@ -54,8 +54,9 @@ describe('W1 headers() groups', () => {
     expect(api.filter((k) => k === 'cache-control' || k.startsWith('access-control-'))).toEqual([]);
     for (const g of securityHeaders) for (const h of g.headers) expect(h.key.toLowerCase().startsWith('access-control-')).toBe(false);
   });
-  it('W2 /results carries public, max-age=0, s-maxage=120 with no stale-while-revalidate, and only /results', () => {
-    expect(at('/results', 'Cache-Control')).toBe('public, max-age=0, s-maxage=120');
+  it('CODE-6 /results has no Cache-Control in the config (its handler sets it per answer: public 120 s for a tally, no-store for every failure); the value has no stale-while-revalidate', () => {
+    expect(at('/results', 'Cache-Control')).toBeUndefined(); // a config header would also cover the 502 and 503 pages
+    expect(RESULTS_CACHE).toBe('public, max-age=0, s-maxage=120');
     expect(RESULTS_CACHE).not.toMatch(/stale-while-revalidate/);
     expect(at('/results', 'X-Robots-Tag')).toBe('noindex');
     expect(at('/results', 'Content-Security-Policy')).toBe(COMMON_CSP);

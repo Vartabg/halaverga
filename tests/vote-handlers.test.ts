@@ -38,14 +38,14 @@ describe('handleVote: the counted path', () => {
     expect([...r.headers.keys()].filter((h) => h.startsWith('access-control'))).toEqual([]);
   });
 
-  it('F3 a resent nonce answers 200, stores one entry, and costs gate A only (5 commands, 1 round trip): it spends no block, round or day budget', async () => {
+  it('F3 CODE-2 a resent nonce answers 200, stores one entry, and costs gate A and one DECR (6 commands, 2 round trips): it spends no unit, block, round or day budget', async () => {
     const s = setup(), body = voteBody();
     expect((await handleVote(voteReq(body), s.deps)).status).toBe(200);
     s.redis.commands = s.redis.execCalls = 0; s.redis.log = [];
     expect((await handleVote(voteReq(body), s.deps)).status).toBe(200);
     expect(Object.keys(s.redis.hash(VOTES))).toEqual([body.nonce]);
-    expect([s.redis.commands, s.redis.execCalls, s.redis.log]).toEqual([5, 1, A(body.nonce)]);
-    expect([s.redis.counter(B), s.redis.counter(R), s.redis.counter(G)]).toEqual([1, 1, 1]);
+    expect([s.redis.commands, s.redis.execCalls, s.redis.log]).toEqual([6, 2, [...A(body.nonce), ['DECR', U]]]);
+    expect([s.redis.counter(U), s.redis.counter(B), s.redis.counter(R), s.redis.counter(G)]).toEqual([1, 1, 1, 1]); // the unit counter is back where the first vote left it
   });
 
   it('is the same for 2 or 8 tried controls', async () => {

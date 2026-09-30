@@ -3,7 +3,7 @@ import type { Command, FetchLike } from '@/server/vote/store';
 import type { FakeNeon } from './fakeNeon';
 
 // Shared by the Neon store tests: a connection string with markers in every secret part, a canned fetch, and the error surface scan.
-export const PW = 'PW-SECRET-7f3', USER = 'neonuser', HOST = 'ep-test.neon.example', PARAM = 'PARAM-MARK-91';
+export const PW = 'PW-SECRET-7f3', USER = 'neonuser', HOST = 'ep-test.us-east-2.aws.neon.tech', PARAM = 'PARAM-MARK-91';
 export const CS = `postgresql://${USER}:${PW}@${HOST}/neondb?sslmode=require&channel_binding=require`;
 export const INCR: Command[] = [['INCR', 'k']];
 export const queriesOf = (n: FakeNeon, i: number) => n.calls[i].queries.map((q) => q.query);

@@ -11,7 +11,7 @@ import styles from './ControlsPicker.module.css';
 export function chipProgress(play: VotePlay, family: ControlFamily, current: ControlId) {
   return { tried: triedIds(play, family).length, left: Math.max(0, Math.ceil(TRIED_S - (play.secs[controlKey(family, current)] ?? 0))) };
 }
-/** Spoken after the visible `Vote n/2` (the visible text stays inside the accessible name). */
+/** Spoken after the visible `Vote n/2 · s` (the visible text, seconds included, stays inside the accessible name: WCAG 2.5.3). */
 export const chipHint = (tried: number) => `. Fly ${tried === 0 ? 'two ways' : 'one more way'} for ${TRIED_S} seconds first.`;
 
 /**
@@ -28,13 +28,15 @@ export default function VoteChip({ family }: { family: ControlFamily }) {
   }, [family]);
   const s = useSyncExternalStore(watch, snap, snap);
   useGame(x => x.voteOpen); // the card closing is the moment a sent vote takes the chip away
-  if (!canVote(readMark(), Date.now(), family)) return null;
+  // V4: the pause card (which has its own vote door) covers half of this chip on a wide screen, so the chip steps aside while it shows (Experience shows it under exactly these conditions; the open vote card keeps the chip behind its scrim, as before).
+  const pauseCard = useGame(x => x.started && x.paused && !x.panel && !x.journal && !x.voteOpen);
+  if (pauseCard || !canVote(readMark(), Date.now(), family)) return null;
   const [tried, left] = s.split('|').map(Number), ready = tried >= VOTE_MIN_TRIED;
   return <button type="button" className={styles.chip} data-testid="vote-chip" data-ready={ready ? '' : undefined}
     onMouseDown={e => e.preventDefault()} onClick={() => useGame.setState({ voteOpen: true })}>
     <span className={styles.chipText}>{ready ? <>Vote<span className={styles.chipMore}>: which felt best?</span></> : <>
       {`Vote ${tried}/${VOTE_MIN_TRIED}`}
-      {left > 0 && <span aria-hidden="true"><span className={styles.chipDot}>{' · '}</span>{`${left} s`}</span>}
+      {left > 0 && <span className={styles.chipSecs}><span className={styles.chipDot}>{' · '}</span>{`${left} s`}</span>}
     </>}</span>
     {!ready && <span className="sr-only">{chipHint(tried)}</span>}
   </button>;

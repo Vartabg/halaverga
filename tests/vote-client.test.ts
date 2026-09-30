@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { controlsFor } from '@/game/controlTypes';
 import { NONCE_RE, parseVote, VOTE_MAX_BYTES, VOTE_SCHEMA } from '@/lib/vote/ballot';
 import { readPending } from '@/ui/vote/pending';
-import { buildPayload, castVote, newNonce, submitVote, triedSummary, VOTE_NAMES, VOTE_URL } from '@/ui/vote/voteClient';
+import { buildPayload, castVote, newNonce, submitVote, VOTE_NAMES, VOTE_URL } from '@/ui/vote/voteClient';
 import { readMark } from '@/ui/vote/voteTracker';
 import { bodies, fakeFetch, memory } from './helpers/voteFetch';
 
@@ -52,9 +52,7 @@ describe('buildPayload', () => {
     expect(newNonce()).toMatch(NONCE_RE);
   });
 
-  it('triedSummary and the registry names', () => {
-    expect(triedSummary(['cursor', 'draw'], 'desktop')).toEqual({ count: 2, of: 8, left: ['One finger + keys', 'Flow', 'Captured', 'Mouse + keys', 'Conduct', 'Brush'] });
-    expect(triedSummary(['cursor'], 'touch')).toEqual({ count: 0, of: 5, left: ['One finger', 'Twin stick', 'Draw', 'Conduct', 'Brush'] });
+  it('the registry names', () => {
     expect(VOTE_NAMES['one-finger']).toBe('One finger');
     expect(Object.keys(VOTE_NAMES)).toHaveLength(10);
   });

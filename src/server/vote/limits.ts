@@ -27,9 +27,9 @@ function knob(raw: unknown, name: keyof typeof CLAMP): number {
   return Number.isInteger(n) && n >= lo && n <= hi ? n : DEFAULT_LIMITS[name];
 }
 
-/** `HMGET ctl mode unit block global max cap minv round` reply to Limits. A reply that is not an array is closed. */
+/** `HMGET ctl mode unit block global max cap minv round` reply to Limits. A reply that is not an array of exactly 8 is closed (C6: a truncated reply never opens the gate). */
 export function limitsFrom(reply: unknown): Limits {
-  if (!Array.isArray(reply)) return { ...DEFAULT_LIMITS, mode: 'closed' };
+  if (!Array.isArray(reply) || reply.length !== CTL_FIELDS.length) return { ...DEFAULT_LIMITS, mode: 'closed' };
   const [mode, unit, block, global, max, cap, minv, round] = reply;
   return {
     mode: mode === null || mode === undefined || mode === 'open' ? 'open' : 'closed',
@@ -43,8 +43,10 @@ export const utcHour = (now: number): string => new Date(now).toISOString().repl
 /** UTC date as YYYYMMDD. */
 export const utcDate = (now: number): string => new Date(now).toISOString().replace(/-/g, '').slice(0, 8);
 
-/** Whole seconds from `now` to the next UTC midnight, when the unit, block and global counters start over (at least 1). */
-export const secondsToUtcMidnight = (now: number): number => {
+/** Milliseconds from `now` to the next UTC midnight (at least 1). */
+export const msToUtcMidnight = (now: number): number => {
   const d = new Date(now);
-  return Math.max(1, Math.ceil((Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + 1) - now) / 1000));
+  return Math.max(1, Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + 1) - now);
 };
+/** Whole seconds from `now` to the next UTC midnight, when the unit, block and global counters start over (at least 1). */
+export const secondsToUtcMidnight = (now: number): number => Math.max(1, Math.ceil(msToUtcMidnight(now) / 1000));

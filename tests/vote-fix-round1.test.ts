@@ -98,17 +98,17 @@ describe('F3 replays and refusals do not burn the day budget, and the results sa
   it('F3 1,200 replays of one code from 1,200 blocks spend nothing: the day counter stays at 1 and honest visitors still vote', async () => {
     const s = setup(), body = voteBody();
     const out = await fire(s, 1200, blockIp, () => body);
-    expect(shape(out)).toEqual({ '200@12': 1, '200@5': 1199 });
+    expect(shape(out)).toEqual({ '200@12': 1, '200@6': 1199 });
     expect(s.redis.counter(`${NS}:rlg:${D}`)).toBe(1);
     expect([stored(s), (await vote(s, blockIp(5000))).status]).toEqual([1, 200]);
   });
 
-  it('F3 a replay past the address limit is still answered 200 (its vote is in), at gate A only', async () => {
+  it('F3 a replay past the address limit is still answered 200 (its vote is in), at gate A and the undo only', async () => {
     const s = setup({}, { unit: 1 }), body = voteBody();
     expect((await handleVote(voteReq(body), s.deps)).status).toBe(200);
     s.deps.memo = new MemoLimit();
     const c = s.redis.commands, r = await handleVote(voteReq(body), s.deps);
-    expect([r.status, s.redis.commands - c, stored(s)]).toEqual([200, 5, 1]);
+    expect([r.status, s.redis.commands - c, stored(s)]).toEqual([200, 6, 1]);
     expect((await vote(s)).status).toBe(429); // a different code is over the limit
   });
 

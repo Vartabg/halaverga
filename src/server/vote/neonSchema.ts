@@ -8,7 +8,6 @@ export const DDL: readonly string[] = [
   'CREATE TABLE IF NOT EXISTS public.hv_hash (\n  k     text NOT NULL,\n  field text NOT NULL,\n  value text NOT NULL,\n  PRIMARY KEY (k, field)\n)',
   'CREATE TABLE IF NOT EXISTS public.hv_set (\n  k      text NOT NULL,\n  member text NOT NULL,\n  PRIMARY KEY (k, member)\n)',
 ];
-export const PRELUDE_LEN = DDL.length;
 
 /** Space only: an expired row is already treated as absent by SET NX and INCR. SKIP LOCKED never waits, LIMIT bounds the work. */
 export const CLEAN =

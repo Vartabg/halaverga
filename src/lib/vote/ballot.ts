@@ -65,7 +65,8 @@ export function mediaType(header: string | null | undefined): string {
   return (header ?? '').split(';')[0].trim().toLowerCase();
 }
 
-function validate(v: unknown): VotePayload | null {
+/** A payload of exactly the six fields of a valid vote for its own device, or null. Also the check on a saved (pending) vote. */
+export function validateVote(v: unknown): VotePayload | null {
   if (!isPlainObject(v)) return null;
   const own = Object.keys(v);
   if (own.length !== KEYS.length || !KEYS.every(k => own.includes(k))) return null;
@@ -87,6 +88,6 @@ export function parseVote(text: string): VoteParse {
   if (byteLength(text) > VOTE_MAX_BYTES) return { ok: false, status: 413 };
   let raw: unknown;
   try { raw = JSON.parse(text); } catch { return { ok: false, status: 400 }; }
-  const vote = validate(raw);
+  const vote = validateVote(raw);
   return vote ? { ok: true, vote } : { ok: false, status: 400 };
 }

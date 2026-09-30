@@ -19,7 +19,7 @@ const NOT_INT = 'ERR value is not an integer or out of range';
 const INT = /^-?\d+$/;
 // [min, max] argument count including the key; the reply to a wrong count is Redis's arity error.
 const ARITY: Record<string, [number, number]> = {
-  SET: [2, 6], GET: [1, 1], INCR: [1, 1], HINCRBY: [3, 3], HMGET: [2, 99], HLEN: [1, 1], HSETNX: [3, 3], HSET: [3, 99], HDEL: [2, 99],
+  SET: [2, 6], GET: [1, 1], INCR: [1, 1], DECR: [1, 1], HINCRBY: [3, 3], HMGET: [2, 99], HLEN: [1, 1], HSETNX: [3, 3], HSET: [3, 99], HDEL: [2, 99],
   HGETALL: [1, 1], SADD: [2, 99], SREM: [2, 99], SMEMBERS: [1, 1], DEL: [1, 99], TTL: [1, 1], EXPIRE: [2, 2], LPUSH: [2, 99],
   LTRIM: [3, 3], LLEN: [1, 1], FLUSHALL: [0, 0],
 };
@@ -94,10 +94,10 @@ export class FakeRedis implements VoteStore {
     switch (name) {
       case 'SET': return this.set(k, r);
       case 'GET': return this.get(k, 'str')?.v ?? null;
-      case 'INCR': {
+      case 'INCR': case 'DECR': {
         const e = this.get(k, 'str');
         if (e && !INT.test(e.v)) throw new RedisError(NOT_INT);
-        const n = (e ? Number(e.v) : 0) + 1;
+        const n = (e ? Number(e.v) : 0) + (name === 'INCR' ? 1 : -1);
         this.put(k, { kind: 'str', v: String(n) });
         return n;
       }

@@ -139,7 +139,9 @@ describe('ControlsSheet and ControlsSection (SSR)', () => {
     expect(guide).toContain('>Try every control</h3>'); expect(pause).not.toContain('Try every control');
     expect(guide).toMatch(/<details[^>]*open/); expect(guide).toContain('<summary>Controls: Cursor</summary>');
     expect(idsOf(guide)).toEqual(ORDER); expect(guide).toContain('name="control-guide"'); expect(pause).toContain('name="control-pause"');
-    expect(guide).toContain('Tried 0 of 2 needed to vote'); expect(guide).toContain('Number keys 1-8 switch controls');
+    expect(guide).toContain('Tried 0 of 8'); expect(guide).not.toContain('needed to vote'); // CODE-9: no vote door in the Field guide, so no "needed to vote"
+    expect(pause).toContain('Tried 0 of 2 needed to vote'); // the pause card has a vote door in its section, so its line may say what a vote needs
+    expect(guide).toContain('Number keys 1-8 switch controls');
     expect(guide).not.toContain('controls-vote'); // no vote button unless asked
     expect(html(createElement(ControlsSection, { name: 'control-settings', vote: true }))).toContain('data-testid="controls-vote"');
   });

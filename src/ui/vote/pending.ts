@@ -1,8 +1,8 @@
 // A vote that was pressed but not yet answered (spec 1.8). One send code (nonce) per Send, kept until the server answers, so a lost
 // reply, a reopened card or a reload resends the same code and the vote can never count twice. Saved before the first request, cleared
 // by a 200 or a 400/413/415, and dropped after 24 h. Every access is wrapped: with no usable storage there is simply nothing saved.
-import { controlsFor, isControlFor, type ControlId } from '@/game/controlTypes';
-import { NONCE_RE, VOTE_MIN_TRIED, VOTE_ROUND, type VoteDevice } from '@/lib/vote/ballot';
+import type { ControlId } from '@/game/controlTypes';
+import { validateVote, VOTE_ROUND, VOTE_SCHEMA, type VoteDevice } from '@/lib/vote/ballot';
 import { readJson, storageOf, writeJson, type VoteStorage } from './voteTracker';
 
 export const PENDING_KEY = 'halaverga.vote.pending';
@@ -13,14 +13,10 @@ const FAMILIES: readonly VoteDevice[] = ['touch', 'desktop'];
 /** One family's saved entry, or null when it is missing, malformed, from another round, older than 24 h or from the future. */
 function entryOf(v: unknown, family: VoteDevice, now: number): Pending | null {
   if (v === null || typeof v !== 'object' || Array.isArray(v)) return null;
-  const o = v as Record<string, unknown>, { nonce, favorite, tried, last, at } = o;
-  if (typeof nonce !== 'string' || !NONCE_RE.test(nonce) || typeof at !== 'number' || !Number.isFinite(at) || now < at || now - at >= PENDING_MS) return null;
-  if (!Array.isArray(tried) || tried.length < VOTE_MIN_TRIED || tried.length > controlsFor(family).length) return null;
-  if (!tried.every(id => isControlFor(id, family)) || new Set(tried).size !== tried.length) return null;
-  const ids = tried as ControlId[];
-  if (!isControlFor(last, family) || !ids.includes(last)) return null;
-  if (favorite !== 'tie' && !(isControlFor(favorite, family) && ids.includes(favorite))) return null;
-  return { nonce, favorite: favorite as ControlId | 'tie', tried: [...ids], last };
+  const o = v as Record<string, unknown>, { at } = o;
+  if (typeof at !== 'number' || !Number.isFinite(at) || now < at || now - at >= PENDING_MS) return null;
+  const ok = validateVote({ v: VOTE_SCHEMA, device: family, favorite: o.favorite, tried: o.tried, last: o.last, nonce: o.nonce }); // CODE-9: the one vote check, not a copy
+  return ok ? { nonce: ok.nonce, favorite: ok.favorite, tried: ok.tried, last: ok.last } : null;
 }
 
 export function readPending(family: VoteDevice, storage?: VoteStorage | null, now: number = Date.now()): Pending | null {

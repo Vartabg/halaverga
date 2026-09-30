@@ -10,6 +10,7 @@ import { D } from './helpers/voteBody';
 const LIT = {
   setnx: "INSERT INTO public.hv_kv AS t (k, v, exp) VALUES ($1, $2, now() + $3::int * interval '1 second') ON CONFLICT (k) DO UPDATE SET v = EXCLUDED.v, exp = EXCLUDED.exp WHERE t.exp IS NOT NULL AND t.exp <= now() RETURNING 1",
   incr: "INSERT INTO public.hv_kv AS t (k, v) VALUES ($1, '1') ON CONFLICT (k) DO UPDATE SET v = CASE WHEN t.exp IS NOT NULL AND t.exp <= now() THEN '1' ELSE (t.v::bigint + 1)::text END, exp = CASE WHEN t.exp IS NOT NULL AND t.exp <= now() THEN NULL ELSE t.exp END RETURNING v",
+  decr: "INSERT INTO public.hv_kv AS t (k, v) VALUES ($1, '-1') ON CONFLICT (k) DO UPDATE SET v = CASE WHEN t.exp IS NOT NULL AND t.exp <= now() THEN '-1' ELSE (t.v::bigint - 1)::text END, exp = CASE WHEN t.exp IS NOT NULL AND t.exp <= now() THEN NULL ELSE t.exp END RETURNING v",
   hmget: 'SELECT h.value FROM jsonb_array_elements_text($2::jsonb) WITH ORDINALITY AS f(field, ord) LEFT JOIN public.hv_hash h ON h.k = $1 AND h.field = f.field ORDER BY f.ord',
   hlen: 'SELECT count(*)::text FROM public.hv_hash WHERE k = $1',
   hsetnx: 'INSERT INTO public.hv_hash (k, field, value) VALUES ($1, $2, $3) ON CONFLICT (k, field) DO NOTHING RETURNING 1',
@@ -18,15 +19,16 @@ const LIT = {
 };
 const stmt = (c: Command) => translate([c]).stmts[0];
 
-describe('translate: the seven command forms, byte for byte (mutation: edit any SQL constant)', () => {
+describe('translate: the eight command forms, byte for byte (mutation: edit any SQL constant)', () => {
   it('SET k v EX n NX, any case of the command and the option tokens', () => {
     for (const c of [['SET', 'k', 'v', 'EX', 90000, 'NX'], ['set', 'k', 'v', 'ex', '90000', 'nx'], ['Set', 'k', 'v', 'eX', 90000, 'Nx']] as Command[]) {
       expect(stmt(c)).toEqual({ query: LIT.setnx, params: ['k', 'v', '90000'] });
     }
     expect(stmt(['SET', 'k', 0, 'EX', 2147483647, 'NX'])).toEqual({ query: LIT.setnx, params: ['k', '0', '2147483647'] });
   });
-  it('INCR, HLEN, HGETALL, SMEMBERS, HSETNX', () => {
+  it('INCR, DECR, HLEN, HGETALL, SMEMBERS, HSETNX', () => {
     expect(stmt(['incr', 'k'])).toEqual({ query: LIT.incr, params: ['k'] });
+    expect(stmt(['DECR', 'k'])).toEqual({ query: LIT.decr, params: ['k'] }); // CODE-2: the undo of a replay's unit INCR
     expect(stmt(['HLEN', 'k'])).toEqual({ query: LIT.hlen, params: ['k'] });
     expect(stmt(['hgetall', 'k'])).toEqual({ query: LIT.hgetall, params: ['k'] });
     expect(stmt(['SMEMBERS', 'k'])).toEqual({ query: LIT.smembers, params: ['k'] });
@@ -41,7 +43,7 @@ describe('translate: the seven command forms, byte for byte (mutation: edit any 
     expect(stmt(['HSETNX', 'k', 'f', 5])).toEqual({ query: LIT.hsetnx, params: ['k', 'f', '5'] });
     expect(stmt(['HSETNX', 'k', 'f', -1.5]).params).toEqual(['k', 'f', '-1.5']);
   });
-  it('SQL holds exactly the seven constants', () => { expect(SQL).toEqual(LIT); });
+  it('SQL holds exactly the eight constants', () => { expect(SQL).toEqual(LIT); });
 });
 
 describe('translate: the real gate batches', () => {
@@ -69,20 +71,20 @@ describe('translate: the real gate batches', () => {
 describe('translate: hostile arguments only ever reach params (mutation: build one query with a template literal)', () => {
   const hostile = ["'; DROP TABLE hv_kv; --", '$1', '\\', '%s', '${x}', 'x'.repeat(10_000), '\u{1F680}\u{1F600}', 'a"b\'c', '\n; SELECT 1', '$$', ':name'];
   const forms = (h: string): Command[] => [
-    ['SET', h, h, 'EX', 5, 'NX'], ['INCR', h], ['HMGET', h, h, 'a'], ['HLEN', h], ['HSETNX', h, h, h], ['HGETALL', h], ['SMEMBERS', h],
+    ['SET', h, h, 'EX', 5, 'NX'], ['INCR', h], ['DECR', h], ['HMGET', h, h, 'a'], ['HLEN', h], ['HSETNX', h, h, h], ['HGETALL', h], ['SMEMBERS', h],
   ];
   it('the set of distinct queries stays inside the constants and the text appears only in params', () => {
     const allowed = new Set<string>(Object.values(LIT));
     for (const h of hostile) {
       const { stmts } = translate(forms(h));
-      expect(stmts).toHaveLength(7);
+      expect(stmts).toHaveLength(8);
       for (const s of stmts) {
         expect(allowed.has(s.query), h.slice(0, 20)).toBe(true);
         if (h.length > 4) expect(s.query.includes(h)).toBe(false);
         expect(s.params.some((p) => p !== null && p.includes(h))).toBe(true);
       }
     }
-    expect(new Set(hostile.flatMap((h) => translate(forms(h)).stmts.map((s) => s.query))).size).toBe(7);
+    expect(new Set(hostile.flatMap((h) => translate(forms(h)).stmts.map((s) => s.query))).size).toBe(8);
   });
   it('the HMGET field list stays inside the one JSON-string parameter', () => {
     const [, list] = stmt(['HMGET', 'k', "x'); DROP TABLE hv_kv; --", '$2']).params;
@@ -98,7 +100,7 @@ describe('translate: rejections (each throws before any network call)', () => {
       ['SET', 'k', 'v'], ['SET', 'k', 'v', 'NX'], ['SET', 'k', 'v', 'EX', 0, 'NX'], ['SET', 'k', 'v', 'EX', -1, 'NX'], ['SET', 'k', 'v', 'EX', 1.5, 'NX'],
       ['SET', 'k', 'v', 'EX', 2147483648, 'NX'], ['SET', 'k', 'v', 'EX', 'abc', 'NX'], ['SET', 'k', 'v', 'NX', 5, 'EX'], ['SET', 'k', 'v', 'EX', 5], ['SET', 'k', 'v', 'EX', 5, 'XX'],
       ['SET', 'k', 'v', 'EX', '05', 'NX'], ['SET', 'k', 'v', 'PX', 5, 'NX'],
-      ['HMGET', 'k'], ['HMGET'], ['INCR'], ['INCR', 'a', 'b'], ['HLEN'], ['HLEN', 'a', 'b'], ['HSETNX', 'k', 'f'], ['HSETNX', 'k', 'f', 'v', 'x'],
+      ['HMGET', 'k'], ['HMGET'], ['INCR'], ['INCR', 'a', 'b'], ['DECR'], ['DECR', 'a', 'b'], ['HLEN'], ['HLEN', 'a', 'b'], ['HSETNX', 'k', 'f'], ['HSETNX', 'k', 'f', 'v', 'x'],
       ['HGETALL'], ['HGETALL', 'a', 'b'], ['SMEMBERS'], ['SMEMBERS', 'a', 'b'],
     ];
     for (const c of bad) expect(() => translate([c]), JSON.stringify(c)).toThrow(UNSUP);

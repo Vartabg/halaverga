@@ -34,6 +34,15 @@ describe('fake-redis strings, counters and expiry', () => {
     await r.exec([['SET', 'w', 'abc']]);
     expect(errs(r.execRaw([['INCR', 'w']]))).toEqual(['ERR value is not an integer or out of range']);
   });
+  it('CODE-2 DECR mirrors INCR: -1 on a missing key, counts down from an INCR, keeps the TTL, errors on a non-integer string or a hash', async () => {
+    const { r, tick } = clocked();
+    await r.exec([['SET', 'c', 0, 'EX', 10, 'NX']]);
+    expect(await r.exec([['INCR', 'c'], ['INCR', 'c'], ['DECR', 'c'], ['DECR', 'c'], ['DECR', 'gone']])).toEqual([1, 2, 1, 0, -1]);
+    tick(4_000);
+    expect(await one(r, 'TTL', 'c')).toBe(6);
+    await r.exec([['SET', 'w', 'abc'], ['HSET', 'h', 'f', 'v']]);
+    expect(errs(r.execRaw([['DECR', 'w'], ['DECR', 'h'], ['DECR']]))).toEqual(['ERR value is not an integer or out of range', expect.stringContaining('WRONGTYPE'), "ERR wrong number of arguments for 'decr' command"]);
+  });
   it('lazy expiry on the injected clock: gone at the deadline, SET NX succeeds again, counters restart, keys() hides it', async () => {
     const { r, tick } = clocked();
     await r.exec([['SET', 'k', 'v', 'EX', 5, 'NX'], ['INCR', 'k2']]);

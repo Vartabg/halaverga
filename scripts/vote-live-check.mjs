@@ -75,7 +75,7 @@ async function functional() {
   check('vote: 200 {ok:true} at 12 commands (gate A 5, gate B 6, write 1)', v1.status === 200 && v1.json().ok === true && v1.cost === 12, `status ${v1.status}, ${v1.cost} commands`);
   check('vote: HLEN 1', (await cmd('HLEN', VOTES)) === 1);
   const v2 = await post(body({ nonce }));
-  check('same nonce again: 200 at 5 commands (gate A only, no budget spent), HLEN still 1', v2.status === 200 && v2.cost === 5 && (await cmd('HLEN', VOTES)) === 1, `status ${v2.status}, ${v2.cost} commands`);
+  check('same nonce again: 200 at 6 commands (gate A and the DECR that takes the address count back, no budget spent), HLEN still 1', v2.status === 200 && v2.cost === 6 && (await cmd('HLEN', VOTES)) === 1, `status ${v2.status}, ${v2.cost} commands`);
 
   const zero = async (name, status, r) => check(`${name}: ${status} at 0 commands`, r.status === status && r.cost === 0, `status ${r.status}, ${r.cost} commands`);
   await zero('v2 body', 400, await post({ v: 2, device: 'desktop', favorite: 'flow', ratings: {}, note: '', build: 'x', nonce: body().nonce }));

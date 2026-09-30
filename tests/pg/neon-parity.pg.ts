@@ -37,6 +37,7 @@ describe.skipIf(!hasPg)('reply parity: FakeRedis and Neon over a real PostgreSQL
     expect(await both(gateB(NS, D, keys), 'B1')).toEqual(['OK', 1, 'OK', 1, 'OK', 1]);
     expect(await both(gateB(NS, D, keys), 'B2')).toEqual([null, 2, null, 2, null, 2]);
     expect(await both([['INCR', UNIT], ['INCR', UNIT]], 'incr')).toEqual([3, 4]);
+    expect(await both([['DECR', UNIT], ['DECR', UNIT], ['DECR', `${UNIT}:none`]], 'decr')).toEqual([3, 2, -1]); // CODE-2: the replay's undo, and a missing key starts at -1 in both
   });
 
   it('HSETNX stores once and leaves the first value; HLEN, HMGET and HGETALL agree', async () => {
@@ -51,10 +52,10 @@ describe.skipIf(!hasPg)('reply parity: FakeRedis and Neon over a real PostgreSQL
     expect(n[0]).toEqual([n1, '2026093014d2857a3f', n2, '2026093015t415201c']); // the adapter orders by field, byte for byte
   });
 
-  it('the owner sets knobs: HMGET of the seven ctl fields reads them, and a void member lists', async () => {
+  it('the owner sets knobs: HMGET of the eight ctl fields reads them, and a void member lists', async () => {
     redis.admin(['HSET', C, 'mode', 'closed', 'cap', 3]);
     await pg.sql(`INSERT INTO public.hv_hash (k, field, value) VALUES ('${C}','mode','closed'),('${C}','cap','3') ON CONFLICT (k, field) DO UPDATE SET value = EXCLUDED.value;`);
-    expect(await both([['HMGET', C, ...CTL_FIELDS]], 'ctl')).toEqual([['closed', null, null, null, null, '3', null]]);
+    expect(await both([['HMGET', C, ...CTL_FIELDS]], 'ctl')).toEqual([['closed', null, null, null, null, '3', null, null]]); // eight fields since the round limit (this line still had seven, so the suite was red the day it first ran)
     redis.admin(['SADD', S, 'T:20260930:a3f', '2026093014']);
     await pg.sql(`INSERT INTO public.hv_set (k, member) VALUES ('${S}','T:20260930:a3f'),('${S}','2026093014') ON CONFLICT DO NOTHING;`);
     const [r, n] = [await redis.exec([['SMEMBERS', S]]), await neon.exec([['SMEMBERS', S]])];

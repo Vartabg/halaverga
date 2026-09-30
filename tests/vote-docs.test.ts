@@ -5,14 +5,16 @@ import { controlsFor } from '@/game/controlTypes';
 import { MIN_PUBLIC_TAGS, VOTE_MAX_BYTES, VOTE_MIN_TRIED } from '@/lib/vote/ballot';
 import { PRIVACY_FULL, PRIVACY_SHORT } from '@/lib/vote/privacy';
 import { BLOCK_LIMIT, CAP_DEFAULT, GLOBAL_LIMIT, limitsFrom, MAX_ENTRIES, MINV_DEFAULT, ROUND_LIMIT, UNIT_LIMIT } from '@/server/vote/limits';
-import { RESULTS_RETRY_MS, RESULTS_TTL_MS } from '@/server/vote/cachedResults';
+import { RESULTS_MAX_STALE_MS, RESULTS_RETRY_MS, RESULTS_TTL_MS } from '@/server/vote/cachedResults';
+import { aggregate } from '@/server/vote/aggregate';
+import { encodeEntry } from '@/lib/vote/entry';
 import { gateA, gateB } from '@/server/vote/gate';
 import { HANDLER_DEADLINE_MS } from '@/server/vote/handlers';
 import { NEON_TIMEOUT_MS, DDL, CLEAN } from '@/server/vote/neonSchema';
 import { runbook } from '@/server/vote/neonRunbook';
 import { readResults } from '@/server/vote/results';
 import { STORE_TIMEOUT_MS } from '@/server/vote/store';
-import { NOISE_LINE } from '@/app/results/Tally';
+import { NOISE_LINE } from '@/app/results/markup';
 import { PICK_FIRST, PAUSED_TEXT, SAVED_TEXT, STATUS_TEXT } from '@/ui/vote/voteClient';
 import { PENDING_KEY, PENDING_MS } from '@/ui/vote/pending';
 import { SEED_KEY } from '@/ui/vote/ballotPlan';
@@ -93,10 +95,42 @@ describe('docs/voting.md numbers are the code\'s numbers', () => {
     const readCost = setup(), before = readCost.redis.commands;
     await readResults(readCost.redis, 'hv:test', 'r3');
     expect(readCost.redis.commands - before).toBe(3);
-    for (const s of ['| Counted vote | 3 | **12** |', '| A resend of the same code (answers 200, spends no budget) | 1 | **5** |', '| 1 | **5** |', '| 2 | **11** |', '| 0 | **0** |', '| 1 | **3** |',
+    for (const s of ['| Counted vote | 3 | **12** |', '| A resend of the same code (answers 200, spends no budget: gate A, then one `DECR` of the address counter) | 2 | **6** |', '| 1 | **5** |', '| 2 | **11** |', '| 0 | **0** |', '| 1 | **3** |',
       'closed for 30 s (503)', 'reached for 60 s (429)', 'a store error for 5 s (502)', '17th attempt from one address, 121st from one block', '`Retry-After` = the seconds left to the next UTC midnight', '`Retry-After: 5`', '`Retry-After: 60`', 'exactly one request goes to the store as a probe']) inDocs(s);
     const codes = await Promise.all([fire(setup(), 9, () => '203.0.113.9'), fire(setup({}, { mode: 'closed' }), 1, () => '203.0.113.9')]);
     expect(codes.map((c) => c.at(-1)?.status)).toEqual([429, 503]);
+  });
+});
+
+describe('third-review low findings: the docs say what the code does', () => {
+  const decisions = read('docs/DECISIONS.md');
+  it('CODE-7 DECISIONS.md carries an r3 entry and marks the r2 rules superseded, not current', () => {
+    expect(decisions).toMatch(/\n- Public vote, round r3 \(owner intent 2026-09-29/);
+    expect(decisions).toMatch(/the vote rules in this entry are round r2 and are superseded by the r3 entry below/);
+    const r3 = decisions.slice(decisions.indexOf('- Public vote, round r3'));
+    for (const s of ['`r3:s3`', '8-command', 'no cookies', 'shared 120 s snapshot', 'a resend of a stored vote is 200']) expect(r3, s).toContain(s);
+    expect(r3).not.toMatch(/20 votes per hour|r2:s2|3 tried controls plus 180/); // r3 restates none of the r2 rules as current
+  });
+  it('CODE-3 the ranking floor is documented as group-days everywhere it appears, and the code counts exactly that', () => {
+    expect(voting).toContain('**12** distinct group-days');
+    expect(voting).toMatch(/at least 12 distinct group-days \(a group is one network group code on one UTC day and one family/);
+    expect(voting).not.toMatch(/12 distinct network groups|from at least 6 distinct network groups/);
+    // one group code seen on 12 different days is 12 group-days: it ranks (the round limit, not the floor, bounds one network across days)
+    const days = Array.from({ length: 12 }, (_, i) => `202609${String(10 + i).padStart(2, '0')}`);
+    const es = days.flatMap((d, i) => Array.from({ length: 9 }, (_, j) => [`${(i * 9 + j).toString(16).padStart(32, '0')}`, encodeEntry({ device: 'desktop', favorite: (['flow', 'cursor', 'draw'] as const)[j % 3], tried: ['cursor', 'flow', 'draw'], last: 'flow' }, `${d}12`, 'a3f')]));
+    expect(aggregate(es.flat(), [], { cap: 9, minVotes: 100 }, Date.UTC(2026, 8, 30), true).families.desktop.ranked).toBe(true);
+    expect(aggregate(es.slice(0, 99).flat(), [], { cap: 9, minVotes: 100 }, Date.UTC(2026, 8, 30), true).families.desktop.ranked).toBe(false); // 11 group-days
+  });
+  it('R4 exposure bias is stated in the scoring section, with what it does not fix', () => {
+    expect(voting).toMatch(/\*\*Exposure bias \(R4\):\*\* at equal true preference the control every visitor flies/);
+    expect(voting).toMatch(/neither removes the bias/);
+  });
+  it('C3, F4, F5, F6, CODE-2 and the results caching are in voting.md as the code has them', () => {
+    for (const s of ['**A slow store can spend an honest voter\'s budget (C3).**', '**The main ceiling can overshoot under concurrency (F4).**', 'or until UTC midnight, whichever is first', '`x-real-ip` never are',
+      'takes the address counter\'s increment back with one `DECR`', 'only until it is 10 minutes old', '[vote] results refresh failed', 'every failure (502) and the not-set-up answer (503) of `/results` and `/api/results` is `no-store`',
+      '`/results` is a route handler', '`Allow: GET, HEAD, OPTIONS`', '`Allow: POST, OPTIONS`', '**Only a Neon host parses: `*.neon.tech`**', 'PG PARITY SUITE SKIPPED']) inDocs(s);
+    expect(RESULTS_MAX_STALE_MS).toBe(10 * 60_000);
+    expect(voting).not.toMatch(/else `x-real-ip`/);
   });
 });
 

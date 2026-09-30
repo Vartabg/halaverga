@@ -20,12 +20,13 @@ const ranked: VoteResults = { v: 3, round: VOTE_ROUND, asOf: '2026-09-30T14:05:1
 const noRadios = (html: string) => expect(html).not.toContain('name="vote-pick"');
 
 describe('r2p:3 the need-more state: never a dead end', () => {
-  it('under two tried: what is missing, a Try button for the seeded suggestion, Keep playing; no ballot, no Send', () => {
+  it('V6 under two tried: what is missing, a Try button for the seeded suggestion, Keep playing; no ballot, no Send', () => {
     for (const [tried, n] of [[['draw'], 1], [[], 0]] as const) {
       const html = render({ current: 'one-finger', tried: [...tried] });
       const want = suggestNext('touch', [...tried, 'one-finger'], SEED)!;
       expect(html).toContain('data-phase="need"');
-      expect(html).toContain(`data-testid="vote-need-more">Fly a second way for 20 seconds, then vote. You have flown ${n} of 2 so far.<`);
+      const line = n === 0 ? 'Fly two ways for 20 seconds each' : 'Fly one more way for 20 seconds'; // V6: right at 0 of 2 and at 1 of 2
+      expect(html).toContain(`data-testid="vote-need-more">${line}, then vote. You have flown ${n} of 2 so far.<`);
       expect(html).toContain('data-testid="vote-try"');
       expect(html).toContain(`Try ${VOTE_NAMES[want]} for 20 seconds</button>`);
       expect([...tried, 'one-finger']).not.toContain(want); // never a control already flown or being flown

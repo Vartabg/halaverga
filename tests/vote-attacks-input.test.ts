@@ -122,14 +122,20 @@ describe('P6, cost:C6, cost:C7, cost:C10 deadlines and the cost of garbage', () 
     expect(s.redis.execCalls).toBe(1);
   });
 
-  it('cost:C10 garbage, OPTIONS-less routes and cross-site cost 0 commands, and the route exports no OPTIONS and answers 405', async () => {
+  it('cost:C10 garbage, OPTIONS-less routes and cross-site cost 0 commands, and the route answers OPTIONS with only POST and 405 for everything else', async () => {
     const s = setup();
     const bad: Request[] = [];
     for (let i = 0; i < 100; i++) bad.push(raw('{"v":3'), raw(''), raw('[]'), raw(JSON.stringify({ ...voteBody(), v: 2 })), voteReq(voteBody(), { headers: { 'sec-fetch-site': 'cross-site' } }), voteReq(voteBody(), { headers: { 'content-type': 'text/plain' } }));
     for (const r of bad) expect((await handleVote(r, s.deps)).status).toBeGreaterThanOrEqual(400);
     expect([s.redis.execCalls, s.redis.commands]).toEqual([0, 0]);
-    expect(Object.keys(route).sort()).toEqual(['DELETE', 'GET', 'HEAD', 'PATCH', 'POST', 'PUT']);
+    expect(Object.keys(route).sort()).toEqual(['DELETE', 'GET', 'HEAD', 'OPTIONS', 'PATCH', 'POST', 'PUT']);
     for (const m of [route.GET, route.PUT, route.PATCH, route.DELETE, route.HEAD]) expect((m as () => Response)().status).toBe(405);
+  });
+
+  it('P5 OPTIONS /api/vote advertises only what is served (POST and OPTIONS), not the seven methods Next would list, and is never cached; every 405 says Allow: POST', () => {
+    const o = (route.OPTIONS as () => Response)();
+    expect([o.status, o.headers.get('allow'), o.headers.get('cache-control')]).toEqual([204, 'POST, OPTIONS', 'no-store']);
+    for (const m of [route.GET, route.PUT, route.PATCH, route.DELETE, route.HEAD]) expect((m as () => Response)().headers.get('allow')).toBe('POST');
   });
 });
 

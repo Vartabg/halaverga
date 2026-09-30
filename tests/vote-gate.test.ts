@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { gateA, gateB, readGateA, readGateB, routeAfterA, routeAfterB, writeEntry, type GateAReply } from '@/server/vote/gate';
+import { gateA, gateB, readGateA, readGateB, routeAfterA, routeAfterB, undoUnit, writeEntry, type GateAReply } from '@/server/vote/gate';
+import { VOTE_KEY_TAG } from '@/lib/vote/ballot';
 import { DEFAULT_LIMITS } from '@/server/vote/limits';
+import { D } from './helpers/voteBody';
 
 const ctl = (over: (string | null)[] = []) => [...over, ...Array(8).fill(null)].slice(0, 8);
 const reply = (o: { ctl?: unknown; entries?: unknown; seen?: unknown; unit?: unknown } = {}) => {
@@ -62,9 +64,23 @@ describe('routeAfterA', () => {
     expect(routeAfterA(a({}, { seen: true }))).toBe('replay');
     expect(routeAfterA(a({}, { seen: true, unit: 99 }))).toBe('replay');
   });
-  it('closed beats everything, and the ceiling (which latches) beats a replay and a unit refusal', () => {
+  it('closed beats everything, and the ceiling (which latches) beats a unit refusal of a new ballot', () => {
     expect(routeAfterA(a({ mode: 'closed' }, { entries: 6000, unit: 99, seen: true }))).toBe('closed');
-    expect(routeAfterA(a({}, { entries: 6000, unit: 99, seen: true }))).toBe('refuse-latch');
+    expect(routeAfterA(a({}, { entries: 6000, unit: 99 }))).toBe('refuse-latch');
+  });
+  it('CODE-2 a stored nonce is a replay even when the round is full: it is ok and spends nothing, where before the ceiling refused it', () => {
+    expect(routeAfterA(a({}, { entries: 6000, unit: 99, seen: true }))).toBe('replay');
+  });
+  it('CODE-2 undoUnit is one DECR of the unit key gate A incremented, so a replay nets zero budget', () => {
+    expect(undoUnit('hv:test', D, { unit: 'aaaaaa' })).toEqual([['DECR', `hv:test:rl:u:${D}:aaaaaa`]]);
+    expect(gateA('hv:test', VOTE_KEY_TAG, D, { unit: 'aaaaaa' }, 'n')[4]).toEqual(['INCR', `hv:test:rl:u:${D}:aaaaaa`]);
+  });
+  it('C6 a knob reply that is not exactly 8 fields is a bad reply (a gate never opens on a truncated read), while 8 nulls are the defaults', () => {
+    const ok = (ctl: unknown) => [ctl, 0, [null], 'OK', 1];
+    expect(() => readGateA(ok([]))).toThrow('bad reply');
+    expect(() => readGateA(ok(Array(7).fill(null)))).toThrow('bad reply');
+    expect(() => readGateA(ok(Array(9).fill(null)))).toThrow('bad reply');
+    expect(readGateA(ok(Array(8).fill(null))).limits.mode).toBe('open');
   });
 });
 

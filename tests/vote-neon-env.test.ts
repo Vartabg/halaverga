@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { parseNeonUrl } from '@/server/vote/neonConn';
 import { selectBackend, storeFromEnv, type FetchLike } from '@/server/vote/store';
@@ -14,7 +16,22 @@ describe('parseNeonUrl', () => {
     expect(parseNeonUrl(UNPOOLED)?.endpoint).toBe('https://ep-cool-name-123456.us-east-2.aws.neon.tech/sql');
     expect(parseNeonUrl('postgres://u:p@EP-Mixed.Neon.TECH:6543/db')?.endpoint).toBe('https://ep-mixed.neon.tech/sql');
     expect(parseNeonUrl('postgresql://u:p%23%3F@h.neon.tech/db')?.endpoint).toBe('https://h.neon.tech/sql');
-    expect(parseNeonUrl('postgresql://u:p@1.2.3.4/db')?.endpoint).toBe('https://1.2.3.4/sql');
+  });
+  it('CODE-10 only a Neon host is accepted: *.neon.tech, never another host, an IP or a look-alike', () => {
+    for (const host of ['db.example.com', 'ep-x.neon.tech.evil.io', 'neon.tech', 'evilneon.tech', 'ep-x.neon.techx', '1.2.3.4', 'ep-x.neon.tech-evil.com', 'localhost', '127.0.0.1', 'ep-x.neon.tec', 'x.supabase.co']) {
+      expect(parseNeonUrl(`postgresql://u:p@${host}/db`), host).toBeNull();
+    }
+    expect(parseNeonUrl('postgresql://u:p@ep-x.us-east-2.aws.neon.tech/db')).not.toBeNull();
+    expect(selectBackend({ DATABASE_URL: 'postgresql://u:p@db.example.com/db' })).toBeNull();
+    expect(selectBackend({ POSTGRES_URL: 'postgresql://u:p@db.example.com/db' })).toBeNull();
+  });
+  it('CODE-10 localhost and 127.0.0.1 pass only through the injected allowLocal option, which nothing in the app passes', () => {
+    for (const host of ['localhost', '127.0.0.1']) {
+      expect(parseNeonUrl(`postgresql://u:p@${host}/db`)).toBeNull();
+      expect(parseNeonUrl(`postgresql://u:p@${host}:5432/db`, { allowLocal: true })?.endpoint).toBe(`https://${host}/sql`);
+    }
+    expect(parseNeonUrl('postgresql://u:p@db.example.com/db', { allowLocal: true })).toBeNull(); // the option opens only the two local names
+    for (const file of ['store.ts', 'config.ts', 'neonStore.ts']) expect(readFileSync(fileURLToPath(new URL(`../src/server/vote/${file}`, import.meta.url)), 'utf8')).not.toMatch(/allowLocal:\s*true/);
   });
   it('is null, and never throws, for anything unusable', () => {
     const bad = ['', ' ', 'x'.repeat(30), 'postgresql://user:pass@host.neon.tech', 'postgresql://user:pass@host.neon.tech/', 'postgresql://user@host.neon.tech/db', 'postgresql://:pass@host.neon.tech/db',

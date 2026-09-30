@@ -17,7 +17,7 @@ const NOT_INT = 'ERR value is not an integer or out of range';
 const INT = /^-?\d+$/;
 // [min, max] argument count without the command name; a wrong count is Redis's arity error.
 const ARITY = {
-  SET: [2, 6], GET: [1, 1], INCR: [1, 1], HMGET: [2, 99], HLEN: [1, 1], HSETNX: [3, 3], HSET: [3, 99], HDEL: [2, 99], HGETALL: [1, 1],
+  SET: [2, 6], GET: [1, 1], INCR: [1, 1], DECR: [1, 1], HMGET: [2, 99], HLEN: [1, 1], HSETNX: [3, 3], HSET: [3, 99], HDEL: [2, 99], HGETALL: [1, 1],
   SADD: [2, 99], SREM: [2, 99], SMEMBERS: [1, 1], DEL: [1, 99], TTL: [1, 1], EXPIRE: [2, 2], FLUSHALL: [0, 0],
 };
 class RedisError extends Error {}
@@ -65,10 +65,10 @@ export function createStore(clock = Date.now) {
     switch (name) {
       case 'SET': return set(k, r);
       case 'GET': return get(k, 'str')?.v ?? null;
-      case 'INCR': {
+      case 'INCR': case 'DECR': {
         const e = get(k, 'str');
         if (e && !INT.test(e.v)) fail(NOT_INT);
-        const n = (e ? Number(e.v) : 0) + 1;
+        const n = (e ? Number(e.v) : 0) + (name === 'INCR' ? 1 : -1);
         put(k, { kind: 'str', v: String(n) });
         return n;
       }

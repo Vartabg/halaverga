@@ -7,14 +7,18 @@ const T0 = Date.UTC(2026, 8, 30, 14, 5);
 const h = (o: Record<string, string>) => new Headers(o);
 
 describe('clientAddress on Vercel', () => {
-  it('reads x-vercel-forwarded-for, else x-real-ip', () => {
+  it('reads x-vercel-forwarded-for and nothing else', () => {
     expect(clientAddress(h({ 'x-vercel-forwarded-for': '203.0.113.9' }), true)).toBe('203.0.113.9');
-    expect(clientAddress(h({ 'x-real-ip': '203.0.113.9' }), true)).toBe('203.0.113.9');
     expect(clientAddress(h({ 'x-vercel-forwarded-for': '203.0.113.9', 'x-real-ip': '198.51.100.1' }), true)).toBe('203.0.113.9');
   });
   it('takes the last entry of a list and trims it', () => {
     expect(clientAddress(h({ 'x-vercel-forwarded-for': '6.6.6.6, 7.7.7.7 ,  203.0.113.9 ' }), true)).toBe('203.0.113.9');
-    expect(clientAddress(h({ 'x-real-ip': '6.6.6.6,203.0.113.9' }), true)).toBe('203.0.113.9');
+  });
+  it('F6 x-real-ip is never read on Vercel: without the platform header it is the shared none key, however many values a caller spoofs', () => {
+    expect(clientAddress(h({ 'x-real-ip': '203.0.113.9' }), true)).toBe('none');
+    expect(clientAddress(h({ 'x-real-ip': '6.6.6.6,203.0.113.9' }), true)).toBe('none');
+    expect(clientAddress(h({ 'x-vercel-forwarded-for': '', 'x-real-ip': '203.0.113.9' }), true)).toBe('none');
+    expect(new Set(Array.from({ length: 30 }, (_, i) => clientAddress(h({ 'x-real-ip': `198.51.100.${i}` }), true)))).toEqual(new Set(['none']));
   });
   it('gives none for no header, an empty one or an empty last entry', () => {
     expect(clientAddress(h({}), true)).toBe('none');
@@ -26,7 +30,7 @@ describe('clientAddress on Vercel', () => {
     expect(clientAddress(h({ 'x-forwarded-for': '6.6.6.6' }), true)).toBe('none');
     expect(clientAddress(h({ forwarded: 'for=6.6.6.6' }), true)).toBe('none');
     expect(clientAddress(h({ 'x-forwarded-for': '6.6.6.6', 'x-vercel-forwarded-for': '203.0.113.9' }), true)).toBe('203.0.113.9');
-    expect(clientAddress(h({ 'x-forwarded-for': '6.6.6.6, 203.0.113.9', 'x-real-ip': '198.51.100.1' }), true)).toBe('198.51.100.1');
+    expect(clientAddress(h({ 'x-forwarded-for': '6.6.6.6, 203.0.113.9', 'x-real-ip': '198.51.100.1' }), true)).toBe('none');
     expect(clientAddress(h({ 'x-forwarded-for': '6.6.6.6', 'x-forwarded-host': 'x', forwarded: 'for=1.1.1.1;by=2.2.2.2' }), true)).toBe('none');
   });
   it('F3: 25 spoofed x-forwarded-for values on one platform address share one key set', () => {

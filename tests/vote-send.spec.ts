@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 import { card, chip, mock, notYet, openFromChip, paused, pickAndSend, playing, radio, sendBtn, TWO_DESK, voteMark, votePage, voteResults } from './vote-browser';
 // What Send does with each answer (spec 1.7, 1.8, 1.5): one nonce, a kept pick, honest copy, focus and Escape after a failure. System
 // Chrome emulation; /api/vote and /api/results are always mocked. PLAYTEST_URL=http://127.0.0.1:3421 pnpm test:browser -g "@vote".
-const BUSY = 'Voting is busy right now. Your pick is kept. Try again later.', FAILED = "Couldn't send. Tap Send to try again.";
+const BUSY = 'Voting is busy right now. Try again later.', FAILED = "Couldn't send. Tap Send to try again.";
 const nonceOf = (b: Record<string, unknown>) => b.nonce as string;
 
 test('@vote a first aborted request is retried once, with the same nonce, and then counts', async ({ browser }) => {

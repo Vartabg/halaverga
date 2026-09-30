@@ -1,5 +1,5 @@
 // The vote's Redis commands and the decisions on their replies (spec 4.1), pure. Gate A (one MULTI, 5 commands) reads the knobs, the
-// vote count and whether this nonce is already stored, and bumps the unit counter; gate B (6 commands) is reached only by a new
+// vote count and whether this nonce is already stored, and bumps the unit counter (a replay takes it back with one DECR); gate B (6 commands) is reached only by a new
 // ballot that passed A and bumps the block, round and day counters; the write is one HSETNX, the dedupe, the record and the undo
 // handle in one command. The block counter never moves for a request the unit limit refused (one address cannot lock its /24), and a
 // resend of a stored nonce never reaches B (it costs no budget). Nothing here talks to a store.
@@ -27,22 +27,26 @@ const count = (x: unknown): number => {
 
 /** The reply of gateA. Throws on anything malformed (the handler answers 502): a gate never decides on a reply it cannot read. */
 export function readGateA(reply: unknown[]): { limits: Limits; entries: number; seen: boolean; unit: number } {
-  if (!Array.isArray(reply) || reply.length !== 5 || !Array.isArray(reply[0]) || !Array.isArray(reply[2]) || reply[2].length !== 1) throw new Error('vote gate: bad reply');
+  // C6: a truncated knob reply (an empty HMGET) must not read as "every knob unset, so open": it is exactly the 8 fields or it is a failure.
+  if (!Array.isArray(reply) || reply.length !== 5 || !Array.isArray(reply[0]) || reply[0].length !== CTL_FIELDS.length || !Array.isArray(reply[2]) || reply[2].length !== 1) throw new Error('vote gate: bad reply');
   const stored = reply[2][0];
   if (stored !== null && typeof stored !== 'string') throw new Error('vote gate: bad reply');
   return { limits: limitsFrom(reply[0]), entries: count(reply[1]), seen: stored !== null, unit: count(reply[4]) };
 }
 export type GateAReply = ReturnType<typeof readGateA>;
 
+/** The undo of gate A's unit increment, sent only for a replay: a resend of a stored vote spends no budget (CODE-2). */
+export const undoUnit = (ns: string, day: string, keys: { unit: string }): Command[] => [['DECR', `${ns}:rl:u:${day}:${keys.unit}`]];
+
 /**
- * closed: the kill switch (503). refuse-latch: the main ceiling is reached, so every vote today would be refused (429, the instance
- * latches). replay: this nonce is already stored, answer ok and spend nothing. refuse: this unit is over its limit (429 for this
- * request only). gateB: go on.
+ * closed: the kill switch (503). replay: this nonce is already stored, answer ok and spend nothing (even when the round is full,
+ * CODE-2). refuse-latch: the main ceiling is reached, so every new vote today would be refused (429, the instance latches). refuse:
+ * this unit is over its limit (429 for this request only). gateB: go on.
  */
 export function routeAfterA(a: GateAReply): 'closed' | 'refuse-latch' | 'replay' | 'refuse' | 'gateB' {
   if (a.limits.mode !== 'open') return 'closed';
-  if (a.entries >= a.limits.max) return 'refuse-latch';
   if (a.seen) return 'replay';
+  if (a.entries >= a.limits.max) return 'refuse-latch';
   if (a.unit > a.limits.unit) return 'refuse';
   return 'gateB';
 }

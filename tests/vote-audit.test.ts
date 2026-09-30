@@ -74,6 +74,22 @@ describe('vote-audit analyze', () => {
     expect(after.voidLines).toEqual([]);
     expect(after.lines[0]).toMatch(/5 entries in the last 48 h, 40 voided/);
   });
+  it('CODE-5 a window that starts inside a stuffed group\'s day still flags it and prints the void line: groups are judged on their whole day, only the hourly lines follow the window', () => {
+    const all = [...honest, ...stuffed]; // all 45 entries are at hour 09; NOW is 14:05, so --hours 4 starts at 10:05 and holds none of them
+    const cut = report(all, { hours: 4 }), whole = report(all, { hours: 48 });
+    expect(has(cut, /group a3f \(desktop\) has 40 entries on 20260930, over the cap of 5/)).toBe(true); // before: no flag, no void line
+    expect(cut.voidLines).toEqual([`SADD ${VOID} T:${D}:a3f`]);
+    expect(cut.lines[0]).toMatch(/0 entries in the last 4 h, 0 voided/); // the window count is still the window's
+    expect(cut.lines.some((l) => l.startsWith('hour '))).toBe(false); // no hourly line for an hour outside the window
+    expect(cut.lines.join('\n')).toMatch(/day 20260930: rlg none, 45 entries, 10 counted after the cap, 35 capped/);
+    expect(cut.voidLines).toEqual(whole.voidLines);
+    // a window that starts mid-day inside the stuffed hours still shows the group at its whole-day size, not its in-window size
+    const mid = at(9, 30, 100).concat(at(13, 10, 200)).map((b) => ({ ...b, tag: 'a3f' }));
+    expect(has(report(mid, { hours: 2 }), /group a3f \(desktop\) has 40 entries on 20260930, over the cap of 5/)).toBe(true);
+    // and another day's entries older than the window's first day stay out
+    const older = at(9, 40, 300).map((b) => ({ ...b, tag: 'b4f', hour: '2026092809' }));
+    expect(report([...honest, ...older], { hours: 4 }).voidLines).toEqual([]);
+  });
   it('honours ctl.cap (2 to 100 only) and votes voided by hour or by hour-and-group', () => {
     const all = [...honest, ...stuffed];
     expect(report(all, { ctl: { cap: '3' } }).lines.join('\n')).toMatch(/8 counted after the cap, 37 capped/);

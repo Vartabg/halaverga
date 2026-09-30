@@ -39,21 +39,24 @@ export function analyze({ pairs, voids, ctl, rlg, hlen, ns, now, hours }) {
   }
   const since = new Date(now - hours * 3600e3).toISOString().replace(/\D/g, '').slice(0, 10);
   const cap = /^\d{1,3}$/.test(ctl.cap ?? '') && +ctl.cap >= 2 && +ctl.cap <= 100 ? +ctl.cap : 5;
-  const es = [];
+  // es: the entries inside the window (the hourly lines and the count). whole: every entry of every UTC day the window touches, so a
+  // group is judged on its whole day like the reader does (CODE-5: windowing first undercounted the day the window starts inside).
+  const es = [], whole = [];
   let bad = 0, voided = 0;
   for (const [, v] of pairs) {
     const e = decode(v);
     if (!e) bad++;
-    else if (e.hour >= since) {
-      if (vh.has(e.hour) || vg.has(`${e.hour.slice(0, 8)}:${e.tag}`) || vg.has(`${e.hour}:${e.tag}`)) voided++;
-      else es.push({ ...e, day: e.hour.slice(0, 8) });
+    else if (e.hour.slice(0, 8) >= since.slice(0, 8)) {
+      const gone = vh.has(e.hour) || vg.has(`${e.hour.slice(0, 8)}:${e.tag}`) || vg.has(`${e.hour}:${e.tag}`), inside = e.hour >= since;
+      if (gone) { if (inside) voided++; } else { whole.push({ ...e, day: e.hour.slice(0, 8) }); if (inside) es.push(whole.at(-1)); }
     }
   }
   const flag = (m) => { flags.push(m); lines.push(`FLAG ${m}`); };
   const knobs = ['mode', 'unit', 'block', 'global', 'max', 'cap', 'minv', 'round'].filter((k) => ctl[k] !== undefined).map((k) => `${k}=${ctl[k]}`).join(' ');
   lines.push(`${ns} round ${ROUND}: HLEN ${hlen}, ${es.length} entries in the last ${hours} h, ${voided} voided, ${bad} unreadable, ${voids.length} void members, cap ${cap}, ctl: ${knobs || 'defaults'}`);
   const byHour = new Map(), byDay = new Map();
-  for (const e of es) { (byHour.get(e.hour) ?? byHour.set(e.hour, []).get(e.hour)).push(e); (byDay.get(e.day) ?? byDay.set(e.day, []).get(e.day)).push(e); }
+  for (const e of es) (byHour.get(e.hour) ?? byHour.set(e.hour, []).get(e.hour)).push(e);
+  for (const e of whole) (byDay.get(e.day) ?? byDay.set(e.day, []).get(e.day)).push(e);
   const hours2 = [...byHour.keys()].sort();
   for (const h of hours2) {
     const list = byHour.get(h), tags = new Map(), picks = new Map();

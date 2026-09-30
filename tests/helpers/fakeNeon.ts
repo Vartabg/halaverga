@@ -4,7 +4,7 @@ import type { FetchLike } from '@/server/vote/store';
 // An in-process stand-in for Neon's SQL-over-HTTP endpoint, as a FetchLike (no TCP port). It speaks the documented contract of
 // spec-neon 1: POST /sql, the five headers, {queries: [{query, params}]}, one transaction per request, {results: [{rows, ...}]} in
 // raw text and array mode, 400 with {message, code} on a SQL error. Anything off contract is recorded in `violations` and answered
-// 400. It applies the seven statement constants to in-memory tables with the semantics of spec-neon 4 (expiry by the database clock,
+// 400. It applies the eight statement constants to in-memory tables with the semantics of spec-neon 4 (expiry by the database clock,
 // upserts, ON CONFLICT DO NOTHING). Real Postgres proves those semantics (tests/pg); this proves the wiring around them.
 export interface Call { url: string; headers: Record<string, string>; queries: { query: string; params: string[] }[]; at: number }
 type Kv = Map<string, { v: string; exp: number | null }>;
@@ -20,7 +20,7 @@ export class FakeNeon {
   /** Consumed one per request, before the batch runs; return a Response to answer with it, or undefined to go on. */
   hooks: ((c: Call, signal: AbortSignal | null | undefined) => Response | Promise<Response> | undefined)[] = [];
   private race: string | null = null;
-  constructor(public clock: () => number = () => 0, private expectConnection?: string, private host = 'ep-test.neon.example') {}
+  constructor(public clock: () => number = () => 0, private expectConnection?: string, private host = 'ep-test.us-east-2.aws.neon.tech') {}
 
   fetch: FetchLike = async (url, init) => {
     const headers: Record<string, string> = {};
@@ -90,6 +90,12 @@ export class FakeNeon {
         if (!r) { kv.set(p[0], { v: '1', exp: null }); return [['1']]; } // missing or expired: restarts at 1 with no expiry
         if (!/^-?[0-9]+$/.test(r.v)) sqlError('22P02');
         r.v = String(Number(r.v) + 1); return [[r.v]];
+      }
+      case SQL.decr: {
+        const r = this.live(p[0]);
+        if (!r) { kv.set(p[0], { v: '-1', exp: null }); return [['-1']]; }
+        if (!/^-?[0-9]+$/.test(r.v)) sqlError('22P02');
+        r.v = String(Number(r.v) - 1); return [[r.v]];
       }
       case SQL.hmget: return (JSON.parse(p[1]) as string[]).map((f) => [hash.get(p[0])?.get(f) ?? null]);
       case SQL.hlen: return [[String(hash.get(p[0])?.size ?? 0)]];

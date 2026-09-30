@@ -4,14 +4,14 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import PrivacyPage from '@/app/privacy/page';
-import { NOISE_LINE, ResultsView } from '@/app/results/Tally';
+import { esc, NOISE_LINE, resultsBody, resultsDocument, type ResultsStatus } from '@/app/results/markup';
 import type { VoteResults } from '@/lib/vote/ballot';
 import { PRIVACY_FULL } from '@/lib/vote/privacy';
 import { aggregate } from '@/server/vote/aggregate';
 import { NOW, OPTS, agg, flat, spread } from './helpers/voteAgg';
 
 const html = (el: Parameters<typeof renderToStaticMarkup>[0]) => renderToStaticMarkup(el);
-const view = (r: VoteResults | null, status: 'unset' | 'failed' | null = null) => html(createElement(ResultsView, { r, status }));
+const view = (r: VoteResults | null, status: ResultsStatus = null) => resultsBody(r, status);
 const ranked = () => aggregate(flat(spread(30, (i) => ({ favorite: i % 4 === 0 ? 'tie' : 'flow', tried: ['cursor', 'flow', 'captured'] }))), [], OPTS, NOW, true); // 30 groups, 30 votes, published
 const src = (p: string) => readFileSync(fileURLToPath(new URL(`../src/app/${p}`, import.meta.url)), 'utf8');
 
@@ -71,7 +71,23 @@ describe('W8 results page markup', () => {
   });
 
   it('is a server component: no client JS, no store call in the markup module', () => {
-    expect(src('results/Tally.tsx')).not.toMatch(/use client|from '@\/server/);
+    expect(src('results/markup.ts')).not.toMatch(/use client|from '@\/server|from 'react-dom/); // a route handler cannot import react-dom/server: this is a string builder
+  });
+});
+
+describe('CODE-6 the /results document', () => {
+  const doc = resultsDocument(ranked(), null);
+  it('is a standalone page (no root layout in a route handler): doctype, charset, viewport, noindex, a title, one inline stylesheet, no script, and the same body', () => {
+    expect(doc.startsWith('<!doctype html><html lang="en"><head><meta charset="utf-8">')).toBe(true);
+    for (const s of ['name="viewport"', 'name="robots" content="noindex, nofollow"', '<title>Halaverga vote results</title>', '.vr-page', ':root{color-scheme:dark']) expect(doc).toContain(s);
+    expect(doc.match(/<style>/g)).toHaveLength(1);
+    expect(doc).not.toMatch(/<script|src=|href="http|@import|url\(/i);
+    expect(doc).toContain(resultsBody(ranked(), null));
+    expect(doc.endsWith('</main></body></html>')).toBe(true);
+  });
+  it('escapes what it prints (a control label from the registry is trusted, but the builder never relies on that)', () => {
+    expect(esc('<img src=x onerror=1>&"\'')).toBe('&lt;img src=x onerror=1&gt;&amp;&quot;&#x27;');
+    expect(esc(5)).toBe('5');
   });
 });
 

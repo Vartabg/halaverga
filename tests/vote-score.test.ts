@@ -4,45 +4,44 @@ import { LEAD_MIN_GROUPS, LEAD_MIN_POINTS, RANK_SHRINK, pairWeights, rankOrder, 
 
 const REG: ControlId[] = ['cursor', 'one-finger-keys', 'flow', 'captured', 'mouse-keys', 'draw', 'conduct', 'brush'];
 const near = (a: number, b: number, eps = 1e-9) => expect(Math.abs(a - b)).toBeLessThan(eps);
+/** The pairs a ballot spreads its points over (CODE-9: the pair count is a test-side fact now, not a field of the result). */
+const pairs = (k: number, tie: boolean) => (tie ? (k * (k - 1)) / 2 : k - 1);
 
 describe('pairWeights: one ballot hands out one win-point and one loss-point whatever k is', () => {
   it('atk:1 a pick totals 1 win and 1 loss for k = 2 to 8 (pair rivals, each 1/(k-1))', () => {
     for (let k = 2; k <= 8; k++) {
       const w = pairWeights(k, false);
-      expect(w.pair, `k=${k}`).toBe(k - 1);
+      expect(pairs(k, false), `k=${k}`).toBe(k - 1);
       near(w.win, 1 / (k - 1));
       near(w.loss, 1 / (k - 1));
-      near(w.win * w.pair, 1);
-      near(w.loss * w.pair, 1);
+      near(w.win * pairs(k, false), 1);
+      near(w.loss * pairs(k, false), 1);
     }
   });
   it('atk:1 a tie totals 1 win and 1 loss for k = 2 to 8 (k(k-1)/2 pairs, both sides of each pair)', () => {
     for (let k = 2; k <= 8; k++) {
       const w = pairWeights(k, true);
-      expect(w.pair, `k=${k}`).toBe((k * (k - 1)) / 2);
-      near(w.win * w.pair * 2, 1);
-      near(w.loss * w.pair * 2, 1);
+      near(w.win * pairs(k, true) * 2, 1);
+      near(w.loss * pairs(k, true) * 2, 1);
     }
   });
   it('matches the worked examples of section 5.1', () => {
     // 3 tried, pick A: A gains 2 x 0.5 = 1 win, B and C 0.5 loss each.
-    expect(pairWeights(3, false)).toEqual({ win: 0.5, loss: 0.5, pair: 2 });
+    expect(pairWeights(3, false)).toEqual({ win: 0.5, loss: 0.5 });
     // the same ballot claiming all 8 desktop controls: 7 x 1/7 = 1 win, seven rivals 1/7 loss each.
     near(pairWeights(8, false).win, 1 / 7);
-    expect(pairWeights(8, false).pair).toBe(7);
     // tie among A, B, C: 3 pairs of 1/3, each control ends with 1/3 win and 1/3 loss (2 pairs x 1/6).
     const t = pairWeights(3, true);
-    expect(t.pair).toBe(3);
     near(t.win * 2, 1 / 3);
     near(t.loss * 2, 1 / 3);
   });
   it('a ballot that claims 8 moves no control by more than a ballot that claims 2 would move the favorite', () => {
     const claim2 = pairWeights(2, false), claim8 = pairWeights(8, false);
-    near(claim2.win * claim2.pair, claim8.win * claim8.pair);
+    near(claim2.win * pairs(2, false), claim8.win * pairs(8, false));
     expect(claim8.loss).toBeLessThan(claim2.loss);
   });
   it('gives zeros, never NaN or Infinity, for a k that cannot be a ballot', () => {
-    for (const k of [0, 1, -3, NaN]) for (const tie of [true, false]) expect(pairWeights(k, tie)).toEqual({ win: 0, loss: 0, pair: 0 });
+    for (const k of [0, 1, -3, NaN]) for (const tie of [true, false]) expect(pairWeights(k, tie)).toEqual({ win: 0, loss: 0 });
   });
 });
 

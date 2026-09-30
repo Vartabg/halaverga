@@ -28,11 +28,11 @@ describe('cost:C11 and PRIV-6 the instance memory', () => {
 });
 
 describe('F6 a nonce is not a credential', () => {
-  it('F3 F6 replays of one nonce from 25 blocks count once; each replay costs gate A only (5 commands) and spends no day, block or round budget', async () => {
+  it('F3 F6 replays of one nonce from 25 blocks count once; each replay costs gate A and the undo (6 commands, 2 round trips) and spends no unit, day, block or round budget', async () => {
     const s = setup(), body = voteBody();
     const out = await fire(s, 25, blockIp, () => body);
-    expect(shape(out)).toEqual({ '200@12': 1, '200@5': 24 });
-    expect([stored(s), s.redis.counter(`${NS}:rlg:${D}`), s.redis.commands]).toEqual([1, 1, 12 + 24 * 5]);
+    expect(shape(out)).toEqual({ '200@12': 1, '200@6': 24 });
+    expect([stored(s), s.redis.counter(`${NS}:rlg:${D}`), s.redis.commands]).toEqual([1, 1, 12 + 24 * 6]);
   });
 
   it('F6 no Origin and a forged same-origin header pass (CSRF-only, accepted); a cross-site one is 403 at 0 commands', async () => {

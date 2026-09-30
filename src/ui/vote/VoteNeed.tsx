@@ -10,11 +10,18 @@ type Props = {
   count: number; suggestion: ControlId | null; onTry: (id: ControlId) => void; onKeep: () => void;
 };
 
+/** What is missing, in words that are right at 0 of 2 and at 1 of 2 (V6: nothing flown yet is not "a second way"). */
+export function needLine(count: number): string {
+  const n = Math.min(Math.max(count, 0), VOTE_MIN_TRIED); // VOTE_MIN_TRIED is 2: nothing flown asks for two ways, one flown for one more
+  const ask = n === 0 ? `Fly two ways for ${TRIED_S} seconds each` : `Fly one more way for ${TRIED_S} seconds`;
+  return `${ask}, then vote. You have flown ${n} of ${VOTE_MIN_TRIED} so far.`;
+}
+
 /** The state for a visitor who has flown fewer than two ways: what is missing and a one-tap way to get it, never a dead end. */
 export default function VoteNeed({ count, suggestion, onTry, onKeep }: Props) {
   return <>
     <p className={styles.need} data-testid="vote-need-more">
-      {`Fly a second way for ${TRIED_S} seconds, then vote. You have flown ${Math.min(count, VOTE_MIN_TRIED)} of ${VOTE_MIN_TRIED} so far.`}
+      {needLine(count)}
       {suggestion === null && ' Open Controls to switch.'}
     </p>
     <div className={styles.buttons}>

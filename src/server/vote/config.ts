@@ -2,6 +2,7 @@
 // answers 503 closed after 0 commands. There is no fallback from the salt to the store token (PRIV-1), and a preview deployment
 // never shares the production store unless the owner opts in (W5). The instance memo and latch live here, one pair per process.
 import { Latch, MemoLimit } from './memo';
+import { once } from './shared';
 import { selectBackend, storeFromEnv, type FetchLike, type VoteEnv, type VoteStore } from './store';
 
 export interface VoteDeps {
@@ -15,19 +16,22 @@ export interface VoteDeps {
 }
 
 export const MIN_SALT_LENGTH = 32;
-const instanceMemo = new MemoLimit();
-const instanceLatch = new Latch();
+// The memo, the latch and the store are per process, not per route bundle (WEB-L1): see shared.ts.
+const instanceMemo = once('memo', () => new MemoLimit());
+const instanceLatch = once('latch', () => new Latch());
 let logged = false;
 // One store per process (CODE-1): the Neon store keeps its DDL-done and last-cleanup state in its closure, so building one per request
 // re-sent the DDL prelude and the cleanup with every vote. Keyed by backend, credentials and the production flag (and the injected
 // fetch, for tests), so a changed environment builds a new store and an unchanged one reuses it.
-let storeCache: { key: string; fetchImpl: FetchLike | undefined; store: VoteStore | null } | null = null;
+type StoreCache = { key: string; fetchImpl: FetchLike | undefined; store: VoteStore | null } | null;
+const storeBox = once('store', () => ({ cache: null as StoreCache }));
 
 function cachedStore(env: VoteEnv, fetchImpl?: FetchLike): VoteStore | null {
   const key = `${JSON.stringify(selectBackend(env))}|${env.VERCEL_ENV === 'production'}`;
-  if (storeCache && storeCache.key === key && storeCache.fetchImpl === fetchImpl) return storeCache.store;
+  const c = storeBox.cache;
+  if (c && c.key === key && c.fetchImpl === fetchImpl) return c.store;
   const store = storeFromEnv(env, fetchImpl);
-  storeCache = { key, fetchImpl, store };
+  storeBox.cache = { key, fetchImpl, store };
   return store;
 }
 

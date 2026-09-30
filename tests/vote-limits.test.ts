@@ -6,10 +6,11 @@ describe('limits: defaults and limitsFrom', () => {
     expect([UNIT_LIMIT, BLOCK_LIMIT, GLOBAL_LIMIT, MAX_ENTRIES, CAP_DEFAULT, MINV_DEFAULT, ROUND_LIMIT]).toEqual([8, 60, 1200, 6000, 5, 100, 10]);
     expect(DEFAULT_LIMITS).toEqual({ mode: 'open', unit: 8, block: 60, global: 1200, max: 6000, cap: 5, minv: 100, round: 10 });
   });
-  it('gives the defaults for an all-null reply (an empty ctl hash) and for a short array', () => {
+  it('gives the defaults for an all-null reply (an empty ctl hash)', () => {
     expect(limitsFrom([null, null, null, null, null, null, null, null])).toEqual(DEFAULT_LIMITS);
-    expect(limitsFrom([])).toEqual(DEFAULT_LIMITS);
-    expect(limitsFrom([null])).toEqual(DEFAULT_LIMITS);
+  });
+  it('C6 a reply that is not exactly the 8 fields (an empty or short array, or a long one) is closed, never "every knob unset, so open"', () => {
+    for (const bad of [[], [null], Array(7).fill(null), Array(9).fill(null)]) expect(limitsFrom(bad), String(bad.length)).toEqual({ ...DEFAULT_LIMITS, mode: 'closed' });
   });
   it('reads every knob from the strings Upstash returns, and from numbers', () => {
     expect(limitsFrom(['open', '4', '10', '300', '12000', '3', '150', '7'])).toEqual({ mode: 'open', unit: 4, block: 10, global: 300, max: 12000, cap: 3, minv: 150, round: 7 });

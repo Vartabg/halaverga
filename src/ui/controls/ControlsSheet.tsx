@@ -3,6 +3,7 @@ import { useEffect, useId, useRef } from 'react';
 import { controlsFor, type ControlFamily } from '@/game/controlTypes';
 import { useGame } from '@/game/store';
 import { VOTE_MIN_TRIED } from '@/lib/vote/ballot';
+import { canVote, readMark } from '@/ui/vote/voteTracker';
 import ControlList, { useTried } from './ControlList';
 import { useKeysPref } from './keysPref';
 import styles from './ControlsPicker.module.css';
@@ -14,16 +15,24 @@ export function KeysToggle() {
     <input type="checkbox" checked={on} onChange={e => set(e.target.checked)} />Number keys 1-8 switch controls
   </label>;
 }
-/** 'Tried n of 2 needed to vote' until two are tried, then 'Tried n of N': one target at a time, announced politely as more get played. */
-export function TriedLine({ family }: { family: ControlFamily }) {
-  const n = useTried(family).length;
+/**
+ * 'Tried n of 2 needed to vote' while two are not tried, this list has a Vote button (`voting`) and the family has not voted (CODE-9);
+ * otherwise 'Tried n of N'. One target at a time, announced politely as more get played.
+ */
+export function TriedLine({ family, voting = true }: { family: ControlFamily; voting?: boolean }) {
+  const n = useTried(family).length, need = voting && n < VOTE_MIN_TRIED && canVote(readMark(), Date.now(), family);
   return <p className={styles.tried} aria-live="polite" data-testid="controls-tried">
-    {n < VOTE_MIN_TRIED ? `Tried ${n} of ${VOTE_MIN_TRIED} needed to vote` : `Tried ${n} of ${controlsFor(family).length}`}</p>;
+    {need ? `Tried ${n} of ${VOTE_MIN_TRIED} needed to vote` : `Tried ${n} of ${controlsFor(family).length}`}</p>;
 }
-/** The sheet's footer button is the lime primary (`primary`); the settings and pause-card copies stay outlined. */
-export function VoteButton({ primary = false }: { primary?: boolean }) {
-  return <button type="button" className={primary ? `${styles.action} ${styles.primary}` : styles.action} data-testid="controls-vote"
-    onClick={() => useGame.setState({ voteOpen: true })}>Vote: which felt best?</button>;
+/**
+ * The sheet's footer button is the lime primary (`primary`); the settings and pause-card copies stay outlined. Once this family's vote
+ * is sent (V7) it is never lime and says so: it still opens the card, which shows the thanks and the results link.
+ */
+export function VoteButton({ family, primary = false }: { family: ControlFamily; primary?: boolean }) {
+  useGame(s => s.voteOpen); // the card closing is the moment a sent vote changes this button
+  const sent = !canVote(readMark(), Date.now(), family);
+  return <button type="button" className={primary && !sent ? `${styles.action} ${styles.primary}` : styles.action} data-testid="controls-vote"
+    data-sent={sent ? '' : undefined} onClick={() => useGame.setState({ voteOpen: true })}>{sent ? 'Vote sent: see results' : 'Vote: which felt best?'}</button>;
 }
 
 /**
@@ -42,7 +51,7 @@ export default function ControlsSheet({ family, onClose }: { family: ControlFami
       <TriedLine family={family} />
       {family === 'desktop' && <KeysToggle />}
       <div className={styles.buttons}>
-        <VoteButton primary />
+        <VoteButton family={family} primary />
         <button type="button" className={styles.action} data-testid="controls-done" onClick={onClose}>Done</button>
       </div>
     </div>

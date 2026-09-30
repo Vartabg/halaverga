@@ -3,12 +3,13 @@ import type { ControlId } from '@/game/controlTypes';
 
 /**
  * Points one ballot with `k` tried controls hands out, per pair. A pick beats each of its k-1 rivals: the favorite gains `win` and
- * each rival `loss` (`pair` = k-1 rivals). A tie splits over all k(k-1)/2 pairs: in each pair both controls gain `win` and `loss`
- * (`pair` = k(k-1)/2). Either way a ballot hands out exactly 1 win-point and 1 loss-point in total: pair * win, or 2 * pair * win.
+ * each rival `loss`. A tie splits over all k(k-1)/2 pairs: in each pair both controls gain `win` and `loss`. Either way a ballot hands
+ * out exactly 1 win-point and 1 loss-point in total (k-1 pairs at 1/(k-1), or k(k-1)/2 pairs at 1/(k(k-1)) for each of the two sides).
  */
-export function pairWeights(k: number, tie: boolean): { win: number; loss: number; pair: number } {
-  if (!(k >= 2)) return { win: 0, loss: 0, pair: 0 };
-  return tie ? { win: 1 / (k * (k - 1)), loss: 1 / (k * (k - 1)), pair: (k * (k - 1)) / 2 } : { win: 1 / (k - 1), loss: 1 / (k - 1), pair: k - 1 };
+export function pairWeights(k: number, tie: boolean): { win: number; loss: number } {
+  if (!(k >= 2)) return { win: 0, loss: 0 };
+  const w = tie ? 1 / (k * (k - 1)) : 1 / (k - 1);
+  return { win: w, loss: w };
 }
 
 /** Comparison points a control is shrunk toward an even record by: a lucky handful cannot look like a proven favorite (R1). */

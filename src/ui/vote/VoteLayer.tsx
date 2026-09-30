@@ -6,6 +6,7 @@ import { currentFamily, watchFamily } from '../controls/family';
 import { selectControl } from '../controls/selectControl';
 import { pause } from '../useInput';
 import { watchPlayInput } from './playInput';
+import { livePlan, pickFocus } from './restoreFocus';
 import { autoNeed, canVote, eligible, guardOn, GUARD_MAX_MS, GUARD_MS, livePlay, markSkipped, NUDGE_TRIED, readMark, savePlay, skipCounts, tick, triedIds } from './voteTracker';
 import VoteCard, { type CloseKind } from './VoteCard';
 import styles from './VoteCard.module.css';
@@ -21,7 +22,7 @@ type Session = { origin: Origin; family: ControlFamily; current: ControlId; trie
 export default function VoteLayer({ onResume }: { onResume: () => void }) {
   const open = useGame(s => s.voteOpen);
   const autoDone = useRef(false), pendingAuto = useRef(false), resumeAfter = useRef(false);
-  const pointers = useRef(new Set<number>()), openedAt = useRef(0);
+  const pointers = useRef(new Set<number>()), openedAt = useRef(0), opener = useRef<Element | null>(null), refocus = useRef<ControlFamily | null>(null);
   const [session, setSession] = useState<Session | null>(null), [guard, setGuard] = useState(false);
   const playNow = livePlay;
 
@@ -95,6 +96,7 @@ export default function VoteLayer({ onResume }: { onResume: () => void }) {
     if (!open) { setSession(null); setGuard(false); pendingAuto.current = false; return; }
     const origin: Origin = pendingAuto.current ? 'auto' : 'pause';
     pendingAuto.current = false;
+    opener.current = document.activeElement; // the card is not mounted yet, so this is what to give focus back to (V5)
     // Opened from the Controls sheet while flying: stop the game behind the card (keys and fingers must not fly it), and give it
     // back on Done or Skip. Opened from a pause the player already has, nothing changes.
     const g = useGame.getState();
@@ -119,11 +121,23 @@ export default function VoteLayer({ onResume }: { onResume: () => void }) {
   const close = (kind: CloseKind) => {
     const origin = session?.origin;
     if (session && skipCounts(kind, session.origin)) markSkipped(session.family);
+    refocus.current = session?.family ?? null;
     useGame.setState({ voteOpen: false, voteNudge: false });
     const back = origin === 'auto' || resumeAfter.current;
     resumeAfter.current = false;
     if (back) onResume();
   };
+  // V5: once the card is gone (and the pause card is back, if the game is paused) focus goes to a sensible element, never to <main>.
+  useEffect(() => {
+    const family = refocus.current;
+    if (open || family === null) return;
+    refocus.current = null;
+    requestAnimationFrame(() => { // a frame later: the layer's resume and the pause card's return have both landed by then
+      const g = useGame.getState();
+      pickFocus(livePlan(opener.current, family === 'desktop' && g.started && !g.paused))?.focus({ preventScroll: true });
+      opener.current = null;
+    });
+  }, [open]);
   // The card's Try button: close without a Skip mark (and resume), then switch. selectControl refuses while the card is open, so the close comes first.
   const tryControl = (id: ControlId) => {
     const family = session?.family;

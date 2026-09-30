@@ -37,6 +37,7 @@ const SCRIPT: Step[] = [
   [c('DEL', 'lower', 'num', 'nope'), c('DEL', 'h', 'h'), c('DEL'), c('GET'), c('SET', 'onlykey'), c('HMGET', 'h'), c('SADD', 's'), c('EXPIRE', 'a'), c('FLUSHALL', 'x')],
   [c('DEL', 'a'), c('FLUSHALL'), c('GET', 'a'), c('SMEMBERS', 's'), c('HGETALL', 'h'), c('TTL', 'k'), c('FLUSHALL')],
   [c('BOGUS', 'a'), c('', 'a'), c('flushdb')],
+  [c('SET', 'd', 0, 'EX', 9, 'NX'), c('INCR', 'd'), c('DECR', 'd'), c('DECR', 'd'), c('TTL', 'd'), c('DECR', 'nodecr'), c('SET', 'ds', 'abc'), c('DECR', 'ds'), c('HSET', 'dh', 'f', 'v'), c('DECR', 'dh'), c('DECR'), c('DECR', 'a', 'b')], // CODE-2: the undo of a replay's INCR
 ];
 
 describe('fake-upstash engine matches the tested fixture on one command script', () => {
@@ -58,7 +59,7 @@ describe('fake-upstash engine matches the tested fixture on one command script',
       const keys = ['a', 'b', 'h', 'i', 's', 't'], vals = ['0', '1', 'abc', '-5', '007', '12', ''];
       const gens: (() => Command)[] = [
         () => c('SET', pick(keys), pick(vals), ...pick([[], ['EX', 1 + rnd(6)], ['NX'], ['EX', 3, 'NX'], ['XX'], ['EX', 0], ['EX', 'z']])),
-        () => c('GET', pick(keys)), () => c('INCR', pick(keys)), () => c('HMGET', pick(keys), pick(vals), pick(vals)), () => c('HLEN', pick(keys)),
+        () => c('GET', pick(keys)), () => c('INCR', pick(keys)), () => c('DECR', pick(keys)), () => c('HMGET', pick(keys), pick(vals), pick(vals)), () => c('HLEN', pick(keys)),
         () => c('HSETNX', pick(keys), pick(vals), pick(vals)), () => c('HSET', pick(keys), pick(vals), pick(vals), ...(rnd(4) ? [] : [pick(vals)])),
         () => c('HDEL', pick(keys), pick(vals)), () => c('HGETALL', pick(keys)), () => c('SADD', pick(keys), pick(vals), pick(vals)),
         () => c('SREM', pick(keys), pick(vals)), () => c('SMEMBERS', pick(keys)), () => c('DEL', pick(keys), pick(keys)), () => c('TTL', pick(keys)),

@@ -7,9 +7,9 @@ import { parseVote, mediaType, VOTE_KEY_TAG } from '@/lib/vote/ballot';
 import { encodeEntry } from '@/lib/vote/entry';
 import { clientAddress } from './clientIp';
 import type { VoteDeps } from './config';
-import { gateA, gateB, readGateA, readGateB, routeAfterA, routeAfterB, writeEntry } from './gate';
+import { gateA, gateB, readGateA, readGateB, routeAfterA, routeAfterB, undoUnit, writeEntry } from './gate';
 import { readBody, refuse, sameOrigin } from './guards';
-import { secondsToUtcMidnight, utcDate, utcHour } from './limits';
+import { msToUtcMidnight, secondsToUtcMidnight, utcDate, utcHour } from './limits';
 import { voteKeys } from './netkeys';
 import { STORE_TIMEOUT_MS, type Command } from './store';
 
@@ -59,19 +59,22 @@ export async function handleVote(req: Request, deps: VoteDeps): Promise<Response
     memo.limits = a.limits;
     const first = routeAfterA(a);
     if (first === 'closed') { stop(30_000, 503, 'closed', 60); return closed(); }
-    if (first === 'refuse-latch') { stop(60_000, 429, 'later', null); return later(null); } // the ceiling: the round is full
+    if (first === 'refuse-latch') { stop(60_000, 429, 'later', null); return later(null); } // the ceiling: the round is full (no reset at midnight)
     if (first === 'refuse') return later(midnight);
     if (first === 'gateB') {
       memo.attempt(keys.block, day); // only a request that got past the unit limit counts against its block, here and in the store
       const b = readGateB(await run(gateB(ns, day, keys)));
       const second = routeAfterB(b, a);
-      if (second === 'refuse-latch') { stop(60_000, 429, 'later', midnight); return later(midnight); }
+      // F5: the day's counters start over at UTC midnight, so this latch never outlives it (an honest first vote of the new day is not refused)
+      if (second === 'refuse-latch') { stop(Math.min(60_000, msToUtcMidnight(deps.now())), 429, 'later', midnight); return later(midnight); }
       if (second === 'refuse') return later(midnight);
       if (second === 'refuse-round') return later(null);
       const entry = encodeEntry(vote, utcHour(now), keys.tag);
       const wrote = (await run(writeEntry(ns, VOTE_KEY_TAG, vote.nonce, entry)))[0];
       if (wrote !== 0 && wrote !== 1) throw new Error('vote write: bad reply'); // 0 is the same nonce resent: counted once, still ok
-    } // replay: this nonce is already stored, still ok, and it spent no block, round or day budget
+    } else { // replay: this nonce is already stored, still ok. It spent no block, round or day budget, and the unit increment is taken back (best effort: a failed undo is still ok)
+      try { await run(undoUnit(ns, day, keys)); } catch { /* the vote is stored; answering 502 for it would only make the card resend */ }
+    }
   } catch {
     latch.set(deps.now() + 5000, 502, 'store-failed', 5);
     console.error('[vote] store request failed');

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { CLEAN, CLEAN_EVERY_MS, DDL, NEON_TIMEOUT_MS, PRELUDE_LEN } from '@/server/vote/neonSchema';
+import { CLEAN, CLEAN_EVERY_MS, DDL, NEON_TIMEOUT_MS } from '@/server/vote/neonSchema';
 import { createNeonStore } from '@/server/vote/neonStore';
 import type { Command, FetchLike } from '@/server/vote/store';
 import { FakeNeon } from './helpers/fakeNeon';
@@ -30,10 +30,10 @@ describe('request shape (spec-neon 1.2, 1.3)', () => {
   });
 
   it('lowercases the host, ignores a port, and rejects an unusable string with a fixed message', async () => {
-    const neon = new FakeNeon(() => 0, undefined, 'ep-up.neon.example');
-    await createNeonStore('postgresql://u:p@EP-UP.Neon.Example:5432/db', neon.fetch).exec(INCR);
-    expect(neon.calls[0].url).toBe('https://ep-up.neon.example/sql');
-    for (const bad of ['', 'postgresql://u@h.io/db', 'http://u:p@h.example.io/db', `postgresql://u:${PW}@nodot/db`]) {
+    const neon = new FakeNeon(() => 0, undefined, 'ep-up.us-east-2.aws.neon.tech');
+    await createNeonStore('postgresql://u:p@EP-UP.us-east-2.aws.NEON.tech:5432/db', neon.fetch).exec(INCR);
+    expect(neon.calls[0].url).toBe('https://ep-up.us-east-2.aws.neon.tech/sql');
+    for (const bad of ['', 'postgresql://u@h.io/db', 'http://u:p@h.example.io/db', `postgresql://u:${PW}@nodot/db`, `postgresql://u:${PW}@db.example.com/db`]) {
       const err = (() => { try { createNeonStore(bad, neon.fetch); } catch (e) { return e as Error; } })();
       expect(err?.message).toBe('vote store bad connection string');
     }
@@ -57,13 +57,21 @@ describe('request shape (spec-neon 1.2, 1.3)', () => {
   });
 });
 
+describe('CODE-2 DECR through the store (the undo of a replay)', () => {
+  it('is one statement, mapped to the integer after the decrement, like INCR', async () => {
+    const neon = new FakeNeon(), store = createNeonStore(CS, neon.fetch);
+    expect(await store.exec([['SET', 'u', 0, 'EX', 90000, 'NX'], ['INCR', 'u'], ['INCR', 'u'], ['DECR', 'u'], ['DECR', 'missing']])).toEqual(['OK', 1, 2, 1, -1]);
+    expect(neon.violations).toEqual([]);
+  });
+});
+
 describe('lazy table creation (spec-neon 3.2)', () => {
   it('the first exec carries the five DDL entries first and the caller gets one reply per command; the second carries none', async () => {
     const neon = new FakeNeon();
     const store = createNeonStore(CS, neon.fetch);
     expect(await store.exec([['INCR', 'a'], ['INCR', 'a']])).toEqual([1, 2]);
-    expect(queriesOf(neon, 0).slice(0, PRELUDE_LEN)).toEqual([...DDL]);
-    expect(neon.calls[0].queries.slice(0, PRELUDE_LEN).every((q) => q.params.length === 0)).toBe(true);
+    expect(queriesOf(neon, 0).slice(0, DDL.length)).toEqual([...DDL]);
+    expect(neon.calls[0].queries.slice(0, DDL.length).every((q) => q.params.length === 0)).toBe(true);
     expect(await store.exec([['INCR', 'a']])).toEqual([3]);
     expect(queriesOf(neon, 1).some((q) => DDL.includes(q))).toBe(false);
     expect(neon.violations).toEqual([]);
@@ -75,7 +83,7 @@ describe('lazy table creation (spec-neon 3.2)', () => {
     const store = createNeonStore(CS, neon.fetch);
     await expect(store.exec(INCR)).rejects.toThrow('vote store http 500');
     await expect(store.exec(INCR)).resolves.toEqual([1]);
-    expect(queriesOf(neon, 1).slice(0, PRELUDE_LEN)).toEqual([...DDL]);
+    expect(queriesOf(neon, 1).slice(0, DDL.length)).toEqual([...DDL]);
     await store.exec(INCR);
     expect(queriesOf(neon, 2).some((q) => DDL.includes(q))).toBe(false);
   });
@@ -129,7 +137,7 @@ describe('lazy table creation (spec-neon 3.2)', () => {
     await expect(store.exec(INCR)).rejects.toMatchObject({ message: 'vote store http 400', sqlstate: '42P01' });
     expect(neon.calls).toHaveLength(2); // no automatic resend
     await expect(store.exec(INCR)).resolves.toEqual([1]);
-    expect(queriesOf(neon, 2).slice(0, PRELUDE_LEN)).toEqual([...DDL]);
+    expect(queriesOf(neon, 2).slice(0, DDL.length)).toEqual([...DDL]);
   });
 });
 

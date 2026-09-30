@@ -24,7 +24,7 @@ const chip = (family: 'touch' | 'desktop' = 'desktop') => html(createElement(Vot
 const store: Record<string, string> = {};
 afterEach(() => {
   seedPlay({}); vi.unstubAllGlobals(); for (const k of Object.keys(store)) delete store[k];
-  useGame.setState({ started: false, voteOpen: false, controlLab: 'standard', touchScheme: 'classic', trackpadSteering: 'free', desktopMode: 'trackpad' });
+  useGame.setState({ started: false, paused: true, panel: false, voteOpen: false, controlLab: 'standard', touchScheme: 'classic', trackpadSteering: 'free', desktopMode: 'trackpad' });
 });
 const voted = (family: 'touch' | 'desktop') => {
   vi.stubGlobal('localStorage', { getItem: (k: string) => store[k] ?? null, setItem: (k: string, v: string) => { store[k] = v; } });
@@ -50,10 +50,11 @@ describe('chipProgress and chipHint', () => {
 });
 
 describe('VoteChip (SSR)', () => {
-  it('0/2: outline, the seconds needed for the control being flown are hidden from the accessible name, and a spoken tail is added', () => {
+  it('CODE-4 0/2: outline, the visible seconds are inside the accessible name (WCAG 2.5.3, nothing is aria-hidden), and a spoken tail is added', () => {
     const m = chip();
     expect(m).toContain('data-testid="vote-chip"'); expect(m).toContain('type="button"'); expect(m).not.toContain('data-ready');
-    expect(m).toContain('Vote 0/2'); expect(m).toMatch(/<span aria-hidden="true"><span class="[^"]*_chipDot_[^"]*"> · <\/span>20 s<\/span>/);
+    expect(m).toContain('Vote 0/2'); expect(m).toMatch(/<span class="[^"]*_chipSecs_[^"]*"><span class="[^"]*_chipDot_[^"]*"> · <\/span>20 s<\/span>/);
+    expect(m).not.toContain('aria-hidden'); // the seconds are visible text, so they belong in the name; before, aria-hidden kept them out of it
     expect(m).toContain('<span class="sr-only">. Fly two ways for 20 seconds first.</span>');
     expect(m).not.toContain('aria-label'); // WCAG 2.5.3: the visible text is inside the name, so no aria-label that replaces it
   });
@@ -85,13 +86,26 @@ describe('VoteChip (SSR)', () => {
   });
   it('the picker mounts it right after the trigger, once the game has begun, and not when the picker is not started', () => {
     expect(html(createElement(ControlsPicker, { family: 'desktop' }))).toBe('');
-    useGame.setState({ started: true });
+    useGame.setState({ started: true, paused: false });
     const m = html(createElement(ControlsPicker, { family: 'desktop' }));
     expect(m.indexOf('data-testid="controls-trigger"')).toBeGreaterThan(-1);
     expect(m.indexOf('data-testid="vote-chip"')).toBeGreaterThan(m.indexOf('data-testid="controls-trigger"'));
     expect(m).not.toContain('controls-sheet'); // the chip is not inside the sheet
     voted('desktop');
     expect(html(createElement(ControlsPicker, { family: 'desktop' }))).not.toContain('vote-chip');
+  });
+});
+
+describe('V4 the chip and the pause card', () => {
+  it('the chip steps aside while the pause card shows (it covered half the chip on a wide screen; the card has its own vote door) and returns on resume', () => {
+    useGame.setState({ started: true, paused: false });
+    expect(chip()).toContain('data-testid="vote-chip"');
+    useGame.setState({ paused: true });
+    expect(chip()).toBe('');
+    useGame.setState({ panel: true }); // settings open: the pause card is not showing, the chip is back
+    expect(chip()).toContain('data-testid="vote-chip"');
+    useGame.setState({ panel: false, voteOpen: true }); // the vote card is open over the paused game: the pause card is hidden, the chip stays behind the scrim
+    expect(chip()).toContain('data-testid="vote-chip"');
   });
 });
 
@@ -103,6 +117,14 @@ describe('the sheet footer and the settings copy', () => {
     expect(vote).toMatch(/class="[^"]*_primary_/); expect(done).not.toMatch(/_primary_/);
     expect(m).toContain('>Vote: which felt best?</button>'); expect(m).not.toMatch(/Vote on the\scontrols/); // the retired copy
     expect(m.indexOf('controls-vote')).toBeLessThan(m.indexOf('controls-done'));
+  });
+  it('V7 after this family voted the sheet button is no longer the lime primary and says the vote is sent; the other family keeps it', () => {
+    voted('desktop');
+    const m = foot('desktop'), tag = /<button[^>]*data-testid="controls-vote"[^>]*>/.exec(m)![0];
+    expect(tag).not.toMatch(/_primary_/); expect(tag).toContain('data-sent=""');
+    expect(m).toMatch(/data-testid="controls-vote"[^>]*>Vote sent: see results<\/button>/); expect(m).not.toContain('>Vote: which felt best?</button>');
+    expect(m).not.toContain('needed to vote'); // CODE-9: nothing is needed once the vote is in
+    expect(/<button[^>]*data-testid="controls-vote"[^>]*>/.exec(foot('touch'))![0]).toMatch(/_primary_/);
   });
   it('the line says Tried n of 2 needed to vote under two, then Tried n of total', () => {
     expect(foot('touch')).toContain('Tried 0 of 2 needed to vote');
