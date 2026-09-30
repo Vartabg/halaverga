@@ -30,6 +30,7 @@ export function makeCity() {
   // Distant surviving skyline: sculpted broken tops, never a wallpaper image.
   for (let i = 0; i < 20; i++) {
     const x = (i - 9.5) * 17, h = 24 + (i * 17 % 41), z = -210 - (i % 3) * 13;
+    if (Math.abs(x) < 30) continue;
     k.box(x, h / 2 - 3, z, 11 + i % 5, h, 13, '#737e83');
     k.box(x - 3, h - 1, z, 5, 8, 12, '#737e83');
   }

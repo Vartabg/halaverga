@@ -22,11 +22,6 @@ export function heroRuins(k: Kit) {
   // A peeled piece of road still carries worn lane markings.
   k.box(6.44, 7.73, -1, 16.8, .04, 7.2, colors.road, false, .05, 1.17);
   k.box(6.39, 7.75, -1, 12, .025, .13, colors.white, false, .05, 1.17);
-  // A leaning original road sign, without adding another HUD or navigation mode.
-  k.box(-16, 19, -4, .14, 7, .14, colors.steel, false, 0, .1);
-  k.box(-21, 19, -4, .14, 7, .14, colors.steel, false, 0, .1);
-  k.box(-18.5, 21.1, -3.9, 6.8, 2.5, .16, '#356b65', true, 0, .1);
-  for (let i = 0; i < 3; i++) k.box(-19, 21.7 - i * .45, -3.78, 3.4 - i * .6, .12, .02, colors.white, false, 0, .1);
   // Exposed drain outlets and dark waterline break up the engineered banks.
   for (const side of [-1, 1]) for (let i = 0; i < 9; i++) {
     const z = 45 - i * 18;
