@@ -3,20 +3,21 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { controlKey, idFor, type ControlFamily, type ControlId } from '@/game/controlTypes';
 import { useGame } from '@/game/store';
 import { currentFamily, watchFamily } from '../controls/family';
+import { selectControl } from '../controls/selectControl';
 import { pause } from '../useInput';
 import { watchPlayInput } from './playInput';
-import { autoNeed, canVote, eligible, guardOn, GUARD_MAX_MS, GUARD_MS, livePlay, markSkipped, NUDGE_TRIED, readMark, savePlay, tick, triedIds } from './voteTracker';
+import { autoNeed, canVote, eligible, guardOn, GUARD_MAX_MS, GUARD_MS, livePlay, markSkipped, NUDGE_TRIED, readMark, savePlay, skipCounts, tick, triedIds } from './voteTracker';
 import VoteCard, { type CloseKind } from './VoteCard';
 import styles from './VoteCard.module.css';
 
-// voteOpen is a runtime-only store field; the pause card's "Vote on the controls" opens the card with useGame.setState({ voteOpen: true }).
+// voteOpen is a runtime-only store field; the pause card, the Controls sheet and the header button open the card with useGame.setState({ voteOpen: true }).
 const setOpen = (voteOpen: boolean) => useGame.setState({ voteOpen });
 type Origin = 'auto' | 'pause';
 type Session = { origin: Origin; family: ControlFamily; current: ControlId; tried: ControlId[]; already: boolean };
 
 /** The vote's background work and its card: a 1 s play-time tracker (seconds with input only, per control and family), the one
- *  auto-open per page load (on a landing, once every control of the family is tried), the post-auto-open pointer guard, and the
- *  card itself while voteOpen. onResume resumes play (auto-open Skip/Done). */
+ *  auto-open per page load (on a landing, once two controls of the family are tried), the post-auto-open pointer guard, and the
+ *  card itself while voteOpen. onResume resumes play (auto-open Skip/Done, and any card opened over a running game). */
 export default function VoteLayer({ onResume }: { onResume: () => void }) {
   const open = useGame(s => s.voteOpen);
   const autoDone = useRef(false), pendingAuto = useRef(false), resumeAfter = useRef(false);
@@ -72,17 +73,17 @@ export default function VoteLayer({ onResume }: { onResume: () => void }) {
   useEffect(() => useGame.subscribe((s, prev) => {
     if (s.paused && !prev.paused) {
       const family = currentFamily();
-      const nudge = !s.voteOpen && eligible(playNow(), readMark(), Date.now(), family, NUDGE_TRIED(family));
+      const nudge = !s.voteOpen && eligible(playNow(), readMark(), Date.now(), family, NUDGE_TRIED());
       if (nudge !== s.voteNudge) useGame.setState({ voteNudge: nudge });
     }
   }), []);
 
   // Auto-open: at most once per page load, only on a landing (flying true -> false while started and not paused), when eligible.
-  // A pause the player opened never opens it (that path is the pause card's "Vote on the controls").
+  // A pause the player opened never opens it (that path is the pause card's "Vote: which felt best?").
   useEffect(() => useGame.subscribe((s, prev) => {
     if (autoDone.current || s.voteOpen || !prev.flying || s.flying || !s.started || s.paused || s.panel || s.journal) return;
     const family = currentFamily();
-    if (!eligible(playNow(), readMark(), Date.now(), family, autoNeed(family))) return;
+    if (!eligible(playNow(), readMark(), Date.now(), family, autoNeed())) return;
     autoDone.current = true; pendingAuto.current = true;
     savePlay(playNow());
     pause();
@@ -114,17 +115,24 @@ export default function VoteLayer({ onResume }: { onResume: () => void }) {
     return () => { for (const n of others) n.removeAttribute('inert'); };
   }, [open, session]);
 
+  // Only Skip on an auto-open records the 24 h quiet: a manual Not yet or Escape (a visitor who opened the card themselves) records nothing.
   const close = (kind: CloseKind) => {
     const origin = session?.origin;
-    if (kind === 'skip' && session) markSkipped(session.family);
+    if (session && skipCounts(kind, session.origin)) markSkipped(session.family);
     useGame.setState({ voteOpen: false, voteNudge: false });
     const back = origin === 'auto' || resumeAfter.current;
     resumeAfter.current = false;
     if (back) onResume();
   };
+  // The card's Try button: close without a Skip mark (and resume), then switch. selectControl refuses while the card is open, so the close comes first.
+  const tryControl = (id: ControlId) => {
+    const family = session?.family;
+    close('done');
+    if (family) selectControl(id, { family });
+  };
   if (!open || !session) return null;
   return <div ref={scrim} className={styles.scrim} data-testid="vote-layer" data-scroll-ok="">
     <VoteCard current={session.current} tried={session.tried} device={session.family} already={session.already}
-      guard={guard} onClose={close} />
+      guard={guard} onClose={close} onTry={tryControl} />
   </div>;
 }

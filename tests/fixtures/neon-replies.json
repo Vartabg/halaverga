@@ -1,0 +1,19 @@
+{
+  "note": "Hand-written from the documented SQL-over-HTTP format (spec-neon 1.5 and 1.6), not recorded from a real server: raw text output and array mode, so every non-null cell is a string.",
+  "select": {
+    "results": [
+      { "fields": [{ "name": "value", "dataTypeID": 25, "tableID": 16401, "columnID": 3, "dataTypeSize": -1, "dataTypeModifier": -1, "format": "text" }], "rows": [["closed"], [null], ["3"]], "command": "SELECT", "rowCount": 3, "rowAsArray": true }
+    ]
+  },
+  "insertReturning": {
+    "results": [{ "fields": [{ "name": "?column?", "dataTypeID": 23, "tableID": 0, "columnID": 0, "dataTypeSize": 4, "dataTypeModifier": -1, "format": "text" }], "rows": [["1"]], "command": "INSERT", "rowCount": 1, "rowAsArray": true }]
+  },
+  "insertConflict": {
+    "results": [{ "fields": [{ "name": "?column?", "dataTypeID": 23, "tableID": 0, "columnID": 0, "dataTypeSize": 4, "dataTypeModifier": -1, "format": "text" }], "rows": [], "command": "INSERT", "rowCount": 0, "rowAsArray": true }]
+  },
+  "ddl": { "fields": [], "rows": [], "command": "CREATE", "rowCount": null, "rowAsArray": true },
+  "lock": { "fields": [{ "name": "pg_advisory_xact_lock", "dataTypeID": 2278, "tableID": 0, "columnID": 0, "dataTypeSize": 4, "dataTypeModifier": -1, "format": "text" }], "rows": [[""]], "command": "SELECT", "rowCount": 1, "rowAsArray": true },
+  "clean": { "fields": [], "rows": [], "command": "DELETE", "rowCount": 0, "rowAsArray": true },
+  "sqlError": { "message": "relation \"public.hv_kv\" does not exist", "code": "42P01", "detail": "SECRET-DETAIL", "hint": "SECRET-HINT", "severity": "ERROR", "position": "13", "table": "hv_kv" },
+  "connError": { "message": "password authentication failed for user SECRET-USER" }
+}

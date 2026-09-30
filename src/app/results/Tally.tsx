@@ -1,73 +1,71 @@
-// The public tally as plain server markup (no client JS): one table per family in registry order, then builds, stale votes and
-// the notes count. Split from page.tsx so tests can render it with results read from a stub store (a page file may only export
-// the page itself).
+// The public tally as plain server markup (spec 5.4, no client JS). One block per family: not enough votes yet, or a table in
+// ranking order. Split from page.tsx so tests can render it from a stub result (a page file may only export the page itself).
+// Nothing here names the store, its keys, a limit, a build or a count that is not already public.
 import { controlsFor, CONTROL_FAMILIES, type ControlFamily } from '@/game/controlTypes';
-import { voteKeyTag, type VoteResults } from '@/lib/vote/shape';
-import { MIN_RATINGS } from '@/server/vote/results';
+import type { VoteResults } from '@/lib/vote/ballot';
 import s from './results.module.css';
 
-export const UNVERIFIED_LINE = 'Anonymous, unverified counts, so treat them as a guide, not a ballot.';
+export const NOISE_LINE =
+  'Votes, not people. Anonymous counts, a guide, not a ballot. Every vote is weighted the same, one network counts for only a few votes a day, numbers are rounded down to the nearest 5, and the order uses a cautious estimate. Fewer than 200 votes and gaps under 10 points are mostly noise.';
 const FAMILY_NAME: Record<ControlFamily, string> = { touch: 'Touch', desktop: 'Desktop' };
+const pct = (n: number | null) => Math.min(100, Math.max(0, n ?? 0));
 
 function Bar({ value }: { value: number }) {
-  return <span className={s.track} aria-hidden="true"><span className={s.bar} style={{ width: `${value}%` }} /></span>;
+  return <span className={s.track} aria-hidden="true"><span className={s.bar} style={{ width: `${pct(value)}%` }} /></span>;
 }
 
-function FamilyTable({ family, r }: { family: ControlFamily; r: VoteResults }) {
-  const f = r.families[family];
+function Family({ family, r }: { family: ControlFamily; r: VoteResults }) {
+  const f = r.families[family], name = FAMILY_NAME[family];
+  const about = f.votes >= 5 ? <p className={s.muted}>About {f.votes} votes so far.</p> : null;
+  if (!f.ranked || !f.order || !f.controls) {
+    return <section data-testid={`results-${family}`}><h2 className={s.head}>{name} controls</h2><p>Not enough votes for a ranking yet on {name.toLowerCase()}.</p>{about}</section>;
+  }
+  const label = new Map(controlsFor(family).map((c) => [c.id as string, c.label]));
   return (
-    <table className={s.table} data-testid={`results-${family}`}>
-      <caption>{FAMILY_NAME[family]}: {f.votes} {f.votes === 1 ? 'vote' : 'votes'}</caption>
-      <thead>
-        <tr>
-          <th scope="col">Control</th><th scope="col">Favorite votes</th><th scope="col">Share</th>
-          <th scope="col">Tried</th><th scope="col">Mean rating</th><th scope="col">Ratings</th>
-        </tr>
-      </thead>
-      <tbody>
-        {controlsFor(family).map(({ id, label }) => {
-          const c = f.controls[id] ?? { favorite: 0, share: 0, tried: 0, rating: { avg: null, n: 0 } };
-          return (
-            <tr key={id}>
-              <th scope="row">{label}</th><td>{c.favorite}</td>
-              <td><span className={s.share}><Bar value={c.share} />{c.share}%</span></td>
-              <td>{c.tried}</td>
-              <td>{c.rating.avg === null ? <span className={s.muted}>fewer than {MIN_RATINGS} ratings</span> : c.rating.avg.toFixed(1)}</td>
-              <td>{c.rating.n}</td>
-            </tr>
-          );
-        })}
-      </tbody>
-    </table>
+    <section data-testid={`results-${family}`}>
+      <h2 className={s.head}>{name} controls</h2>
+      {about}
+      <table className={s.table}>
+        <caption className={s.muted}>In ranking order, best first</caption>
+        <thead>
+          <tr><th scope="col">Control</th><th scope="col">Picked</th><th scope="col">Head to head</th></tr>
+        </thead>
+        <tbody>
+          {f.order.map((id) => {
+            const c = f.controls![id];
+            return (
+              <tr key={id}>
+                <th scope="row">{label.get(id) ?? id}</th><td>{c.tried === 0 ? 'under 5 tried' : `about ${c.picked} of ${c.tried} tried`}</td>
+                <td><span className={s.share}><Bar value={pct(c.rate)} />{c.rate === null ? 'none yet' : `${c.rate}%`}</span></td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+      <p>Can&apos;t tell: about {f.tie ?? 0}</p>
+    </section>
   );
 }
 
 export function Tally({ r }: { r: VoteResults }) {
-  const builds = Object.entries(r.builds).sort((a, b) => b[1] - a[1]);
   return (
     <>
-      <p className={s.lead}>Round {r.round} · {r.total} {r.total === 1 ? 'vote' : 'votes'}</p>
-      <p>{UNVERIFIED_LINE} The only protection against repeat votes is a limit of 20 votes per hour from one network.</p>
-      {CONTROL_FAMILIES.map((family) => <FamilyTable key={family} family={family} r={r} />)}
-      <table className={s.table}>
-        <caption>Game version at the time of the vote</caption>
-        <thead><tr><th scope="col">Build</th><th scope="col">Votes</th></tr></thead>
-        <tbody>
-          {builds.length === 0
-            ? <tr><td colSpan={2} className={s.muted}>No votes yet.</td></tr>
-            : builds.map(([b, n]) => <tr key={b}><th scope="row">{b}</th><td>{n}</td></tr>)}
-        </tbody>
-      </table>
-      <p>Votes sent from a tab opened before the latest deploy: {r.stale}.</p>
+      <p className={s.lead}>As of {r.asOf.slice(11, 19)} UTC</p>
+      {CONTROL_FAMILIES.map((family) => <Family key={family} family={family} r={r} />)}
+      <p className={s.note}>{NOISE_LINE}</p>
     </>
   );
 }
 
-export function Notes({ count, ns, round }: { count: number; ns: string; round: string }) {
+/** The whole page body: the tally, or one plain line saying why there is none. */
+export function ResultsView({ r, status }: { r: VoteResults | null; status: 'unset' | 'failed' | null }) {
   return (
-    <p className={s.note}>
-      {count} {count === 1 ? 'note' : 'notes'} written. Notes are private and deleted after about 90 days. Read them in
-      Vercel → Storage → Open in Upstash → Data Browser, keys starting <code>{`${ns}:notes:${voteKeyTag(round)}:`}</code>
-    </p>
+    <main className={s.page}>
+      <h1 className={s.title}>Halaverga vote results</h1>
+      {status === 'unset' && <p role="status">Voting isn&apos;t set up on this deployment yet.</p>}
+      {status === 'failed' && <p role="status">Couldn&apos;t reach the vote store right now. Try again in a minute.</p>}
+      {r && <Tally r={r} />}
+      <p><a href="/">Back to the game</a> · <a href="/privacy">How your vote is counted</a></p>
+    </main>
   );
 }

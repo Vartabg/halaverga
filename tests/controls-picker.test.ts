@@ -119,15 +119,15 @@ describe('ControlList (SSR)', () => {
 });
 
 describe('ControlsSheet and ControlsSection (SSR)', () => {
-  it('the sheet is a non-modal dialog named Controls with Tried X of N, Vote and Done', () => {
+  it('the sheet is a non-modal dialog named Controls with the tried line, Vote and Done', () => {
     const touch = html(createElement(ControlsSheet, { family: 'touch', onClose: noop }));
     expect(touch).toContain('role="dialog"'); expect(touch).toContain('aria-modal="false"');
     expect(touch).toMatch(/aria-labelledby="([^"]+)"/); expect(touch).toContain('>Controls</h2>');
-    expect(touch).toContain('Tried 0 of 5'); expect(touch).toContain('aria-live="polite"');
-    expect(touch).toContain('>Vote on the controls</button>'); expect(touch).toContain('>Done</button>');
+    expect(touch).toContain('Tried 0 of 2 needed to vote'); expect(touch).toContain('aria-live="polite"');
+    expect(touch).toContain('>Vote: which felt best?</button>'); expect(touch).toContain('>Done</button>');
     expect(touch).not.toContain('Number keys 1-8');
     const desktop = html(createElement(ControlsSheet, { family: 'desktop', onClose: noop }));
-    expect(desktop).toContain('Tried 0 of 8'); expect(desktop).toContain('Number keys 1-8 switch controls');
+    expect(desktop).toContain('Tried 0 of 2 needed to vote'); expect(desktop).toContain('Number keys 1-8 switch controls');
     expect(desktop).toMatch(/<input[^>]*type="checkbox"[^>]*checked/);
   });
   it('Tried X of N counts the seeded play', () => {
@@ -139,7 +139,7 @@ describe('ControlsSheet and ControlsSection (SSR)', () => {
     expect(guide).toContain('>Try every control</h3>'); expect(pause).not.toContain('Try every control');
     expect(guide).toMatch(/<details[^>]*open/); expect(guide).toContain('<summary>Controls: Cursor</summary>');
     expect(idsOf(guide)).toEqual(ORDER); expect(guide).toContain('name="control-guide"'); expect(pause).toContain('name="control-pause"');
-    expect(guide).toContain('Tried 0 of 8'); expect(guide).toContain('Number keys 1-8 switch controls');
+    expect(guide).toContain('Tried 0 of 2 needed to vote'); expect(guide).toContain('Number keys 1-8 switch controls');
     expect(guide).not.toContain('controls-vote'); // no vote button unless asked
     expect(html(createElement(ControlsSection, { name: 'control-settings', vote: true }))).toContain('data-testid="controls-vote"');
   });

@@ -1,94 +1,105 @@
 'use client';
-import { useEffect, useId, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
-import type { ControlId } from '@/game/controlTypes';
-import { NOTE_MAX, type VoteDevice } from '@/lib/vote/shape';
-import { buildPayload, canSend, favoriteOptions, favoritesLine, fetchResults, noteLength, ratingLabs, STATUS_TEXT, submitVote, triedSummary,
-  type VoteOutcome, type VoteRating } from './voteClient';
-import { TRIED_S } from './voteTracker';
-import VoteRatings, { VoteFavorite } from './VoteRatings';
+import { useEffect, useId, useRef, useState } from 'react';
+import { controlsFor, type ControlId } from '@/game/controlTypes';
+import type { VoteDevice } from '@/lib/vote/ballot';
+import { PRIVACY_SHORT } from '@/lib/vote/privacy';
+import { currentControlId } from '../controls/selectControl';
+import { ballotOptions, readSeed, suggestNext } from './ballotPlan';
+import { readPending, type Pending } from './pending';
+import VoteChoices from './VoteChoices';
+import VoteNeed from './VoteNeed';
+import { ALREADY_TEXT, canSend, cardPhase, castVote, fetchResults, PAUSED_TEXT, PICK_FIRST, SAVED_TEXT, savedPick, sendLabel, SENDING_TEXT, STATUS_TEXT,
+  tallyLine, type Probe, type VoteOutcome } from './voteClient';
 import styles from './VoteCard.module.css';
 
-export const PRIVACY_LINE = 'Anonymous. No sign-in, no cookies. We save only your answers, your note if you write one, touch or desktop, '
-  + 'and the game version. Notes are deleted after about 90 days. To stop repeat votes, a scrambled form of your network address and '
-  + 'a random send code are kept for one hour, then deleted. Your lab measurements stay on this device.';
-export const NOTE_LABEL = 'Anything else? (optional, please leave out your name or contact details)';
-/** Shown instead of the form until one control has TRIED_S seconds of play: a vote needs something played, not just opened. */
-export const NOTHING_TRIED_TEXT = `Fly a little first. A control counts after ${TRIED_S} seconds of flying with it, and none has yet. Then come back and vote.`;
-export const ALREADY_TEXT = 'Your vote for this version is in. Thanks!';
+export const HEADING = 'Which way of flying felt best?';
+export const SUB_LINE = 'Pick the one that felt best. Only the ways you have flown are listed.';
 export type CloseKind = 'skip' | 'done';
 export type VoteCardProps = {
-  current: ControlId; tried: readonly ControlId[];
+  current: ControlId;
+  /** Controls counted as tried (20 s each). The ballot also lists `current`, so it always offers what the visitor is flying. */
+  tried: readonly ControlId[];
   /** The control family the player is using (touch or desktop): the vote is per family. */
   device: VoteDevice;
-  /** This device already voted in this round (a manual open from the pause card): thanks and the tally, no form. */
+  /** This device already voted in this round (a manual open): thanks and the tally, no ballot. */
   already?: boolean;
   /** Auto-open guard: pointer-events off (CSS [data-guard]) until 400 ms have passed and every pointer has lifted. */
   guard?: boolean;
   onClose: (kind: CloseKind) => void;
+  /** The Try button: the layer closes the card without a Skip mark, then switches to this control. */
+  onTry?: (id: ControlId) => void;
+  /** Tests only: a fixed ballot seed, a saved vote, a finished probe, and a starting state. */
+  seed?: number; saved?: Pending | null; probe?: Probe | null; start?: { pick?: ControlId | 'tie' | null; outcome?: VoteOutcome | null };
 };
-const submitLabel = (busy: boolean, outcome: VoteOutcome | null) =>
-  busy ? 'Sending…' : outcome === 'later' ? 'Try again' : outcome === 'network' ? 'Retry' : 'Send vote';
 
-/** "Which controls did you like?": favorite, optional 1-5 ratings per tried control, an optional note, Send, or Not yet / Skip. */
-export default function VoteCard({ current, tried, device, already = false, guard = false, onClose }: VoteCardProps) {
-  const id = useId(), heading = useRef<HTMLHeadingElement>(null), done = useRef<HTMLButtonElement>(null), alive = useRef(true);
-  const [favorite, setFavorite] = useState<ControlId | null>(null);
-  const [ratings, setRatings] = useState<Partial<Record<ControlId, VoteRating>>>({});
-  const [note, setNote] = useState(''), [busy, setBusy] = useState(false);
-  const [outcome, setOutcome] = useState<VoteOutcome | null>(null), [tally, setTally] = useState('');
-  const finished = already || outcome === 'ok', nothing = !finished && tried.length === 0;
+/**
+ * "Which way of flying felt best?": pick one (or Can't tell), Send. Fewer than two ways flown shows what is missing instead. Nothing is
+ * pre-selected, nothing is sent until Send, and the tally shows only after it. One send code is kept until the server answers.
+ */
+export default function VoteCard({ current, tried, device, already = false, guard = false, onClose, onTry, seed, saved, probe: probe0, start }: VoteCardProps) {
+  const id = useId(), root = useRef<HTMLElement>(null), heading = useRef<HTMLHeadingElement>(null), sendBtn = useRef<HTMLButtonElement>(null);
+  const endBtn = useRef<HTMLButtonElement>(null), alive = useRef(true);
+  const [ballotSeed] = useState(() => seed ?? readSeed()), [kept] = useState(() => (saved !== undefined ? saved : readPending(device)));
+  const nonce = useRef(kept?.nonce);
+  const offered = controlsFor(device).map(c => c.id).filter(x => tried.includes(x) || x === current), counted = controlsFor(device).filter(c => tried.includes(c.id)).length;
+  const ids = ballotOptions(offered, device, ballotSeed, current), back = savedPick(kept, ids);
+  const [pick, setPick] = useState(() => (start?.pick !== undefined ? start.pick : back));
+  const [busy, setBusy] = useState(false), [outcome, setOutcome] = useState(start?.outcome ?? null);
+  const [msg, setMsg] = useState(() => (start?.outcome ? STATUS_TEXT[start.outcome] : back !== null && !already ? SAVED_TEXT : '')), [probe, setProbe] = useState(probe0 ?? null);
+  const phase = cardPhase({ already, counted, outcome });
+  const close = () => onClose(phase === 'ballot' ? 'skip' : 'done'); // the layer records a Skip only for an auto-open
+
   useEffect(() => {
     alive.current = true; heading.current?.focus({ preventScroll: true });
+    // The one advisory read (also feeds the tally line after Send); a failure leaves the card as it is.
+    if (probe0 === undefined) void fetchResults().then(p => { if (alive.current) setProbe(p); });
     return () => { alive.current = false; };
-  }, []);
-  // After a vote (or when this device already voted) fetch the running tally; any failure just leaves the line out.
+  }, [probe0]);
+  // Escape closes as Not yet, from anywhere while the card is mounted (focus may be on the page after a failure). Capture: useInput's window Escape would pause.
   useEffect(() => {
-    if (!finished) return;
-    done.current?.focus({ preventScroll: true });
-    void fetchResults().then(r => { if (alive.current) setTally(favoritesLine(r, device)); });
-  }, [finished, device]);
-  const send = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!canSend(favorite, busy, outcome) || favorite === null) return;
-    setBusy(true);
-    const result = await submitVote(buildPayload({ favorite, ratings, tried, note }, device));
+    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close(); } };
+    window.addEventListener('keydown', esc, true);
+    return () => window.removeEventListener('keydown', esc, true);
+  });
+  useEffect(() => { if (phase === 'done' || phase === 'closed') endBtn.current?.focus({ preventScroll: true }); }, [phase]);
+
+  const send = async () => {
+    if (busy || phase !== 'ballot') return;
+    if (pick === null) { setMsg(PICK_FIRST); root.current?.querySelector<HTMLInputElement>('input[name="vote-pick"]')?.focus(); return; }
+    setBusy(true); setMsg('');
+    const now = currentControlId(device), r = await castVote({ favorite: pick, tried: offered, last: offered.includes(now) ? now : current }, device, { nonce: nonce.current });
+    nonce.current = r.nonce;
     if (!alive.current) return;
-    setBusy(false); setOutcome(result);
+    setBusy(false); setOutcome(r.outcome); setMsg(STATUS_TEXT[r.outcome]);
+    if (r.outcome !== 'ok' && r.outcome !== 'closed') sendBtn.current?.focus({ preventScroll: true });
   };
-  const close = () => onClose(finished || nothing ? 'done' : 'skip'); // nothing played yet is not a Skip (no 24 h quiet)
-  const keys = (e: KeyboardEvent) => {
-    if (e.key !== 'Escape') return;
-    e.preventDefault(); e.stopPropagation();
-    if (!busy) close();
-  };
-  const offered = favoriteOptions(tried, current, device), rated = ratingLabs(tried, current, device), length = noteLength(note);
-  const sum = triedSummary(tried, device), rest = sum.left.length > 0;
-  const status = already ? ALREADY_TEXT : outcome ? STATUS_TEXT[outcome] : '';
+  const status = phase === 'done' ? (already && outcome !== 'ok' ? ALREADY_TEXT : STATUS_TEXT.ok) : phase === 'closed' ? '' : busy ? SENDING_TEXT : msg;
+  const tally = phase === 'done' ? tallyLine(probe?.results ?? null, device) : '';
   // A modal dialog: VoteLayer makes everything else inert while it shows, so Tab and screen readers stay inside it.
-  return <section role="dialog" aria-modal="true" className={styles.card} aria-labelledby={`${id}-h`} data-testid="vote-card" data-guard={guard ? '' : undefined}
-    data-outcome={outcome ?? undefined} onKeyDown={keys}>
-    <h2 id={`${id}-h`} ref={heading} tabIndex={-1}>Which controls did you like?</h2>
-    {nothing && <p data-testid="vote-nothing" style={{ margin: '0 0 12px' }}>{NOTHING_TRIED_TEXT}</p>}
-    {!finished && !nothing && <p data-testid="vote-tried" style={{ margin: '0 0 12px' }}>Tried {sum.count} of {sum.of}.
-      {rest && ` Not tried yet: ${sum.left.join(', ')}. You can keep playing and vote later.`}</p>}
-    {!finished && !nothing && <form id={`${id}-form`} className={styles.form} onSubmit={send} aria-busy={busy}>
-      <VoteFavorite labs={offered} value={favorite} onChange={setFavorite} disabled={busy} />
-      <VoteRatings labs={rated} value={ratings} onChange={(lab, r) => setRatings(v => ({ ...v, [lab]: r }))} disabled={busy} />
-      <label className={styles.note} htmlFor={`${id}-note`}>{NOTE_LABEL}</label>
-      <textarea id={`${id}-note`} className={styles.noteBox} value={note} maxLength={NOTE_MAX} rows={3} disabled={busy}
-        aria-describedby={`${id}-count`} onChange={e => setNote(Array.from(e.target.value).slice(0, NOTE_MAX).join(''))} />
-      <small id={`${id}-count`} className={styles.count}>{length} / {NOTE_MAX}</small>
-      <p className={styles.privacy}>{PRIVACY_LINE}</p>
-    </form>}
-    {/* One persistent live region, so each outcome (and the thanks) is announced. */}
-    <p className={styles.status} role="status">{status}</p>
-    {finished && tally && <p className={styles.tally} data-testid="vote-tally">{tally}</p>}
-    <div className={styles.buttons}>
-      {finished ? <button type="button" ref={done} className={styles.send} onClick={close}>Done</button> : nothing
-        ? <button type="button" className={styles.send} onClick={close}>Keep playing</button> : <>
-        <button type="submit" form={`${id}-form`} className={styles.send} disabled={!canSend(favorite, busy, outcome)} aria-busy={busy}>{submitLabel(busy, outcome)}</button>
-        <button type="button" className={styles.skip} onClick={close} disabled={busy}>{rest ? 'Not yet' : 'Skip'}</button>
-      </>}
+  return <section ref={root} role="dialog" aria-modal="true" className={styles.card} aria-labelledby={`${id}-h`} data-testid="vote-card" data-phase={phase}
+    data-guard={guard ? '' : undefined} data-outcome={outcome ?? undefined}>
+    <h2 id={`${id}-h`} ref={heading} tabIndex={-1}>{HEADING}</h2>
+    {phase === 'need' && <VoteNeed count={counted} suggestion={suggestNext(device, [...tried, current], ballotSeed)} onKeep={close} onTry={t => (onTry ? onTry(t) : close())} />}
+    {phase === 'closed' && <p className={styles.need} data-testid="vote-closed">{STATUS_TEXT.closed}</p>}
+    {phase === 'ballot' && <>
+      <p className={styles.family} data-testid="vote-family">{device === 'touch' ? 'Touch controls' : 'Desktop controls'}</p>
+      <p className={styles.sub}>{SUB_LINE}</p>
+      <VoteChoices ids={ids} value={pick} disabled={busy} labelledBy={`${id}-h`} onChange={v => { setPick(v); if (msg === PICK_FIRST) setMsg(''); }} />
+      <p className={styles.privacy}>{PRIVACY_SHORT}{' '}<a className={styles.link} href="/privacy" target="_blank" rel="noopener">How your vote is counted</a></p>
+      {probe && (probe.closed || probe.results === null) && <p className={styles.paused} data-testid="vote-paused">{PAUSED_TEXT}</p>}
+    </>}
+    {/* The foot holds the one persistent live region (so each outcome and the thanks are announced) and the buttons. On the ballot it is
+        sticky, so Send, Not yet and what Send answered are always on screen, in portrait and landscape alike. */}
+    <div className={styles.foot} data-ballot={phase === 'ballot' ? '' : undefined}>
+      <p className={styles.status} role="status">{status}</p>
+      {tally && <p className={styles.tally} data-testid="vote-tally">{tally}</p>}
+      {phase === 'done' && <a className={styles.link} href="/results" target="_blank" rel="noopener">See all results</a>}
+      {phase !== 'need' && <div className={styles.buttons}>
+        {phase === 'ballot' ? <>
+          <button type="button" ref={sendBtn} className={styles.send} data-testid="vote-send" aria-disabled={!canSend(pick, busy, outcome)} aria-busy={busy} onClick={send}>{sendLabel(busy, outcome)}</button>
+          <button type="button" className={styles.skip} data-testid="vote-not-yet" onClick={close}>Not yet</button>
+        </> : <button type="button" ref={endBtn} className={styles.send} data-testid={phase === 'done' ? 'vote-done' : 'vote-keep'} onClick={close}>{phase === 'done' ? 'Done' : 'Keep playing'}</button>}
+      </div>}
     </div>
   </section>;
 }

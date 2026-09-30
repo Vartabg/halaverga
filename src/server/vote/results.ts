@@ -1,62 +1,33 @@
-// Vote results (spec 3.1, schema 2): one multi-exec reads the round's tagged tally hash and builds hash, then parses them into
-// public aggregates per family (touch, desktop), with a row for every control of the family. Notes are counted, never returned.
-// Averages hide until a control has at least 3 ratings. Only the current schema's keys are read, so older data never mixes in.
-import { controlsFor } from '@/game/controlTypes';
-import { VOTE_DEVICES, VOTE_ROUND, VOTE_SCHEMA, voteKeyTag, type ControlResult, type FamilyResults, type VoteDevice, type VoteResults } from '@/lib/vote/shape';
-import type { VoteDeps } from './handlers';
+// Vote results (spec 5.3): one exec reads the vote hash, the void set and the ctl knobs, and aggregate() turns them into public
+// numbers per family. The tally is computed on read, so the owner's void set, `cap` and `minv` re-score it and nothing else can.
+import { VOTE_KEY_TAG, VOTE_ROUND, type VoteResults } from '@/lib/vote/ballot';
+import { aggregate, hashToPairs } from './aggregate';
+import type { VoteDeps } from './config';
+import { CTL_FIELDS, limitsFrom } from './limits';
+import { refuse } from './guards';
 import type { VoteStore } from './store';
 
-export const MIN_RATINGS = 3;
-export type ResultsReader = (store: VoteStore, ns: string, round: string) => Promise<VoteResults>;
+export type ResultsReader = (store: VoteStore, ns: string, round: string, now?: number) => Promise<VoteResults>;
 
-/** Upstash REST returns HGETALL as a flat [field, value, ...] array; tolerate an object form too. */
-export function hashToCounts(raw: unknown): Record<string, number> {
-  const out: Record<string, number> = {};
-  const put = (k: unknown, v: unknown) => {
-    const n = Number(v);
-    if (typeof k === 'string' && Number.isFinite(n)) out[k] = n;
-  };
-  if (Array.isArray(raw)) for (let i = 0; i + 1 < raw.length; i += 2) put(raw[i], raw[i + 1]);
-  else if (raw && typeof raw === 'object') for (const [k, v] of Object.entries(raw)) put(k, v);
-  return out;
-}
-
-const round1 = (x: number) => Math.round(x * 10) / 10;
-
-function family(d: VoteDevice, get: (k: string) => number): FamilyResults {
-  const votes = get(`dev:${d}`), controls: FamilyResults['controls'] = {};
-  for (const { id } of controlsFor(d)) {
-    const favorite = get(`fav:${d}:${id}`), n = get(`rn:${d}:${id}`);
-    const row: ControlResult = {
-      favorite, share: votes > 0 ? Math.round((100 * favorite) / votes) : 0, tried: get(`tried:${d}:${id}`),
-      rating: { avg: n >= MIN_RATINGS ? round1(get(`rsum:${d}:${id}`) / n) : null, n },
-    };
-    controls[id] = row;
-  }
-  return { votes, controls };
-}
-
-/** Unknown Redis fields (an old family or id) are never looked up, so they cannot appear in the result. */
-export function toResults(round: string, tally: Record<string, number>, builds: Record<string, number>): VoteResults {
-  const get = (k: string) => tally[k] ?? 0;
-  const families = Object.fromEntries(VOTE_DEVICES.map(d => [d, family(d, get)])) as Record<VoteDevice, FamilyResults>;
-  return { v: VOTE_SCHEMA, round, total: get('total'), notes: get('notes'), stale: get('stale'), builds, families };
-}
-
-export const readResults: ResultsReader = async (store, ns, round) => {
-  const tag = voteKeyTag(round);
-  const [tally, builds] = await store.exec([['HGETALL', `${ns}:vote:${tag}`], ['HGETALL', `${ns}:builds:${tag}`]]);
-  return toResults(round, hashToCounts(tally), hashToCounts(builds));
+export const readResults: ResultsReader = async (store, ns, round, now = Date.now()) => {
+  if (round !== VOTE_ROUND) throw new Error('vote results: unknown round'); // only the current round has a key tag and a scorer
+  const rt = VOTE_KEY_TAG;
+  const out = await store.exec([['HGETALL', `${ns}:vote:${rt}`], ['SMEMBERS', `${ns}:void:${rt}`], ['HMGET', `${ns}:ctl`, ...CTL_FIELDS]]);
+  if (out.length !== 3 || !Array.isArray(out[2])) throw new Error('vote results: bad reply');
+  const limits = limitsFrom(out[2]);
+  // open is false when the owner closed voting and also when the round is full (F3), so the card says so instead of "try again later".
+  const open = limits.mode === 'open' && hashToPairs(out[0]).length < limits.max;
+  return aggregate(out[0], out[1], { cap: limits.cap, minVotes: limits.minv }, now, open);
 };
 
-/** GET /api/results. The reader is injected: the route passes the unstable_cache wrapper, tests pass a stub. */
+/** GET /api/results. The reader is injected: the route passes the shared single-flight cache, tests pass a stub. */
 export async function handleResults(deps: Pick<VoteDeps, 'store' | 'ns'>, read: ResultsReader = readResults): Promise<Response> {
-  if (!deps.store) return Response.json({ ok: false, error: 'voting-not-set-up' }, { status: 503, headers: { 'Cache-Control': 'no-store' } });
+  if (!deps.store) return refuse(503, 'closed', { 'Retry-After': '60' });
   try {
     const results = await read(deps.store, deps.ns, VOTE_ROUND);
-    return Response.json(results, { headers: { 'Cache-Control': 'public, max-age=0, s-maxage=30' } });
+    return Response.json(results, { headers: { 'Cache-Control': 'public, max-age=0, s-maxage=120' } });
   } catch {
     console.error('[vote] results read failed');
-    return Response.json({ ok: false, error: 'store-failed' }, { status: 502, headers: { 'Cache-Control': 'no-store' } });
+    return refuse(502, 'store-failed', { 'Retry-After': '5' });
   }
 }

@@ -15,7 +15,7 @@ const TOUCH = ['TouchControls-module', 'rise-button', 'touch-stick'];
 const LAB = ['Gesture-module', 'Lab-module', 'lab-surface', 'lab-picker', 'lab-bar', 'LabBar-module', 'lab-ghost', 'halaverga.lab.guides'];
 // The controls picker (header trigger, sheet, shared list, demo note) and its play record are chunks: the landing page carries only the
 // two dynamic() doors (Experience, LazyControls). Every control name, line and preference key lives in the chunk.
-const CONTROLS = ['ControlsPicker-module', 'controls-picker', 'halaverga.controls', 'halaverga.vote.play'];
+const CONTROLS = ['ControlsPicker-module', 'controls-picker', 'halaverga.controls', 'halaverga.vote.play', 'vote-chip'];
 // The in-game vote (tracker, card, client) is a chunk mounted after Begin: the landing page never carries it.
 const VOTE = ['VoteCard-module', 'vote-card', '/api/vote', 'halaverga.vote'];
 // Main measured 614.9 KB (PR #11); the blaster keeps only its input handlers and plain state on the landing page.

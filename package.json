@@ -9,6 +9,7 @@
     "start": "next start --hostname 127.0.0.1",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "test:pg": "vitest run --config vitest.pg.config.ts",
     "test:browser": "playwright test",
     "test:a11y": "playwright test tests/accessibility.spec.ts",
     "verify": "pnpm typecheck && pnpm test && pnpm build && node scripts/check-first-load.mjs && node scripts/check-vote-build.mjs",

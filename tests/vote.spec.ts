@@ -1,319 +1,173 @@
-import AxeBuilder from '@axe-core/playwright';
-import { expect, test, type Page, type Route } from '@playwright/test';
-import { labPage, lift, tel } from './lab-browser';
-// The in-game vote for every control type (spec 3.2, schema 2), system Chrome emulation. /api/vote and /api/results are always
-// mocked with page.route: no test ever reaches a real database. Run against a production build:
-// PLAYTEST_URL=http://127.0.0.1:3391 (never 3368 or 3380). Written by the vote unit and executed by the integration unit, once the
-// Controls picker (header trigger 'Controls: <label>' and its sheet) is mounted. Emulation is not iPhone or trackpad validation.
-const DESK = { width: 1440, height: 900 }, PHONE_PORTRAIT = { width: 393, height: 852 };
-const row = (favorite: number, votes: number) => ({ favorite, share: votes ? Math.round(100 * favorite / votes) : 0, tried: favorite, rating: { avg: null, n: 0 } });
-const RESULTS = { v: 2, round: 'r2', total: 6, notes: 0, stale: 0, builds: {}, families: {
-  touch: { votes: 2, controls: { 'one-finger': row(1, 2), 'twin-stick': row(0, 2), draw: row(1, 2), conduct: row(0, 2), brush: row(0, 2) } },
-  desktop: { votes: 4, controls: { cursor: row(4, 4), 'one-finger-keys': row(0, 4), flow: row(0, 4), captured: row(0, 4), 'mouse-keys': row(0, 4), draw: row(2, 4), conduct: row(0, 4), brush: row(0, 4) } },
-} };
-const PLAY_KEY = 'halaverga.vote.play.v2';
-const card = (p: Page) => p.getByTestId('vote-card');
-const paused = (p: Page) => p.getByRole('region', { name: 'Expedition paused' });
-type Reply = number | 'abort';
-/** Mocks both endpoints; /api/vote answers with each reply in turn (the last one repeats). Returns the vote request bodies. */
-async function mock(page: Page, replies: Reply[]) {
-  const bodies: unknown[] = [];
-  await page.route('**/api/results', r => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(RESULTS) }));
-  await page.route('**/api/vote', async (r: Route) => {
-    bodies.push(r.request().postDataJSON());
-    const reply = replies[Math.min(bodies.length - 1, replies.length - 1)];
-    if (reply === 'abort') return r.abort('failed');
-    const error = reply === 429 ? 'too-many' : reply === 503 ? 'voting-not-set-up' : reply === 400 ? 'bad-vote' : undefined;
-    return r.fulfill({ status: reply, contentType: 'application/json', body: JSON.stringify(reply === 200 ? { ok: true } : { ok: false, error }) });
-  });
-  return bodies;
-}
-/** Seeds the v2 play record (seconds by 'family:id'), round r2, never voted, never skipped. */
-function seed(secs: Record<string, number>) {
-  // addInitScript serialises the function source, so a closure over `secs` would be undefined in the page: embed the record instead.
-  const record = JSON.stringify(JSON.stringify({ round: 'r2', secs }));
-  return new Function(`localStorage.setItem('halaverga.vote.play.v2', ${record});`) as () => void;
-}
-/** Desktop played Cursor and Draw only: the card offers exactly those two (Cursor is the current control). */
-const seedDesktopTwo = seed({ 'desktop:cursor': 150, 'desktop:draw': 60 });
-/** Phone played One finger and Draw only. */
-const seedTouchTwo = seed({ 'touch:one-finger': 150, 'touch:draw': 60 });
-/** Three tried controls and over 180 s: the pause-card nudge is on, the auto-open is not (it needs every control). */
-const seedDesktopThree = seed({ 'desktop:cursor': 100, 'desktop:draw': 60, 'desktop:flow': 40 });
-/** Every desktop control tried (8 x 25 s = 200 s): the auto-open on a landing. */
-const seedDesktopAll = seed(Object.fromEntries(['cursor', 'one-finger-keys', 'flow', 'captured', 'mouse-keys', 'draw', 'conduct', 'brush'].map(id => [`desktop:${id}`, 25])));
-const close = (p: Page) => card(p).getByRole('button', { name: /^(Skip|Not yet)$/ });
-/** Total play seconds in the saved record (the layer saves on pagehide; fire it to flush). */
-async function playedSecs(page: Page) {
-  await page.evaluate(() => window.dispatchEvent(new Event('pagehide')));
-  return page.evaluate(key => {
-    const o = JSON.parse(localStorage.getItem(key) ?? '{"secs":{}}') as { secs: Record<string, number> };
-    return Object.values(o.secs).reduce((a, b) => a + b, 0);
-  }, PLAY_KEY);
-}
-async function openFromPause(page: Page, touch = false) {
-  const pauseButton = page.getByRole('button', { name: 'Pause expedition' });
-  if (touch) await pauseButton.tap(); else await pauseButton.click();
-  await expect(paused(page)).toBeVisible();
-  const open = page.getByTestId('vote-open');
-  if (touch) await open.tap(); else await open.click();
-  await expect(card(page)).toBeVisible();
-  await expect(card(page).getByRole('heading', { name: 'Which controls did you like?' })).toBeFocused();
-}
-/** Land from a hover: Land needs a flat surface under the reticle, so drag to look down at the ground first (trackpad.spec). */
-async function land(page: Page) {
-  await page.mouse.move(720, 450); await page.mouse.down(); await page.mouse.move(720, 800, { steps: 15 }); await page.mouse.up();
-  // Land glides to the surface under the reticle, so it is clicked only once the look-down has settled. Under load the hint can
-  // show mid-drag, and a landing from a half-turned view ends a few metres forward, where the next landing finds no flat ground.
-  await expect.poll(async () => (await tel(page)).pitch).toBeLessThan(-1.1);
-  await expect(page.getByText('SURFACE IN REACH · LAND')).toBeVisible();
-  await page.getByRole('button', { name: 'Land', exact: true }).click();
-}
-async function pickAndSend(page: Page, favorite = 'Cursor', id = 'cursor') {
-  const send = card(page).getByRole('button', { name: 'Send vote' });
-  await expect(send).toBeDisabled();
-  await card(page).getByTestId('vote-favorite').getByRole('radio', { name: favorite, exact: true }).check();
-  await card(page).getByTestId(`vote-rating-${id}`).getByRole('radio', { name: '4', exact: true }).check();
-  await send.click();
-}
+import { expect, test, type Page } from '@playwright/test';
+import type { ControlId } from '../src/game/controlTypes';
+import { openSheet, row, sheet } from './controls-browser';
+import { box, card, chip, inside, LANDSCAPE, mock, ONE_DESK, openFromChip, overlaps, paused, pickAndSend, playing, PORTRAIT, radio, sendBtn, shown, tap,
+  trigger, TWO_DESK, TWO_TOUCH, voteMark, votePage } from './vote-browser';
+// The header Vote chip, the need-more card and the ballot (spec 1.3 to 1.6), system Chrome emulation, /api/vote and /api/results always
+// mocked. Run against a production build on an own port: PLAYTEST_URL=http://127.0.0.1:3421 pnpm test:browser -g "@vote". Sending, the doors
+// and the axe/CSP/layout gates are vote-send, vote-doors and vote-gates. Emulation is not iPhone or trackpad validation.
+const HEADING = 'Which way of flying felt best?';
+const seconds = async (p: Page) => Number(/(\d+) s$/.exec(await shown(p))?.[1] ?? -1);
 
-test("the pause card's Vote on the controls offers only the tried controls of the family, sends v2 answers, and shows thanks and the family tally", async ({ browser }) => {
-  const t = await labPage(browser, 'standard', { viewport: DESK, init: seedDesktopTwo }), { page } = t, bodies = await mock(page, [200]);
-  await openFromPause(page);
-  await expect(paused(page)).toHaveCount(0);
-  // Desktop: Cursor (current) and Draw were played; nothing else is offered, and none of the touch controls ever is.
-  const favorites = card(page).getByTestId('vote-favorite').getByRole('radio');
-  await expect(favorites).toHaveCount(2);
-  await expect(card(page).getByTestId('vote-favorite').locator('label')).toHaveText(['Cursor', 'Draw']);
-  await expect(card(page).getByTestId('vote-tried')).toContainText('Tried 2 of 8.');
-  await expect(card(page).getByTestId('vote-tried')).toContainText('Not tried yet: One finger + keys, Flow, Captured, Mouse + keys, Conduct, Brush. You can keep playing and vote later.');
-  await expect(close(page)).toHaveText('Not yet');
-  await pickAndSend(page);
-  await expect(card(page).getByRole('status')).toHaveText('Thanks, your vote is counted.');
-  await expect(card(page).getByTestId('vote-tally')).toHaveText('Favorites so far on desktop: Cursor 4 · Draw 2');
-  expect(bodies).toHaveLength(1);
-  expect(Object.keys(bodies[0] as object).sort()).toEqual(['build', 'device', 'favorite', 'nonce', 'ratings', 'tried', 'v']);
-  expect((bodies[0] as { nonce: string }).nonce).toMatch(/^[0-9a-f-]{16,64}$/); // a random send code, nothing about the player
-  expect(bodies[0]).toMatchObject({ v: 2, favorite: 'cursor', ratings: { cursor: 4 }, tried: ['cursor', 'draw'], device: 'desktop' });
+test('@vote the chip is there from Begin: 0/2 with the seconds, an outline, and a name that adds what to do', async ({ browser }) => {
+  const t = await votePage(browser, {}), { page } = t, c = chip(page);
+  await mock(page, [200]);
+  await expect(c).toBeVisible();
+  await expect.poll(() => shown(page)).toMatch(/^Vote 0\/2 · \d+ s$/);
+  await expect(c).toHaveAccessibleName(/^Vote 0\/2 ?\. Fly two ways for 20 seconds first\.$/); // Chrome may put a space before the tail
+  await expect(c).not.toHaveAttribute('data-ready', /.*/);
+  expect(await c.getAttribute('aria-label')).toBeNull(); // WCAG 2.5.3: the visible text is inside the name
+  const b = await box(c);
+  expect(b.height).toBeGreaterThanOrEqual(44); expect(b.width).toBeGreaterThanOrEqual(44);
+  expect(await c.evaluate(e => getComputedStyle(e).backgroundColor)).not.toBe('rgb(212, 241, 151)'); // not lime yet
+  expect(t.errors).toEqual([]); await t.context.close();
+});
+
+test('@vote 1/2 counts down while a key is held, and reaches the lime 2/2 by itself', async ({ browser }) => {
+  const t = await votePage(browser, { 'desktop:draw': 25, 'desktop:cursor': 15 }), { page } = t, c = chip(page);
+  await mock(page, [200]);
+  await expect.poll(() => shown(page)).toMatch(/^Vote 1\/2 · \d+ s$/);
+  await expect(c).toHaveAccessibleName(/^Vote 1\/2 ?\. Fly one more way for 20 seconds first\.$/);
+  await page.waitForTimeout(2600); // Begin's own press is outside the 2 s input window by now
+  const first = await seconds(page);
+  expect(first).toBeLessThanOrEqual(5); expect(first).toBeGreaterThan(0);
+  await page.keyboard.down('ArrowRight');
+  await expect(c).toHaveAttribute('data-ready', '', { timeout: 15000 }); // the seconds ran out while the key was held
+  await page.keyboard.up('ArrowRight');
+  await expect.poll(() => shown(page)).toMatch(/^Vote(: which felt best\?)?$/);
+  await expect(c).toHaveAccessibleName(/^Vote ?: which felt best\?$/);
+  expect(t.errors).toEqual([]); await t.context.close();
+});
+
+test('@vote two tried: the chip is lime and says Vote: which felt best?, and after the vote it is gone', async ({ browser }) => {
+  const t = await votePage(browser, TWO_DESK), { page } = t, c = chip(page);
+  await mock(page, [200]);
+  await expect(c).toHaveAttribute('data-ready', '');
+  await expect.poll(() => shown(page)).toBe('Vote: which felt best?');
+  expect(await c.evaluate(e => getComputedStyle(e).backgroundColor)).toBe('rgb(212, 241, 151)');
+  await openFromChip(page);
+  await pickAndSend(page, 'Cursor');
+  await expect(card(page).getByRole('status')).toHaveText('Thanks. Your vote is in.');
   await card(page).getByRole('button', { name: 'Done' }).click();
-  await expect(paused(page)).toBeVisible();
-  // Voted: a later open thanks instead of offering a second vote.
-  await page.getByTestId('vote-open').click();
-  await expect(card(page).getByTestId('vote-favorite')).toHaveCount(0);
-  expect(t.errors).toEqual([]); await t.context.close();
-});
-
-test('phone emulation: the card offers One finger and Draw, sends touch answers, and the tally line is the touch one', async ({ browser }) => {
-  const t = await labPage(browser, 'standard', { viewport: PHONE_PORTRAIT, touch: true, init: seedTouchTwo }), { page } = t, bodies = await mock(page, [200]);
-  await openFromPause(page, true);
-  await expect(card(page).getByTestId('vote-favorite').locator('label')).toHaveText(['One finger', 'Draw']);
-  await expect(card(page).getByTestId('vote-tried')).toContainText('Tried 2 of 5.');
-  await pickAndSend(page, 'One finger', 'one-finger');
-  await expect(card(page).getByRole('status')).toHaveText('Thanks, your vote is counted.');
-  await expect(card(page).getByTestId('vote-tally')).toHaveText('Favorites so far on touch: One finger 1 · Draw 1');
-  expect(bodies[0]).toMatchObject({ v: 2, favorite: 'one-finger', ratings: { 'one-finger': 4 }, tried: ['one-finger', 'draw'], device: 'touch' });
-  expect(t.errors).toEqual([]); await t.context.close();
-});
-
-// playedSecs() flushes the record with a pagehide event, which (like leaving the page) pauses the game: it is read once, at the end.
-test('an idle session that only opens the sheet and steps through the controls accrues no tried time', async ({ browser }) => {
-  const t = await labPage(browser, 'standard', { viewport: DESK, init: seed({}) }), { page } = t;
-  await mock(page, [200]);
-  await page.getByRole('button', { name: /^Controls/ }).click();
-  const sheet = page.getByRole('dialog', { name: 'Controls' });
-  await expect(sheet).toBeVisible();
-  await page.waitForTimeout(2600); // the Begin click is outside the 2 s input window by now; the trigger click is the header's, not game input
-  // Tab through the radios and rest the pointer on the sheet: dialog events are not game input.
-  for (let i = 0; i < 4; i++) { await page.keyboard.press('Tab'); await page.waitForTimeout(150); }
-  await sheet.hover();
-  await page.waitForTimeout(3600);
-  await page.keyboard.press('Escape');
-  await expect(sheet).toHaveCount(0);
-  await page.waitForTimeout(2600);
-  // Over 9 s passed since Begin: had the sheet counted, the record would hold several seconds. Begin's own press may count up to 2.
-  expect(await playedSecs(page)).toBeLessThanOrEqual(2);
-  expect(t.errors).toEqual([]); await t.context.close();
-});
-
-test('a key held in the scene is input: the current control accrues tried seconds', async ({ browser }) => {
-  const t = await labPage(browser, 'standard', { viewport: DESK, init: seed({}) }), { page } = t;
-  await mock(page, [200]);
-  await page.waitForTimeout(2600); // Begin's own press is outside the 2 s window
-  await page.keyboard.down('ArrowRight'); await page.waitForTimeout(3600); await page.keyboard.up('ArrowRight');
-  // Begin's press may have counted up to 2 s, so 3 or more means the held key counted.
-  expect(await playedSecs(page)).toBeGreaterThanOrEqual(3);
-  expect(t.errors).toEqual([]); await t.context.close();
-});
-
-test('a 429 says too many votes, keeps the answers, and a later open still offers voting', async ({ browser }) => {
-  const t = await labPage(browser, 'standard', { viewport: DESK, init: seedDesktopTwo }), { page } = t, bodies = await mock(page, [429]);
-  await openFromPause(page);
-  await pickAndSend(page);
-  await expect(card(page).getByRole('status')).toHaveText(/^Too many votes from this network/);
-  await expect(card(page).getByRole('button', { name: 'Try again' })).toBeEnabled();
-  await expect(card(page).getByRole('radio', { name: 'Cursor', exact: true })).toBeChecked();
-  expect(bodies).toHaveLength(1); // no automatic retry
-  await close(page).click();
-  await expect(paused(page)).toBeVisible();
-  await page.getByTestId('vote-open').click();
-  await expect(card(page).getByRole('button', { name: 'Send vote' })).toBeVisible();
-  expect(t.errors).toEqual([]); await t.context.close();
-});
-
-test("a 503 says voting isn't open", async ({ browser }) => {
-  const t = await labPage(browser, 'standard', { viewport: DESK, init: seedDesktopTwo }), { page } = t;
-  await mock(page, [503]);
-  await openFromPause(page);
-  await pickAndSend(page);
-  await expect(card(page).getByRole('status')).toHaveText(/isn't open/);
-  expect(t.errors).toEqual([]); await t.context.close();
-});
-
-test('a 400 (an old tab with the old vote shape) tells the player to reload the page', async ({ browser }) => {
-  const t = await labPage(browser, 'standard', { viewport: DESK, init: seedDesktopTwo }), { page } = t, bodies = await mock(page, [400]);
-  await openFromPause(page);
-  await pickAndSend(page);
-  await expect(card(page).getByRole('status')).toHaveText('Something went wrong with this vote. Reload the page and try again.');
-  expect(bodies).toHaveLength(1);
-  expect(t.errors).toEqual([]); await t.context.close();
-});
-
-test('a first aborted request is retried once and then counts', async ({ browser }) => {
-  const t = await labPage(browser, 'standard', { viewport: DESK, init: seedDesktopTwo }), { page } = t, bodies = await mock(page, ['abort', 200]);
-  await openFromPause(page);
-  await pickAndSend(page);
-  await expect(card(page).getByRole('status')).toHaveText('Thanks, your vote is counted.', { timeout: 10000 });
-  expect(bodies).toHaveLength(2);
-  expect((bodies[1] as { nonce: string }).nonce).toBe((bodies[0] as { nonce: string }).nonce); // the retry is the same Send
-  expect(t.errors).toEqual([]); await t.context.close();
-});
-
-test('Not yet (and Escape) from a pause-card open returns to the pause card', async ({ browser }) => {
-  const t = await labPage(browser, 'standard', { viewport: DESK, init: seedDesktopTwo }), { page } = t;
-  await mock(page, [200]);
-  await openFromPause(page);
-  await close(page).click();
   await expect(card(page)).toHaveCount(0);
-  await expect(paused(page)).toBeVisible();
-  await page.getByTestId('vote-open').click();
-  await expect(card(page).getByRole('heading')).toBeFocused();
-  await page.keyboard.press('Escape');
-  await expect(card(page)).toHaveCount(0);
-  await expect(paused(page)).toBeVisible();
+  await expect(c).toHaveCount(0);
+  await expect(trigger(page)).toBeVisible();
   expect(t.errors).toEqual([]); await t.context.close();
 });
 
-test('eligible (every desktop control tried): a landing auto-opens the card and pauses, an early tap does nothing, and Skip then resumes play', async ({ browser }) => {
-  const t = await labPage(browser, 'standard', { viewport: DESK, init: seedDesktopAll }), { page } = t;
-  await mock(page, [200]);
-  await lift(page);
-  await land(page);
-  // A finger already down when the card opens keeps the guard on (up to GUARD_MAX_MS), so the early tap below does not depend on how
-  // fast this script reacts: under load the fixed 400 ms window could pass before the probe and the click ran.
-  await page.mouse.move(720, 450); await page.mouse.down();
-  await card(page).waitFor({ state: 'visible', timeout: 30000 });
-  // With the guard on, a pointer at Skip reaches the scrim, never the button; releasing over it changes nothing.
-  const probe = await page.evaluate(() => {
-    const c = document.querySelector('[data-testid=vote-card]')!, skip = [...c.querySelectorAll('button')].find(b => b.textContent === 'Skip')!;
-    const r = skip.getBoundingClientRect(), x = r.x + r.width / 2, y = r.y + r.height / 2;
-    return { guard: c.hasAttribute('data-guard'), hit: document.elementFromPoint(x, y) === skip, x, y };
-  });
-  await expect(card(page).getByTestId('vote-tried')).toHaveText('Tried 8 of 8.');
-  await expect(close(page)).toHaveText('Skip');
-  expect(probe.guard).toBe(true);
-  expect(probe.hit).toBe(false);
-  await page.mouse.move(probe.x, probe.y); await page.mouse.up();
-  await expect(card(page)).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Pause expedition' })).toHaveCount(0); // auto-open paused the game
-  await expect(card(page)).not.toHaveAttribute('data-guard', /.*/);
-  await close(page).click();
-  await expect(card(page)).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Pause expedition' })).toBeVisible();
-  // Once per page load (and Skip is quiet for 24 h): another landing does not reopen it.
-  await lift(page);
-  await land(page);
-  await expect.poll(async () => (await tel(page)).flying, { timeout: 30000 }).toBe(false);
-  await page.waitForTimeout(500);
-  await expect(card(page)).toHaveCount(0);
-  expect(t.errors).toEqual([]); await t.context.close();
-});
-
-test('three tried controls are not enough for the auto-open: a landing leaves the game running', async ({ browser }) => {
-  const t = await labPage(browser, 'standard', { viewport: DESK, init: seedDesktopThree }), { page } = t;
-  await mock(page, [200]);
-  await lift(page);
-  await land(page);
-  await expect.poll(async () => (await tel(page)).flying, { timeout: 30000 }).toBe(false);
-  await page.waitForTimeout(800);
-  await expect(card(page)).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Pause expedition' })).toBeVisible();
-  expect(t.errors).toEqual([]); await t.context.close();
-});
-
-test('opening the pause card yourself never auto-opens the vote; 3 tried controls and 3 minutes lead the pause card with the ask, 2 do not', async ({ browser }) => {
-  const t = await labPage(browser, 'standard', { viewport: DESK, init: seedDesktopThree }), { page } = t;
-  await mock(page, [200]);
-  await lift(page);
-  await page.keyboard.press('Escape');
-  await expect(paused(page)).toBeVisible();
-  await page.waitForTimeout(1500);
-  await expect(card(page)).toHaveCount(0);
-  // Eligible without a landing (review 2026-09-25: over water a player may never land): the pause card leads with the ask.
-  await expect(page.getByTestId('vote-open')).toHaveAttribute('data-nudge', '');
-  expect(t.errors).toEqual([]); await t.context.close();
-  // Two tried controls: the button is still there and unlocked, but there is no nudge.
-  const u = await labPage(browser, 'standard', { viewport: DESK, init: seedDesktopTwo });
-  await mock(u.page, [200]);
-  await lift(u.page);
-  await u.page.keyboard.press('Escape');
-  await expect(paused(u.page)).toBeVisible();
-  await expect(u.page.getByTestId('vote-open')).toBeVisible();
-  await expect(u.page.getByTestId('vote-open')).not.toHaveAttribute('data-nudge', '');
-  expect(u.errors).toEqual([]); await u.context.close();
-});
-
-for (const [name, viewport, touch, init] of [['393x852 touch', PHONE_PORTRAIT, true, seedTouchTwo], ['1440x900 desktop', DESK, false, seedDesktopTwo]] as const) {
-  test(`the vote card passes axe WCAG AA at ${name}`, async ({ browser }) => {
-    const t = await labPage(browser, 'standard', { viewport, touch, init }), { page } = t;
+for (const [name, viewport] of [['portrait 393x852', PORTRAIT], ['landscape 852x393', LANDSCAPE]] as const) {
+  test(`@vote ${name}: the chip stays on screen beside the trigger, and the trigger does not move when the chip goes away`, async ({ browser }) => {
+    const t = await votePage(browser, TWO_TOUCH, { touch: true, viewport }), { page } = t;
     await mock(page, [200]);
-    await openFromPause(page, touch);
-    const scan = await new AxeBuilder({ page }).include('[data-testid=vote-layer]').withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
-    expect(scan.violations).toEqual([]);
+    await expect(chip(page)).toBeVisible();
+    const before = await box(trigger(page)), c = await box(chip(page));
+    expect(inside(c, viewport), 'chip inside the viewport').toBe(true);
+    expect(overlaps(c, before), 'chip clear of the trigger').toBe(false);
+    await expect(chip(page)).toHaveAccessibleName(/^Vote ?: which felt best\?$/); // the tail is visually clipped up to 520 px, not removed
+    if (viewport.width <= 520) expect(c.width, 'narrow: the short label').toBeLessThan(100);
+    expect(c.x).toBeGreaterThan(before.x + before.width - 1); // it grows away from the trigger
+    expect(c.height).toBeGreaterThanOrEqual(44); expect(c.width).toBeGreaterThanOrEqual(44);
+    await openFromChip(page, true);
+    await pickAndSend(page, 'One finger', true);
+    await expect(card(page).getByRole('status')).toHaveText('Thanks. Your vote is in.');
+    await tap(card(page).getByRole('button', { name: 'Done' }), true);
+    await expect(chip(page)).toHaveCount(0);
+    const after = await box(trigger(page));
+    expect(after).toEqual(before); // identical box, chip or no chip
+    expect(t.errors).toEqual([]); await t.context.close();
+  });
+}
+const PHONES = [['portrait 320x568', { width: 320, height: 568 }], ['portrait 375x667', { width: 375, height: 667 }], ['portrait 393x852', PORTRAIT], ['portrait 430x932', { width: 430, height: 932 }],
+  ['landscape 852x393', LANDSCAPE]] as const;
+for (const [name, viewport] of PHONES) {
+  test(`@vote ${name}: the widest progress chip fits beside the trigger of every touch control`, async ({ browser }) => {
+    const t = await votePage(browser, {}, { touch: true, viewport }), { page } = t;
+    await mock(page, [200]);
+    for (const [id, label] of [['twin-stick', 'Twin stick'], ['draw', 'Draw'], ['conduct', 'Conduct'], ['brush', 'Brush'], ['one-finger', 'One finger']]) {
+      await openSheet(page, true);
+      await tap(row(page, id as ControlId), true); // a touch pick closes the sheet
+      await expect(sheet(page)).toHaveCount(0);
+      await expect(trigger(page)).toHaveText(`Controls: ${label}`);
+      await expect.poll(() => shown(page)).toMatch(/^Vote 0\/2 · \d+ s$/);
+      const b = await box(trigger(page)), c = await box(chip(page));
+      expect(inside(c, viewport), `${label}: chip inside the viewport`).toBe(true);
+      expect(overlaps(c, b), `${label}: chip clear of the trigger`).toBe(false);
+      const text = await box(chip(page).locator('> span').first());
+      expect(text.x >= c.x - .5 && text.x + text.width <= c.x + c.width + .5, `${label}: the words fit inside the chip`).toBe(true);
+    }
     expect(t.errors).toEqual([]); await t.context.close();
   });
 }
 
-test('the card is a modal dialog: the keyboard cannot leave it or switch controls behind it, and Not yet restores the page', async ({ browser }) => {
-  // Review 2026-09-25: Shift+Tab from the heading reached the header's bar, and an arrow key there switched the scheme.
-  const t = await labPage(browser, 'standard', { viewport: DESK, init: seedDesktopTwo }), { page } = t;
+test('@vote the chip at 1/2 opens the need-more card; Try closes it with no Skip mark, switches control, and the chip counts on', async ({ browser }) => {
+  const t = await votePage(browser, ONE_DESK), { page } = t;
   await mock(page, [200]);
-  await openFromPause(page);
-  const current = () => page.evaluate(() => document.documentElement.dataset.controlId ?? null);
-  const before = await current();
-  await expect(page.getByRole('dialog', { name: 'Which controls did you like?' })).toBeVisible();
-  await expect(page.locator('header')).toHaveAttribute('inert', '');
-  for (let i = 0; i < 6; i++) {
-    await page.keyboard.press('Shift+Tab');
-    expect(await page.evaluate(() => !!document.activeElement?.closest('[data-testid=vote-card]') || document.activeElement === document.body)).toBe(true);
-  }
-  await page.keyboard.press('ArrowRight');
-  await page.keyboard.press('Digit3'); // the digit shortcuts do not reach past the card either
-  expect(await current()).toBe(before);
-  await close(page).click();
+  await expect.poll(() => shown(page)).toMatch(/^Vote 1\/2/);
+  await openFromChip(page);
+  await expect(card(page)).toHaveAttribute('data-phase', 'need');
+  await expect(card(page).getByTestId('vote-need-more')).toHaveText('Fly a second way for 20 seconds, then vote. You have flown 1 of 2 so far.');
+  await expect(card(page).getByRole('radio')).toHaveCount(0); await expect(sendBtn(page)).toHaveCount(0);
+  const tryBtn = card(page).getByTestId('vote-try'), text = await tryBtn.innerText();
+  const label = /^Try (.+) for 20 seconds$/.exec(text)![1];
+  expect(['Cursor', 'Flow', 'Captured', 'Mouse + keys']).not.toContain(label); // never the current one, never a pointer-capturing or trackpad-only control
+  await tryBtn.click();
   await expect(card(page)).toHaveCount(0);
-  await expect(page.locator('header')).not.toHaveAttribute('inert', '');
-  await expect(paused(page)).toBeVisible();
+  await expect(trigger(page)).toHaveText(`Controls: ${label}`);
+  await expect(playing(page)).toBeVisible(); // the game resumed
+  await expect(paused(page)).toHaveCount(0);
+  await expect.poll(() => shown(page)).toMatch(/^Vote 1\/2 · \d+ s$/); // the new control still needs its 20 s
+  expect(await voteMark(page)).toBeNull(); // no Skip mark, no vote mark
   expect(t.errors).toEqual([]); await t.context.close();
 });
 
-test('667x375: Send vote stays on screen while the card scrolls (sticky, with a shadow as the scroll cue)', async ({ browser }) => {
-  const t = await labPage(browser, 'standard', { viewport: { width: 667, height: 375 }, touch: true, init: seedTouchTwo }), { page } = t;
+test('@vote the need-more card at 0/2: Keep playing leaves no mark, and Escape closes it too', async ({ browser }) => {
+  const t = await votePage(browser, {}), { page } = t;
   await mock(page, [200]);
-  await openFromPause(page, true);
-  const send = card(page).getByRole('button', { name: 'Send vote' });
-  const inView = async () => { const b = (await send.boundingBox())!; return b.y >= 0 && b.y + b.height <= 375; };
-  expect(await inView()).toBe(true);
-  await page.getByTestId('vote-layer').evaluate(e => { e.scrollTop = e.scrollHeight; });
-  expect(await inView()).toBe(true);
+  await openFromChip(page);
+  await expect(card(page).getByTestId('vote-need-more')).toContainText('You have flown 0 of 2 so far.');
+  await card(page).getByRole('button', { name: 'Keep playing' }).click();
+  await expect(card(page)).toHaveCount(0); await expect(playing(page)).toBeVisible();
+  await chip(page).click();
+  await expect(card(page)).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(card(page)).toHaveCount(0);
+  expect(await voteMark(page)).toBeNull();
+  expect(t.errors).toEqual([]); await t.context.close();
+});
+
+test('@vote the ballot lists only the ways flown, Can\'t tell last, nothing selected; an empty Send asks for a pick and focuses the first radio', async ({ browser }) => {
+  const t = await votePage(browser, { ...TWO_DESK, 'desktop:flow': 5, 'touch:brush': 90 }), { page } = t;
+  await mock(page, [200]);
+  await openFromChip(page);
+  await expect(card(page)).toHaveAttribute('data-phase', 'ballot');
+  await expect(card(page).getByTestId('vote-family')).toHaveText('Desktop controls');
+  const labels = await card(page).getByTestId('vote-choices').locator('label b').allInnerTexts();
+  expect(labels.slice().sort()).toEqual(["Can't tell", 'Cursor', 'Draw']); // Flow (5 s) and the touch controls are not offered
+  expect(labels.at(-1)).toBe("Can't tell");
+  await expect(card(page).getByRole('radio', { checked: true })).toHaveCount(0);
+  await expect(card(page).getByRole('radiogroup', { name: HEADING })).toBeVisible();
+  await expect(sendBtn(page)).toHaveAttribute('aria-disabled', 'true');
+  expect(await sendBtn(page).getAttribute('disabled')).toBeNull(); // never disabled: focus must not drop
+  await sendBtn(page).click({ force: true });
+  await expect(card(page).getByRole('status')).toHaveText('Pick one way first.');
+  await expect(card(page).getByRole('radio').first()).toBeFocused();
+  expect(await voteMark(page)).toBeNull();
+  await radio(page, 'Draw').check();
+  await expect(sendBtn(page)).toHaveAttribute('aria-disabled', 'false');
+  await expect(card(page).getByRole('status')).toHaveText('');
+  expect(t.errors).toEqual([]); await t.context.close();
+});
+
+test('@vote arrow keys move and select the radios and never send; Enter on a radio sends nothing', async ({ browser }) => {
+  const t = await votePage(browser, TWO_DESK), { page } = t, bodies = await mock(page, [200]);
+  await openFromChip(page);
+  await page.keyboard.press('Tab');
+  await expect(card(page).getByRole('radio').first()).toBeFocused();
+  await page.keyboard.press('ArrowDown');
+  await expect(card(page).getByRole('radio', { checked: true })).toHaveCount(1);
+  await page.keyboard.press('Enter');
+  await page.waitForTimeout(300);
+  expect(bodies).toHaveLength(0);
+  await expect(card(page)).toBeVisible();
   expect(t.errors).toEqual([]); await t.context.close();
 });

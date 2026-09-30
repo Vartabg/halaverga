@@ -46,9 +46,9 @@ export default function PauseCard({ ready, onEnter }: Props) {
     <LazyControls name="control-pause" />
     <button className={styles.secondary} onClick={() => useGame.setState({ panel: true })}>Adjust flight settings</button>
     {/* The vote card (VoteLayer) opens over the paused game; this card hides while it shows and returns after Skip. Eligible
-        players (two styles tried, 3 minutes) see the ask first, since they may never land to get the auto-open. */}
-    {nudge && <p className={styles.voteAsk}>You tried more than one style. Which did you like?</p>}
-    <button className={`${styles.secondary} ${styles.voteOpen}`} data-testid="vote-open" data-nudge={nudge ? '' : undefined} onClick={() => useGame.setState({ voteOpen: true })}>Vote on the controls</button>
+        players (two ways tried) see the ask first, since they may never land to get the auto-open. */}
+    {nudge && <p className={styles.voteAsk}>Which way of flying felt best?</p>}
+    <button className={`${styles.secondary} ${styles.voteOpen}`} data-testid="vote-open" data-nudge={nudge ? '' : undefined} onClick={() => useGame.setState({ voteOpen: true })}>Vote: which felt best?</button>
     <p className={styles.portraitLine}>Best played sideways.</p>
     {tip && !tipSeen && <div className={styles.homeTip}><p>Tip: Share › Add to Home Screen for full screen.</p><button className={styles.secondary} onClick={gotIt}>Got it</button></div>}
   </section>;

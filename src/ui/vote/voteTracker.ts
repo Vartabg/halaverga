@@ -3,13 +3,12 @@
 // Play time is kept per control and family (controlKey: 'touch:draw' and 'desktop:draw' are separate). Only seconds in which the
 // player gave input count (VoteLayer decides with inputRecent and the held-key set), so merely opening the sheet accrues nothing.
 import { CONTROL_FAMILIES, controlKey, controlsFor, type ControlFamily, type ControlId } from '@/game/controlTypes';
-import { VOTE_ROUND } from '@/lib/vote/shape';
+import { VOTE_MIN_TRIED, VOTE_ROUND } from '@/lib/vote/ballot';
 
 export const PLAY_KEY = 'halaverga.vote.play.v2';
 export const VOTE_KEY = 'halaverga.vote.v1';
 /** Seconds of played input on one control before it counts as tried. */
 export const TRIED_S = 20;
-export const ELIGIBLE_TOTAL_S = 180;
 /** The last input within this many ms keeps a second counted as played. */
 export const INPUT_WINDOW_MS = 2000;
 export const LOCK_MS = 7 * 24 * 3600e3;
@@ -27,18 +26,18 @@ export interface FamilyMark { at?: number; skippedAt?: number }
 export interface VoteMark { round: string; touch?: FamilyMark; desktop?: FamilyMark }
 
 /** undefined: the page's localStorage (if reachable); null: no storage at all. */
-function storageOf(s?: VoteStorage | null): VoteStorage | null {
+export function storageOf(s?: VoteStorage | null): VoteStorage | null {
   if (s !== undefined) return s;
   try { return typeof localStorage === 'undefined' ? null : localStorage; } catch { return null; }
 }
-function readJson(s: VoteStorage | null, key: string): Record<string, unknown> | null {
+export function readJson(s: VoteStorage | null, key: string): Record<string, unknown> | null {
   try {
     const raw = s?.getItem(key);
     const v: unknown = raw ? JSON.parse(raw) : null;
     return v !== null && typeof v === 'object' && !Array.isArray(v) ? v as Record<string, unknown> : null;
   } catch { return null; }
 }
-function writeJson(s: VoteStorage | null, key: string, value: unknown) {
+export function writeJson(s: VoteStorage | null, key: string, value: unknown) {
   try { s?.setItem(key, JSON.stringify(value)); } catch { /* Private browsing may refuse storage; the vote still works once. */ }
 }
 const finite = (v: unknown) => typeof v === 'number' && Number.isFinite(v);
@@ -62,10 +61,6 @@ export function tick(play: VotePlay, key: string, secs = 1): VotePlay {
   if (key in play.secs && finite(secs) && secs > 0) play.secs[key] += Math.min(secs, 60);
   return play;
 }
-/** Everything played in one family (a family's own keys only). */
-export const totalSecs = (play: VotePlay, family: ControlFamily) =>
-  controlsFor(family).reduce((sum, c) => sum + play.secs[controlKey(family, c.id)], 0);
-
 /** Controls of the family played for TRIED_S or more, in registry order, plus the current one (the card always offers what you are playing). */
 export function triedIds(play: VotePlay, family: ControlFamily, current?: ControlId): ControlId[] {
   return controlsFor(family).filter(c => play.secs[controlKey(family, c.id)] >= TRIED_S || c.id === current).map(c => c.id);
@@ -101,20 +96,19 @@ export function canVote(mark: VoteMark, now: number, family: ControlFamily, roun
   return !(now - at < LOCK_MS && now >= at);
 }
 
-/** How many tried controls the pause-card nudge needs: 3 for both families (half of a family's size, at most 3). */
-export const NUDGE_TRIED = (family: ControlFamily) => Math.min(3, Math.ceil(controlsFor(family).length / 2));
-/** The auto-open needs every control of the family tried, so it only interrupts someone who compared them all. */
-export const autoNeed = (family: ControlFamily) => controlsFor(family).length;
+/** Tried controls the pause-card nudge and the auto-open need: two, the ballot's minimum (a vote compares at least two ways of flying). */
+export const NUDGE_TRIED = () => VOTE_MIN_TRIED;
+export const autoNeed = () => VOTE_MIN_TRIED;
 
 /**
- * Asked to vote: `need` tried controls of this family and 3 minutes of its play, no vote yet, no Skip in the last 24 h.
- * Only the family's own keys count, so three tried touch controls never make a desktop player eligible.
+ * Asked to vote: `need` tried controls of this family (20 s each; no total-play rule), no vote yet, no Skip in the last 24 h.
+ * Only the family's own keys count, so two tried touch controls never make a desktop player eligible.
  */
 export function eligible(play: VotePlay, mark: VoteMark, now: number, family: ControlFamily, need: number, round = VOTE_ROUND): boolean {
   if (play.round !== round || !canVote(mark, now, family, round)) return false;
   const skippedAt = mark.round === round ? mark[family]?.skippedAt : undefined;
   if (skippedAt !== undefined && now - skippedAt < SKIP_QUIET_MS && now >= skippedAt) return false;
-  return triedIds(play, family).length >= need && totalSecs(play, family) >= ELIGIBLE_TOTAL_S;
+  return triedIds(play, family).length >= need;
 }
 
 /** Adds one field to this family's mark and keeps the other family's mark and the rest of this one. */
@@ -124,6 +118,9 @@ function writeMark(family: ControlFamily, field: keyof FamilyMark, now: number, 
 }
 export const markVoted = (family: ControlFamily, now = Date.now(), storage?: VoteStorage | null, round = VOTE_ROUND) => writeMark(family, 'at', now, storage, round);
 export const markSkipped = (family: ControlFamily, now = Date.now(), storage?: VoteStorage | null, round = VOTE_ROUND) => writeMark(family, 'skippedAt', now, storage, round);
+
+/** Only a Skip on an auto-open records the 24 h quiet (VoteLayer): a manual Not yet or Escape, from a card the visitor opened, records nothing. */
+export const skipCounts = (kind: 'skip' | 'done', origin: 'auto' | 'pause') => kind === 'skip' && origin === 'auto';
 
 /** The auto-open pointer guard: on until 400 ms have passed AND no pointer is down (capped at GUARD_MAX_MS). */
 export function guardOn(openedAt: number, now: number, activePointers: number): boolean {
