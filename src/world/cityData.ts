@@ -3,24 +3,12 @@ import { trees } from './reclamationData';
 import { heroRuins } from './heroRuins';
 export function makeCity() {
   const k = createKit();
-  // Stepped Mediterranean hillside terraces climbing up from the canal corridor
+  // A hillside on either side of the submerged transport corridor.
   for (const side of [-1, 1]) {
-    k.box(side * 75, -4, -35, 120, 12, 260, '#7a8069', true);
+    k.box(side * 75, -4, -35, 120, 12, 260, '#6c7a6b', true);
     k.box(side * 76, 1.8, -32, 116, .5, 240, colors.road, true);
     k.box(side * 16, 1.3, -42, 2.8, 5, 230, colors.concrete, true);
     for (let z = -148; z < 82; z += 11) k.box(side * 24, 2.08, z, .16, .03, 4, colors.white);
-    // Tier 2: Mid hillside terrace with stone retaining wall
-    k.box(side * 132, 4, -20, 44, 20, 215, '#6c7562', true);
-    k.box(side * 111, 4, -20, 2.2, 20, 215, '#8b8376', true);
-    // Tier 3: Upper hillside bench and limestone ridge
-    k.box(side * 172, 16, -35, 44, 38, 205, '#5c6454', true);
-    k.box(side * 151, 16, -35, 2.2, 38, 205, '#857e72', true);
-    // Natural rocky spurs breaking the rectilinear terrace grid
-    for (let r = 0; r < 4; r++) {
-      const rz = 40 - r * 65;
-      k.box(side * (128 + (r % 2) * 14), 7 + r * 4, rz, 16, 10, 26, '#7d7864', true, side * .14, side * .08);
-      k.box(side * (166 + (r % 2) * 12), 22 + r * 3, rz - 15, 18, 14, 28, '#716c5c', true, side * -.12, side * .06);
-    }
   }
   const entries: [number, number, number, number, number, number, string][] = [
     [-34, 2, 28, 17, 18, 7, '#bd866f'], [-62, 2, 16, 23, 20, 10, '#ab9a86'],
@@ -34,85 +22,30 @@ export function makeCity() {
   ];
   entries.forEach((e, i) => building(k, ...e, i));
   for (const side of [-1, 1]) {
-    building(k, side * 136, 15.5, -70, 21, 23, 9, '#c49a7c', 23);
-    building(k, side * 170, 33.5, -125, 19, 18, 7, '#a8a58e', 24);
+    k.box(side * 140, 3, -15, 52, 25, 205, '#6b7b66', true);
+    k.box(side * 179, 12, -36, 40, 43, 200, '#657362', true);
+    building(k, side * 140, 15.5, -70, 21, 23, 9, '#c49a7c', 23);
+    building(k, side * 173, 33.5, -125, 19, 18, 7, '#a8a58e', 24);
   }
-  // Distant surviving skyline: sculpted silhouettes anchored by the hero Solar Arcology
-  for (let i = 0; i < 22; i++) {
-    const x = (i - 10.5) * 18, h = 28 + (i * 19 % 38), z = -215 - (i % 4) * 12;
-    // Keep central flight corridor open and clear of background clutter
-    if (Math.abs(x) < 55) continue;
-    k.box(x, h / 2 - 3, z, 12 + i % 4, h, 14, '#6d787e');
-    if (i % 3 === 0) k.box(x, h + 2, z, .14, 5, .14, colors.steel);
+  // Distant surviving skyline: sculpted broken tops, never a wallpaper image.
+  for (let i = 0; i < 20; i++) {
+    const x = (i - 9.5) * 17, h = 24 + (i * 17 % 41), z = -210 - (i % 3) * 13;
+    if (Math.abs(x) < 30) continue;
+    k.box(x, h / 2 - 3, z, 11 + i % 5, h, 13, '#737e83');
+    k.box(x - 3, h - 1, z, 5, 8, 12, '#737e83');
   }
-  // The Solar Arcology: twin towers framing the central canal axis at z = -230
-  k.box(-11, 38, -232, 14, 82, 16, '#647076');
-  k.box(-11, 80, -232, 9, 8, 11, '#525e64');
-  k.box(-11, 86, -232, .2, 12, .2, colors.steel);
-  k.box(11, 34, -228, 13, 74, 15, '#69757b');
-  k.box(11, 72, -228, 8, 6, 10, '#556167');
-  k.box(11, 77, -228, .2, 10, .2, colors.steel);
-  // Cantilevered observation skybridge decks anchored solidly to each tower
-  k.box(-7.5, 52, -230, 6.5, 2.4, 5, colors.concrete);
-  k.box(7.5, 52, -230, 6.5, 2.4, 5, colors.concrete);
-  k.box(-7.5, 50.4, -230, 6, .8, 4.5, colors.steel);
-  k.box(7.5, 50.4, -230, 6, .8, 4.5, colors.steel);
-
-  // Arrival terrace: framed observation deck with pavers, planters and balustrade
+  // Arrival terrace is the sole fully prepared landing surface.
   k.box(0, 19, 65, 24, 2, 20, colors.concrete, true);
-  k.box(0, 20.04, 65, 22.8, .06, 18.8, '#82847c');
+  k.box(0, 20.04, 65, 22.8, .06, 18.8, colors.road);
   k.box(0, 9, 65, 18, 18, 14, '#7f7776', true);
-  k.box(0, 20.07, 55.6, 22.4, .025, .5, colors.amber);
-  k.box(0, 20.08, 74.3, 23.2, .08, .26, colors.concrete);
-  k.box(-11.35, 20.08, 65, .26, .08, 18.8, colors.concrete);
-  k.box(11.35, 20.08, 65, .26, .08, 18.8, colors.concrete);
-  // Overgrown planter islands and observation lounge on terrace
-  for (const side of [-1, 1]) {
-    k.box(side * 6.5, 20.6, 68, 3.8, .8, 2.6, colors.concrete, true);
-    k.box(side * 6.5, 20.95, 68, 3.4, .2, 2.2, colors.moss);
-  }
-  // Weathered observation bench along the right terrace flank
-  k.box(5.8, 20.35, 61.5, 1.2, .45, 2.8, colors.concrete, true, 0, -.06);
-  k.box(5.8, 20.6, 61.5, 1.0, .07, 2.6, '#9c8c78', false, 0, -.06);
-  k.box(4.9, 20.35, 60.2, .8, .6, .8, '#82786a', true, .2);
-  k.box(4.9, 20.68, 60.2, .84, .06, .84, colors.amber, false, .2);
-
-  // Field power accumulator and survey case along the left terrace flank
-  k.box(-5.2, 20.35, 61.5, 1.1, .55, 1.5, '#4a5350', true, -.08);
-  k.box(-5.2, 20.66, 61.5, .9, .07, 1.3, colors.steel, false, -.08);
-  k.box(-5.2, 20.45, 62.26, .35, .18, .04, colors.cyan);
-  // Shattered glass balustrade along departure rim
-  for (const x of [-8, -4, 0, 4, 8]) k.box(x, 20.8, 55.4, .1, 1.2, .1, colors.steel);
-  k.box(-6, 20.7, 55.4, 3.6, .9, .06, colors.glass);
-  k.box(-2, 20.35, 55.4, 3.6, .35, .06, colors.glass);
-  k.box(2, 20.7, 55.4, 3.6, .9, .06, colors.glass);
-  k.box(6, 20.4, 55.4, 3.6, .45, .06, colors.glass);
   for (const x of [-9, 9]) {
     k.box(x, 21.2, 69, .14, 2.2, 10, colors.steel);
     k.box(x, 22.25, 69, .2, .13, 10, colors.white);
     k.box(x, 20.12, 65, .28, .12, 9, '#ddaa76');
   }
-  // Cantilevered solar observation canopy framing the view from arrival
-  k.box(-8.5, 23.5, 62, .18, 5, .18, colors.steel, false, 0, .14);
-  k.box(-6.8, 25.8, 60, 4.2, .06, 5.5, colors.glass, false, .08, -.22);
-  k.box(-6.8, 25.75, 60, 4.4, .08, 5.7, colors.steel, false, .08, -.22);
-  // Weathered 2033 arrival terminal console with solar accumulator and indicator
-  k.box(-7, 21, 58, 1.6, 2, 1.2, '#283432', true);
-  k.box(-7, 22.05, 58, 1.2, .08, .9, colors.glass);
-  k.box(-7, 21.7, 58.65, 1.1, .6, .08, colors.cyan);
-  k.box(-6.3, 21.5, 58.65, .08, .15, .09, colors.amber);
+  k.box(-7, 21, 58, 1.6, 2, 1.2, colors.steel, true);
+  k.box(-7, 21.7, 58.65, 1.1, .6, .08, '#b8e8b0');
   k.box(6, 20.25, 55.3, 5, .45, 2, colors.concrete, true, .23, -.14);
-
-  // Floating canal flotsam, timber, and wetland mats
-  for (const [x, z, w, d, rot] of [[-4, 24, .45, 4.8, .35], [6, -12, .5, 5.2, -.4], [-6, -48, .45, 6.2, .28], [4, -82, .55, 5.5, -.15]] as const)
-    k.box(x, .18, z, w, .25, d, '#524032', false, rot);
-  for (const [x, z, w, d] of [[-11, 18, 5, 6], [10, -28, 6, 7], [-10, -72, 5.5, 8], [9, -110, 6.5, 9]] as const)
-    k.box(x, .12, z, w, .02, d, colors.moss);
-  car(k, -11.5, -.4, 6, '#496068', .32);
-  car(k, 10.8, -.6, -55, '#5d736a', -.25);
-  k.box(-5, .6, -2, .6, 1.2, .6, colors.amber);
-  k.box(7, .6, -65, .6, 1.2, .6, colors.amber);
-
   // Ruptured elevated road: a navigable opening, visible reinforcing steel.
   for (const side of [-1, 1]) {
     k.box(side * 31, 15, -1, 42, 1.1, 9, colors.concrete, true);
@@ -120,29 +53,15 @@ export function makeCity() {
     k.box(side * 36, 7, -1, 2.2, 15, 3, colors.concrete, true);
     for (const z of [-5, 3]) k.box(side * 34, 16.2, z, 35, .55, .3, colors.concrete);
     for (let i = 0; i < 5; i++) k.box(side * 8, 14.9, -3 + i, 7, .09, .09, '#44434d');
-    // Leaning solar streetlights along the sidewalk
-    for (let z = -130; z < 70; z += 36) {
-      k.box(side * 17.5, 5, z, .14, 6.5, .14, colors.steel, false, 0, side * .12);
-      k.box(side * 16.5, 8.2, z, 2.2, .1, .5, colors.edge, false, 0, side * .12);
-    }
   }
   k.box(7, 7.5, -1, 17, 1.2, 8, colors.concrete, true, .05, 1.17);
   // A marked roof offers another safe destination.
   k.box(30, 61.39, -38, 8, .05, 8, '#b5bb94', true);
   k.box(30, 61.43, -38, .25, .02, 4, colors.white);
   k.box(30, 61.43, -38, 4, .02, .25, colors.white);
-
-  // Evacuation traffic jam: stranded autonomous electric pods
   car(k, -24, 2.1, 45, '#b77755', .1);
-  car(k, -25, 2.1, 28, '#708892', -.2);
-  car(k, -27, 2.1, 12, '#85786c', .15);
-  car(k, 27, 2.1, 38, '#946654', .25);
   car(k, 26, 2.1, -17, '#a5aa9f', -.12);
-  car(k, 25, 2.1, -38, '#627a6f', -.18);
   car(k, -26, 2.1, -76, '#809999', .18);
-  car(k, -24, 2.1, -112, '#7c6d7e', .3);
-  car(k, 28, 2.1, -135, '#8a8878', -.12);
-
   k.box(-22, 3.5, -48, 2.7, 2.5, 9, '#a29069', true);
   k.box(-22, 3.8, -43.45, 2.3, 1.5, .08, colors.glass);
   for (let i = 0; i < 40; i++) {
@@ -152,11 +71,6 @@ export function makeCity() {
   for (const tree of trees) if (tree.position[1] < 3) {
     const [x, y, z] = tree.position, s = tree.scale[1];
     k.solids.push({ position: [x, y + s, z], size: [.24 * s, s, .24 * s], rotation: [0, 0, 0] });
-  }
-  // Shoreline limestone riprap and boulders along the canal base
-  for (let b = 0; b < 16; b++) {
-    const side = b % 2 ? -1 : 1, bz = 48 - b * 14;
-    k.box(side * 14.6, .45, bz, 1.8 + (b % 3) * .4, 1.1, 2.4, '#787366', true, b * .4, (b % 2 ? 1 : -1) * .12);
   }
   heroRuins(k);
   return k.finish();

@@ -7,7 +7,7 @@ export const surfaces = ['stone', 'glass', 'metal', 'ground', 'paint'] as const;
 function surface(color: string) {
   if (color === colors.glass || color === '#2d3742') return 1;
   if ([colors.steel, colors.edge, '#44434d', '#272e37'].includes(color)) return 2;
-  if ([colors.road, colors.moss, '#6c7a6b', '#6b7b66', '#657362', '#7a8069', '#82847c', '#7d7864', '#5c6454'].includes(color)) return 3;
+  if ([colors.road, '#6c7a6b', '#6b7b66', '#657362'].includes(color)) return 3;
   if ([colors.white, '#ddaa76', '#b8e8b0'].includes(color)) return 4;
   return 0;
 }
@@ -57,7 +57,7 @@ export function createKit() {
   return { box, block, slab, add, finish, solids };
 }
 export const colors = { concrete: '#c8c8b6', edge: '#3b4141', glass: '#709698', warm: '#c3836b',
-  light: '#e0c1a0', moss: '#426456', road: '#70746d', white: '#d3ccae', steel: '#494a42', cyan: '#5dbbbb', amber: '#d49654' };
+  light: '#e0c1a0', moss: '#426456', road: '#70746d', white: '#d3ccae', steel: '#494a42' };
 export function building(k: Kit, x: number, base: number, z: number, w: number, d: number, floors: number, tint: string, seed: number) {
   const h = floors * 3.7;
   // Exterior-only traversal: solid lower shell and a stepped cap matching the broken roof.
@@ -76,11 +76,6 @@ export function building(k: Kit, x: number, base: number, z: number, w: number, 
     const floorW = broken ? w * .7 : w + .6;
     if (broken) k.slab(x - w * .15, base + f * 3.7, z, floorW, d + .6, seed + f);
     else k.box(x, base + f * 3.7, z, floorW, .28, d + .6, colors.concrete);
-    // Cantilevered green balcony terrace on selected mid stories
-    if (f === 4 && seed % 2 === 0) {
-      k.box(x - w * .15, base + f * 3.7 + .14, z + d * .52 + .6, floorW * .65, .22, 1.4, colors.concrete);
-      k.box(x - w * .15, base + f * 3.7 + .28, z + d * .52 + .6, floorW * .62, .12, 1.2, colors.moss);
-    }
     if (f === floors) continue;
     for (let c = 0; c < Math.floor(w / 3); c++) {
       const xx = x - w / 2 + 1.5 + c * 3;
@@ -90,29 +85,19 @@ export function building(k: Kit, x: number, base: number, z: number, w: number, 
         if (!missing) k.box(xx, base + f * 3.7 + 1.9, z + side * (d / 2 + .03), 2.6, broken ? 1.3 : 2.8, .16, colors.glass);
         k.box(xx - 1.5, base + f * 3.7 + 1.8, z + side * d / 2, .19, 3.7, .28, colors.edge);
         if (missing && !broken) k.box(xx, base + f * 3.7 + 1.8, z + side * (d / 2 + .05), 2.6, 2.8, .18, '#2d3742');
-        // Structural diagonal bracing (diagrid) on smart-city towers
-        if (seed % 2 === 1 && f % 2 === 0 && c % 2 === 0 && !missing) {
-          k.box(xx, base + f * 3.7 + 1.85, z + side * (d / 2 + .06), .11, 4.4, .12, colors.steel, false, 0, .65);
-        }
       }
     }
     if (!broken) for (const side of [-1, 1]) k.box(x + side * (w / 2 + .04), base + f * 3.7 + 1.7, z, .16, 2.7, d * .74, colors.glass);
   }
-  // Rebar, fractured parapets, rooftop solar arrays, and communications masts.
+  // Rebar, fractured parapets, rooftop cooling equipment and a remaining antenna.
   for (let a = 0; a < 4; a++) k.box(x + w * .2, base + h - 3 + a * .4, z - d / 2 + a * 1.8, .08, 4, .08, colors.steel, false, 0, .15);
-  // Angled 2033 rooftop photovoltaic solar array
-  k.box(x - w * .15, base + h + 1.15, z - d * .15, w * .42, .06, d * .34, colors.steel, false, 0, -.26);
-  k.box(x - w * .15, base + h + 1.2, z - d * .15, w * .4, .04, d * .32, colors.glass, false, 0, -.26);
   k.box(x - w * .28, base + h + .6, z - d * .2, 3, 1, 2, '#777c76');
   k.box(x - w * .28, base + h + 1.13, z - d * .2, 2.4, .1, 1.4, colors.edge);
   k.box(x - w * .4, base + h + 2, z + d * .28, .12, 4, .12, colors.edge);
   k.box(x + w * .43, base + 1.5, z + d * .5 + 2, 4.7, .7, 3, tint, true, .2, -.18);
 }
 export function car(k: Kit, x: number, y: number, z: number, color: string, ry = 0) {
-  // 2033 Autonomous Electric Pod: aerodynamic mono-volume pod with curved glass canopy and status lights
-  k.box(x, y + .55, z, 2.05, .62, 4.2, color, true, ry);
-  k.box(x, y + 1.08, z - .1, 1.7, .5, 2.7, colors.glass, false, ry);
-  k.box(x, y + .72, z + 2.12, 1.5, .08, .06, colors.cyan, false, ry);
-  k.box(x, y + .75, z - 2.12, 1.5, .08, .06, '#b83b34', false, ry);
-  for (const dx of [-1, 1]) for (const dz of [-1.35, 1.35]) k.box(x + dx * .95, y + .28, z + dz, .24, .52, .72, '#272e37', false, ry);
+  k.box(x, y + .55, z, 1.9, .6, 4.3, color, true, ry);
+  k.box(x, y + 1.03, z - .2, 1.65, .45, 2, colors.glass, false, ry);
+  for (const dx of [-1, 1]) for (const dz of [-1.35, 1.35]) k.box(x + dx * .86, y + .27, z + dz, .32, .55, .68, '#272e37');
 }

@@ -13,7 +13,6 @@ import FlightPresentation from '@/game/FlightPresentation';
 import { useGame } from '@/game/store';
 import { clearInput } from '@/game/runtime';
 import EnvironmentLight from './EnvironmentLight';
-import EnvironmentParticles from './EnvironmentParticles';
 function GraphicsRecovery({ onLoss }: { onLoss: () => void }) {
   const { gl, invalidate } = useThree();
   useEffect(() => {
@@ -32,12 +31,12 @@ export default function Scene({ onLoss }: { onLoss: () => void }) {
     gl={{ antialias: true, alpha: false, powerPreference: 'high-performance', stencil: false }}
     onCreated={({ gl }) => { gl.toneMapping = ACESFilmicToneMapping; gl.toneMappingExposure = 1.2; }}>
     <GraphicsRecovery onLoss={onLoss} />
-    <fog attach="fog" args={['#9fb3ae', 105, 360]} />
-    <hemisphereLight args={['#c8def2', '#433452', 1.85]} />
-    <directionalLight position={[-65, 100, 80]} color="#fff0cd" intensity={3.6} castShadow={quality === 'high'}
+    <fog attach="fog" args={['#a4bcb7', 120, 380]} />
+    <hemisphereLight args={['#b8d8ec', '#686f78', 1.6]} />
+    <directionalLight position={[-75, 68, 75]} color="#fff1d0" intensity={3.6} castShadow={quality === 'high'}
       shadow-mapSize={[2048, 2048]} shadow-camera-left={-110} shadow-camera-right={110}
       shadow-camera-top={110} shadow-camera-bottom={-110} shadow-camera-far={380} shadow-bias={-.0002} shadow-normalBias={.09} />
-    <EnvironmentLight /><Sky /><Water /><EnvironmentParticles />
+    <EnvironmentLight /><Sky /><Water />
     <Suspense fallback={null}>
       <Physics paused={paused} timeStep={1 / 60} updatePriority={-50} gravity={[0, -22, 0]}>
         <City /><DistrictBoundary /><Player /><FlightPresentation /><Suit /><CameraRig />

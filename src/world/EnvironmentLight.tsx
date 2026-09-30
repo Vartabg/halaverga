@@ -10,7 +10,7 @@ export default function EnvironmentLight() {
     for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
       const h = y / height, upper = Math.max(0, (h - .5) * 2);
       const glow = Math.exp(-((x / width - .859) ** 2 + (h - .745) ** 2) * 500);
-      const c = h < .5 ? [.16, .13, .22] : [.68 - upper * .45, .74 - upper * .28, .76 - upper * .08];
+      const c = h < .5 ? [.14, .18, .12] : [.64 - upper * .43, .72 - upper * .28, .75 - upper * .1];
       const i = (y * width + x) * 4;
       data[i] = DataUtils.toHalfFloat(c[0] + glow * 6);
       data[i + 1] = DataUtils.toHalfFloat(c[1] + glow * 4);
@@ -22,7 +22,7 @@ export default function EnvironmentLight() {
     const generator = new PMREMGenerator(gl), target = generator.fromEquirectangular(source);
     const previous = scene.environment;
     const intensity = scene.environmentIntensity;
-    scene.environment = target.texture; scene.environmentIntensity = .52;
+    scene.environment = target.texture; scene.environmentIntensity = .45;
     source.dispose(); generator.dispose(); invalidate();
     return () => { scene.environment = previous; scene.environmentIntensity = intensity; target.dispose(); };
   }, [gl, scene, invalidate]);
