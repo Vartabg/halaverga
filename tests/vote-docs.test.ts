@@ -221,6 +221,15 @@ describe('V2 anonymous counts: the privacy text, the docs and the code say the s
     const lab = read('docs/gesture-lab.md');
     for (const s of ['the one thing in the game that sends what you picked', 'anonymous counts of visits and five steps to Vercel Web Analytics', 'voting.md#anonymous-counts-vercel-web-analytics']) expect(lab, s).toContain(s);
   });
+  it('the funnel advice does not call the vote_sent gap the refused and failed sends, and says why it cannot be read that way', () => {
+    for (const [f, text] of [['docs/voting.md', voting], ['docs/launch-readiness.md', launch]] as const) {
+      expect(text, f).not.toMatch(/gap between the two is the refused and failed sends|is the refused and failed sends/);
+      expect(text, f).toMatch(/rough hint at refused and failed sends/);
+    }
+    for (const s of ['**`vote_sent` minus the stored votes is not a count of refused or failed sends.**', 'has an accepted vote in the store and no `vote_sent`', '`vote_sent` is once per page load',
+      'rounded down to 5', 'The gap can be small or negative.']) inDocs(s);
+    for (const s of ['not a count of them', 'Do Not Track or Global Privacy Control are stored but never in `vote_sent`', 'the gap can be small or negative']) expect(launch, s).toContain(s);
+  });
   it('launch-readiness.md carries the wiring note for begin and scene_ready, the plan facts and what only the owner can switch on', () => {
     for (const s of ['`begin` and `scene_ready` are not wired yet', 'Web Analytics is not enabled', 'custom events', 'page-level only']) expect(launch, s).toContain(s);
   });
