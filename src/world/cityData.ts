@@ -2,7 +2,7 @@ import { createKit, building, car, colors } from './kit';
 import { trees } from './reclamationData';
 import { heroRuins } from './heroRuins';
 /** The district-edge hills are moss on a dark texture: a plain tint left their shaded faces near black against the new sky. */
-const SLAB_LIFT = 2.5;
+const SLAB_LIFT = 2.7;
 export function makeCity() {
   const k = createKit();
   // A hillside on either side of the submerged transport corridor.
