@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { closeAndResume, openSettings } from './lab-browser';
 import { centre, speed, twinGeometry, twinTouchPage } from './shooter-browser';
 // Browser protection and the play lifecycle (spec section 4): only leaving the page pauses touch play; Safari's scroll, zoom and
 // back gestures are owned while playing and handed back on pause. System Chrome emulation: not iPhone validation.
@@ -112,9 +113,9 @@ test('back swipe from a fresh tab (nothing to go back to): no sentinel, so an ed
 });
 test('a back swipe while Flight settings is open leaves no stale "Leave the game?" behind', async ({ browser }) => {
   const t = await twinTouchPage(browser, L), { page } = t;
-  await page.getByRole('button', { name: 'Flight settings' }).tap();
+  await openSettings(page, true);
   await page.evaluate(() => history.back()); await page.waitForTimeout(300);
-  await page.getByRole('button', { name: 'Close dialog' }).tap(); await expect(pauseButton(page)).toBeVisible();
+  await closeAndResume(page, true); await expect(pauseButton(page)).toBeVisible();
   expect(await page.evaluate(() => (history.state as { halavergaPlay?: number } | null)?.halavergaPlay)).toBe(1); // re-armed
   await pauseButton(page).tap();
   await expect(page.getByRole('region', { name: 'Expedition paused' })).toBeVisible();

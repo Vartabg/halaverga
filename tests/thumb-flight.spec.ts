@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { openSettings, openGuide, closeAndResume } from './lab-browser';
 import { CLASSIC, seed } from './shooter-browser';
 
 for (const [side, x, camera] of [['left', 90, 'Third person'], ['right', 290, 'First person']] as const) {
@@ -8,9 +9,9 @@ for (const [side, x, camera] of [['left', 90, 'Third person'], ['right', 290, 'F
     page.on('pageerror', e => errors.push(e.message));
     await page.goto('/'); await page.getByRole('button', { name: 'Begin expedition' }).tap();
     if (camera === 'First person') {
-      await page.getByRole('button', { name: 'Flight settings' }).tap();
+      await openSettings(page, true);
       await page.getByRole('button', { name: camera, exact: true }).tap();
-      await page.getByRole('button', { name: 'Close dialog' }).tap();
+      await closeAndResume(page, true);
     }
     await expect(page.getByRole('button', { name: 'Surge', exact: true })).toHaveCount(0);
     const telemetry = page.getByTestId('flight-telemetry'), cdp = await context.newCDPSession(page);
@@ -60,7 +61,7 @@ test('long presses on controls and their surroundings do not select game text', 
   expect(await hud.evaluate(el => getComputedStyle(el).userSelect)).toBe('none');
   const blocksMenu = await hud.evaluate(el => !el.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true })));
   expect(blocksMenu).toBe(true);
-  await page.getByRole('button', { name: 'Field guide', exact: true }).tap();
+  await openGuide(page, true);
   const paragraph = page.getByRole('dialog').locator('p').nth(1);
   expect(await paragraph.evaluate(el => getComputedStyle(el).userSelect)).toBe('text');
   expect(await paragraph.evaluate(el => el.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true })))).toBe(true);

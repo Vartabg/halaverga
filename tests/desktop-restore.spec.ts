@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { settingsCurrent } from './lab-browser';
+import { settingsCurrent, openSettings, closeAndResume } from './lab-browser';
 import { begin, heading, resume, seed, shots, speed, telemetry } from './shooter-browser';
 // Desktop controls restore (Garo 2026-09-24): the classic free trackpad of 7945430 is the desktop default again, with one change
 // for the blaster: while stopped or on the ground a click fires (once, on release), dragging only looks,
@@ -83,10 +83,10 @@ for (const viewport of [{ width: 1440, height: 900 }, { width: 325, height: 928 
 
     // Flight settings: the saved 'simple' default came back as the free cursor. Closing returns focus to the scene, so Space
     // flies instead of reopening the dialog.
-    await page.getByRole('button', { name: 'Flight settings' }).click();
+    await openSettings(page);
     await expect(page.locator('dialog[open]')).toHaveCount(1);
     expect(await settingsCurrent(page)).toBe('cursor');
-    await page.getByRole('button', { name: 'Close dialog' }).click();
+    await closeAndResume(page);
     await expect(page.locator('dialog[open]')).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Pause expedition' })).toBeVisible();
     await page.keyboard.press('Space'); await page.waitForTimeout(400);

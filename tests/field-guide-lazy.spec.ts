@@ -27,6 +27,11 @@ const begin = async (page: Page) => {
   await expect(b).toBeEnabled({ timeout: 60000 }); await b.click();
   await expect(page.getByRole('button', { name: 'Pause expedition' })).toBeVisible();
 };
+/** Playing, the Field guide is on the pause card (the top row has no Field guide button): Pause first. */
+const pauseThenGuide = async (page: Page) => {
+  await page.getByRole('button', { name: 'Pause expedition' }).click();
+  await card(page).getByRole('button', { name: 'Field guide', exact: true }).click();
+};
 const dialogOpen = (page: Page) => expect(page.getByRole('dialog').getByRole('heading', { name: 'Field guide' })).toBeVisible();
 
 test('the guide chunk is warmed after hydration and the guide then opens at once', async ({ page }) => {
@@ -62,7 +67,7 @@ test('start card: a failed guide says so, nothing opens, and the next click retr
 test('paused in play: loading and failure show in the pause card, which stays, and Resume still works', async ({ page }) => {
   const chunk = await guideChunk(page, 'fail');
   await page.goto('/?shooter=0'); await begin(page);
-  await page.getByRole('button', { name: 'Field guide', exact: true }).click();
+  await pauseThenGuide(page);
   // The failed open: the pause card is still there with its words and Resume, no dialog, no stranded game.
   await expect(card(page).getByRole('heading', { name: 'Take your time.' })).toBeVisible();
   await expect(card(page).getByRole('status')).toHaveText(FAILED);
@@ -71,26 +76,27 @@ test('paused in play: loading and failure show in the pause card, which stays, a
   await expect(resume).toBeEnabled();
   // Retry on the next open (the flag went back to false, so this open is a fresh one): the card shows the loading line, then the guide.
   chunk.mode.now = 'slow';
-  await page.getByRole('button', { name: 'Field guide', exact: true }).click();
+  await card(page).getByRole('button', { name: 'Field guide', exact: true }).click();
   await expect(card(page).getByRole('status')).toHaveText(LOADING);
   await expect(card(page).getByRole('heading', { name: 'Take your time.' })).toBeVisible();
   await dialogOpen(page);
   await expect(card(page)).toHaveCount(0);
-  // Closing returns to play (this unit keeps that); the guide is now held, so a later open needs no network at all.
+  // Closing returns to the pause card (Resume is the player's own tap); the guide is now held, so a later open needs no network at all.
   await page.getByRole('button', { name: 'Close dialog' }).click();
-  await expect(page.getByRole('button', { name: 'Pause expedition' })).toBeVisible();
+  await expect(card(page).getByRole('heading', { name: 'Take your time.' })).toBeVisible();
   chunk.mode.now = 'fail';
-  await page.getByRole('button', { name: 'Pause expedition' }).click();
-  await page.getByRole('button', { name: 'Field guide', exact: true }).click();
+  await card(page).getByRole('button', { name: 'Field guide', exact: true }).click();
   await dialogOpen(page);
   await page.getByRole('button', { name: 'Close dialog' }).click();
+  await expect(card(page).getByRole('heading', { name: 'Take your time.' })).toBeVisible();
+  await card(page).getByRole('button', { name: 'Resume flight' }).click();
   await expect(page.getByRole('button', { name: 'Pause expedition' })).toBeVisible();
 });
 
 test('a failed open can be abandoned by Resume: the failure line does not outlive the pause, and play goes on', async ({ page }) => {
   await guideChunk(page, 'fail');
   await page.goto('/?shooter=0'); await begin(page);
-  await page.getByRole('button', { name: 'Field guide', exact: true }).click();
+  await pauseThenGuide(page);
   await expect(card(page).getByRole('status')).toHaveText(FAILED);
   await card(page).getByRole('button', { name: 'Resume flight' }).click();
   await expect(card(page)).toHaveCount(0);
@@ -123,7 +129,7 @@ async function claimedWhileLoading(page: Page, door: () => Promise<void>) {
   const chunk = await guideChunk(page, 'fail');
   await page.goto('/?shooter=0'); await begin(page);
   chunk.mode.now = 'hold';
-  await page.getByRole('button', { name: 'Field guide', exact: true }).click();
+  await pauseThenGuide(page);
   await expect(card(page).getByRole('status')).toHaveText(LOADING);
   await door();
   chunk.release();
@@ -133,9 +139,9 @@ async function claimedWhileLoading(page: Page, door: () => Promise<void>) {
   return chunk;
 }
 
-test('Adjust flight settings in the loading window cancels the guide: one dialog, and the guide still opens later', async ({ page }) => {
+test('Flight settings in the loading window cancels the guide: one dialog, and the guide still opens later', async ({ page }) => {
   const chunk = await claimedWhileLoading(page, async () => {
-    await card(page).getByRole('button', { name: 'Adjust flight settings' }).click();
+    await card(page).getByRole('button', { name: 'Flight settings', exact: true }).click();
     await expect(page.getByRole('dialog', { name: 'Flight settings' })).toBeVisible();
   });
   await expect(modals(page)).toHaveCount(1);
@@ -144,23 +150,15 @@ test('Adjust flight settings in the loading window cancels the guide: one dialog
   // Closing the settings leaves nothing behind: no guide underneath, and the held chunk now opens the guide at once.
   await page.getByRole('button', { name: 'Close dialog' }).click();
   await expect(modals(page)).toHaveCount(0);
-  await page.getByRole('button', { name: 'Pause expedition' }).click();
+  await expect(card(page).getByRole('heading', { name: 'Take your time.' })).toBeVisible();
   chunk.mode.now = 'fail';
-  await page.getByRole('button', { name: 'Field guide', exact: true }).click();
+  await card(page).getByRole('button', { name: 'Field guide', exact: true }).click();
   await dialogOpen(page);
   await expect(modals(page)).toHaveCount(1);
 });
 
-test('the header gear in the loading window cancels the guide: one dialog', async ({ page }) => {
-  await claimedWhileLoading(page, async () => {
-    await page.getByRole('button', { name: 'Flight settings', exact: true }).click();
-    await expect(page.getByRole('dialog', { name: 'Flight settings' })).toBeVisible();
-  });
-  await expect(modals(page)).toHaveCount(1);
-  await expect(page.getByRole('dialog', { name: 'Flight settings' })).toBeVisible();
-  await page.keyboard.press('Escape');
-  await expect(modals(page)).toHaveCount(0);
-});
+// The header gear and the header Vote chip are not on the paused screen any more, so the pause card's own doors (Flight settings above, the vote door
+// below) are the ones that can claim the screen while the guide loads.
 
 test('the vote door in the loading window cancels the guide: one dialog, and closing it puts the pause card back', async ({ page }) => {
   await claimedWhileLoading(page, async () => {

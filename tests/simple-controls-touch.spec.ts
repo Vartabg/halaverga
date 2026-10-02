@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { openSettings } from './lab-browser';
 import AxeBuilder from '@axe-core/playwright';
 import { aiming, autoTouchPage, hud, shots, speed, telemetry } from './shooter-browser';
 // Simple-by-default phone controls on the classic one thumb (the default since 2026-09-26): one play button (Lift/Land), no Fire or
@@ -15,9 +16,6 @@ const clearOfEdges = (b: Box, v: typeof PORTRAIT) => {
   expect(b.x).toBeGreaterThanOrEqual(24); expect(b.y).toBeGreaterThanOrEqual(24);
   expect(v.width - b.x - b.width).toBeGreaterThanOrEqual(24); expect(v.height - b.y - b.height).toBeGreaterThanOrEqual(24);
 };
-async function openSettings(page: Page) {
-  await page.getByRole('button', { name: 'Flight settings' }).tap(); await expect(page.getByRole('dialog')).toBeVisible();
-}
 for (const viewport of [PORTRAIT, LANDSCAPE]) {
   const name = viewport === PORTRAIT ? 'portrait' : 'landscape';
   test.describe(`simple touch controls, ${name}`, () => {
@@ -33,7 +31,7 @@ for (const viewport of [PORTRAIT, LANDSCAPE]) {
     });
     test('the blaster section leads on touch with the one-thumb line; no Auto-fire or Aim-button setting on classic', async ({ browser }) => {
       const t = await autoTouchPage(browser, viewport, { aimButton: true }), { page } = t;
-      await openSettings(page);
+      await openSettings(page, true);
       await expect(page.getByLabel('Auto-fire assist on touch screens')).toHaveCount(0);
       // Touch: the blaster section leads, above the fold, with one line about touch only.
       const line = page.getByText('One thumb flies. Tap a drone to blast it.'); await expect(line).toBeVisible();
@@ -97,7 +95,7 @@ for (const viewport of [PORTRAIT, LANDSCAPE]) {
       await expect(page.getByTestId('fire-button')).toHaveCount(0);
       await expect(page.getByTestId('controls-hint')).toHaveCount(0);
       // main's settings panel: the tap checkbox in its own place, no More controls disclosure.
-      await openSettings(page);
+      await openSettings(page, true);
       await expect(page.getByLabel('Show tap controls')).toBeVisible(); await expect(page.getByTestId('more-controls')).toHaveCount(0);
       expect(t.errors).toEqual([]); await t.context.close();
     });

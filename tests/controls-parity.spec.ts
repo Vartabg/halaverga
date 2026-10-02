@@ -1,7 +1,7 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { controlsFor, settingsFor, type ControlFamily, type ControlId } from '../src/game/controlTypes';
 import { CONTROLS_VERSION } from '../src/game/store';
-import { labPage } from './lab-browser';
+import { labPage, openSettings, openGuide, closeAndResume } from './lab-browser';
 import { controlId, openSheet, paused, rowIds, sheet, trigger } from './controls-browser';
 // Parity of the three ways to choose a control (controls picker, 2026-09-28): the header sheet, the old way of a ?controls= session
 // override, and a saved choice seeded in localStorage before load. For each of the ten ids on its family(ies) all three must mount
@@ -41,13 +41,12 @@ const checkedIn = (root: Locator) => root.getByTestId('controls-list').locator('
 
 /** Flight settings' list: the same current radio as the layer that is mounted. Closes the dialog again. */
 async function settingsCurrent(page: Page, touch: boolean): Promise<string[]> {
-  await tapOrClick(page.getByRole('button', { name: 'Flight settings' }), touch);
+  await openSettings(page, touch);
   const dialog = page.locator('dialog[open]');
   await expect(dialog).toHaveCount(1);
   await listIds(dialog, touch);
   const checked = await checkedIn(dialog);
-  await tapOrClick(page.getByRole('button', { name: 'Close dialog' }), touch);
-  await expect(page.getByRole('button', { name: 'Pause expedition' })).toBeVisible();
+  await closeAndResume(page, touch);
   return checked;
 }
 /** Waits until the page shows `id` (the html dataset the trigger sets), then a moment for the remounted layers to settle. */
@@ -115,21 +114,19 @@ for (const family of ['desktop', 'touch'] as const) {
     await expect(sheet(page)).toHaveCount(0);
 
     // Flight settings.
-    await tapOrClick(page.getByRole('button', { name: 'Flight settings' }), touch);
+    await openSettings(page, touch);
     const dialog = page.locator('dialog[open]');
     await expect(dialog).toHaveCount(1);
     expect(await listIds(dialog, touch), 'Flight settings').toEqual(inSheet);
-    await tapOrClick(page.getByRole('button', { name: 'Close dialog' }), touch);
-    await expect(page.getByRole('button', { name: 'Pause expedition' })).toBeVisible();
+    await closeAndResume(page, touch);
 
     // The Field guide (a text dialog with the same list under 'Try every control').
-    await tapOrClick(page.getByRole('button', { name: 'Field guide' }), touch);
+    await openGuide(page, touch);
     const guide = page.locator('dialog[open]');
     await expect(guide).toHaveCount(1);
     await expect(guide.getByRole('heading', { name: 'Try every control' })).toBeVisible();
     expect(await listIds(guide, touch), 'Field guide').toEqual(inSheet);
-    await tapOrClick(page.getByRole('button', { name: 'Close dialog' }), touch);
-    await expect(page.getByRole('button', { name: 'Pause expedition' })).toBeVisible();
+    await closeAndResume(page, touch);
 
     // The pause card.
     await tapOrClick(page.getByRole('button', { name: 'Pause expedition' }), touch);
@@ -148,7 +145,7 @@ for (const family of ['desktop', 'touch'] as const) {
 
 test('?controls=bogus is ignored and still lets Begin enable: the family default plays', async ({ browser }) => {
   const t = await labPage(browser, 'standard', { url: '/?controls=bogus', saved: SEED }), { page } = t;
-  await expect(trigger(page)).toHaveText('Controls: Cursor');
+  await expect(trigger(page)).toHaveAccessibleName('Controls: Cursor');
   expect(await controlId(page)).toBe('cursor');
   expect((await signature(page)).labSurface).toBe(false);
   expect(t.errors).toEqual([]); await t.context.close();
@@ -161,6 +158,6 @@ test('?controls=<id> stays this session only: the saved choice is untouched, a p
   const after = await page.evaluate(() => JSON.parse(localStorage.getItem('halaverga-flight-v1') || '{}'));
   expect(after.trackpadSteering ?? 'free').toBe('free');
   await page.goto('/'); await page.getByRole('button', { name: 'Begin expedition' }).click();
-  await expect(trigger(page)).toHaveText('Controls: Cursor');
+  await expect(trigger(page)).toHaveAccessibleName('Controls: Cursor');
   expect(t.errors).toEqual([]); await t.context.close();
 });

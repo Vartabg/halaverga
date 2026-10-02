@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { openSettings, pauseCard } from './lab-browser';
 import { begin, fov, heading, resume, shots, speed, telemetry } from './shooter-browser';
 // The classic free trackpad (7945430) is the desktop default again, with one blaster change (Garo 2026-09-24): while stopped or on
 // the ground a click fires once on release (however long it is held), a drag only looks, and W (in the air) or Space flies.
@@ -125,22 +126,24 @@ test('on the ground W walks and Space lifts off into a cruise', async ({ page })
   await expect.poll(() => speed(page)).toBeGreaterThan(7);
 });
 
-test('closing Flight settings by × or Escape keeps Space for flight', async ({ page }) => {
+test('closing Flight settings by × or Escape returns to the pause card; Resume then keeps Space for flight', async ({ page }) => {
   await begin(page);
   const dialog = page.getByRole('dialog'), playing = page.getByRole('button', { name: 'Pause expedition' });
-  await page.getByRole('button', { name: 'Flight settings' }).click(); await expect(dialog).toBeVisible();
-  await page.getByRole('button', { name: 'Close dialog' }).click(); await expect(dialog).toHaveCount(0); await expect(playing).toBeVisible();
+  await openSettings(page); await expect(dialog).toBeVisible();
+  await page.getByRole('button', { name: 'Close dialog' }).click(); await expect(dialog).toHaveCount(0);
+  await expect(pauseCard(page)).toBeVisible(); await expect(playing).toHaveCount(0); // closing never resumes
+  await resume(page);
   await page.keyboard.press('Space');
   await expect(scene(page)).toHaveAttribute('data-trackpad-active', 'true'); await expect(dialog).toHaveCount(0);
-  // Back on the terrace, then the Escape close.
-  await page.getByRole('button', { name: 'Flight settings' }).click();
+  // Back on the terrace (the reset waits for Resume, as the dialog closes onto the pause card), then the Escape close.
+  await openSettings(page);
   await page.getByRole('button', { name: 'Return to arrival terrace' }).click();
-  const resumeButton = page.getByRole('button', { name: 'Resume flight' });
-  await expect(playing.or(resumeButton)).toBeVisible();
-  if (await resumeButton.isVisible()) await resume(page);
+  await expect(pauseCard(page)).toBeVisible();
+  await resume(page);
   await expect(telemetry(page)).toHaveAttribute('data-flying', 'false');
-  await page.getByRole('button', { name: 'Flight settings' }).click(); await expect(dialog).toBeVisible();
-  await page.keyboard.press('Escape'); await expect(dialog).toHaveCount(0); await expect(playing).toBeVisible();
+  await openSettings(page); await expect(dialog).toBeVisible();
+  await page.keyboard.press('Escape'); await expect(dialog).toHaveCount(0); await expect(pauseCard(page)).toBeVisible();
+  await resume(page);
   await page.keyboard.press('Space');
   await expect(scene(page)).toHaveAttribute('data-trackpad-active', 'true'); await expect(dialog).toHaveCount(0);
 });

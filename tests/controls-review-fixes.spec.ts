@@ -125,7 +125,7 @@ test('a failed picker or vote chunk leaves the page standing: Begin, the Field g
   await page.goto('/');
   const begin = page.getByRole('button', { name: 'Begin expedition' });
   await expect(begin).toBeEnabled({ timeout: 60000 });
-  await page.getByRole('button', { name: 'Field guide' }).click();
+  await page.getByRole('button', { name: 'Field guide' }).click(); // the landing keeps the header button
   await expect(page.getByRole('heading', { name: 'Field guide' })).toBeVisible();
   await expect(page.getByText('Try every control')).toHaveCount(0);
   await page.keyboard.press('Escape');

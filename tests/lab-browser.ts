@@ -1,4 +1,4 @@
-import { expect, type Browser, type Page } from '@playwright/test';
+import { expect, type Browser, type Locator, type Page } from '@playwright/test';
 import type { ControlId } from '../src/game/controlTypes';
 // Shared helpers for the Gesture Lab browser specs (lab-*.spec.ts). System Chrome emulation: these check the wiring and the
 // behaviour a player can see, never how Draw, Conduct or Brush feel on a real iPhone or Mac trackpad (docs/gesture-lab.md).
@@ -12,6 +12,30 @@ export type Tel = { pos: number[]; speed: number; flying: boolean; heading: numb
 export const settingsList = (page: Page) => page.locator('dialog[open]').getByTestId('controls-list');
 export const settingsCurrent = (page: Page) => settingsList(page).locator('input[type=radio]:checked').inputValue();
 export const settingsPick = (page: Page, label: string) => settingsList(page).getByRole('radio', { name: label, exact: true }).check();
+/** A mouse click, or a tap on a touch page (a mouse click on a touch page would flip the control family). */
+export const press = (l: Locator, touch = false) => touch ? l.tap() : l.click();
+export const pauseCard = (page: Page) => page.getByRole('region', { name: 'Expedition paused' });
+/**
+ * Flight settings. The gear left the top row: Pause, then the pause card's Flight settings row. The dialog is open on return and the game
+ * stays paused; closing it shows the pause card again (Resume is the player's own tap: shooter-browser's `resume`).
+ */
+export async function openSettings(page: Page, touch = false) {
+  if (!(await pauseCard(page).isVisible())) await press(page.getByRole('button', { name: 'Pause expedition' }), touch);
+  await press(pauseCard(page).getByRole('button', { name: 'Flight settings', exact: true }), touch);
+  await expect(page.getByRole('dialog', { name: 'Flight settings' })).toBeVisible();
+}
+/** The Field guide, the same way: Pause (unless the pause card is already up), then the pause card's Field guide row. */
+export async function openGuide(page: Page, touch = false) {
+  if (!(await pauseCard(page).isVisible())) await press(page.getByRole('button', { name: 'Pause expedition' }), touch);
+  await press(pauseCard(page).getByRole('button', { name: 'Field guide', exact: true }), touch);
+  await expect(page.getByRole('dialog').getByRole('heading', { name: 'Field guide' })).toBeVisible({ timeout: 15000 });
+}
+/** Closes the open dialog and plays on: the pause card is back after a close, and Resume is the player's own tap. */
+export async function closeAndResume(page: Page, touch = false) {
+  await press(page.getByRole('button', { name: 'Close dialog' }), touch);
+  await press(pauseCard(page).getByRole('button', { name: 'Resume flight' }), touch);
+  await expect(page.getByRole('button', { name: 'Pause expedition' })).toBeVisible();
+}
 export const PHONE = { width: 852, height: 393 } as const;
 export const DESKTOP = { width: 1440, height: 1000 } as const;
 

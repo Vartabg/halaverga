@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { settingsCurrent, settingsPick } from './lab-browser';
+import { settingsCurrent, settingsPick, openSettings, closeAndResume } from './lab-browser';
 const scene = (page: Page) => page.getByTestId('flight-surface');
 const telemetry = (page: Page) => page.getByTestId('flight-telemetry');
 const speed = async (page: Page) => Number(await telemetry(page).getAttribute('data-speed'));
@@ -50,7 +50,7 @@ test('HUD hover keeps the cruise; a click, resize, pause and zoom clear it witho
   await begin(page); await page.mouse.click(720, 500);
   await expect.poll(() => speed(page)).toBeGreaterThan(7);
   // Turn-360 spec 1.5: the header no longer counts as leaving, so hovering its buttons keeps cruising (and steering).
-  await page.getByRole('button', { name: 'Flight settings' }).hover(); await page.waitForTimeout(400);
+  await page.getByRole('button', { name: 'Pause expedition' }).hover(); await page.waitForTimeout(400);
   await expect(scene(page)).toHaveAttribute('data-trackpad-active', 'true');
   // hover() jumps the cursor about 560 px right in one move, a roughly 100 deg steer: speed dips in that turn, then recovers.
   await expect.poll(() => speed(page)).toBeGreaterThan(7);
@@ -82,23 +82,23 @@ test('HUD hover keeps the cruise; a click, resize, pause and zoom clear it witho
 });
 test('optional mouse capture persists and failure offers trackpad recovery', async ({ page }) => {
   const errors: string[] = []; page.on('pageerror', e => errors.push(e.message));
-  await begin(page); await page.getByRole('button', { name: 'Flight settings' }).click();
+  await begin(page); await openSettings(page);
   await settingsPick(page, 'Mouse + keys');
-  await page.getByRole('button', { name: 'Close dialog' }).click();
+  await closeAndResume(page);
   await page.mouse.click(720, 500);
   await expect.poll(() => page.evaluate(() => document.pointerLockElement?.tagName)).toBe('CANVAS');
   await page.keyboard.press('Escape');
   await expect(page.getByRole('button', { name: 'Resume flight' })).toBeVisible();
   await page.reload(); await page.getByRole('button', { name: 'Begin expedition' }).click();
-  await page.getByRole('button', { name: 'Flight settings' }).click();
+  await openSettings(page);
   expect(await settingsCurrent(page)).toBe('mouse-keys');
-  await page.getByRole('button', { name: 'Close dialog' }).click();
+  await closeAndResume(page);
   await page.evaluate(() => { document.querySelector('canvas')!.requestPointerLock = () => Promise.reject(new Error('Capture unavailable')); });
   await page.mouse.click(720, 500);
   await expect(page.getByText('Mouse capture is unavailable.', { exact: false }).first()).toBeVisible();
-  await page.getByRole('button', { name: 'Flight settings' }).click();
+  await openSettings(page);
   await settingsPick(page, 'Cursor');
-  await page.getByRole('button', { name: 'Close dialog' }).click();
+  await closeAndResume(page);
   await page.mouse.click(720, 500); await expect.poll(() => speed(page)).toBeGreaterThan(7);
   expect(errors).toEqual([]);
 });

@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { droneIn, labPage, lift, shots, tel } from './lab-browser';
+import { droneIn, labPage, lift, shots, tel, openSettings, closeAndResume } from './lab-browser';
 import { controlId, openSheet, paused, row, saved, sheet, trigger } from './controls-browser';
 // Control switching (spec 8, controls picker 2026-09-28): Cursor stays the desktop default; ?controls= is a session override; the
 // header trigger 'Controls: <label>' opens one sheet listing every control of the family (switch at once, never pause); Flight
@@ -7,7 +7,7 @@ import { controlId, openSheet, paused, row, saved, sheet, trigger } from './cont
 const controls = (p: import('@playwright/test').Page) => p.evaluate(() => document.documentElement.dataset.controls ?? null);
 const list = (root: import('@playwright/test').Locator) => root.getByTestId('controls-list');
 const radio = (root: import('@playwright/test').Locator, name: RegExp) => list(root).getByRole('radio', { name });
-const isCurrent = (p: import('@playwright/test').Page, label: string) => expect(trigger(p)).toHaveText(`Controls: ${label}`);
+const isCurrent = (p: import('@playwright/test').Page, label: string) => expect(trigger(p)).toHaveAccessibleName(`Controls: ${label}`);
 
 test('Cursor is the default: the free-cursor surface, no lab surface or data-controls, and the trigger names it', async ({ browser }) => {
   const t = await labPage(browser, 'standard'), { page } = t;
@@ -60,7 +60,7 @@ test('the sheet switches at once without pausing; settings and the pause card ca
   await expect(sheet(page)).toHaveCount(0);
   await expect(paused(page)).toHaveCount(0);
   // Flight settings carries the same list: arrow keys move and select within the native group.
-  await page.getByRole('button', { name: 'Flight settings' }).click();
+  await openSettings(page);
   const dialog = page.locator('dialog[open]');
   await expect(dialog).toHaveCount(1);
   await expect(page.getByTestId('lab-surface')).toHaveCount(0); // paused: the lab controls are unmounted
@@ -70,8 +70,7 @@ test('the sheet switches at once without pausing; settings and the pause card ca
   await expect(radio(dialog, /^Conduct/)).toBeChecked();
   await expect(radio(dialog, /^Conduct/)).toBeFocused();
   expect(await controls(page)).toBe('conduct');
-  await page.getByRole('button', { name: 'Close dialog' }).click();
-  await expect(page.getByRole('button', { name: 'Pause expedition' })).toBeVisible();
+  await closeAndResume(page);
   await expect(page.getByTestId('lab-surface')).toHaveCount(1);
   await isCurrent(page, 'Conduct');
   await openSheet(page); await row(page, 'brush').click(); await isCurrent(page, 'Brush');
@@ -142,7 +141,8 @@ test('a sheet switch mid-cruise stops the cruise; keys 1-8 switch while playing 
   await page.keyboard.press('Escape');
   const card = paused(page);
   await expect(card).toBeVisible();
-  await page.keyboard.press('Digit1'); await isCurrent(page, 'Cursor');
+  // Paused, the top row is empty (no trigger): the page's current control id says which one the key chose.
+  await page.keyboard.press('Digit1'); await expect.poll(() => controlId(page)).toBe('cursor');
   await expect(card).toBeVisible();
   expect(await controls(page)).toBeNull();
   expect(t.errors).toEqual([]); await t.context.close();

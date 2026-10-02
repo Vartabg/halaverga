@@ -20,7 +20,7 @@ const tapOrClick = (l: ReturnType<Page['locator']>, touch: boolean) => touch ? l
 /** The mounted layer for the id, by the page's own data attributes and test ids. */
 async function expectLayer(page: Page, id: ControlId) {
   const lab = LABS.includes(id), hint = page.locator('[class*="trackpadHint"]');
-  await expect(trigger(page)).toHaveText(`Controls: ${controlById(id).label}`);
+  await expect(trigger(page)).toHaveAccessibleName(`Controls: ${controlById(id).label}`);
   expect(await controlId(page)).toBe(id);
   expect(await page.evaluate(() => document.documentElement.dataset.controls ?? null)).toBe(lab ? id : null);
   await expect(page.getByTestId('lab-surface')).toHaveCount(lab ? 1 : 0);

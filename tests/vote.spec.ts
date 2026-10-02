@@ -87,7 +87,7 @@ for (const [name, viewport] of PHONES) {
       await openSheet(page, true);
       await tap(row(page, id as ControlId), true); // a touch pick closes the sheet
       await expect(sheet(page)).toHaveCount(0);
-      await expect(trigger(page)).toHaveText(`Controls: ${label}`);
+      await expect(trigger(page)).toHaveAccessibleName(`Controls: ${label}`);
       await expect.poll(() => shown(page)).toMatch(/^Vote 0\/2 · \d+ s$/);
       const b = await box(trigger(page)), c = await box(chip(page));
       expect(inside(c, viewport), `${label}: chip inside the viewport`).toBe(true);
@@ -112,7 +112,7 @@ test('@vote the chip at 1/2 opens the need-more card; Try closes it with no Skip
   expect(['Cursor', 'Flow', 'Captured', 'Mouse + keys']).not.toContain(label); // never the current one, never a pointer-capturing or trackpad-only control
   await tryBtn.click();
   await expect(card(page)).toHaveCount(0);
-  await expect(trigger(page)).toHaveText(`Controls: ${label}`);
+  await expect(trigger(page)).toHaveAccessibleName(`Controls: ${label}`);
   await expect(playing(page)).toBeVisible(); // the game resumed
   await expect(paused(page)).toHaveCount(0);
   await expect.poll(() => shown(page)).toMatch(/^Vote 1\/2 · \d+ s$/); // the new control still needs its 20 s
