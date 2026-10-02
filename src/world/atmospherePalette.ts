@@ -78,7 +78,7 @@ export function skyBase(dir: Rgb): Rgb {
   let c = mix(lin.haze, lin.low, smooth(0, SKY_STOPS_H.low, h));
   c = mix(c, lin.mid, smooth(SKY_STOPS_H.low, SKY_STOPS_H.mid, h));
   c = mix(c, lin.zenith, smooth(SKY_STOPS_H.mid, 1, h));
-  c = mix(c, lin.haze, Math.exp(-h * 18) * .8);
+  c = mix(c, lin.haze, Math.exp(-h * 22) * .78);
   const toSun = .5 + .5 * (dir[0] * SUN_XZ[0] + dir[2] * SUN_XZ[1]) / Math.max(Math.hypot(dir[0], dir[2]), 1e-4);
   return mix(c, lin.warm, toSun ** 3 * smooth(0, .08, h) * Math.exp(-h * 5) * .35);
 }

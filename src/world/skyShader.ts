@@ -16,7 +16,7 @@ vec3 skyBase(vec3 dir) {
   vec3 c = mix(SKY_HAZE, SKY_LOW, smoothstep(0., ${num(SKY_STOPS_H.low)}, h));
   c = mix(c, SKY_MID, smoothstep(${num(SKY_STOPS_H.low)}, ${num(SKY_STOPS_H.mid)}, h));
   c = mix(c, SKY_ZENITH, smoothstep(${num(SKY_STOPS_H.mid)}, 1., h));
-  c = mix(c, SKY_HAZE, exp(-h * 18.) * .8);
+  c = mix(c, SKY_HAZE, exp(-h * 22.) * .78);
   float toSun = .5 + .5 * dot(dir.xz, SUN_XZ) / max(length(dir.xz), 1e-4);
   return mix(c, SKY_WARM, pow(toSun, 3.) * smoothstep(0., .08, h) * exp(-h * 5.) * .35);
 }`;
