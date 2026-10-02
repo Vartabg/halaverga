@@ -7,6 +7,7 @@ import { useCurrentControl } from './ControlList';
 import VoteChip from './VoteChip';
 import { closeControls, closeOnEscape } from './closeControls';
 import { useControlFamily } from './useControlFamily';
+import { useRowExtra } from './useRowExtra';
 import { lockedTail, useReadyToast, useVoteState } from './useVoteState';
 import styles from './ControlsPicker.module.css';
 // The top row's Vote pill and Controls button (a lazy chunk, mounted after Begin and shown only while playing). The sheet itself is
@@ -22,6 +23,7 @@ export default function ControlsPicker({ family: forced }: { family?: ControlFam
   const followed = useControlFamily(), family = forced ?? followed, current = useCurrentControl(family);
   const vote = useVoteState(family), locked = vote.state === 'locked';
   useReadyToast(vote.state);
+  useRowExtra();
   // Warm the lab chunk so the first switch to Draw, Conduct or Brush mounts without a network wait.
   useEffect(() => { import('../gesture/LabControls').catch(() => { /* the switch still works; the chunk loads on demand */ }); }, []);
   useEffect(() => {

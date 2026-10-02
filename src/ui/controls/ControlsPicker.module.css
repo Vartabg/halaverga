@@ -3,6 +3,9 @@
 /* The picker's root and layer add no box: the Vote chip and the Controls button are flex items of the header's button row (so the row's
    `>button` rules never match them: these buttons keep their own pill styles), and the sheet layer only groups the backdrop and the sheet. */
 .root,.layer{display:contents}
+/* With the pill in the row the root is a box, so that when the readout needs the room (the rule below) the pill, and only the pill, can drop to a
+   second line under Controls: the root wraps in reverse (the first item, Vote, becomes the lower line) and stays right-aligned. DOM order is unchanged. */
+.root:has(.chip){display:flex;flex-wrap:wrap-reverse;justify-content:flex-end;gap:8px}
 /* The Controls button is one width in every state, open (lime, same weight) or closed (min-width 108 holds the word, an 8 px gap and the 20 px dots slot, which stays reserved
    when the dots are not showing), so the Vote pill is the only thing that appears or goes. With the pill the cluster is 64 + 8 + 108 + 8 + 44
    = 232 px, the budget the readout (Experience.module.css, .telemetry) leaves at every width. */
@@ -28,10 +31,17 @@
   cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 .chip:hover{background:#e3ffad}
 .chip:focus-visible{outline:3px solid #f5f0dc;outline-offset:2px;box-shadow:0 0 0 5px #1a3029}
-/* With the pill in the row the readout gives up the room for it: 232 px at normal text (Vote 64 + Controls 108 + Pause 44 + two 8 px gaps); the two words
-   (Controls and Vote, about 80 px at 13 px) grow with the text, the rest does not: 144 px + 7.5 em of the readout's own font size. At 320 wide that
-   is a 56 px box, which the number fits (padding 6 px a side). Browsers without :has() keep the narrower base budget. */
-:global(header):has(.chip) ~ :global([data-testid=flight-telemetry]){max-width:calc(100% - 2 * var(--gx) - max(232px, 144px + 7.5em))}
+/* The row makes room for the readout, never the other way round: at phone widths the number is the one thing a player reads in the row. With the pill the
+   cluster is 232 px at normal text (Vote 64 + Controls 108 + Pause 44 + two 8 px gaps) and about 300 px at 200 percent, because the words in the two buttons
+   grow with the text while the rest does not. The header is capped at the row minus the readout's own natural width, in em of its 11 px (so it follows the text
+   size): the number alone at 400 px wide and narrower (3.5 em, plus 12 px of padding; 3.6 em for a little slack), the number and its unit up to 600 (7.3 em, plus
+   20 px). Whenever the three buttons do not fit inside that cap the pill wraps under Controls, so only a large-text phone ever gets a second line (96 px, the height
+   of the old two-row header: the touch bands start below it) and the readout keeps its number. Above 600 px there is room, so there is no cap. The readout's own
+   cap (Experience.module.css) is the room beside Controls and Pause, so even when nothing fits (320 wide at 200 percent) the number is clipped, never put over a
+   button. Browsers without :has() keep one row and that clipping. */
+@media(max-width:400px){:global(header[data-play]):has(.chip){font-size:11px;max-width:calc(100% - 2 * var(--gx) - 3.6em - 12px)}}
+@media(min-width:401px) and (max-width:600px){:global(header[data-play]):has(.chip){font-size:11px;max-width:calc(100% - 2 * var(--gx) - 7.3em - 20px)}}
+
 
 /* Full-viewport catcher under the sheet: it takes the presses (and closes on click), so nothing reaches the flight surface. Both sit under
    the header (z-index 8), so Pause and Controls stay above it: one tap on Pause pauses and closes the sheet. They take presses even

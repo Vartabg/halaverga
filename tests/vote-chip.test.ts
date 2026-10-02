@@ -26,8 +26,9 @@ describe('VoteChip (SSR)', () => {
 });
 
 describe('the picker CSS contract: the pill, the dots and the constant width', () => {
-  it('the root adds no box: the pill and the trigger are flex items of the header row, and neither is a grid cell', () => {
+  it('the root adds no box (until the pill is in the row, when it is the one box the pill wraps in at large text): the pill and the trigger are flex items, and neither is a grid cell', () => {
     expect(css).toMatch(/\.root,\.layer\{display:contents\}/);
+    expect(css).toMatch(/\.root:has\(\.chip\)\{display:flex;flex-wrap:wrap-reverse;justify-content:flex-end;gap:8px\}/); // wrap-reverse: the first item (Vote) is the lower line, DOM order unchanged
     expect(css).not.toMatch(/grid-column:[23]\}/); expect(rule('.chip')).not.toContain('grid-column');
   });
   it('C6 the Controls button has one width: a 108 px minimum that holds the word, the gap and the reserved 20 px dots slot; the pill is 64, so the cluster is the 232 px the readout budgets', () => {
