@@ -49,3 +49,66 @@ Checked here (desktop emulation, not an iPhone): a production build with `VERCEL
 
 Not done on purpose: no `@vercel/analytics` package (budget); no per-control or per-pick event (it would put the vote in a third party's hands); no change to the page CSP; no preview of the real script (it needs the project switch above). When the other branch frees about 8 KB of first load, swapping the boot script for the package's `inject` is a two-file change.
 
+
+## V3 Deploy readiness and a written way back (audit finding 6)
+
+Garo asked for all of it, done the most logical way. Choices: a deploy doc that records what was actually read and rehearsed ([deploy.md](deploy.md)); the patched Next the registry offers, not the minimum; the dependency audit as its own CI job; and the first deploy described by what visitors would lose, found by diffing the live commit against this branch. Nothing was pushed, deployed, rolled back or changed on Vercel or GitHub.
+
+### What the first deploy replaces
+
+Production runs `261a101` (tip of `codex/world-atmosphere`, 2026-09-22; proven by the stamp `2026-09-22 · 261a101` in the live JavaScript, and by the Vercel deployment created 2026-09-22 20:27 UTC). It is in no branch heading to production, so the first deploy of this one replaces it silently. `git diff 261a101...HEAD` (what this branch added since the common ancestor, merge 7945430) is 536 files, +48,322 / -528; against production itself, `git diff 261a101 HEAD` is 547 files, +48,335 / -889. Almost all of it is new (the blaster and drones, the controls demo and Gesture Lab, the vote, `/results`, `/privacy`, the arm cannon, the new hero), plus the security headers the live site does not send. What matters here is what is **taken away or changed**. Of the 18 files in `261a101`, 11 do not exist on this branch and 7 were rewritten by the sky and water work.
+
+| What visitors had | On this branch | Verdict |
+|---|---|---|
+| Violet-grey storm ceiling, muted amber sun low in the sky (`#e7ba86`, `[-65,42,-90]`), dark teal floodwater, one palette for fog and light | Clear blue sky with cumulus, a high warm sun (`[-65,100,80]`), one pale haze for sea, city and skyline | **Superseded on purpose.** Garo's note of 2026-10-01 (sky-background.md): "the sky and the background are ruining the demo". Do not bring the storm sky back. |
+| Silt ribbons collecting against the retaining walls of the water | Not in the new water shader (it keeps the shimmer and the wake) | Small loss, part of the same superseded look. |
+| Floor bands, rooftop ribs and broken setbacks on the 20-box far skyline | Gone: the far skyline is its own three-layer mesh (`Skyline.tsx`, 110 to 330 m out) | Superseded. |
+| **The waterfront** (`src/world/waterfrontDetails.ts`): broken curb and expansion joints, leaning street lamps, buckled quay railing, driftwood along the banks, ladders running into the flood, two drowned stair flights, six service cabinets with missing doors, a transit shelter, nine fallen flood barriers | **Nothing equivalent exists.** The quay walls and the road are plain boxes. | **Valuable and missing.** The shelter and cabinets are the only signs of ordinary life in the canal. About 48 box colliders. |
+| **A mountain ridge ring and terraced hillside blocks beyond the district** (`src/world/distantTerrain.ts`) | No ridge. The district-edge hills (`k.hill`) and the new far skyline stand against open sea and sky. | **Missing, not obviously wanted.** The sky-background brief replaced the background, but its notes never mention the ridge. Owner's call. It is mesh only, no colliders. |
+| Authored route, arrival terrace, roof pad, hero ruins, hills, trees | Unchanged geometry | Kept. |
+| Everything else in `261a101` (docs, five capture images, a performance JSON, `scripts/review-world-atmosphere.mjs`) | Not on this branch | History only. They stay readable with `git show 261a101:<path>`. |
+
+**Cherry-pick, not applied.** The whole commit is not the command: a merge simulation (`git merge-tree`, nothing touched) conflicts in 7 files, the exact ones the sky and water work rewrote (`Atmosphere.tsx`, `EnvironmentLight.tsx`, `Scene.tsx`, `atmospherePalette.ts`, `cityData.ts`, `skyShader.ts`, `waterShader.ts`). Only the two new files are wanted. To take the waterfront:
+
+```sh
+git restore --source=261a101 -- src/world/waterfrontDetails.ts
+# then in src/world/cityData.ts add   import { waterfrontDetails } from './waterfrontDetails';
+# and, just before `return k.finish();`,   waterfrontDetails(k);
+```
+
+For the ridge and terraces the same with `src/world/distantTerrain.ts` and `distantTerrain(k);` (it uses `colors.edge` and `k.add`, both present). I tried the waterfront on a scratch copy of this branch (not applied here): it typechecks, and **two pinned checks fail, so it is not a free pickup.** `tests/skyline.test.ts` pins 101 colliders and a hash of them (the waterfront makes 149), and its "draws the hills and the terrace parapets in the calm concrete group" check fails with it; `tests/limit-escape.test.ts` ("recorded pins: all 285 stalled states get out") finds 2 stalled states that no longer escape within 3.5 s after contact (pin 245 at `-27,3,-18` and pin 262 at `42,3,-25`, both at 34 m/s; which new box they now run into was not traced). So it needs the pins re-recorded and a flight-safety look at those two states, and the ridge needs a visual check against the new skyline layers. The blaster-era route and drone tests passed with it. None of that is worth doing before the iPhone pass unless Garo wants the waterfront in the launch build; the first deploy is correct without it.
+
+### Next 16.3.8, and the dependency audit in CI
+
+- **Bump: `next` 16.3.5 to 16.3.8** (exact pin kept). `pnpm audit --prod` flagged GHSA-vcvr-r3jv-pc5j (critical, remote code execution in `next/og` `ImageResponse`), vulnerable `>=16.2.0 <16.3.6`, so the patched floor is 16.3.6, as the audit said. The registry's latest is 16.3.8 (16.3.6 on 2026-09-22, 16.3.7 on 2026-09-29, 16.3.8 on 2026-09-30; none deprecated). **I took 16.3.8, not the floor:** its release notes (read on GitHub) list security fixes the floor does not carry, a high server-side request forgery in image optimization and five medium ones (cache poisoning in static and incremental pages among them); 16.3.7 is a bug-fix release. This app has no `ImageResponse`, `next/og` or metadata image route (0 hits in `src`) and serves with `images.unoptimized`, so the critical one was probably unreachable either way; a patched line costs nothing. The lockfile diff touches only `next`, `@next/env` and the eight swc binaries. `pnpm audit --prod` now says "No known vulnerabilities found".
+- **Measured on 16.3.8:** typecheck clean, vitest 178 files and 2,253 tests pass, `pnpm build` passes, **landing first load 635.8 KB, 9 scripts (budget 636 KB), up 0.2 KB from 635.6**, `check-vote-build` passes. That leaves **0.2 KB of headroom**: the next first-load addition anywhere will trip the budget. I did not touch the budget.
+- **Rehearsed on this build:** the three `vote-live-check` phases against the fake store (functional 18 pass and 2 skipped, unit 19 pass, global 7 pass, 0 fail) and the post-deploy curl list in deploy.md against a local production build (with and without a store). Local, not Vercel.
+- **CI: a separate `audit` job** in `verify.yml` runs `pnpm run audit:prod` (`pnpm audit --prod --audit-level=high`, also an npm script now). It is **not** in `pnpm verify`, which stays free of the network after install. Why a job and not a step in `verify`: a new advisory appears with no code change, and it should be its own red check that never hides the verify result; `pnpm audit` reads only `package.json` and the lockfile, so the job needs no install and finishes in seconds. **Non-flaky rule:** a finding at high or critical fails the job. If the audit endpoint cannot be reached, the job prints a GitHub warning and passes, because that says nothing about the code. The two cases are told apart by the text `N vulnerabilities found`, which a real finding always prints and an unreachable endpoint never does (pnpm retries for about 70 s first, so the job has a 10 minute timeout). All three outcomes were run locally on the extracted step: the old lockfile (exit 1, 1 critical), the new one (exit 0), and a registry that refuses connections (warning, exit 0). The workflow itself has not run on GitHub.
+
+### Owner-only clicks (an agent may not do these)
+
+Changing accounts, security features or Vercel and GitHub settings is the owner's. One short list:
+
+1. **GitHub, repository `Vartabg/halaverga`, Settings, Code security:** turn on Dependabot alerts, secret scanning and push protection (free on a public repo; the audit found all three off).
+2. **Vercel, project `halaverga-flight`, Storage:** connect the vote store (Upstash or Neon) to **Production only**, then Settings, Environment Variables: `VOTE_SALT` (Production only, sensitive; vote-runbook.md section 6 steps 1 and 2). Optional, for a vote check on a preview: a throwaway store on **Preview only**, a different `VOTE_SALT`, and `VOTE_ALLOW_PREVIEW=1`.
+3. **Vercel Firewall:** the rate-limit and kill-switch rules (vote-runbook.md section 6 step 3; rules 1, 2 and K1 are the minimum). Read the plan's limits first; if the plan cannot rate limit `/api/vote`, do not publish the link. **Today no custom firewall configuration exists** (the API answers not found).
+4. **Vercel Spend Management** (Settings, Billing): an amount and the pause action, or a note that the plan has none. The team's plan could not be read from here; it also decides how far back an Instant Rollback reaches (deploy.md section 8).
+5. **Vercel Web Analytics:** Enable for the project, or the funnel counts nothing (V2 above).
+6. **Look at Vercel Deployment Protection.** Observed today: unique deployment and alias URLs answer 302 to Vercel login, and `halaverga-flight.vercel.app` answers 200 to anyone; the setting reads SSO on, `all_except_custom_domains`. That is what the runbook wants (public link open, old and preview URLs closed). Confirm it is still so after any change.
+7. **The production deploy itself:** only after Garo says yes in chat.
+
+Decisions for Garo, not clicks: whether the waterfront and the ridge come into the launch build (above), and whether to pin the rollback target's source with a tag (`git tag prod-before-first-deploy 261a101`, pushed by the lead; keep `origin/codex/world-atmosphere` until then).
+
+### Go-live order
+
+1. **Integration.** One branch with everything that ships: merge `shooter`, then `screen-cleanup` (push it first: it exists only on one Mac), then `sky-background`, then this task. Run `pnpm verify` and the Mac browser suite once on the merged result. Landing first load must stay at or under 636 KB; do not raise it.
+2. **iPhone pass.** Real iPhone Safari, portrait and landscape: the game, one ballot sent, `/results`, `/privacy`. Record it honestly in the device checklist (gesture-lab.md). Emulation is not an iPhone.
+3. **Preview and its live check.** Section 3 and 4 of deploy.md: archive, gitleaks, `vercel deploy`, the curl list, the stamp. The vote path needs the owner's Preview-only store (click 2); without it the preview proves only the closed paths, and the first real vote happens on production, with the poll reset after.
+4. **Owner yes.** Before asking, confirm the rollback target `dpl_7sUsqUdXcAmG2S4K7MpnQUCwmstm` is still READY and a candidate (deploy.md section 8) and that clicks 1 to 5 are done or knowingly skipped.
+5. **Production deploy.** `vercel deploy --prod ...` from the SHA that passed steps 1 to 3 (deploy.md section 5).
+6. **Curl checks on the public domain**, the stamp, the vote check (two real votes, then the `reset-poll` line), the analytics check, then the first audit run at 30 minutes (vote-runbook.md).
+7. **Rollback ready.** Confirm the dashboard still offers Instant Rollback for `dpl_7sUsq...` now that it is the previous production deployment, and write down who runs it.
+
+### Not done on purpose (V3)
+
+No deploy, rollback or promote; no push; no change to Vercel, GitHub, the budget or the vote backend; the waterfront and ridge not cherry-picked; no `@vercel/analytics`. `/results` carries the common CSP, not `default-src 'none'`: `tests/vote-headers.test.ts` pins that and I left it. The plan, the Git integration link and the environment variable names on Vercel were not read (the last on purpose: values must not be printed).
