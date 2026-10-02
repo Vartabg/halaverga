@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { cloudCoverage, makeCloudData } from '@/world/cloudData';
 import { domeFragment, domeVertex, skyBaseGlsl } from '@/world/skyShader';
 import { waterFragment, waterVertex } from '@/world/waterShader';
-import { CLOUD, FOG, HAZE, HEMISPHERE, SKY, SUN_CREAM, SUN_DIRECTION, SUN_DISC, SUN_PALE, SUN_POSITION, SUN_UV, SUN_XZ, directionFromUv, driftClouds, glslVec3, hexToLinear, skyBase, type Rgb } from '@/world/atmospherePalette';
+import { CLOUD, FOG, HAZE, HEMISPHERE, SKY, SUN_CORE, SUN_CREAM, SUN_DIRECTION, SUN_DISC, SUN_GLOW, SUN_PALE, SUN_POSITION, SUN_UV, SUN_XZ, directionFromUv, driftClouds, glslVec3, hexToLinear, skyBase, sunGlow, type Rgb } from '@/world/atmospherePalette';
 
 const enc = (x: number) => Math.round(255 * (x <= .0031308 ? 12.92 * x : 1.055 * x ** (1 / 2.4) - .055));
 const screen = (c: Rgb) => c.map(enc);
@@ -10,6 +10,7 @@ const hexRgb = (hex: string) => [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2),
 const near = (a: number[], b: number[], levels: number) => a.every((v, i) => Math.abs(v - b[i]) <= levels);
 const elevation = (deg: number): Rgb => { const e = deg * Math.PI / 180; return [-SUN_XZ[0] * Math.cos(e), Math.sin(e), -SUN_XZ[1] * Math.cos(e)]; };
 const saturation = (rgb: number[]) => { const hi = Math.max(...rgb), lo = Math.min(...rgb); return hi ? (hi - lo) / hi : 0; };
+const luma = (rgb: number[]) => .2126 * rgb[0] + .7152 * rgb[1] + .0722 * rgb[2];
 
 describe('one sun', () => {
   it('has a unit direction parallel to its position', () => {
@@ -92,10 +93,24 @@ describe('sky shader strings', () => {
 
 describe('sun glow and cloud scale', () => {
   it('mixes the glow gold, cream, pale, sky: an add would push the blue sky through white', () => {
-    for (const hex of [SUN_DISC, SUN_CREAM, SUN_PALE]) expect(domeFragment).toContain(glslVec3(hex));
+    for (const hex of [SUN_DISC, SUN_CORE, SUN_CREAM, SUN_PALE]) expect(domeFragment).toContain(glslVec3(hex));
     expect(domeFragment).not.toMatch(/col \+= [^;]*pow\(s, 160/);
     const [r, g, b] = hexRgb(SUN_CREAM);
     expect(r).toBe(255); expect(g).toBeGreaterThan(220); expect(b).toBeGreaterThan(160); expect(b).toBeLessThan(215); // cream: warmer than the pale lift, never white
+  });
+  it('lifts the sky toward the sun through white, so the blue never crosses a dirty grey', () => {
+    // The clear sky around the sun, from the disc out to 25 degrees, as it appears on screen.
+    const base = skyBase(SUN_DIRECTION), at = (deg: number) => screen(sunGlow(base, 1 - Math.cos(deg * Math.PI / 180)));
+    let last = Infinity;
+    for (let deg = 1.7; deg <= 25; deg += .1) { const l = luma(at(deg)); expect(l).toBeLessThanOrEqual(last + .5); last = l; } // brighter toward the disc, never a ring
+    let neutral = 0; // where the colour is neutral (saturation under .08) it is a near white (a glare), never a mid grey, and brief
+    for (let deg = 1.7; deg <= 14; deg += .1) { const c = at(deg); if (saturation(c) < .08) { neutral += .1; expect(luma(c)).toBeGreaterThanOrEqual(215); } }
+    expect(neutral).toBeLessThanOrEqual(3);
+    expect(saturation(at(25))).toBeGreaterThanOrEqual(.25); // the sky 25 degrees out is still blue
+    const [r, g, b] = at(0); expect(r).toBe(255); expect(g).toBeGreaterThan(220); expect(b).toBeLessThan(215); // a warm core: gold, never white
+    expect(r > 190 && g < 110 && b < 100).toBe(false);
+    const pale = hexRgb(SUN_PALE); expect(Math.min(...pale)).toBeGreaterThanOrEqual(235); // the wide lift is a white
+    expect(SUN_GLOW.pale.rate).toBeLessThan(SUN_GLOW.cream.rate); // and it reaches further out than the cream
   });
   it('keeps the cloud plane high, so the top of a level phone frame is not magnified far beyond the horizon', () => {
     const sin = (deg: number) => Math.sin(deg * Math.PI / 180), a = CLOUD.lift;
