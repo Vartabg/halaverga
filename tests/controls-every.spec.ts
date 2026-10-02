@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { controlName } from './controls-browser';
 import { controlById, controlKey, controlsFor, type ControlFamily, type ControlId } from '../src/game/controlTypes';
-import { labPage } from './lab-browser';
+import { labPage, legend } from './lab-browser';
 import { controlId, mockResults, mockVote, openSheet, paused, playInit, row, sheet, trigger } from './controls-browser';
 import { DRIVES } from './controls-every-drive';
 // Every control type, end to end (owner 2026-09-28: "all different types of controls available for the demo ... an online vote").
@@ -20,7 +20,7 @@ const tapOrClick = (l: ReturnType<Page['locator']>, touch: boolean) => touch ? l
 
 /** The mounted layer for the id, by the page's own data attributes and test ids. */
 async function expectLayer(page: Page, id: ControlId) {
-  const lab = LABS.includes(id), hint = page.locator('[class*="trackpadHint"]');
+  const lab = LABS.includes(id), hint = legend(page);
   await expect(trigger(page)).toHaveAccessibleName(controlName(controlById(id).label));
   expect(await controlId(page)).toBe(id);
   expect(await page.evaluate(() => document.documentElement.dataset.controls ?? null)).toBe(lab ? id : null);
@@ -32,7 +32,7 @@ async function expectLayer(page: Page, id: ControlId) {
   if (id === 'cursor') await expect(hint).toContainText('SPACE TO FLY');
   if (id === 'captured') await expect(hint).toContainText('CLICK TO FLY');
   if (id === 'one-finger-keys') await expect(page.getByTestId('simple-trackpad-hud').or(page.getByTestId('controls-hint')).first()).toBeVisible();
-  if (id === 'mouse-keys' || lab) await expect(page.locator('[class*="trackpadHint"], [data-testid=simple-trackpad-hud], [data-testid=flow-hud]')).toHaveCount(0);
+  if (id === 'mouse-keys' || lab) await expect(page.locator('[data-testid=legend], [data-testid=simple-trackpad-hud], [data-testid=flow-hud]')).toHaveCount(0);
 }
 const notPaused = async (page: Page) => { await expect(paused(page)).toHaveCount(0); await expect(page.getByRole('button', { name: 'Pause expedition' })).toBeVisible(); };
 

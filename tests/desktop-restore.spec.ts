@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { settingsCurrent, openSettings, closeAndResume } from './lab-browser';
+import { settingsCurrent, openSettings, closeAndResume, legend } from './lab-browser';
 import { begin, heading, resume, seed, shots, speed, telemetry } from './shooter-browser';
 // Desktop controls restore (Garo 2026-09-24): the classic free trackpad of 7945430 is the desktop default again, with one change
 // for the blaster: while stopped or on the ground a click fires (once, on release), dragging only looks,
@@ -10,7 +10,7 @@ const GROUND = 'SPACE TO FLY · CLICK TO FIRE · DRAG TO LOOK';
 // Hovering: W or Space flies; with a surface in reach Space lands, so the pill names only W.
 const HOVER = /^(W OR SPACE TO FLY|W TO FLY · SPACE TO LAND) · CLICK TO FIRE · DRAG TO LOOK$/;
 const CRUISE = 'MOVE TO STEER · SCROLL FOR SPEED · CLICK TO HOVER · HOLD C TO FIRE';
-const pill = (p: Page) => p.locator('[class*="trackpadHint"]');
+const pill = legend;
 const scene = (p: Page) => p.getByTestId('flight-surface');
 const locked = (p: Page) => p.evaluate(() => !!document.pointerLockElement);
 /** data-shots is stamped every 100 ms and telemetry every 350 ms: let both settle before an exact comparison. */

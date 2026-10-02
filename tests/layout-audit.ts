@@ -114,9 +114,9 @@ export async function audit(page: Page, v: View, mode: Mode = {}): Promise<strin
         if (desktop && el.closest('header')) continue;
         // A control, or the small box a control sits in (Lift/Land's wrapper, [data-ghost-avoid]).
         const c = el.closest('button, a[href], input, select, summary, label, [role=radio], [data-hold-control], [data-ghost-avoid]');
-        // The top row's buttons are 44 px high; Controls is 108 wide at normal text (the word, the gap and the dots' slot) and grows with the word, 46 px for a doubling:
+        // The top row's buttons are 44 px high, and so is the hint slot's Read button (the record line); Controls is 108 wide at normal text (the word, the gap and the dots' slot) and grows with the word, 46 px for a doubling:
         // a row, not a pad. The Vote pill and Pause are narrower still.
-        if (c) { const r = c.getBoundingClientRect(); if ((r.width <= cap && r.height <= cap) || (c.closest('header') && r.width <= 109 + 46 * (scale - 1) && r.height <= 45)) continue; }
+        if (c) { const r = c.getBoundingClientRect(); if ((r.width <= cap && r.height <= cap) || (c.closest('header') && r.width <= 109 + 46 * (scale - 1) && r.height <= 45) || (c.closest('[data-testid=hint-slot]') && r.width <= 260 * scale && r.height <= 45 * scale)) continue; }
         out.push(`(${x},${y}) ${el.tagName.toLowerCase()}.${String(el.className).slice(0, 30)}${el.getAttribute('data-testid') ? '#' + el.getAttribute('data-testid') : ''}`);
       }
       return out;

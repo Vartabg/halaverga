@@ -22,7 +22,7 @@ const SEED = { flowIntroSeen: true, controlsVersion: CONTROLS_VERSION };
 /** The mounted layer, as the page shows it: the flight surface, the trackpad pill, the huds, the lab surface and the html data attributes. */
 const signature = (page: Page) => page.evaluate(() => {
   const q = (id: string) => document.querySelector<HTMLElement>(`[data-testid=${id}]`);
-  const surface = q('flight-surface'), pill = document.querySelector('[class*="trackpadHint"]'), html = document.documentElement.dataset;
+  const surface = q('flight-surface'), pill = document.querySelector('[data-testid=legend]'), html = document.documentElement.dataset;
   return {
     surface: surface ? { scheme: surface.dataset.scheme ?? null, layout: surface.dataset.layout ?? null } : null,
     pill: pill?.textContent ?? null, labSurface: !!q('lab-surface'), flowHud: !!q('flow-hud'), touchCluster: !!q('touch-stick'), controls: html.controls ?? null, controlId: html.controlId ?? null, touchBlast: html.touchBlast ?? null,

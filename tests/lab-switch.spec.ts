@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { controlName } from './controls-browser';
-import { droneIn, labPage, lift, shots, tel, openSettings, resumeFromCard, settingsCurrent } from './lab-browser';
+import { droneIn, hintSlot, labPage, legend, lift, shots, tel, openSettings, resumeFromCard, settingsCurrent } from './lab-browser';
 import { controlId, openSheet, paused, row, saved, sheet, trigger } from './controls-browser';
 // Control switching (spec 8, controls picker 2026-09-28): Cursor stays the desktop default; ?controls= is a session override; the
 // header trigger 'Controls: <label>' opens one sheet listing every control of the family (switch at once, never pause); the pause card
@@ -21,7 +21,7 @@ test('Cursor is the default: the free-cursor surface, no lab surface or data-con
   await isCurrent(page, 'Cursor');
   expect(await controls(page)).toBeNull();
   expect(await controlId(page)).toBe('cursor');
-  await expect(page.locator('[class*="trackpadHint"]')).toHaveText('SPACE TO FLY · CLICK TO FIRE · DRAG TO LOOK');
+  await expect(legend(page)).toHaveText('SPACE TO FLY · CLICK TO FIRE · DRAG TO LOOK');
   expect(t.errors).toEqual([]); await t.context.close();
 });
 
@@ -30,7 +30,7 @@ test('?controls=draw is this session only: the lab replaces the standard layers 
   expect(await controls(page)).toBe('draw');
   await expect(page.getByTestId('flight-surface')).toHaveCount(0);
   await isCurrent(page, 'Draw');
-  await expect(page.locator('[class*="trackpadHint"]')).toHaveCount(0);
+  await expect(legend(page)).toHaveCount(0);
   await expect(page.locator('[class*="reticle"]')).toBeHidden();
   // Lift/Land stays available in every lab scheme.
   await expect(page.getByRole('button', { name: 'Lift', exact: true })).toBeVisible();
@@ -175,7 +175,7 @@ for (const viewport of [{ width: 393, height: 852 }, { width: 375, height: 667 }
     const t = await labPage(browser, 'standard', { touch: true, viewport }), { page } = t;
     await trigger(page).tap(); await expect(sheet(page)).toBeVisible();
     await row(page, 'draw').tap();
-    const hint = page.locator('[class*="flightHint"]'), telemetry = page.getByTestId('flight-telemetry');
+    const hint = hintSlot(page), telemetry = page.getByTestId('flight-telemetry');
     await expect(hint).toHaveText('Draw controls');
     const a = (await hint.boundingBox())!, b = (await telemetry.boundingBox())!;
     const overlap = Math.max(0, Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x)) * Math.max(0, Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y));

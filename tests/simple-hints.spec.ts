@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import { begin, centre, resume, seed, shots, twinTouchPage } from './shooter-browser';
+import { legend } from './lab-browser';
 // Progressive controls hints (docs/simple-controls.md): one instruction at a time, advanced by doing it, persisted so it never repeats.
 const hint = (p: Page) => p.getByTestId('controls-hint');
 const soundNotice = (p: Page) => p.locator('p', { hasText: 'Blaster sound is off · Pause, then Flight settings' });
@@ -107,7 +108,7 @@ test('mouse mode: start, then move the mouse to look, then click to shoot', asyn
 });
 
 // The free cursor is the desktop default again (Garo 2026-09-24): no step hints, the bottom pill states the whole mapping.
-const pill = (p: Page) => p.locator('[class*="trackpadHint"]');
+const pill = legend;
 const noHintFor = async (p: Page, ms: number) => {
   for (let t = 0; t < ms; t += 250) { expect(await hint(p).count()).toBe(0); await p.waitForTimeout(250); }
 };

@@ -1,5 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { controlName } from './controls-browser';
+import { legend } from './lab-browser';
 import { expect, test, type Page } from '@playwright/test';
 import { DESKTOP, DESKTOP_IDS, PHONE_LANDSCAPE, PHONE_PORTRAIT, SIZES, TOUCH_IDS, blockStorage, box, controlId, controlsPage, inside, lift, mockResults, mockVote,
   openSheet, overlaps, paused, playInit, row, rowIds, saved, shots, sheet, tel, trigger } from './controls-browser';
@@ -10,11 +11,11 @@ import { DESKTOP, DESKTOP_IDS, PHONE_LANDSCAPE, PHONE_PORTRAIT, SIZES, TOUCH_IDS
 const heading = async (p: Page) => (await tel(p)).heading;
 const turned = (a: number, b: number) => Math.abs(Math.atan2(Math.sin(b - a), Math.cos(b - a)));
 const LABELS = ['Cursor', 'One finger + keys', 'Flow', 'Captured', 'Mouse + keys', 'Draw', 'Conduct', 'Brush'];
-const hint = (p: Page) => p.locator('[class*="trackpadHint"]');
+const hint = legend;
 
 // What each desktop id mounts and saves: the settings patch of the registry, the layer that answers to it.
 type Layer = (p: Page) => Promise<void>;
-const none = (p: Page) => expect(p.locator('[class*="trackpadHint"], [data-testid=simple-trackpad-hud], [data-testid=flow-hud]')).toHaveCount(0);
+const none = (p: Page) => expect(p.locator('[data-testid=legend], [data-testid=simple-trackpad-hud], [data-testid=flow-hud]')).toHaveCount(0);
 const LAYERS: Record<string, { save: Record<string, unknown>; layer: Layer }> = {
   cursor: { save: { controlLab: 'standard', desktopMode: 'trackpad', trackpadSteering: 'free' }, layer: async p => { await expect(p.getByTestId('flight-surface')).toHaveAttribute('data-scheme', 'classic'); await expect(hint(p)).toContainText('SPACE TO FLY'); } },
   'one-finger-keys': { save: { controlLab: 'standard', desktopMode: 'trackpad', trackpadSteering: 'simple' }, layer: p => expect(p.getByTestId('simple-trackpad-hud').or(p.getByTestId('controls-hint')).first()).toBeVisible() }, // the hud steps aside while the blaster's controls hint teaches (SimpleTrackpadHud)
@@ -234,7 +235,10 @@ test('phone: tapping the current row closes the sheet; the backdrop closes it; r
   expect(t.errors).toEqual([]); await t.context.close();
 });
 
-test('the demo note shows on the first visit only, and never overlaps Begin, the hero title or the header', async ({ browser }) => {
+// The demo note is passive text now (no Got it): it counts as seen when Begin removes the start card, and only if it was on screen then (addendum C2).
+const DEMO_KEY = 'halaverga.controls.demo.v1';
+const demoStored = (p: Page) => p.evaluate(k => localStorage.getItem(k), DEMO_KEY);
+test('the demo note is passive text that shows until the first Begin that showed it, and never overlaps Begin, the hero title or the header', async ({ browser }) => {
   for (const v of [PHONE_PORTRAIT, PHONE_LANDSCAPE, DESKTOP]) {
     const touch = v.width < 900, context = await browser.newContext({ viewport: v, isMobile: touch, hasTouch: touch }), page = await context.newPage();
     await page.goto('/');
@@ -247,6 +251,12 @@ test('the demo note shows on the first visit only, and never overlaps Begin, the
     for (const o of others) if (await o.count()) expect(overlaps(b, await box(o)), 'Begin over the header or title').toBe(false);
     if (v.height <= 430) {
       await expect(note).toBeHidden(); // short landscape phones hide the note by CSS
+      // C2: it is mounted but nobody could read it, so Begin does not count it as seen: it is stored nowhere and shows again on a taller screen.
+      await expect(begin).toBeEnabled({ timeout: 60000 });
+      await begin.tap(); await expect(page.getByRole('button', { name: 'Pause expedition' })).toBeVisible();
+      expect(await demoStored(page), 'a hidden note is not marked seen').toBeNull();
+      await page.setViewportSize(PHONE_PORTRAIT); await page.reload();
+      await expect(page.getByTestId('demo-note')).toBeVisible();
     } else {
       await expect(note).toBeVisible();
       await expect(note).toContainText('A demo of new ways to fly. After you begin, try each in the Controls menu, then vote.');
@@ -254,10 +264,19 @@ test('the demo note shows on the first visit only, and never overlaps Begin, the
       expect(inside(n, v), `note inside ${v.width}x${v.height}`).toBe(true);
       expect(overlaps(n, b), 'note over Begin').toBe(false);
       for (const o of others) if (await o.count()) expect(overlaps(n, await box(o)), 'note over the header or title').toBe(false);
-      const got = note.getByRole('button', { name: 'Got it' });
-      expect((await box(got)).height).toBeGreaterThanOrEqual(44);
-      await got.click();
-      await expect(note).toHaveCount(0);
+      // Passive: no button, no Got it, and it takes no touches.
+      expect(await note.getByRole('button').count()).toBe(0); await expect(page.getByRole('button', { name: 'Got it' })).toHaveCount(0);
+      expect(await note.evaluate(e => getComputedStyle(e).pointerEvents)).toBe('none');
+      // Nothing dismisses it before Begin: a reload still shows it, and nothing is stored yet.
+      await page.reload();
+      await expect(page.getByTestId('demo-note')).toBeVisible();
+      expect(await demoStored(page)).toBeNull();
+      // Begin removes the start card and marks it seen (it was visible); the next visit does not show it.
+      await expect(page.getByRole('button', { name: 'Begin expedition' })).toBeEnabled({ timeout: 60000 });
+      if (touch) await page.getByRole('button', { name: 'Begin expedition' }).tap(); else await page.getByRole('button', { name: 'Begin expedition' }).click();
+      await expect(page.getByRole('button', { name: 'Pause expedition' })).toBeVisible();
+      await expect(page.getByTestId('demo-note')).toHaveCount(0);
+      expect(await demoStored(page)).toBe('1');
       await page.reload();
       await expect(page.getByRole('button', { name: 'Begin expedition' })).toBeVisible();
       await expect(page.getByTestId('demo-note')).toHaveCount(0);
@@ -307,13 +326,17 @@ test('glyphs hold still under reduced motion (system preference or the setting) 
   await s.context.close();
 });
 
-test('blocked localStorage still works: the demo note dismisses for the page and the digits still switch', async ({ browser }) => {
-  const context = await browser.newContext({ viewport: DESKTOP }), first = await context.newPage();
+test('blocked localStorage still works: the passive demo note shows and Begin starts without an error, and the digits still switch', async ({ browser }) => {
+  const context = await browser.newContext({ viewport: DESKTOP }), first = await context.newPage(), errors: string[] = [];
+  first.on('pageerror', e => errors.push(e.message));
   await first.addInitScript(blockStorage);
   await first.goto('/');
   await expect(first.getByTestId('demo-note')).toBeVisible();
-  await first.getByTestId('demo-note').getByRole('button', { name: 'Got it' }).click();
+  await expect(first.getByRole('button', { name: 'Begin expedition' })).toBeEnabled({ timeout: 60000 });
+  await first.getByRole('button', { name: 'Begin expedition' }).click();
+  await expect(first.getByRole('button', { name: 'Pause expedition' })).toBeVisible();
   await expect(first.getByTestId('demo-note')).toHaveCount(0);
+  expect(errors).toEqual([]);
   await context.close();
   const t = await controlsPage(browser, 'standard', { viewport: DESKTOP, init: blockStorage, saved: null }), { page } = t;
   await expect(trigger(page)).toHaveAccessibleName(controlName('Cursor'));

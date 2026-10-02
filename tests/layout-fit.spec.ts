@@ -4,6 +4,7 @@ import { computeLayout } from '../src/game/touchLayout';
 import { VOTE_ROUND } from '../src/lib/vote/ballot';
 import { NARROW, VIEWS, audit, openLanding, scaleText, type View } from './layout-audit';
 import { PLAYED, rowFormProblems } from './layout-vote';
+import { expectSlot } from './layout-hint';
 // The screen cleanup's layout checker (spec section 10.1): at six viewports, in each state, no two controls overlap, every target is
 // 44 x 44 or more, everything is inside the screen, the readout is passive, and the flight surface still gets the gestures (on touch the
 // gaps between the top-row buttons too). The two narrow phones (360, 320) and a 200 percent text size cover the top row's squeeze.
@@ -11,6 +12,8 @@ import { PLAYED, rowFormProblems } from './layout-vote';
 const wcag = async (page: import('@playwright/test').Page) =>
   expect((await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze()).violations).toEqual([]);
 const AXE_AT = ['393x852 touch', '1440x900 mouse'];
+// A checkpoint beside the Municipal terminal on the arrival terrace (the terminal is at -7, 21, 58, in reach within 5 m): the record line shows with no message first.
+const NEAR_TERMINAL = { x: -6, y: 21.1, z: 60 }, RECORD = '◇ Municipal record · Read ↗';
 
 for (const v of [...VIEWS, ...NARROW]) {
   test(`${v.name}: landing, playing, sheet, paused, paused-sheet and Flight settings (the vote locked) have no overlap, small target or lost surface`, async ({ browser }) => {
@@ -73,7 +76,38 @@ for (const v of [...VIEWS, ...NARROW]) {
     expect(all, `${v.name}\n${all.join('\n')}`).toEqual([]);
     expect(t.errors).toEqual([]); await t.context.close();
   });
+  // The hint slot (unit 5), record line: a terminal in reach (a saved checkpoint beside the Municipal terminal) puts one 44 px Read button under the row. The
+  // same overlap, target and surface checks hold, and the slot is where --hdr says, centred, passive around the button. The button pauses and opens the guide.
+  test(`${v.name}: the hint slot's record line is one 44 px Read button under the row, and the screen stays clean`, async ({ browser }) => {
+    test.setTimeout(120000);
+    const t = await openLanding(browser, v, { saved: { checkpoint: NEAR_TERMINAL } }), { page } = t;
+    await t.begin();
+    await expectSlot(page, v, 'record', RECORD);
+    const problems = await audit(page, v, { play: true, vote: 'locked' });
+    expect(problems, problems.join('\n')).toEqual([]);
+    if (AXE_AT.includes(v.name)) await wcag(page);
+    await t.press(page.getByTestId('hint-slot').getByRole('button'));
+    await expect(page.getByRole('region', { name: 'Expedition paused' }).or(page.getByRole('dialog'))).toBeVisible({ timeout: 15000 });
+    expect(t.errors).toEqual([]); await t.context.close();
+  });
   if (!v.touch) continue;
+  // The classic one-thumb lesson, as the real line (not a stand-in): on every phone it is in the slot, the row and surface checks hold with it up, the
+  // slot steps aside under the Controls sheet and comes back when the sheet closes (the lesson's own clocks wait meanwhile).
+  test(`${v.name}: the hint slot's real classic lesson sits clean under the row, steps aside for the Controls sheet and returns`, async ({ browser }) => {
+    test.setTimeout(120000);
+    const t = await openLanding(browser, v), { page } = t;
+    await t.begin();
+    await expectSlot(page, v, 'coach', 'Drag to fly · tap a drone');
+    const problems = await audit(page, v, { play: true, vote: 'locked' }), form = await rowFormProblems(page);
+    expect(problems.concat(form.problems), problems.concat(form.problems).join('\n')).toEqual([]);
+    if (AXE_AT.includes(v.name)) await wcag(page);
+    await t.press(page.getByTestId('controls-trigger'));
+    await expect(page.getByTestId('controls-sheet')).toBeVisible();
+    await expect(page.getByTestId('hint-slot')).toHaveCount(0);
+    await t.press(page.getByTestId('controls-done'));
+    await expectSlot(page, v, 'coach', 'Drag to fly · tap a drone');
+    expect(t.errors).toEqual([]); await t.context.close();
+  });
   test(`${v.name}: Draw (the lab surface) and Twin stick keep the same clean top row and a free surface`, async ({ browser }) => {
     test.setTimeout(120000);
     const all: string[] = [];
@@ -82,6 +116,9 @@ for (const v of [...VIEWS, ...NARROW]) {
       await t.begin();
       if (state === 'playing-lab') await expect(page.getByTestId('lab-surface')).toHaveCount(1); else await expect(page.getByTestId('touch-stick')).toHaveCount(1);
       for (const p of await audit(page, v, { play: true })) all.push(`${state}: ${p}`);
+      // Twin stick teaches with its own series: the first line is in the slot, as clean as the classic one. The lab has its own ghost guide, so no slot line.
+      if (state === 'playing-twin') await expectSlot(page, v, 'coach', 'Left thumb: move');
+      else await expect(page.getByTestId('hint-slot')).toHaveCount(0);
       expect(t.errors).toEqual([]); await t.context.close();
     }
     expect(all, `${v.name}\n${all.join('\n')}`).toEqual([]);
