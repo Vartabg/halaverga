@@ -5,7 +5,7 @@ import { useGame } from '@/game/store';
 import { VOTE_MIN_TRIED } from '@/lib/vote/ballot';
 import { QUESTION } from '@/ui/vote/question';
 import { fetchResults, type Probe } from '@/ui/vote/voteClient';
-import { canVote, livePlay, readMark, triedIds, type VoteMark, type VotePlay } from '@/ui/vote/voteTracker';
+import { TRIED_S, canVote, livePlay, readMark, triedIds, type VoteMark, type VotePlay } from '@/ui/vote/voteTracker';
 
 /**
  * Where this family's vote stands, the one answer the top row, the Controls sheet and the pause card all read.
@@ -70,4 +70,16 @@ export function useReadyToast(state: VoteState) {
     if (state === 'locked') sawLocked.current = true;
     else if (state === 'ready' && sawLocked.current && !toasted) { toasted = true; useGame.setState({ message: READY_TEXT }); }
   }, [state]);
+}
+/** The one line the hint slot shows the first time a way reaches TRIED_S seconds of flight (addendum C3): the vote needs a second one. */
+export const ONE_WAY_TEXT = `One way flown. Try another for ${TRIED_S} s, then vote.`;
+let oneWayToasted = false;
+/** Once per page load, and only when this mount watched the count go from none to one (not for someone who arrived with a way already flown). */
+export function useOneWayToast({ state, tried }: VoteView) {
+  const sawNone = useRef(false);
+  useEffect(() => {
+    if (state !== 'locked') return;
+    if (tried === 0) sawNone.current = true;
+    else if (tried === 1 && sawNone.current && !oneWayToasted) { oneWayToasted = true; useGame.setState({ message: ONE_WAY_TEXT }); }
+  }, [state, tried]);
 }

@@ -8,7 +8,7 @@ import VoteChip from './VoteChip';
 import { closeControls, closeOnEscape } from './closeControls';
 import { useControlFamily } from './useControlFamily';
 import { useRowExtra } from './useRowExtra';
-import { lockedTail, useReadyToast, useVoteState } from './useVoteState';
+import { lockedTail, useOneWayToast, useReadyToast, useVoteState } from './useVoteState';
 import styles from './ControlsPicker.module.css';
 // The top row's Vote pill and Controls button (a lazy chunk, mounted after Begin and shown only while playing). The sheet itself is
 // ControlsLayer, a sibling of the header, so the header's touch pass-through never has to cover it. Opening drops held input but the
@@ -22,7 +22,7 @@ export default function ControlsPicker({ family: forced }: { family?: ControlFam
   const started = useGame(s => s.started), paused = useGame(s => s.paused), voteOpen = useGame(s => s.voteOpen), open = useGame(s => s.controlsOpen);
   const followed = useControlFamily(), family = forced ?? followed, current = useCurrentControl(family);
   const vote = useVoteState(family), locked = vote.state === 'locked';
-  useReadyToast(vote.state);
+  useReadyToast(vote.state); useOneWayToast(vote);
   useRowExtra();
   // Warm the lab chunk so the first switch to Draw, Conduct or Brush mounts without a network wait.
   useEffect(() => { import('../gesture/LabControls').catch(() => { /* the switch still works; the chunk loads on demand */ }); }, []);

@@ -12,7 +12,7 @@ import { VOTE_ROUND } from '@/lib/vote/ballot';
 import ControlsPicker from '@/ui/controls/ControlsPicker';
 import ControlsSheet, { VoteButton } from '@/ui/controls/ControlsSheet';
 import PauseControls from '@/ui/controls/PauseControls';
-import { ballotNow, ballotOf, lockedTail, READY_TEXT, setBallot, VOTE_NAME, voteView } from '@/ui/controls/useVoteState';
+import { ballotNow, ballotOf, lockedTail, ONE_WAY_TEXT, READY_TEXT, setBallot, VOTE_NAME, voteView } from '@/ui/controls/useVoteState';
 import { QUESTION } from '@/ui/vote/question';
 import { HEADING } from '@/ui/vote/VoteCard';
 import { emptyPlay, livePlay, LOCK_MS, markVoted, type VoteMark } from '@/ui/vote/voteTracker';
@@ -90,6 +90,9 @@ describe('the words', () => {
     expect(QUESTION).toBe('Which way of flying felt best?'); expect(HEADING).toBe(QUESTION);
     expect(VOTE_NAME).toBe(`Vote: ${HEADING}`); expect(VOTE_NAME.startsWith('Vote')).toBe(true); // WCAG 2.5.3: the visible label starts the name
     expect(READY_TEXT).toBe(`Vote is ready · ${HEADING}`);
+  });
+  it('C3 the first way flown for 20 s gets one line, built from the tried constant', () => {
+    expect(ONE_WAY_TEXT).toBe('One way flown. Try another for 20 s, then vote.');
   });
   it('C1 the dots have a text twin: the Controls name ends with it, the count never passes two', () => {
     expect(lockedTail(0)).toBe(': vote unlocks after two ways, 0 of 2 tried');
