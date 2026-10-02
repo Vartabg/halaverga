@@ -3,7 +3,10 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 export type Triple = [number, number, number];
 export type Solid = { position: Triple; size: Triple; rotation: Triple; kind?: 'building' };
 export type Kit = ReturnType<typeof createKit>;
-export const surfaces = ['stone', 'glass', 'metal', 'ground', 'paint'] as const;
+export const surfaces = ['stone', 'glass', 'metal', 'ground', 'paint', 'calm'] as const;
+/** The calm group (index into `surfaces`): the stone texture with its marbling halved, for big plain concrete faces, so the district-edge
+ * hills and the terrace parapets read as weathered concrete and not as slabs of marble. */
+export const CALM_GROUP = 5;
 export function surface(color: string) {
   if (color === colors.glass || color === '#2d3742') return 1;
   if ([colors.steel, colors.edge, '#44434d', '#272e37'].includes(color)) return 2;
@@ -14,7 +17,7 @@ export function surface(color: string) {
 export function createKit() {
   const pieces: BufferGeometry[][] = surfaces.map(() => []), solids: Solid[] = [];
   /** `shade` (optional) gives a vertex its colour from its world position and normal; otherwise the whole piece is `color`. */
-  function add(g: BufferGeometry, color: string, lift = 1, shade?: (p: Vector3, n: Vector3) => Color) {
+  function add(g: BufferGeometry, color: string, lift = 1, shade?: (p: Vector3, n: Vector3) => Color, group?: number) {
     const c = new Color(color).multiplyScalar(lift), p = g.attributes.position, n = g.attributes.normal, uv = g.attributes.uv;
     const shaded = new Float32Array(p.count * 3), at = new Vector3(), up = new Vector3();
     for (let i = 0; i < p.count; i++) {
@@ -26,20 +29,20 @@ export function createKit() {
       else uv.setXY(i, p.getX(i) / 4, p.getY(i) / 4);
     }
     g.setAttribute('color', new Float32BufferAttribute(shaded, 3));
-    pieces[surface(color)].push(g);
+    pieces[group ?? surface(color)].push(g);
   }
   /** `lift` multiplies the baked vertex colour past 1: a dark texture (the moss) needs more than a white tint can give. */
   function box(x: number, y: number, z: number, w: number, h: number, d: number,
-    color: string, solid = false, ry = 0, rz = 0, lift = 1) {
+    color: string, solid = false, ry = 0, rz = 0, lift = 1, group?: number) {
     const g = new BoxGeometry(w, h, d);
     g.applyMatrix4(new Matrix4().compose(new Vector3(x, y, z),
       new Quaternion().setFromEuler(new Euler(0, ry, rz)), new Vector3(1, 1, 1)));
-    add(g, color, lift);
+    add(g, color, lift, undefined, group);
     if (solid) solids.push({ position: [x, y, z], size: [w / 2, h / 2, d / 2], rotation: [0, ry, rz] });
   }
   /** A district-edge hill: the same solid box (the collider is the plain box), drawn as 16 m cells whose corners each carry their own
    * tone, so a 200 m face is mottled instead of one flat colour. Overgrown moss on top, concrete grey on the walls, darker and
-   * wetter toward the water. `lift` is [walls, tops]. `top` and `wall` are plain hexes that are not in surface()'s lists, so the stone texture carries them. */
+   * wetter toward the water. `lift` is [walls, tops]. Drawn in the calm group (the stone texture, less marbled, in cityMaterials). */
   function hill(x: number, y: number, z: number, w: number, h: number, d: number, wall: string, top: string, lift: [number, number] = [1, 1], solid = true) {
     const g = new BoxGeometry(w, h, d, Math.ceil(w / 16), Math.ceil(h / 16), Math.ceil(d / 16)), out = new Color(), moss = new Color(top), rock = new Color(wall);
     g.translate(x, y, z);
@@ -49,7 +52,7 @@ export function createKit() {
       if (n.y > .5) return out.copy(moss).multiplyScalar(lift[1] * cell);
       const t = Math.min(1, Math.max(0, (p.y - (y - h / 2)) / h));
       return out.copy(rock).multiplyScalar(lift[0] * cell * (.8 + .2 * t * t * (3 - 2 * t)));
-    });
+    }, CALM_GROUP);
     if (solid) solids.push({ position: [x, y, z], size: [w / 2, h / 2, d / 2], rotation: [0, 0, 0] });
   }
   function finish() {
