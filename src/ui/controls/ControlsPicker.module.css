@@ -35,31 +35,30 @@
    the header (z-index 8), so Pause and Controls stay above it: one tap on Pause pauses and closes the sheet. They take presses even
    where an ancestor is pass-through. */
 .backdrop{position:fixed;inset:0;z-index:7;pointer-events:auto;background:transparent;touch-action:none;-webkit-tap-highlight-color:transparent}
-/* Under the row (--hdr: the row's bottom plus 8 px, from the experience's tokens), inside the safe areas. The list scrolls inside the
-   sheet; the footer is sticky, so Done and Vote never scroll away. */
-.sheet{position:fixed;z-index:7;pointer-events:auto;top:var(--hdr);left:50%;transform:translateX(-50%);
-  width:min(420px,calc(100vw - 2 * max(16px,env(safe-area-inset-left),env(safe-area-inset-right))));
-  max-height:calc(100vh - var(--hdr) - max(8px,env(safe-area-inset-bottom)) - 8px);max-height:calc(100dvh - var(--hdr) - max(8px,env(safe-area-inset-bottom)) - 8px);
+/* The sheet has two forms. Desktop and tablet (wider than 600 px): a one-column popover under the row, its right edge on the row's right
+   edge, 420 wide, so it never covers the crosshair at the centre of a desktop window. Phones, both orientations (600 px and narrower, or a
+   short landscape window): a bottom sheet in thumb reach. The list scrolls inside the sheet; the footer is sticky, so Done and Vote never
+   scroll away. Both stay inside the safe areas and open instantly (nothing to reduce under reduced motion). */
+.sheet{--side:max(16px,env(safe-area-inset-left),env(safe-area-inset-right));position:fixed;z-index:7;pointer-events:auto;top:var(--hdr);right:max(var(--gx),env(safe-area-inset-right));
+  width:min(420px,calc(100vw - 2 * var(--side)));max-height:calc(100vh - var(--hdr) - 16px);max-height:min(calc(100dvh - var(--hdr) - 16px),640px);
   overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-y;color:var(--ink);background:#132a30;border:1px solid #80948d;
   border-radius:6px;box-shadow:0 20px 60px #071a2480}
 .title{margin:0;padding:14px 16px 4px;font:600 15px/1.3 system-ui,-apple-system,'Segoe UI',Arial,sans-serif;letter-spacing:.02em}
 .sheetBody{padding:4px 8px 8px}
 .foot{position:sticky;bottom:0;display:grid;gap:6px;padding:10px 16px 12px;background:#132a30;border-top:1px solid #6d8a84;box-shadow:0 -12px 12px -8px #071a24cc}
-/* Eight desktop rows in one column do not fit a 1280 x 720 window (four showed): two columns on a wide window, so the whole list is
-   nearly in view; the sheet still scrolls, and its footer's shadow shows there is more. */
-@media(min-width:721px){
-  .sheet[data-family=desktop]{width:min(680px,calc(100vw - 2 * max(16px,env(safe-area-inset-left),env(safe-area-inset-right))))}
-  .sheet[data-family=desktop] .sheetBody .list{grid-template-columns:repeat(2,minmax(0,1fr))}
+@media(max-width:600px),(max-height:550px) and (orientation:landscape){
+  .sheet{top:auto;right:auto;left:50%;bottom:max(8px,env(safe-area-inset-bottom));transform:translateX(-50%);
+    max-height:calc(100vh - var(--hdr) - 8px);max-height:min(80dvh,calc(100dvh - var(--hdr) - 8px));border-radius:12px}
 }
 /* A short landscape phone (852 x 393 shows about 2.5 rows in one column): a wider sheet with the list in two columns and a one-row
    footer, so all five touch controls are within one short scroll. The sheet scrolls by touch (data-scroll-ok in usePlayGuard). */
 @media(max-height:550px) and (orientation:landscape){
-  .sheet{width:min(680px,calc(100vw - 2 * max(16px,env(safe-area-inset-left),env(safe-area-inset-right))))}
+  .sheet{width:min(680px,calc(100vw - 2 * var(--side)))}
   .title{padding:8px 16px 0}
   .sheetBody .list{grid-template-columns:repeat(2,minmax(0,1fr))}
   .foot{grid-template-columns:auto minmax(0,1fr);align-items:center;column-gap:12px;padding:6px 16px 8px}
-  .foot .buttons{grid-column:2;grid-row:1 / span 2}
-  .foot .check{grid-column:1}
+  .foot .buttons{grid-column:2;grid-row:1 / span 3}
+  .foot .check,.foot .link{grid-column:1}
 }
 .tried{margin:0;font-size:13px;line-height:1.4;color:var(--muted)}
 .check{display:flex;align-items:center;gap:10px;min-height:44px;font-size:13px}
@@ -69,6 +68,17 @@
 .action:hover{background:#2b4747}
 .action.primary{background:var(--lime);border-color:var(--lime);color:#1a3029;font-weight:600}
 .action.primary:hover{background:#e3ffad}
+/* The foot's one-line link to Flight settings (touch): the name, then what is in there, muted and cut with an ellipsis when short of room. */
+.link{display:flex;align-items:center;gap:8px;min-height:44px;min-width:0;margin:0;padding:0;border:0;background:transparent;color:var(--ink);font-size:13px;text-align:left;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+.link b{flex:none;font-weight:600;text-decoration:underline;text-underline-offset:3px}
+.link span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted)}
+.link:focus-visible{outline:3px solid var(--lime);outline-offset:2px}
+/* The Controls row on the pause card and in Flight settings: the word, the control now in use, a chevron. */
+.rowButton{display:flex;align-items:center;gap:10px;width:100%;margin-top:10px;text-align:left}
+.rowButton>b{flex:none;font-size:13px;font-weight:600}
+.rowButton>span{min-width:0;flex:1 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted);font-size:13px}
+.rowButton>i{flex:none;font-style:normal;font-size:18px;line-height:1}
+.rowButton+.tried{margin-top:6px}
 
 /* The list: native radios in one fieldset (its legend is for screen readers; the sheet and section carry a visible title). */
 .list{display:grid;gap:4px;min-width:0;margin:0;padding:0;border:0}

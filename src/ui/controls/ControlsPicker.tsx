@@ -24,8 +24,13 @@ export default function ControlsPicker({ family: forced }: { family?: ControlFam
     html.dataset.controlId = current;
     return () => { delete html.dataset.controlId; };
   }, [current]);
-  // The vote card, a pause (settings, guide, the pause card) or a lost game: the sheet steps aside.
-  useEffect(() => { if ((voteOpen || paused || !started) && useGame.getState().controlsOpen) useGame.setState({ controlsOpen: false }); }, [voteOpen, paused, started]);
+  // The vote card or a lost game: the sheet steps aside. So does a CHANGE of `paused` (Pause pressed with the sheet open: the header sits
+  // above the backdrop, one tap pauses and closes it). The pause card's and Flight settings' Controls rows open the sheet while the game
+  // is already paused, which is no change, so it stays open there. If this component goes (the world failed), no flag is left behind.
+  const close = () => { if (useGame.getState().controlsOpen) useGame.setState({ controlsOpen: false }); };
+  useEffect(close, [paused]);
+  useEffect(() => { if (voteOpen || !started) close(); }, [voteOpen, started]);
+  useEffect(() => () => { close(); }, []);
   if (!started || paused) return null;
 
   const toggle = () => { if (open) closeControls(family); else { clearInput(); useGame.setState({ controlsOpen: true }); } };

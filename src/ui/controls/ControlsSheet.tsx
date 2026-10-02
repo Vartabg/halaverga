@@ -4,6 +4,7 @@ import { controlsFor, type ControlFamily } from '@/game/controlTypes';
 import { useGame } from '@/game/store';
 import { VOTE_MIN_TRIED } from '@/lib/vote/ballot';
 import { canVote, readMark } from '@/ui/vote/voteTracker';
+import { pause } from '../useInput';
 import ControlList, { useTried } from './ControlList';
 import { useKeysPref } from './keysPref';
 import styles from './ControlsPicker.module.css';
@@ -35,9 +36,17 @@ export function VoteButton({ family, primary = false }: { family: ControlFamily;
     data-sent={sent ? '' : undefined} onClick={() => useGame.setState({ voteOpen: true })}>{sent ? 'Vote sent: see results' : 'Vote: which felt best?'}</button>;
 }
 
+/** On touch, a one-line way from the sheet to Flight settings (size, left-handed, look speed live there): Pause, then the dialog. */
+function SettingsLink() {
+  return <button type="button" className={styles.link} data-testid="controls-settings" onClick={() => { pause(); useGame.setState({ panel: true }); }}>
+    <b>Flight settings</b><span>Size, left-handed, look speed</span>
+  </button>;
+}
+
 /**
- * The non-modal controls sheet under the header (a dialog that does not trap focus or block the world). The list scrolls; the
- * footer stays put, so Vote (the primary) and Done are reachable in a short landscape window. Escape and the backdrop are the picker's.
+ * The non-modal controls sheet (a dialog that does not trap focus or block the world): a bottom sheet on a phone, a popover under the top
+ * row on a desktop or tablet (ControlsPicker.module.css). The list scrolls; the footer stays put, so Vote (the primary) and Done are
+ * reachable in a short landscape window. Escape and the backdrop are the layer's.
  */
 export default function ControlsSheet({ family, onClose }: { family: ControlFamily; onClose: () => void }) {
   const id = useId(), ref = useRef<HTMLDivElement>(null);
@@ -49,7 +58,7 @@ export default function ControlsSheet({ family, onClose }: { family: ControlFami
     </div>
     <div className={styles.foot}>
       <TriedLine family={family} />
-      {family === 'desktop' && <KeysToggle />}
+      {family === 'desktop' ? <KeysToggle /> : <SettingsLink />}
       <div className={styles.buttons}>
         <VoteButton family={family} primary />
         <button type="button" className={styles.action} data-testid="controls-done" onClick={onClose}>Done</button>

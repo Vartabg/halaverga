@@ -10,7 +10,7 @@ vi.mock('@/game/store', async importOriginal => {
 });
 import { useGame } from '@/game/store';
 import { validateVote, VOTE_ROUND } from '@/lib/vote/ballot';
-import ControlsSection from '@/ui/controls/ControlsSection';
+import PauseControls, { ControlsRow } from '@/ui/controls/PauseControls';
 import { savePending, readPending } from '@/ui/vote/pending';
 import { pickFocus, type FocusPlan, type Pickable } from '@/ui/vote/restoreFocus';
 import { needLine } from '@/ui/vote/VoteNeed';
@@ -57,25 +57,29 @@ describe('V5 where focus goes when the card closes', () => {
 });
 
 describe('V4 the vote door in the pause card', () => {
-  const section = (nudge: boolean) => { useGame.setState({ voteNudge: nudge }); return renderToStaticMarkup(createElement(ControlsSection, { name: 'control-pause' })); };
-  it('an eligible player sees the ask and the door above the Controls list, so the door is right under Resume (it sat past the fold, at y 1310 on a 900 px desktop)', () => {
-    const m = section(true);
+  const door = (nudge: boolean) => { useGame.setState({ voteNudge: nudge }); return renderToStaticMarkup(createElement(PauseControls)); };
+  const src = (file: string) => readFileSync(new URL(`../src/ui/${file}`, import.meta.url), 'utf8');
+  it('an eligible player sees the ask and the door above the Controls row, so the door is right under Resume (it sat past the fold, at y 1310 on a 900 px desktop)', () => {
+    const m = door(true);
     expect(m.indexOf('Which way of flying felt best?')).toBeGreaterThan(-1);
     expect(m.indexOf('data-testid="vote-open"')).toBeGreaterThan(m.indexOf('Which way of flying felt best?'));
-    expect(m.indexOf('data-testid="vote-open"')).toBeLessThan(m.indexOf('data-testid="controls-section"'));
+    expect(m.indexOf('data-testid="vote-open"')).toBeLessThan(m.indexOf('data-testid="controls-row"'));
     expect(m).toContain('data-nudge=""');
     expect(m.match(/data-testid="vote-open"/g)).toHaveLength(1);
+    expect(m.match(/data-testid="controls-row"/g)).toHaveLength(1);
   });
-  it('a player who is not eligible has the button once, after the list, and no ask line; the Field guide and Flight settings copies have no door at all', () => {
-    const m = section(false);
+  it('a player who is not eligible has the button once, after the Controls row, and no ask line; the Flight settings row and the Field guide have no door at all', () => {
+    const m = door(false);
     expect(m.match(/data-testid="vote-open"/g)).toHaveLength(1);
-    expect(m.indexOf('data-testid="vote-open"')).toBeGreaterThan(m.indexOf('data-testid="controls-section"'));
+    expect(m.indexOf('data-testid="vote-open"')).toBeGreaterThan(m.indexOf('data-testid="controls-row"'));
     expect(m).not.toContain('Which way of flying felt best?'); expect(m).not.toContain('data-nudge');
-    for (const name of ['control-guide', 'control-settings']) expect(renderToStaticMarkup(createElement(ControlsSection, { name })), name).not.toContain('vote-open');
+    expect(renderToStaticMarkup(createElement(ControlsRow, { fromPanel: true }))).not.toContain('vote-open'); // what Flight settings carries
+    for (const file of ['TestPanel.tsx', 'FieldGuide.tsx']) for (const word of ['vote-open', 'VoteDoor', 'PauseControls']) expect(src(file).replace("import { ControlsRow } from './controls/PauseControls';", ''), `${file} ${word}`).not.toContain(word);
   });
-  it('the landing page carries none of it: PauseCard holds no vote words (the door moved into the lazy Controls chunk, which took the pause card back under the zero-headroom budget)', () => {
-    const src = readFileSync(new URL('../src/ui/PauseCard.tsx', import.meta.url), 'utf8');
-    for (const s of ['Which way of flying felt best', 'vote-open', 'voteNudge', 'voteAsk', 'Vote: which felt best']) expect(src, s).not.toContain(s);
+  it('the landing page carries none of it: PauseCard holds no vote words and no control names (the door and the Controls row are in the lazy Controls chunk, which took the pause card back under the zero-headroom budget)', () => {
+    const card = src('PauseCard.tsx');
+    for (const s of ['Which way of flying felt best', 'vote-open', 'voteNudge', 'voteAsk', 'Vote: which felt best', 'controls-row', 'ControlList', 'ControlsSheet', 'controlById']) expect(card, s).not.toContain(s);
+    expect(card).toContain("from './LazyControls'");
   });
 });
 

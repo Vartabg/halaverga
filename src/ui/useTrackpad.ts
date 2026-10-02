@@ -15,7 +15,7 @@ import { useTrackpadWindow } from './trackpadWindow';
 type Press = { id: number; x: number; y: number; dragged: boolean; stoppedFlight: boolean; fire: boolean };
 type Live = ReturnType<typeof useGame.getState>;
 const hoverEnv = (g: Live) => ({ shooter: g.shooter, started: g.started, paused: g.paused, desktopMode: g.desktopMode, steering: g.trackpadSteering, touch: touchMode() });
-const captureError = () => useGame.setState({ message: 'Mouse capture is unavailable. Pause, then choose Trackpad in Flight settings to continue.' });
+const captureError = () => useGame.setState({ message: 'Mouse capture is unavailable. Pause, then choose Cursor in Controls to continue.' });
 export function useTrackpad(surface: RefObject<HTMLDivElement | null>) {
   // seen: last holds the real cursor position (false after the pointer leaves or play resumes, so the first move only seeds it).
   const press = useRef<Press | null>(null), last = useRef({ x: 0, y: 0 }), seen = useRef(false);

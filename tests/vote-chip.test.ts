@@ -10,7 +10,7 @@ vi.mock('@/game/store', async importOriginal => {
 });
 import { useGame } from '@/game/store';
 import ControlsPicker from '@/ui/controls/ControlsPicker';
-import ControlsSection from '@/ui/controls/ControlsSection';
+import PauseControls, { ControlsRow } from '@/ui/controls/PauseControls';
 import ControlsSheet from '@/ui/controls/ControlsSheet';
 import VoteChip, { chipHint, chipProgress } from '@/ui/controls/VoteChip';
 import { emptyPlay, livePlay, markVoted, TRIED_S } from '@/ui/vote/voteTracker';
@@ -132,12 +132,14 @@ describe('the sheet footer and the settings copy', () => {
     expect(foot('desktop')).toContain('Tried 1 of 2 needed to vote');
     seedPlay({ 'desktop:cursor': 30, 'desktop:draw': 30 });
     expect(foot('desktop')).toContain('Tried 2 of 8'); expect(foot('desktop')).not.toContain('needed to vote');
-    expect(html(createElement(ControlsSection, { name: 'control-pause', vote: true }))).toContain('Tried 2 of 8');
+    expect(html(createElement(PauseControls))).toContain('Tried 2 of 8'); // the pause card's tried line under its Controls row reads the same record
   });
-  it('the settings and pause-card section keeps the outline button with the same words', () => {
-    const m = html(createElement(ControlsSection, { name: 'control-settings', vote: true }));
-    expect(m).toMatch(/<button[^>]*data-testid="controls-vote"[^>]*>Vote: which felt best\?<\/button>/);
-    expect(/<button[^>]*data-testid="controls-vote"[^>]*>/.exec(m)![0]).not.toMatch(/_primary_/);
+  it('the pause card door keeps the outline button with the same words; Flight settings has no vote button, only the Controls row', () => {
+    const m = html(createElement(PauseControls));
+    expect(m).toMatch(/<button[^>]*data-testid="vote-open"[^>]*>Vote: which felt best\?<\/button>/);
+    expect(/<button[^>]*data-testid="vote-open"[^>]*>/.exec(m)![0]).not.toMatch(/_primary_/);
+    expect(m).not.toContain('controls-vote'); // the sheet's footer is the one place with the controls-vote button
+    expect(html(createElement(ControlsRow, { fromPanel: true }))).not.toMatch(/controls-vote|vote-open/);
   });
 });
 

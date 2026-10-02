@@ -21,6 +21,7 @@ import FlowHud from './FlowHud';
 import FlowWelcome from './FlowWelcome';
 import SimpleTrackpadHud from './SimpleTrackpadHud';
 import PauseCard from './PauseCard';
+import SheetLost from './SheetLost';
 import styles from './Experience.module.css';
 const Scene = dynamic(() => import('@/world/Scene'), { ssr: false });
 // The blaster HUD is its own chunk: the landing page's first load carries no shooter UI. It is warmed once the setting is on.
@@ -143,7 +144,7 @@ export default function Experience() {
       </header>
       {/* The skip link's target while the row has no Field guide button; the Controls sheet is the header's sibling (it needs no pass-through
           of its own); data-band is the invisible marker touchInsets.headerBand measures (the pre-cleanup band, see --band). */}
-      {bar && <><span id="field-guide" className="sr-only" tabIndex={-1} /><Optional><ControlsEntry part="sheet" /></Optional></>}
+      {bar && <><span id="field-guide" className="sr-only" tabIndex={-1} /><Boundary fallback={<SheetLost />} onError={skip}><ControlsEntry part="sheet" /></Boundary></>}
       {state.started && <div className={styles.bandProbe} data-band="" aria-hidden="true" />}
       <h1 className={state.started || failed ? 'sr-only' : styles.heroTitle}>Earth,<br /><em>after us.</em></h1>
       {failed && fallback}
@@ -181,12 +182,12 @@ export default function Experience() {
           {/* One message at a time: a limit cue owns the pill while it shows. */}
           {state.desktopMode === 'trackpad' && pill && !state.limitHint && <div className={styles.trackpadHint}>{pill}</div>}
         </>}
-        {state.paused && !state.panel && !guide.Guide && !failed && !state.voteOpen && <PauseCard ready={ready} onEnter={enter} note={guide.note} />}
+        {state.paused && !state.panel && !guide.Guide && !failed && !state.voteOpen && !state.controlsOpen && <PauseCard ready={ready} onEnter={enter} note={guide.note} />}
         {!failed && <Optional><VoteLayer onResume={enter} /></Optional>}
       </>}
       <div className="sr-only" aria-live="polite">{state.message}</div>
       {guide.Guide && <Boundary fallback={null} onError={guide.fail}><guide.Guide onClose={closeGuide} /></Boundary>}
-      {state.panel && <TestPanel onClose={closePanel} />}
+      {state.panel && <TestPanel onClose={closePanel} onResume={() => { closePanel(); enter(); }} ready={ready} />}
       {state.started && !failed && standard && state.desktopMode === 'trackpad' && state.trackpadSteering === 'flow' && !state.flowIntroSeen && !state.panel && !state.journal && <FlowWelcome />}
     </main>
   </>;

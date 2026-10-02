@@ -17,8 +17,8 @@ import ControlList from '@/ui/controls/ControlList';
 import ControlsEntry from '@/ui/controls/ControlsEntry';
 import ControlsLayer from '@/ui/controls/ControlsLayer';
 import ControlsPicker from '@/ui/controls/ControlsPicker';
-import ControlsSection from '@/ui/controls/ControlsSection';
 import ControlsSheet from '@/ui/controls/ControlsSheet';
+import PauseControls, { ControlsRow } from '@/ui/controls/PauseControls';
 // The controls picker (spec sections 3 and 4). Node only: pure key rules, the SSR markup, the storage helpers and the CSS contract.
 // The behaviour a player sees (digits mounting layers, no shot or pause from the sheet, layout matrix, axe) is tests/controls-picker.spec.ts.
 
@@ -132,7 +132,7 @@ describe('ControlList (SSR)', () => {
   });
 });
 
-describe('ControlsSheet and ControlsSection (SSR)', () => {
+describe('ControlsSheet and the Controls row (SSR)', () => {
   it('the sheet is a non-modal dialog named Controls with the tried line, Vote and Done', () => {
     const touch = html(createElement(ControlsSheet, { family: 'touch', onClose: noop }));
     expect(touch).toContain('role="dialog"'); expect(touch).toContain('aria-modal="false"');
@@ -148,16 +148,24 @@ describe('ControlsSheet and ControlsSection (SSR)', () => {
     seedPlay({ 'desktop:cursor': 30, 'desktop:draw': 21, 'desktop:flow': 5 });
     expect(html(createElement(ControlsSheet, { family: 'desktop', onClose: noop }))).toContain('Tried 2 of 8');
   });
-  it('the section carries the Try every control heading only for the field guide, in a details that starts open on the server', () => {
-    const guide = html(createElement(ControlsSection, { name: 'control-guide' })), pause = html(createElement(ControlsSection, { name: 'control-pause' }));
-    expect(guide).toContain('>Try every control</h3>'); expect(pause).not.toContain('Try every control');
-    expect(guide).toMatch(/<details[^>]*open/); expect(guide).toContain('<summary>Controls: Cursor</summary>');
-    expect(idsOf(guide)).toEqual(ORDER); expect(guide).toContain('name="control-guide"'); expect(pause).toContain('name="control-pause"');
-    expect(guide).toContain('Tried 0 of 8'); expect(guide).not.toContain('needed to vote'); // CODE-9: no vote door in the Field guide, so no "needed to vote"
-    expect(pause).toContain('Tried 0 of 2 needed to vote'); // the pause card has a vote door in its section, so its line may say what a vote needs
-    expect(guide).toContain('Number keys 1-8 switch controls');
-    expect(guide).not.toContain('controls-vote'); // no vote button unless asked
-    expect(html(createElement(ControlsSection, { name: 'control-settings', vote: true }))).toContain('data-testid="controls-vote"');
+  it('the Controls row is one button with the word and the control now in use; it carries no list', () => {
+    const row = html(createElement(ControlsRow, {}));
+    expect(row).toContain('data-testid="controls-row"'); expect(row).toContain('aria-haspopup="dialog"');
+    expect(row).toContain('<b>Controls</b><span>Cursor</span>'); expect(row).toContain('<i aria-hidden="true">');
+    expect(row).not.toContain('controls-list'); expect(row).not.toContain('radio'); // the list lives only in the sheet
+    useGame.setState({ trackpadSteering: 'flow' });
+    expect(html(createElement(ControlsRow, { fromPanel: true }))).toContain('<b>Controls</b><span>Flow</span>'); // the row names whatever is in use now
+  });
+  it('the pause card door is the row, the tried line and the vote door: no list, no Try every control, no second copy of the sheet', () => {
+    const pause = html(createElement(PauseControls));
+    expect(pause).toContain('data-testid="controls-row"'); expect(pause).toContain('Tried 0 of 2 needed to vote'); // a vote door sits here, so the line may say what a vote needs
+    expect(pause).toContain('data-testid="vote-open"');
+    for (const gone of ['controls-list', 'controls-section', 'Try every control', 'Number keys 1-8', '<details', 'name="control-pause"']) expect(pause, gone).not.toContain(gone);
+  });
+  it('the sheet footer links to Flight settings on touch only; the desktop footer has the number-keys checkbox instead', () => {
+    const touch = html(createElement(ControlsSheet, { family: 'touch', onClose: noop })), desktop = html(createElement(ControlsSheet, { family: 'desktop', onClose: noop }));
+    expect(touch).toContain('data-testid="controls-settings"'); expect(touch).toContain('<b>Flight settings</b><span>Size, left-handed, look speed</span>');
+    expect(desktop).not.toContain('controls-settings'); expect(desktop).not.toContain('Flight settings');
   });
   it('the entry mounts the note or the trigger, and the trigger part waits for Begin', () => {
     expect(html(createElement(ControlsEntry, { part: 'note' }))).toContain('role="note"');
@@ -275,14 +283,31 @@ describe('ControlsPicker.module.css contract', () => {
     expect(css).toMatch(/\.switch button\{[^}]*min-height:44px/);
     expect(css).toMatch(/\.check\{[^}]*min-height:44px/);
   });
-  it('the sheet sits under the header inside the safe areas and scrolls; the footer is sticky', () => {
+  it('the sheet is a popover under the row by default (right edge on the row, 420 wide, one column) and scrolls; the footer is sticky', () => {
     expect(css).not.toContain('--lab-row'); expect(css).not.toMatch(/--top:calc/); // one token: the row's --hdr, from the experience
-    expect(css).toMatch(/\.sheet\{[^}]*top:var\(--hdr\)/);
-    expect(css).toMatch(/\.sheet\{[^}]*max-height:calc\(100dvh - var\(--hdr\) - max\(8px,env\(safe-area-inset-bottom\)\)/);
+    expect(css).toMatch(/\.sheet\{[^}]*top:var\(--hdr\);right:max\(var\(--gx\),env\(safe-area-inset-right\)\)/);
+    expect(css).toMatch(/\.sheet\{[^}]*width:min\(420px,calc\(100vw - 2 \* var\(--side\)\)\)/);
+    expect(css).toMatch(/\.sheet\{[^}]*max-height:min\(calc\(100dvh - var\(--hdr\) - 16px\),640px\)/);
     expect(css).toMatch(/\.sheet\{[^}]*overflow-y:auto;overscroll-behavior:contain/);
     expect(css).toMatch(/\.sheet\{[^}]*touch-action:pan-y/);
-    expect(css).toMatch(/\.sheet\{[^}]*env\(safe-area-inset-left\),env\(safe-area-inset-right\)/);
+    expect(css).toMatch(/\.sheet\{--side:max\(16px,env\(safe-area-inset-left\),env\(safe-area-inset-right\)\)/);
     expect(css).toMatch(/\.foot\{position:sticky;bottom:0;[^}]*background:#132a30/);
+    expect(css).not.toContain('min-width:721'); // no two-column desktop sheet any more: it covered the crosshair
+    expect(css).not.toMatch(/data-family=desktop\] \.sheetBody/);
+  });
+  it('on a phone (600 px and narrower, or a short landscape window) it is a bottom sheet inside the safe area; short landscape keeps two columns', () => {
+    const phone = css.match(/@media\(max-width:600px\),\(max-height:550px\) and \(orientation:landscape\)\{([\s\S]*?)\n\}/);
+    expect(phone).not.toBeNull();
+    expect(phone![1]).toMatch(/\.sheet\{[^}]*top:auto;right:auto;left:50%;bottom:max\(8px,env\(safe-area-inset-bottom\)\);transform:translateX\(-50%\)/);
+    expect(phone![1]).toMatch(/max-height:min\(80dvh,calc\(100dvh - var\(--hdr\) - 8px\)\)/);
+    expect(phone![1]).toMatch(/border-radius:12px/);
+    const short = css.match(/@media\(max-height:550px\) and \(orientation:landscape\)\{([\s\S]*?)\n\}/);
+    expect(short).not.toBeNull();
+    expect(short![1]).toMatch(/\.sheet\{width:min\(680px/); expect(short![1]).toMatch(/\.sheetBody \.list\{grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
+  });
+  it('the Controls row and the footer link are 44 px tall targets', () => {
+    expect(css).toMatch(/\.link\{[^}]*min-height:44px/);
+    expect(css).toMatch(/\.rowButton\{[^}]*width:100%/); // its height is the shared .secondary 44 px
   });
   it('checked rows and buttons are dark on lime; the trigger is ink on the dark pill; focus is visible', () => {
     expect(css).toMatch(/\.trigger\[aria-expanded=true\]\{background:var\(--lime\);color:#1a3029/);

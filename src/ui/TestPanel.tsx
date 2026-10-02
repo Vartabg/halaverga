@@ -12,7 +12,7 @@ import { readInsets } from './touchInsets';
 import { isStandalone } from './playSession';
 import { unlockBlasterAudio } from './audioUnlock';
 import { LabStatsTable } from './gesture/LabPanel';
-import ControlsSection from './controls/ControlsSection';
+import { ControlsRow } from './controls/PauseControls';
 // Blaster settings load with the panel, not with the landing page.
 const ShooterSettings = dynamic(() => import('./ShooterSettings'), { ssr: false, loading: () => null });
 import { BUILD_STAMP, DEPLOYMENT_URL } from './buildInfo';
@@ -58,7 +58,8 @@ function ScreenDiagnostics() {
   </details>;
 }
 
-export default function TestPanel({ onClose }: { onClose: () => void }) {
+/** Close returns to the pause card; Resume (lime, in the footer) closes this and plays on, so the round trip Pause, settings, adjust, Resume is one tap at the end. */
+export default function TestPanel({ onClose, onResume, ready }: { onClose: () => void; onResume: () => void; ready: boolean }) {
   const state = useGame(), [stats, setStats] = useState<ReturnType<typeof measurements> | null>(null);
   // Touch screens: the blaster section (Auto-fire) leads, above the controls list and the touch and trackpad sections, so it is not
   // below the fold (852 × 393 landscape included).
@@ -70,9 +71,9 @@ export default function TestPanel({ onClose }: { onClose: () => void }) {
   return <Modal title="Flight settings" onClose={onClose}>
     <p>Adjust the experience, resume, and try the same route again.</p>
     {coarse && <ShooterSettings coarse />}
-    {/* The one list of every control (the same as the header sheet, the pause card and the Field guide). It follows the blaster
+    {/* The one door to the list of every control: the Controls row opens the sheet (the list lives only there). It follows the blaster
         section on touch, so Auto-fire stays above the fold in landscape too. The mode-dependent settings follow it. */}
-    <ControlsSection name="control-settings" />
+    <ControlsRow fromPanel />
     {coarse && <TouchSettings />}
     <fieldset><legend>Perspective</legend><div className={styles.segment}>
       <button aria-pressed={state.camera === 'third'} onClick={() => save({ camera: 'third' })}>Third person</button>
@@ -101,5 +102,6 @@ export default function TestPanel({ onClose }: { onClose: () => void }) {
       }}>Download measurements</button>
     </details>
     <button className={styles.secondary} onClick={() => { runtime.reset = true; onClose(); }}>Return to arrival terrace</button>
+    <div className={styles.modalFoot}><button className={styles.primary} aria-label="Resume flight" disabled={!ready} onClick={onResume}>Resume</button></div>
   </Modal>;
 }
