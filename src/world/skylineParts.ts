@@ -56,7 +56,7 @@ export type Buffers = { position: number[]; color: number[]; index: number[]; se
  * are lit or shaded by their normal against the sun (a smooth step, so a turned tower has no hard seam); tops are a little brighter;
  * the bottom face is dropped (under water) except on a tilted slab. The tower's mood leans its colour toward bleached, mossy, rusty
  * or glassy (without changing its value), and the low floors are darker (and greener for a mossy tower), so a tower is not one tone
- * top to bottom. A recessed core is always in its own shade. */
+ * top to bottom. A recessed core is nearly always in its own shade (a recess, but never near black). */
 export function bakeTower(out: Buffers, stand: Stand, specs: Spec[]) {
   const frame = new Matrix4().compose(new Vector3(stand.x, FOOT_Y, stand.z),
     new Quaternion().setFromEuler(new Euler(Math.cos(stand.leanAxis) * stand.lean, stand.yaw, Math.sin(stand.leanAxis) * stand.lean, 'YXZ')), new Vector3(1, 1, 1));
@@ -74,13 +74,13 @@ export function bakeTower(out: Buffers, stand: Stand, specs: Spec[]) {
       if (spec.kind === 'body' && f === 3) { const ys = [12, 13, 14, 15].map(i => pos.getY(i)); foot = [Math.min(...ys), Math.max(...ys)]; }
       if (f === 3 && spec.kind !== 'slab') continue;
       n.fromBufferAttribute(nor, f * 4);
-      const k = spec.kind === 'core' ? 0 : smooth(-.1, .45, n.dot(sun)), top = n.y > .5 ? 1.08 : 1, base = out.position.length / 3;
+      const k = spec.kind === 'core' ? .15 : smooth(-.1, .45, n.dot(sun)), top = n.y > .5 ? 1.08 : 1, base = out.position.length / 3;
       const own: Rgb = isCrown ? [crown[0] * .6, crown[1] * .6, crown[2] * .6] : shade, lite: Rgb = isCrown ? crown : lit;
       for (let v = 0; v < 4; v++) {
         const y = pos.getY(f * 4 + v), low = 1 - smooth(0, .5, (y - FOOT_Y) / total);
         out.position.push(pos.getX(f * 4 + v), y, pos.getZ(f * 4 + v));
         const c = [0, 1, 2].map(i => own[i] + (lite[i] - own[i]) * k), a = toned ? Math.min(.75, mood.amount * (1 + mood.low * 1.6 * low)) : 0, lc = luma(c as Rgb);
-        const value = stand.bright * (isCrown ? 1 : mood.value * (1 - .15 * low)) * top * (spec.kind === 'core' ? .8 : 1);
+        const value = stand.bright * (isCrown ? 1 : mood.value * (1 - .15 * low)) * top * (spec.kind === 'core' ? .92 : 1);
         for (let i = 0; i < 3; i++) out.color.push(Math.min(1, (c[i] * (1 - a) + mood.tone[i] * lc / toneLuma * a) * value));
         out.seed.push(stand.layer + stand.seed);
       }
