@@ -1,5 +1,23 @@
 # Launch readiness: vote validity, analytics, deploy (task `vote-and-deploy`)
 
+## Your part, in short
+
+Read this first. Everything below is reference.
+
+**Before the link goes public you must:**
+1. Connect a vote store to Production only, and set `VOTE_SALT` (Vercel, project `halaverga-flight`: Storage, then Environment Variables). Two things.
+2. Make the three Firewall rules for `/api/vote` (rules 1, 2 and K1, vote-runbook.md section 6 step 3). If Vercel will not let you rate limit `/api/vote`, do not publish the link.
+3. Fly it once on your iPhone, portrait and landscape: the game, one vote, `/results`, `/privacy`. Nothing here has been tried on a phone.
+4. Say yes in chat to the production deploy. Afterwards send two real votes and run the one `reset-poll` line (vote-runbook.md section 6 step 6), so the tests do not stay in the tally.
+
+**You should** (quick; the launch works without them, but blind or exposed): enable Web Analytics for the project (1 click, or the funnel counts stay empty); turn on Dependabot alerts, secret scanning and push protection on the GitHub repo (3 toggles); set a Spend Management amount (1 setting).
+
+**Optional:** a throwaway Preview-only store to test votes before production (without it the first real vote happens on production); a look at Deployment Protection (nothing to change if it reads as in the list below).
+
+**Later:** the first audit run, 30 minutes after the deploy (vote-runbook.md section 4).
+
+**Safely waits:** whether the waterfront and the ridge come back (the deploy is correct without them). **Done from here, not by you:** merging the stack, `pnpm verify`, the preview deploy and its curl checks, the rollback readiness check.
+
 From the blind-spot audit (2026-10-02). Garo asked for all of it, done the most logical way.
 
 This task: results that do not over-claim, anonymous funnel counts, and a rehearsed deploy with a written way back.
@@ -42,7 +60,7 @@ Checked here (desktop emulation, not an iPhone): a production build with `VERCEL
 **Plan and switches only the owner can touch.** I read, I did not change, anything on Vercel.
 
 - **Web Analytics is not enabled** for `halaverga-flight`, or the latest deployment predates enabling it: a read-only GET of `/_vercel/insights/script.js` on the latest deployment (`dpl_GSUBt1vV...`, 2026-10-02) returned the app's own 404. Before the first deploy: Vercel dashboard, project `halaverga-flight`, Analytics, **Enable**, then deploy. Until then the page works and counts nothing.
-- **The team's plan could not be read.** `get_team` returns no plan and `get_project` has no Web Analytics field. Vercel's docs (2026-10-02): custom events are Pro and Enterprise only; Hobby gets page views only (50,000 events a month, then collection pauses). **If the team is on Hobby, the funnel is page-level only**: the five steps will not appear, the page view count still tells how many strangers arrived, and the wrapper stays harmless. On Pro an event costs $0.03 per 1,000 beyond the monthly credit, about six events per visitor.
+- **The team's plan is Pro** (V4 read it later the same day with `get_git_deployment_context`; this section first said it could not be read). Vercel's docs (2026-10-02): custom events are Pro and Enterprise only; Hobby gets page views only (50,000 events a month, then collection pauses), so on Hobby the funnel would be page-level only and the wrapper harmless. On Pro the five steps should appear once Web Analytics is enabled, and an event costs $0.03 per 1,000 beyond the monthly credit, about six events per visitor.
 - After the first production deploy: open the site once with the network tab open (expect `/_vercel/insights/script.js` 200 and a request to `/_vercel/insights/view`), then look in the dashboard under Analytics for the page view and, on Pro, the Events panel. Your own visits count too; send Do Not Track from your browser to keep them out.
 
 **Reading it.** Page views are people who arrived; `begin` and `scene_ready` show who got into the game and whether the load held them back; `second_way_20s` to `vote_card_shown` to `vote_sent` is the vote funnel; `vote_sent` against the stored votes is only a rough hint at refused and failed sends, not a count of them (visitors with a blocker, Do Not Track or Global Privacy Control are stored but never in `vote_sent`, it is once per page load, and `/results` is rounded down to 5, so the gap can be small or negative; see voting.md, "What the counts cannot tell"). Blockers that drop `/_vercel/insights` and Do Not Track or Global Privacy Control visitors are missing, so every number is a floor. If you decline Web Analytics, treat a low vote count as unreadable, not as a verdict.
@@ -92,7 +110,7 @@ Changing accounts, security features or Vercel and GitHub settings is the owner'
 1. **GitHub, repository `Vartabg/halaverga`, Settings, Code security:** turn on Dependabot alerts, secret scanning and push protection (free on a public repo; the audit found all three off).
 2. **Vercel, project `halaverga-flight`, Storage:** connect the vote store (Upstash or Neon) to **Production only**, then Settings, Environment Variables: `VOTE_SALT` (Production only, sensitive; vote-runbook.md section 6 steps 1 and 2). Optional, for a vote check on a preview: a throwaway store on **Preview only**, a different `VOTE_SALT`, and `VOTE_ALLOW_PREVIEW=1`.
 3. **Vercel Firewall:** the rate-limit and kill-switch rules (vote-runbook.md section 6 step 3; rules 1, 2 and K1 are the minimum). Read the plan's limits first; if the plan cannot rate limit `/api/vote`, do not publish the link. **Today no custom firewall configuration exists** (the API answers not found).
-4. **Vercel Spend Management** (Settings, Billing): an amount and the pause action, or a note that the plan has none. The team's plan could not be read from here; it also decides how far back an Instant Rollback reaches (deploy.md section 8).
+4. **Vercel Spend Management** (Settings, Billing): an amount and the pause action, or a note that the plan has none. The team is on Pro (read in V4), which is also what lets an Instant Rollback reach an older deployment by id (deploy.md section 8).
 5. **Vercel Web Analytics:** Enable for the project, or the funnel counts nothing (V2 above).
 6. **Look at Vercel Deployment Protection.** Observed today: unique deployment and alias URLs answer 302 to Vercel login, and `halaverga-flight.vercel.app` answers 200 to anyone; the setting reads SSO on, `all_except_custom_domains`. That is what the runbook wants (public link open, old and preview URLs closed). Confirm it is still so after any change.
 7. **The production deploy itself:** only after Garo says yes in chat.
@@ -101,6 +119,7 @@ Decisions for Garo, not clicks: whether the waterfront and the ridge come into t
 
 ### Go-live order
 
+0. **Before any merge to `main`: know whether a merge deploys.** Production deploys from `main` only if the project's Git link is live. Read on 2026-10-02 (deploy.md section 6): `halaverga-flight` is not in the team's linked-Git-projects list, and PR #12 (merged to `main` 2026-09-23 19:17 CDT) produced no deployment while the merges of 09-17 to 09-19 each did. So the link is almost certainly off. It was not read as a setting, so do not rely on it for the first merge: look at Project Settings, Git (a look, no change), or merge the stack into an integration branch first and merge to `main` only at step 5. Right after the first merge to `main`, `list_deployments` must show no new deployment with `githubCommitRef: main`; if one appears, it is a production deploy of an untested build with the vote closed (no store yet), and the way back is `dpl_7sUsqUdXcAmG2S4K7MpnQUCwmstm` (deploy.md section 8).
 1. **Integration.** One branch with everything that ships: merge `shooter`, then `screen-cleanup` (push it first: it exists only on one Mac), then `sky-background`, then this task. Run `pnpm verify` and the Mac browser suite once on the merged result. Landing first load must stay at or under 636 KB; do not raise it.
 2. **iPhone pass.** Real iPhone Safari, portrait and landscape: the game, one ballot sent, `/results`, `/privacy`. Record it honestly in the device checklist (gesture-lab.md). Emulation is not an iPhone.
 3. **Preview and its live check.** Sections 3 and 4 of deploy.md: `scripts/hand-deploy.sh preview` (archive, secrets scan, deploy; it stops on any finding), the curl list, the stamp. The vote path needs the owner's Preview-only store (click 2); without it the preview proves only the closed paths, and the first real vote happens on production, with the poll reset after.
@@ -111,7 +130,7 @@ Decisions for Garo, not clicks: whether the waterfront and the ridge come into t
 
 ### Not done on purpose (V3)
 
-No deploy, rollback or promote; no push; no change to Vercel, GitHub, the budget or the vote backend; the waterfront and ridge not cherry-picked; no `@vercel/analytics`. `/results` carries the common CSP, not `default-src 'none'`: `tests/vote-headers.test.ts` pins that and I left it. The plan, the Git integration link and the environment variable names on Vercel were not read (the last on purpose: values must not be printed).
+No deploy, rollback or promote; no push; no change to Vercel, GitHub, the budget or the vote backend; the waterfront and ridge not cherry-picked; no `@vercel/analytics`. `/results` carries the common CSP, not `default-src 'none'`: `tests/vote-headers.test.ts` pins that and I left it. The environment variable names on Vercel were not read, on purpose: values must not be printed. (The plan and the Git link were read afterwards, in V4.)
 
 ## V4 Repair round (2026-10-02)
 
@@ -124,3 +143,17 @@ A second reading of V1 to V3 found eleven problems. Garo asked for all of it, do
 - **"The vote measures the first 20 seconds of flying each way"** was wrong: 20 seconds is the least a vote needs for each way it compares (`TRIED_S` is a minimum, play time has no ceiling, and the ballot carries no time at all). The line is now `A vote needs at least 20 seconds of flying each way it compares. A vote does not include how long you flew.`
 - Tests: `tests/vote-pages.test.ts` pins the cut at exactly 30, the row order, the real-aggregate case, the larger-of-two note and the new line; `tests/vote-docs.test.ts` pins the docs. Copy is in `copy-list.md` for the owner.
 - Not changed: the in-game card's "Winning head to head so far" line still names the top three from the ranking order with no noise caveat (its ranking already needs 15 comparison points and 6 groups to lead; the card is a lazy chunk with its own copy).
+
+### The deploy recipe is a gate now
+
+The recipe was a block to paste with the gitleaks line and the deploy on separate lines, and the `--prod` deploy had no scan. It is `scripts/hand-deploy.sh` (deploy.md section 3): history scan, scan of the exact folder that goes up, then one `vercel deploy` call, for preview and prod. `set -euo pipefail`, no skip flag. `tests/hand-deploy.test.ts` runs it with stub tools and pins the stops (finding in either scan, gitleaks missing, link missing, bad mode). I also ran it with the real gitleaks (8.30.1) on a scratch repo with a planted fake token: it stopped before the stubbed `vercel`, and on the clean repo it reached it. Nothing was deployed.
+
+### Two facts that were "not readable" and now are
+
+The plan is **Pro** and the Git link is **not there**, both from `get_git_deployment_context` (read-only; `get_team` and `get_project` show neither). The plan means custom analytics events and Instant Rollback to an older deployment by id are available (Vercel's docs, 2026-10-02); the missing link is step 0 above. Vercel's own project `updatedAt` reads 2026-10-02 21:10 UTC, after the newest deployment; what changed is not readable from here.
+
+### Not fixable here
+
+- **No physical iPhone.** The browser specs (53 at the last full run) run in desktop system Chrome with `/api/vote` and `/api/results` mocked (emulation, not an iPhone). There is no phone on this machine and Playwright's WebKit is not installed (the WebKit specs skip, `docs/verification.md`). This is why "Your part" item 3 is yours. Nothing was changed to pretend otherwise.
+- **Only fake stores.** The vote was exercised against `scripts/fake-upstash.mjs` and a real local PostgreSQL for the Neon adapter, never a real Upstash, Neon or Vercel deployment: an agent holds no store credentials and does not load any. The post-deploy list in deploy.md section 4 is therefore the first test of Vercel's edge, and the store-attached lines of it are yours (the console line is in vote-runbook.md section 2).
+- **First-load headroom is 0.2 KB** (635.8 of 636 KB, unchanged by this round; the budget is not raised). Measured from this build, by size and a text search of the nine scripts: the two biggest (229 and 178 KB) are React DOM and Next's client runtime, a 113 KB chunk carries no marker I could name, and the app's own code is the rest, about 117 KB. One 34 KB app chunk holds the Field guide copy, the pause card and the audio code, which are what I would look at first for lazy loading. A separate branch is meant to free about 8 KB (I did not read it), so I did not touch them and risk colliding with it. This round added nothing to the first load on purpose: the two game steps went into the lazy vote layer for that reason. Any addition to `Experience`, the store or the audio code will trip `check-first-load` until that branch lands.

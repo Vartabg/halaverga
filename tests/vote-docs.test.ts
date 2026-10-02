@@ -238,8 +238,19 @@ describe('V2 anonymous counts: the privacy text, the docs and the code say the s
       'rounded down to 5', 'The gap can be small or negative.']) inDocs(s);
     for (const s of ['not a count of them', 'Do Not Track or Global Privacy Control are stored but never in `vote_sent`', 'the gap can be small or negative']) expect(launch, s).toContain(s);
   });
+  it('launch-readiness.md opens with the owner\'s short list (must, should, optional, later), its go-live order starts at step 0 about the Git link, and deploy.md says what was read', () => {
+    const top = launch.slice(0, launch.indexOf('## V1 '));
+    expect(launch.indexOf('## Your part, in short')).toBeGreaterThan(0);
+    expect(launch.indexOf('## Your part, in short')).toBeLessThan(launch.indexOf('## V1 '));
+    for (const s of ['Before the link goes public you must:', '**You should**', '**Optional:**', '**Later:**', '**Safely waits:**', 'Nothing here has been tried on a phone', 'do not publish the link']) expect(top, s).toContain(s);
+    expect(top.split('\n').filter(Boolean).length).toBeLessThan(16); // short: about ten lines, the rest of the file is reference
+    expect(launch).toContain('0. **Before any merge to `main`: know whether a merge deploys.**');
+    const deploy = read('docs/deploy.md');
+    for (const s of ['`get_git_deployment_context`', '**Pro**', 'PR #12 was merged to `main` on 2026-09-23 19:17 CDT', 'no deployment followed']) expect(deploy, s).toContain(s);
+    expect(deploy).not.toMatch(/Not readable from the MCP|I could not read the team's plan|was not readable/);
+  });
   it('launch-readiness.md says begin and scene_ready are wired (and where), the plan facts and what only the owner can switch on', () => {
-    for (const s of ['`begin` and `scene_ready` are wired by `src/ui/vote/gameSteps.ts`', 'Web Analytics is not enabled', 'custom events', 'page-level only']) expect(launch, s).toContain(s);
+    for (const s of ['`begin` and `scene_ready` are wired by `src/ui/vote/gameSteps.ts`', 'Web Analytics is not enabled', 'custom events', 'page-level only', "The team's plan is Pro"]) expect(launch, s).toContain(s);
     for (const [f, text] of [['docs/voting.md', voting], ['docs/launch-readiness.md', launch]] as const) expect(text, f).not.toMatch(/not wired|once wired/);
     for (const s of ['`src/ui/vote/gameSteps.ts`', "the game store's `started` turns true", "the game store's `ready` turns true"]) inDocs(s);
   });
