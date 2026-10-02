@@ -64,7 +64,7 @@ export const haloAlpha = (burstIndex: number) => burstIndex >= ATTENUATE_FROM ? 
 export const sparkReach = (speed: number, life: number) => speed * life + 11 * life * life;
 /** Spark speed (m/s) and life (s) from two uniforms. Non-kill sparks reach at most 1.35 m; the kill burst keeps its 4-9 m/s spray. */
 export function sparkParams(u1: number, u2: number, kill: boolean, out: { speed: number; life: number }) {
-  if (kill) { out.speed = 4 + 5 * u1; out.life = .15 + .1 * u2; } else { out.speed = 3 + 2.5 * u1; out.life = .12 + .06 * u2; }
+  if (kill) { out.speed = 3.5 + 5 * u1; out.life = .3 + .25 * u2; } else { out.speed = 3 + 2.5 * u1; out.life = .12 + .06 * u2; }
   return out;
 }
 /** World metres covered by one screen pixel at `dist`; a sprite of pxSize(px, cap, m) is px pixels wide, capped at cap metres. */
@@ -142,9 +142,10 @@ export function spawnSpark(sp: Sparks, t: number, p: Vec3, dir: Vec3, speed: num
   d[o] = t; d[o + 1] = life; d[o + 2] = p.x; d[o + 3] = p.y; d[o + 4] = p.z;
   d[o + 5] = dir.x * speed; d[o + 6] = dir.y * speed; d[o + 7] = dir.z * speed;
 }
+export { PLUME, SHARD_K_MAX, burstGain, killSparkCount, shardGain, shardK, shardScale, shardTint } from './shards';
 const sp0 = { x: 0, y: 0, z: 0 }, sv0 = { x: 0, y: 0, z: 0 }, spOut = { x: 0, y: 0, z: 0 };
-/** Writes live sparks (colour c0 -> c1, fading out) and blanks newly dead ones once; returns the highest live slot + 1. */
-export function drawSparks(sp: Sparks, t: number, pos: Float32Array, col: Float32Array, c0: Rgb, c1: Rgb) {
+/** Writes live sparks (colour c0 -> c1, or c0 -> c1 -> c2 when c2 is given, fading out) and blanks newly dead ones once; returns the highest live slot + 1. */
+export function drawSparks(sp: Sparks, t: number, pos: Float32Array, col: Float32Array, c0: Rgb, c1: Rgb, c2?: Rgb) {
   let top = 0;
   for (let i = 0; i < sp.size; i++) {
     const o = i * SPARK, d = sp.d, age = t - d[o], k = i * 3;
@@ -152,7 +153,8 @@ export function drawSparks(sp: Sparks, t: number, pos: Float32Array, col: Float3
     sp0.x = d[o + 2]; sp0.y = d[o + 3]; sp0.z = d[o + 4]; sv0.x = d[o + 5]; sv0.y = d[o + 6]; sv0.z = d[o + 7];
     debrisAt(sp0, sv0, age, spOut); pos[k] = spOut.x; pos[k + 1] = spOut.y; pos[k + 2] = spOut.z;
     const u = age / d[o + 1], f = 1 - u * u;
-    col[k] = (c0.r + (c1.r - c0.r) * u) * f; col[k + 1] = (c0.g + (c1.g - c0.g) * u) * f; col[k + 2] = (c0.b + (c1.b - c0.b) * u) * f;
+    const a = c2 && u > .5 ? c1 : c0, b = c2 ? (u > .5 ? c2 : c1) : c1, w = c2 ? (u > .5 ? 2 * u - 1 : 2 * u) : u;
+    col[k] = (a.r + (b.r - a.r) * w) * f; col[k + 1] = (a.g + (b.g - a.g) * w) * f; col[k + 2] = (a.b + (b.b - a.b) * w) * f;
     sp.shown[i] = 1; top = i + 1;
   }
   return top;

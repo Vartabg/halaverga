@@ -1,17 +1,17 @@
 // Sparks, splashes, debris, fireball and smoke: 5 draw calls (sparks, additive sprites, alpha sprites, rings, debris).
 import { useEffect, useMemo } from 'react';
 import { useFrame, type RootState } from '@react-three/fiber';
-import { Euler, Matrix4, Quaternion, Vector3 } from 'three';
+import { Euler, Matrix4, type PerspectiveCamera, Quaternion, Vector3 } from 'three';
 import { EVENT_RING, MAX_DRONES, WATER_LEVEL, droneAlive, flashGate, mulberry32, readEvents, type EventKind, type ShotEvent, type Vec3 } from '@/game/combat';
 import { guarded } from '@/game/shooterFault';
 import { runtime } from '@/game/runtime';
 import { useGame } from '@/game/store';
-import { CURVE_FLAT, CURVE_HOLD, claim, debrisAt, drawSparks, impactDelay, isShotKind, lobeDir, makePuffs, makeSparks, puffFrame, puffU,
-  sparkParams, spawnPuff, spawnSpark, waterContactTime, type Ring } from './fxPools';
+import { CURVE_FLAT, CURVE_HOLD, PLUME, burstGain, claim, debrisAt, drawSparks, impactDelay, isShotKind, killSparkCount, lobeDir, makePuffs, makeSparks,
+  puffFrame, puffU, shardGain, shardK, shardScale, shardTint, sparkParams, spawnPuff, spawnSpark, waterContactTime, type Ring } from './fxPools';
 import { FX, commit, debrisPool, disposePool, drawPuffs, fxKit, place, retainFx, ringPool, sparkMinPx, sparkPool, spritePool, tint } from './fxMaterials';
 // ALPHA holds the kill plume (6 x 1.8 s) beside up to 8 broken-drone smoke trails (about 6 live puffs each) without evicting them.
-const SPARKS = 128, ADD = 24, ALPHA = 48, RINGS = 8, DEBRIS = 32, DB = 17, PD = 10, UP = { x: 0, y: 1, z: 0 }, HEAT_T = .6;
-const m4 = new Matrix4(), q = new Quaternion(), eu = new Euler(), vp = new Vector3(), vs = new Vector3();
+const SPARKS = 200, ADD = 32, ALPHA = 64, RINGS = 8, DEBRIS = 32, DB = 17, PD = 10, UP = { x: 0, y: 1, z: 0 }, HEAT_T = .6, EMBER_T = .55;
+const TINTS = [FX.metal, FX.panel, FX.rust], m4 = new Matrix4(), q = new Quaternion(), eu = new Euler(), vp = new Vector3(), vs = new Vector3();
 
 function createImpactFx() {
   const sparks = sparkPool(SPARKS), add = spritePool(ADD, true), alpha = spritePool(ALPHA, false), rings = ringPool(RINGS);
@@ -26,8 +26,11 @@ function createImpactFx() {
   const smokeAt = new Float64Array(MAX_DRONES), sparkAt = new Float64Array(MAX_DRONES), rng = mulberry32(0x1a2b3c);
   const cursor = { last: runtime.shooter.eventSerial }, p = { x: 0, y: 0, z: 0 }, n = { x: 0, y: 1, z: 0 }, dir = { x: 0, y: 0, z: 0 };
   const v = { x: 0, y: 0, z: 0 }, at = { x: 0, y: 0, z: 0 }, pos = { x: 0, y: 0, z: 0 }, col = { r: 0, g: 0, b: 0 }, size = { x: 0, y: 0 };
-  const spark = { speed: 0, life: 0 };
-  let reduced = false, t = 0;
+  const spark = { speed: 0, life: 0 }, sh = { x: 1, y: 1, z: 1 };
+  const cam = { x: 0, y: 0, z: 0, fov: 65, h: 800 };
+  let reduced = false, t = 0, emberGain = 1, emberUntil = 0;
+  /** Burst size gain at a world point: the fireball keeps a readable on-screen size at range (see burstGain). */
+  const gainAt = (c: Vec3) => burstGain(Math.hypot(c.x - cam.x, c.y - cam.y, c.z - cam.z), cam.fov, cam.h);
   /** Non-kill sparks reach at most 1.35 m, so they stay tight around the impact (the aim zone); the kill burst keeps its spray. */
   const burstSparks = (c: Vec3, nrm: Vec3, count: number, kill = false) => {
     for (let k = 0; k < count; k++) {
@@ -43,7 +46,7 @@ function createImpactFx() {
     const hit = waterContactTime(c, v, WATER_LEVEL), end = Math.min(2.5, hit);
     db[o] = t; db[o + 1] = end; db[o + 2] = c.x; db[o + 3] = c.y; db[o + 4] = c.z; db[o + 5] = v.x; db[o + 6] = v.y; db[o + 7] = v.z;
     for (let k = 0; k < 3; k++) { db[o + 8 + k] = (3 + 6 * rng()) * (rng() < .5 ? -1 : 1); db[o + 11 + k] = 2 * Math.PI * rng(); }
-    db[o + 14] = scale; db[o + 15] = hit <= 2.5 ? 1 : 0; db[o + 16] = hot; dbLive[i] = 1;
+    db[o + 14] = scale; db[o + 15] = hit <= 2.5 ? 1 : 0; db[o + 16] = hot; dbLive[i] = 1; tint(debris, i, TINTS[shardTint(i)], 1);
   };
   const impact = (kind: EventKind, c: Vec3, nrm: Vec3) => {
     if (kind === 'water') {
@@ -52,25 +55,34 @@ function createImpactFx() {
       return;
     }
     burstSparks(c, nrm, reduced ? 4 : 6 + Math.floor(rng() * 5), kind === 'kill');
-    if (kind === 'hit' || kind === 'weak' || kind === 'kill')
-      spawnPuff(addP, t, c, 0, .12, .35, .6, 1, kind === 'weak' ? FX.amber : FX.core, FX.spark, .8);
+    if (kind === 'hit' || kind === 'weak' || kind === 'kill') {
+      const g = kind === 'kill' ? gainAt(c) : 1;
+      spawnPuff(addP, t, c, 0, .12, .35 * g, .6 * g, 1, kind === 'weak' ? FX.amber : FX.core, FX.spark, .8);
+    }
   };
   const onEvent = (e: ShotEvent) => {
-    if (e.kind === 'break') { addDebris(e.point, 2, 4, 2, 1); burstSparks(e.point, UP, reduced ? 4 : 8); return; }
+    if (e.kind === 'break') { addDebris(e.point, 2, 4, 2, shardK(.75, shardGain(gainAt(e.point)))); burstSparks(e.point, UP, reduced ? 4 : 8); return; }
     if (e.kind === 'burst') {
-      const c = e.point;
-      for (let k = 0; k < 9; k++) addDebris(c, 5, 11, 4, k < 3 ? 2.2 : .6 + .3 * rng(), 1);
-      // A 50 ms white-hot pop (its own 3-per-second flash gate; none under reduced motion), a hot centre, then a flame core that
-      // holds its brightness for about 150 ms while it grows 1.2 -> 3.5 m and cools yellow -> orange -> ember.
-      if (!reduced && flashGate(popHist, 0, t)) spawnPuff(addP, t, c, 0, .05, 3.5, 3.5, 1, FX.pop, FX.pop, 1, CURVE_FLAT);
-      spawnPuff(addP, t, c, 0, .15, .6, 1.4, 1, FX.pop, FX.flame, 1, CURVE_HOLD);
-      spawnPuff(addP, t, c, 0, .2, 1.2, 2.6, 1, FX.flame, FX.blaze, 1, CURVE_HOLD);
-      spawnPuff(addP, t + .12, c, 0, .3, 2.4, 3.5, 1, FX.blaze, FX.ember, .9, CURVE_HOLD);
-      burstSparks(c, UP, reduced ? 6 : 20 + Math.floor(rng() * 9), true);
-      // A pale plume that starts 80 ms after the pop, rises and spreads (reduced motion: two still puffs).
-      for (let k = 0, n = reduced ? 2 : 6; k < n; k++) {
-        at.x = c.x + (rng() - .5) * .6; at.y = c.y + (rng() - .5) * .4; at.z = c.z + (rng() - .5) * .6;
-        spawnPuff(alphaP, t + .08 + .03 * k, at, reduced ? 0 : 1.2, 1.8, 1.2, 4, 1, FX.plume, FX.plume, .7);
+      const c = e.point, g = gainAt(c), sg = shardGain(g);
+      for (let k = 0; k < 9; k++) addDebris(c, 5, 11, 4, shardK(k < 3 ? 1.15 : .65 + .25 * rng(), sg), 1);
+      emberGain = 1 + (g - 1) * .8; emberUntil = t + EMBER_T;
+      // An 80 ms white-hot pop (its own 3-per-second flash gate; none under reduced motion), a hot centre, a flame core that holds its
+      // brightness while it grows 1.4 -> 3.4 m and cools yellow -> orange -> ember, and a wide dim glow that outlasts the flying pieces.
+      if (!reduced && flashGate(popHist, 0, t)) spawnPuff(addP, t, c, 0, .08, 5 * g, 5 * g, 1, FX.pop, FX.pop, 1, CURVE_FLAT);
+      spawnPuff(addP, t, c, 0, .3, .8 * g, 2 * g, 1, FX.pop, FX.flame, 1, CURVE_HOLD);
+      spawnPuff(addP, t, c, 0, .5, 1.4 * g, 3.4 * g, 1, FX.flame, FX.blaze, 1, CURVE_HOLD);
+      spawnPuff(addP, t + .1, c, 0, .7, 2.6 * g, 4.6 * g, 1, FX.blaze, FX.ember, .85, CURVE_HOLD);
+      spawnPuff(addP, t, c, 0, .9, 3 * g, 6 * g, 1, FX.blaze, FX.ember, .4, CURVE_HOLD);
+      // A dark alpha-blended core under the flame (the additive pool draws after it) so the flash reads over a bright sky.
+      spawnPuff(alphaP, t, c, 0, .5, 1 * g, 2.8 * g, 1, FX.char, FX.char, .4, CURVE_HOLD);
+      burstSparks(c, UP, reduced ? 8 : killSparkCount(rng()), true);
+      // Smoke: a few offset puffs of different sizes that start 80 ms after the pop, rise at their own speeds and spread out to a pale grey,
+      // so it climbs away instead of hanging as one dark smudge (reduced motion: two still puffs).
+      for (let k = 0, n = reduced ? 2 : 4; k < n; k++) {
+        const a = 2 * Math.PI * (k + rng()) / n, r = .5 + .5 * rng();
+        at.x = c.x + Math.cos(a) * r; at.y = c.y + (rng() - .3) * .6; at.z = c.z + Math.sin(a) * r;
+        v.x = Math.cos(a) * 3; v.y = 0; v.z = Math.sin(a) * 3;
+        spawnPuff(alphaP, t + .08 + .04 * k, at, reduced ? 0 : PLUME.rise * (.7 + .6 * rng()), PLUME.life, PLUME.s0 * g * (.7 + .6 * rng()), PLUME.s1 * g, 1, FX.plume, FX.plumeEnd, PLUME.alpha, CURVE_HOLD, reduced ? null : v);
       }
       return;
     }
@@ -81,7 +93,7 @@ function createImpactFx() {
     pendKind[i] = e.kind; pendLive[i] = 1;
   };
   const drawDebris = () => {
-    let top = 0;
+    let top = 0, k = 0;
     for (let i = 0; i < DEBRIS; i++) {
       if (!dbLive[i]) continue;
       const o = i * DB, age = t - db[o];
@@ -93,7 +105,8 @@ function createImpactFx() {
       heat[i] = db[o + 16] ? Math.max(0, 1 - age / HEAT_T) : 0;
       debrisAt(p, v, age, at);
       q.setFromEuler(eu.set(db[o + 11] + db[o + 8] * age, db[o + 12] + db[o + 9] * age, db[o + 13] + db[o + 10] * age));
-      debris.setMatrixAt(i, m4.compose(vp.set(at.x, at.y, at.z), q, vs.setScalar(db[o + 14]))); top = i + 1;
+      shardScale(i, sh); k = db[o + 14];
+      debris.setMatrixAt(i, m4.compose(vp.set(at.x, at.y, at.z), q, vs.set(sh.x * k, sh.y * k, sh.z * k))); top = i + 1;
     }
     return top;
   };
@@ -120,6 +133,8 @@ function createImpactFx() {
   const frame = (st: RootState) => {
     const s = runtime.shooter;
     sparkMinPx.value = 2 * st.gl.getPixelRatio();
+    const pc = st.camera as PerspectiveCamera;
+    cam.x = pc.position.x; cam.y = pc.position.y; cam.z = pc.position.z; cam.fov = pc.fov || 65; cam.h = st.size.height || 800;
     t = s.clock; reduced = useGame.getState().reduced;
     readEvents(s, cursor, onEvent);
     for (let i = 0; i < EVENT_RING; i++) {
@@ -129,13 +144,14 @@ function createImpactFx() {
       impact(pendKind[i], p, n);
     }
     trail();
-    const top = drawSparks(sp, t, sPos, sCol, FX.white, FX.spark), g = sparks.geometry;
+    const top = drawSparks(sp, t, sPos, sCol, FX.pop, FX.blaze, FX.ember), g = sparks.geometry;
     g.setDrawRange(0, top); sparks.visible = top > 0;
     if (top) { g.attributes.position.needsUpdate = true; g.attributes.color.needsUpdate = true; }
-    fxKit().spark.size = reduced ? .15 : .15 * (.8 + .4 * rng());
+    fxKit().spark.size = reduced ? .15 : .15 * (.8 + .4 * rng()) * (t < emberUntil ? 1.5 * emberGain : 1);
     commit(add, drawPuffs(add, addP, t)); commit(alpha, drawPuffs(alpha, alphaP, t));
     commit(rings, drawRings()); commit(debris, drawDebris());
   };
+  add.renderOrder = sparks.renderOrder = 2;   // after the alpha smoke, so flames and embers are never dimmed by it
   return { meshes: [sparks, add, alpha, rings, debris], tick: guarded('ImpactFx', frame) };
 }
 

@@ -1,9 +1,11 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { AdditiveBlending, Box3, BoxGeometry, type BufferAttribute, Euler, type MeshStandardMaterial, Vector3 } from 'three';
+import { FX, debrisPool, disposePool, fxKit, shardGeometry, sparkMinPx } from '../src/world/fxMaterials';
 import { EVENT_RING, WATER_LEVEL, createShooter, flashGate, mulberry32, pushEvent, readEvents, type ShotEvent } from '../src/game/combat';
 import {
-  CLEAR_PX, CORE_FLOOR_PX, DRIFT_TAU, PUFF, STEAM_GAP, STEAM_PUFFS, claim, debrisAt, drawSparks, haloAlpha, haloClampPx, impactDelay, isShotKind,
-  lobeDir, makePuffs, makeSparks, makeSteam, puffFrame, puffU, sparkParams, sparkReach, spawnPuff, spawnSpark, startSteam, stepSteam,
+  CLEAR_PX, CORE_FLOOR_PX, CURVE_HOLD, DRIFT_TAU, PLUME, PUFF, STEAM_GAP, STEAM_PUFFS, claim, debrisAt, drawSparks, haloAlpha, haloClampPx, impactDelay, isShotKind,
+  burstGain, killSparkCount, lobeDir, makePuffs, makeSparks, makeSteam, puffFrame, puffU, SHARD_K_MAX, shardGain, shardK, shardScale, shardTint, sparkParams, sparkReach, spawnPuff, spawnSpark, startSteam, stepSteam,
   tracerOrigin, tracerSpan, tracerSpeed, tracerWidth, waterContactTime, FIRST_FRAME,
 } from '../src/world/fxPools';
 const O = { x: 0, y: 0, z: 0 };
@@ -271,5 +273,200 @@ describe('cannon-synced muzzle effects', () => {
     expect(shotFx).toMatch(/stepSteam\(steamQ, t, cannonLink\.ventMouth/); expect(shotFx).toMatch(/tracerSpan\(t - tr\[o\], dist, span, live\[i\] === 2\)/); expect(shotFx).toMatch(/haloAlpha\(eventBurstIndex\(e\.serial\)\)/);
     expect(impact).toMatch(/sparkParams\(rng\(\), rng\(\), kill, spark\)/);
     for (const src of [shotFx, impact]) expect(src.split('\n').length).toBeLessThan(200);
+  });
+});
+
+describe('kill and hit effect shapes (no squares, no slabs)', () => {
+  const geo = shardGeometry(), pos = geo.attributes.position, nTri = pos.count / 3, o3 = { x: 0, y: 0, z: 0 };
+  const tri = (i: number) => [0, 1, 2].map(k => new Vector3().fromBufferAttribute(pos, i * 3 + k));
+  /** Sorted extents and mean projected area (surface area / 4, exact for convex bodies) of slot i's shard at uniform scale k. */
+  const stats = (i: number, k: number) => {
+    shardScale(i, o3); let area = 0; const mn = [1e9, 1e9, 1e9], mx = [-1e9, -1e9, -1e9], sc = new Vector3(o3.x * k, o3.y * k, o3.z * k);
+    for (let f = 0; f < nTri; f++) {
+      const [a, b, c] = tri(f).map(p => p.multiply(sc));
+      area += b.clone().sub(a).cross(c.clone().sub(a)).length() / 2;
+      for (const p of [a, b, c]) for (let d = 0; d < 3; d++) { mn[d] = Math.min(mn[d], p.getComponent(d)); mx[d] = Math.max(mx[d], p.getComponent(d)); }
+    }
+    return { area: area / 4, ext: [0, 1, 2].map(d => mx[d] - mn[d]).sort((x, y) => x - y) };
+  };
+  it('debris is a chunky many-faced lump, not a box slab, a plain tetrahedron or a flat plate', () => {
+    expect(geo.type).not.toBe('BoxGeometry'); expect(geo.index).toBeNull(); expect(nTri).toBeGreaterThanOrEqual(20);
+    const nrm = geo.attributes.normal;
+    for (let f = 0; f < nTri; f++) {
+      const n0 = new Vector3().fromBufferAttribute(nrm, f * 3), n2 = new Vector3().fromBufferAttribute(nrm, f * 3 + 2), [p0, p1, p2] = tri(f);
+      expect(n0.length()).toBeCloseTo(1, 5); expect(n0.distanceTo(n2)).toBeLessThan(1e-6);   // flat: one normal per face
+      expect(n0.dot(p1.clone().sub(p0).cross(p2.clone().sub(p0)).normalize())).toBeCloseTo(1, 5);
+    }
+    // At least 14 distinct corners, spread over three layers in z (an apex, two rings, an apex), not a two-sided plate.
+    const corners = new Set<string>(), zs = new Set<string>();
+    for (let v = 0; v < pos.count; v++) { corners.add([0, 1, 2].map(k => pos.getComponent(v, k).toFixed(4)).join()); zs.add(pos.getZ(v).toFixed(2)); }
+    expect(corners.size).toBe(12); expect(zs.size).toBeGreaterThanOrEqual(10);
+    // Outward winding: nearly every face normal points away from the centre.
+    let out = 0; for (let f = 0; f < nTri; f++) { const [a, b, c] = tri(f), n = new Vector3().fromBufferAttribute(nrm, f * 3); if (n.dot(a.add(b).add(c)) > 0) out++; }
+    expect(out).toBeGreaterThan(nTri * .85);
+  });
+  it('is centred on its bounding box and .8 m long at scale 1', () => {
+    const box = new Box3().setFromBufferAttribute(pos as BufferAttribute), size = box.getSize(new Vector3()), c = box.getCenter(new Vector3());
+    expect(Math.max(size.x, size.y, size.z)).toBeCloseTo(.8, 4); expect(c.length()).toBeLessThan(1e-6);
+    expect([size.x, size.y, size.z].sort((x, y) => x - y)[0] / .8).toBeGreaterThan(.55);   // thick: thinnest extent over .55 of the length
+  });
+  /** What the camera sees: the shard (slot i, scale k) turned through `rots` seeded random rotations, orthographically projected, and the
+   *  convex hull of the outline measured: area against its tightest bounding rectangle (a rectangle is 1) and thinnest width against the longest span. */
+  const outline = (verts: number[], sc: Vector3, rots: number) => {
+    let seed = 7; const rnd = () => (seed = Math.imul(seed, 1664525) + 1013904223 >>> 0) / 4294967296;
+    let fillMax = 0, widthMin = 1; const e = new Euler(), v = new Vector3();
+    for (let r = 0; r < rots; r++) {
+      e.set(rnd() * 6.283, rnd() * 6.283, rnd() * 6.283);
+      const pts = []; for (let n = 0; n < verts.length; n += 3) { v.set(verts[n] * sc.x, verts[n + 1] * sc.y, verts[n + 2] * sc.z).applyEuler(e); pts.push([v.x, v.y]); }
+      pts.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+      const cr = (o: number[], a: number[], b: number[]) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]), hull: number[][] = [];
+      for (const half of [pts, [...pts].reverse()]) {
+        const start = hull.length;
+        for (const p of half) { while (hull.length >= start + 2 && cr(hull[hull.length - 2], hull[hull.length - 1], p) <= 0) hull.pop(); hull.push(p); }
+        hull.pop();
+      }
+      let area = 0, boxMin = 1e9, wMin = 1e9, span = 0;
+      for (let i = 0; i < hull.length; i++) { const a = hull[i], b = hull[(i + 1) % hull.length]; area += (a[0] * b[1] - b[0] * a[1]) / 2; }
+      for (let i = 0; i < hull.length; i++) {
+        const a = hull[i], b = hull[(i + 1) % hull.length], l = Math.hypot(b[0] - a[0], b[1] - a[1]), ux = (b[0] - a[0]) / l, uy = (b[1] - a[1]) / l;
+        let lo = 1e9, hi = -1e9, w = 0;
+        for (const p of hull) { const s = (p[0] - a[0]) * ux + (p[1] - a[1]) * uy; lo = Math.min(lo, s); hi = Math.max(hi, s); w = Math.max(w, -(p[0] - a[0]) * uy + (p[1] - a[1]) * ux); }
+        boxMin = Math.min(boxMin, (hi - lo) * w); wMin = Math.min(wMin, w);
+      }
+      for (const a of hull) for (const b of hull) span = Math.max(span, Math.hypot(a[0] - b[0], a[1] - b[1]));
+      fillMax = Math.max(fillMax, area / boxMin); widthMin = Math.min(widthMin, wMin / span);
+    }
+    return { fill: fillMax, width: widthMin };
+  };
+  const verts = Array.from(pos.array as ArrayLike<number>);
+  it('the projected silhouette is never a rectangle or a bar, in any of 150 rotations, for every slot', () => {
+    for (let i = 0; i < 32; i++) {
+      shardScale(i, o3); const o = outline(verts, new Vector3(o3.x, o3.y, o3.z), 150);
+      expect(o.fill).toBeLessThan(.88); expect(o.width).toBeGreaterThan(.4);   // a slab or plate is 1.0 face-on and under .25 edge-on
+    }
+  });
+  it('the silhouette measure does catch the old shapes: a box slab and a flattened lump both fail it', () => {
+    const slab = Array.from(new BoxGeometry(.5, .08, .35).toNonIndexed().attributes.position.array as ArrayLike<number>), one = new Vector3(1, 1, 1);
+    const sl = outline(slab, one, 150); expect(sl.fill > .88 || sl.width < .4).toBe(true);
+    const flat = outline(verts, new Vector3(1.1, 1, .35), 150); expect(flat.fill > .88 || flat.width < .4).toBe(true);
+  });
+  it('no slot reads as a blade or a flat sheet: long/mid under 1.8, thin/mid over .6', () => {
+    for (let i = 0; i < 32; i++) { const { ext } = stats(i, 1); expect(ext[2] / ext[1]).toBeLessThan(1.8); expect(ext[0] / ext[1]).toBeGreaterThan(.6); }
+  });
+  it('a piece is never bigger than the drone: the real largest kill piece stays under 1.5 m, and the smallest still reads', () => {
+    expect(shardK(1.15, shardGain(2.2))).toBe(SHARD_K_MAX); expect(shardK(.65, 1)).toBeCloseTo(.65, 9);   // the burst's real extremes
+    const kMax = shardK(1.15, shardGain(2.2));
+    for (let i = 0; i < 32; i++) {
+      expect(stats(i, kMax).ext[2]).toBeLessThan(1.5); expect(stats(i, kMax).ext[2]).toBeLessThan(.8 * 1.86);   // drone rotor span 1.86 m
+      expect(stats(i, .65).area).toBeGreaterThan(.1);   // the smallest burst piece, at least the old .5 x .08 x .35 slab's .12 within a sliver
+      expect(stats(i, shardK(.75, 1)).area).toBeGreaterThan(.12);   // a break chip at close range
+    }
+  });
+  it('per-slot scale gives three visibly different families, deterministically', () => {
+    const o = { x: 0, y: 0, z: 0 }, fam = new Set<string>(), shapes = new Set<string>();
+    for (let i = 0; i < 32; i++) {
+      shardScale(i, o); const again = { x: 0, y: 0, z: 0 }; shardScale(i, again); expect(again).toEqual(o);
+      expect(o.x).toBeGreaterThan(.3); expect(o.y).toBeGreaterThan(.3); expect(o.z).toBeGreaterThan(.3);
+      fam.add(o.y > 1.1 ? 'wedge' : o.z > 1.15 * o.x ? 'chip' : 'panel'); shapes.add((o.x / o.y).toFixed(2));
+    }
+    expect([...fam].sort()).toEqual(['chip', 'panel', 'wedge']); expect(shapes.size).toBeGreaterThan(8);
+  });
+  it('tints shards gunmetal, worn panel and scorched red (never one flat cream), with headroom under the warm sun', () => {
+    const seen = new Set<number>(); for (let i = 0; i < 32; i++) seen.add(shardTint(i));
+    expect([...seen].sort()).toEqual([0, 1, 2]);
+    for (const c of [FX.metal, FX.panel, FX.rust]) expect(Math.max(c.r, c.g, c.b)).toBeLessThan(.25);   // linear colour: dark, never near white (the old panel was .53)
+    expect(FX.rust.r).toBeGreaterThan(FX.rust.b * 3);
+    expect(FX.panel.r + FX.panel.g + FX.panel.b).toBeGreaterThan(FX.metal.r + FX.metal.g + FX.metal.b);
+  });
+  it('the debris pool uses the shard, per-instance tint and heat, and the flat-shaded material with a cold-piece floor', () => {
+    const pool = debrisPool(32);
+    expect(pool.geometry.type).not.toBe('BoxGeometry'); expect(pool.geometry.attributes.position.count).toBe(pos.count);
+    expect(pool.geometry.attributes.aHeat.count).toBe(32); expect(pool.count).toBe(0); expect(pool.instanceMatrix.count).toBe(32);
+    expect(pool.instanceColor!.count).toBe(32);
+    const m = pool.material as MeshStandardMaterial; expect(m.flatShading).toBe(true); expect(m.color.getHex()).toBe(0xffffff);
+    expect(m.customProgramCacheKey!()).toBe('fx-debris-heat'); disposePool(pool);
+    const kit = readFileSync(new URL('../src/world/fxMaterials.ts', import.meta.url), 'utf8');
+    expect(kit).toMatch(/diffuseColor\.rgb \* \.1/);   // emissive floor
+    expect(kit).toMatch(/aHeat \* clamp\(length\(position\) \* 3\. - \.5, \.12, 1\.\)/);   // heat glows the far tips and corners, the faces stay metal
+  });
+  it('burst gain keeps the fireball at least 150 px across to 30 m, never shrinks it, never exceeds 2.2, and is monotonic', () => {
+    for (const [fov, h] of [[65, 800], [65, 390], [50, 1200]]) {
+      let prev = 1;
+      for (let d = 2; d <= 250; d += 4) {
+        const g = burstGain(d, fov, h), mpp = 2 * d * Math.tan(fov * Math.PI / 360) / h;
+        expect(g).toBeGreaterThanOrEqual(1); expect(g).toBeLessThanOrEqual(2.2); expect(g).toBeGreaterThanOrEqual(prev - 1e-12); prev = g;
+        if (150 * mpp <= 3.5 * 2.2) expect(3.5 * g / mpp).toBeGreaterThanOrEqual(150 - 1e-6);
+      }
+    }
+    expect(burstGain(26, 65, 800)).toBeGreaterThan(1.5);   // the owner's ~26 m desktop case
+    expect(burstGain(3, 65, 800)).toBe(1);
+    expect(shardGain(1)).toBe(1); expect(shardGain(2.2)).toBeGreaterThan(1.5); expect(shardGain(2.2)).toBeLessThan(2.2);
+    expect(killSparkCount(0)).toBeGreaterThanOrEqual(40); expect(killSparkCount(.999)).toBeLessThanOrEqual(57);
+  });
+  it('the smoke is a warm charcoal that rises fast and fades early, not a lavender disc', () => {
+    expect(FX.plume.r).toBeGreaterThan(FX.plume.b * 1.8); expect(FX.plumeEnd.r).toBeGreaterThanOrEqual(FX.plumeEnd.b);
+    expect(PLUME.life).toBeLessThanOrEqual(1.2); expect(PLUME.rise).toBeGreaterThanOrEqual(2);
+    const p = makePuffs(1), pos2 = { x: 0, y: 0, z: 0 }, col = { r: 0, g: 0, b: 0 }, size = { x: 0, y: 0 };
+    spawnPuff(p, 0, O, PLUME.rise, PLUME.life, PLUME.s0, PLUME.s1, 1, FX.plume, FX.plumeEnd, PLUME.alpha, CURVE_HOLD);
+    expect(puffFrame(p, 0, .6, pos2, col, size)).toBeLessThan(.25);   // mostly gone while the pieces still fly
+    expect(pos2.y).toBeGreaterThan(PLUME.rise * PLUME.life * .6 - 1e-9);
+  });
+  it('sparks are round additive discs: transparent, mapped, soft-edged, bright at the 2 px sample points', () => {
+    const m = fxKit().spark;
+    expect(m.map).toBeTruthy(); expect(m.map).toBe(fxKit().sparkMap); expect(m.transparent).toBe(true);
+    expect(m.blending).toBe(AdditiveBlending); expect(m.sizeAttenuation).toBe(true); expect(m.vertexColors).toBe(true);
+    const img = m.map!.image as { data: Uint8Array; width: number }, n = img.width, a = (x: number, y: number) => img.data[(y * n + x) * 4 + 3];
+    for (const [x, y] of [[0, 0], [n - 1, 0], [0, n - 1], [n - 1, n - 1]]) expect(a(x, y)).toBe(0);   // square corners are clear
+    for (let k = 0; k < n; k++) { expect(a(k, 0)).toBeLessThan(10); expect(a(0, k)).toBeLessThan(10); }   // no edge row left lit
+    expect(a(n / 2, n / 2)).toBe(255);
+    // A 2 px point samples at uv .25/.75 (r .71 from centre): still at least half alpha, and corner samples match edge samples (round).
+    const q = n / 4, hi = n - 1 - q;
+    expect(a(q, q)).toBeGreaterThan(128); expect(a(hi, q)).toBe(a(q, q)); expect(a(q, hi)).toBe(a(q, q)); expect(a(hi, hi)).toBe(a(q, q));
+    expect(a(n / 2, 1)).toBeLessThan(a(q, q));
+    expect(sparkMinPx.value).toBeGreaterThanOrEqual(2);
+  });
+  it('sparks cool from white-yellow through orange to ember and fade out', () => {
+    const sp = makeSparks(1), pos = new Float32Array(3), col = new Float32Array(3);
+    const c0 = { r: 1, g: 1, b: .8 }, c1 = { r: 1, g: .4, b: .1 }, c2 = { r: .5, g: .1, b: .05 };
+    spawnSpark(sp, 0, O, { x: 0, y: 1, z: 0 }, 1, 1);
+    drawSparks(sp, .001, pos, col, c0, c1, c2); expect(col[1]).toBeGreaterThan(.99);
+    drawSparks(sp, .5, pos, col, c0, c1, c2); expect(col[0]).toBeCloseTo(.75, 5); expect(col[1]).toBeCloseTo(.4 * .75, 5);
+    drawSparks(sp, .75, pos, col, c0, c1, c2); expect(col[1]).toBeCloseTo(.25 * (1 - .5625), 5); expect(col[0]).toBeCloseTo(.75 * (1 - .5625), 5);
+    expect(drawSparks(sp, 1.01, pos, col, c0, c1, c2)).toBe(0);
+  });
+  it('the kill burst is a bright fire the pieces are thrown out of: bigger pop, longer flame and glow, more and bigger embers', () => {
+    const impact = readFileSync(new URL('../src/world/ImpactFx.tsx', import.meta.url), 'utf8');
+    expect(impact).toMatch(/\.08, 5 \* g, 5 \* g, 1, FX\.pop, FX\.pop, 1, CURVE_FLAT/);   // the first-frame flash is 5 g wide for 80 ms
+    const glow = /spawnPuff\(addP, t, c, 0, ([\d.]+), ([\d.]+) \* g, ([\d.]+) \* g, 1, FX\.blaze, FX\.ember, ([\d.]+), CURVE_HOLD\)/.exec(impact)!;
+    expect(Number(glow[1])).toBeGreaterThanOrEqual(.9); expect(Number(glow[3])).toBeGreaterThanOrEqual(6);   // a wide dim glow that outlasts the flame
+    expect(impact).toMatch(/t \+ \.1, c, 0, \.7, 2\.6 \* g, 4\.6 \* g/);   // the ember-red core holds .7 s
+    expect(impact).toMatch(/1\.5 \* emberGain/); expect(impact).toMatch(/EMBER_T = \.55/);
+    const out = { speed: 0, life: 0 }; sparkParams(0, 0, true, out); expect(out.life).toBeGreaterThanOrEqual(.3);   // embers last, not flicker
+    expect(killSparkCount(0)).toBeGreaterThanOrEqual(40);
+  });
+  it('the smoke is several offset puffs that drift out and rise at their own speeds, pale at the end, not one centred smudge', () => {
+    const impact = readFileSync(new URL('../src/world/ImpactFx.tsx', import.meta.url), 'utf8');
+    expect(impact).toMatch(/n = reduced \? 2 : 4/); expect(impact).toMatch(/Math\.cos\(a\) \* r/);   // spread round the burst
+    expect(impact).toMatch(/PLUME\.rise \* \(\.7 \+ \.6 \* rng\(\)\)/); expect(impact).toMatch(/PLUME\.s0 \* g \* \(\.7 \+ \.6 \* rng\(\)\)/);   // own rise and size
+    expect(FX.plumeEnd.r + FX.plumeEnd.g + FX.plumeEnd.b).toBeGreaterThan(FX.plume.r + FX.plume.g + FX.plume.b);   // fades lighter, toward the sky
+    expect(PLUME.alpha).toBeLessThanOrEqual(.55);
+  });
+  it('kill pieces take their size from shardK, so none passes the cap', () => {
+    const impact = readFileSync(new URL('../src/world/ImpactFx.tsx', import.meta.url), 'utf8');
+    expect(impact).toMatch(/shardK\(k < 3 \? 1\.15 : \.65 \+ \.25 \* rng\(\), sg\)/); expect(impact).toMatch(/shardK\(\.75, shardGain\(gainAt\(e\.point\)\)\)/);
+    expect(shardK(5, 5)).toBe(SHARD_K_MAX);
+  });
+  it('keeps the five-draw-call budget and wires the hot ramp and shard scale', () => {
+    const impact = readFileSync(new URL('../src/world/ImpactFx.tsx', import.meta.url), 'utf8');
+    expect(impact).toMatch(/meshes: \[sparks, add, alpha, rings, debris\]/);
+    expect(impact).toMatch(/drawSparks\(sp, t, sPos, sCol, FX\.pop, FX\.blaze, FX\.ember\)/);
+    expect(impact).toMatch(/shardScale\(i, sh\)/);
+    expect(impact).toMatch(/tint\(debris, i, TINTS\[shardTint\(i\)\], 1\)/);   // every claimed slot gets its tint
+    expect(impact).toMatch(/gainAt\(c\)/); expect(impact).toMatch(/spawnPuff\(alphaP, t, c, 0, \.5, 1 \* g, 2\.8 \* g, 1, FX\.char/);   // dark core under the flame
+    expect(impact).toMatch(/add\.renderOrder = sparks\.renderOrder = 2/);   // the smoke draws first, so flames and embers are not dimmed
+    expect(impact).not.toMatch(/setScalar\(db/);
+    const kit = readFileSync(new URL('../src/world/fxMaterials.ts', import.meta.url), 'utf8');
+    expect(kit).not.toMatch(/\bBoxGeometry\b/);
+    for (const f of ['fxMaterials.ts', 'fxPools.ts', 'ImpactFx.tsx']) expect(readFileSync(new URL('../src/world/' + f, import.meta.url), 'utf8').split('\n').length).toBeLessThan(200);
   });
 });
