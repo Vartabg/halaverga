@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { hintSlot, labPage, said } from './lab-browser';
+import { hintSlot, labPage, openSettings, pauseCard, resumeFromCard, said } from './lab-browser';
 import { openSheet, row, saved, sheet } from './controls-browser';
 import { ONE_DESK, votePage } from './vote-browser';
 // The one hint slot's timing, as a player sees it (every title starts with @hint, so `-g "@hint"` runs exactly these): a message waits under a dialog
@@ -9,6 +9,14 @@ const CAPTURED = { desktopMode: 'trackpad', trackpadSteering: 'captured', flowIn
 const lesson = (p: import('@playwright/test').Page) => p.getByTestId('controls-hint');
 const ONE_WAY = 'One way flown. Try another for 20 s, then vote.';
 const TERMINAL = { checkpoint: { x: -6, y: 21.1, z: 60 }, flowIntroSeen: true };
+/** The slot names a control as a 4 s message, then it goes: on screen for about 4 s from the moment it shows. */
+async function namedFor4s(page: import('@playwright/test').Page, text: string) {
+  await expect(hintSlot(page)).toHaveText(text);
+  await expect(hintSlot(page)).toHaveAttribute('data-kind', 'message');
+  const shown = Date.now();
+  await expect(hintSlot(page).filter({ hasText: text })).toHaveCount(0, { timeout: 7000 });
+  expect(Date.now() - shown, 'on screen for about 4 s').toBeGreaterThan(3000);
+}
 
 test('@hint D6: a control picked under the open sheet is named once the sheet closes, for its 4 s', async ({ browser }) => {
   const t = await labPage(browser, 'standard', { viewport: { width: 1440, height: 900 } }), { page } = t;
@@ -92,6 +100,34 @@ test('@hint C3: the first way to reach 20 s puts one line in the slot (once, and
   await had.page.waitForTimeout(1800);
   expect(await said(had.page)).not.toContain(ONE_WAY); // someone who arrives with a way flown is not told
   expect(had.errors).toEqual([]); await had.context.close();
+});
+
+test('@hint D6: a control picked from the pause card is named in the slot after Resume, for its 4 s', async ({ browser }) => {
+  const t = await labPage(browser, 'standard', { touch: true, viewport: { width: 393, height: 852 } }), { page } = t;
+  await page.getByRole('button', { name: 'Pause expedition' }).tap();
+  await pauseCard(page).getByTestId('controls-row').tap();
+  await row(page, 'twin-stick').tap(); // a touch pick closes the sheet; the card is back, still paused
+  await expect(sheet(page)).toHaveCount(0); await expect(pauseCard(page)).toBeVisible();
+  await expect(hintSlot(page)).toHaveCount(0); // nothing is playing: the slot is not there
+  await resumeFromCard(page, true);
+  await namedFor4s(page, 'Twin stick controls');
+  expect(t.errors).toEqual([]); await t.context.close();
+});
+
+test('@hint D6: a control picked from Flight settings is named in the slot after Resume, and nothing stale comes back on the next Resume', async ({ browser }) => {
+  const t = await labPage(browser, 'standard', { viewport: { width: 1440, height: 900 } }), { page } = t;
+  await openSettings(page);
+  await page.getByRole('dialog', { name: 'Flight settings' }).getByTestId('controls-row').click();
+  await row(page, 'one-finger-keys').click(); // a pointer pick on desktop keeps the sheet open
+  await sheet(page).getByTestId('controls-done').click();
+  await expect(pauseCard(page)).toBeVisible();
+  await resumeFromCard(page);
+  await namedFor4s(page, 'One finger + keys controls');
+  await page.getByRole('button', { name: 'Pause expedition' }).click(); // the name was held once: a plain Pause and Resume says nothing
+  await resumeFromCard(page);
+  await page.waitForTimeout(800);
+  await expect(hintSlot(page).filter({ hasText: 'controls' })).toHaveCount(0);
+  expect(t.errors).toEqual([]); await t.context.close();
 });
 
 test('@hint the Read button shows its keyboard focus ring: no ancestor clips it (WCAG 2.4.7)', async ({ browser }) => {

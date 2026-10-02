@@ -6,6 +6,7 @@ import { useGame } from '@/game/store';
 import { useCurrentControl } from './ControlList';
 import VoteChip from './VoteChip';
 import { closeControls, closeOnEscape } from './closeControls';
+import { takeHeldName } from './selectControl';
 import { useControlFamily } from './useControlFamily';
 import { useRowExtra } from './useRowExtra';
 import { lockedTail, useOneWayToast, useReadyToast, useVoteState } from './useVoteState';
@@ -37,6 +38,9 @@ export default function ControlsPicker({ family: forced }: { family?: ControlFam
   const close = () => { if (useGame.getState().controlsOpen) useGame.setState({ controlsOpen: false }); };
   useEffect(close, [paused]);
   useEffect(() => { if (voteOpen || !started) close(); }, [voteOpen, started]);
+  // A control picked while paused is named once play is back: Resume empties `message`, so selectControl held the name and it is published
+  // here on the change to playing, after that clear. The slot's 4 s clock starts when it is on screen (addendum D6).
+  useEffect(() => { if (!paused) { const name = takeHeldName(); if (name) useGame.setState({ message: name }); } }, [paused]);
   useEffect(() => () => { close(); }, []);
   if (!started || paused) return null;
 
