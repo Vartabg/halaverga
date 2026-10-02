@@ -7,7 +7,7 @@ const base: HintInput = { message: '', flying: false, canLand: false, limitCue: 
 const at = (o: Partial<HintInput>): HintInput => ({ ...base, ...o });
 const coach = { text: 'Drag to fly', track: 'drag', step: 0 };
 
-/** The expression Experience computed inline before the slot (`flightHint`), kept here verbatim as the reference the picker must equal. */
+/** The expression Experience computed inline before the slot (the flight toast), kept here verbatim as the reference the picker must equal. */
 const OLD = (s: HintInput) => s.message || (s.flying && s.canLand ? 'SURFACE IN REACH · LAND' : s.limitCue && s.limitCue !== 'solid' ? s.limitHint : s.flying && s.descendBlocked ? 'NO LANDING BELOW · MOVE TO OPEN GROUND' : s.limitHint);
 
 describe('pickHint: the one line', () => {

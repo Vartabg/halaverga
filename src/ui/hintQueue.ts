@@ -16,8 +16,8 @@ export interface HintInput {
 /** The land and no-landing texts are asserted by the browser specs: caps stay. */
 export const LAND_TEXT = 'SURFACE IN REACH · LAND', BLOCKED_TEXT = 'NO LANDING BELOW · MOVE TO OPEN GROUND', RECORD_TEXT = '◇ Municipal record · Read ↗';
 
-/** What Experience used to compute inline (`flightHint`), moved as it was: land, a limit cue, no landing below, then a plain limit hint. */
-function flightHint(i: HintInput): Hint | null {
+/** What Experience used to compute inline for the flight toast, moved as it was: land, a limit cue, no landing below, then a plain limit hint. */
+function flightLine(i: HintInput): Hint | null {
   if (i.flying && i.canLand) return { kind: 'land', text: LAND_TEXT };
   if (i.limitCue && i.limitCue !== 'solid') return i.limitHint ? { kind: 'limit', text: i.limitHint } : null;
   if (i.flying && i.descendBlocked) return { kind: 'blocked', text: BLOCKED_TEXT };
@@ -34,7 +34,7 @@ export function pickHint(i: HintInput): Hint | null {
   if (i.hidden) return null;
   if (i.message) return { kind: 'message', text: i.message };
   if (i.nearTerminal) return { kind: 'record', text: RECORD_TEXT };
-  return flightHint(i) ?? (i.coach ? { kind: 'coach', text: i.coach.text } : null);
+  return flightLine(i) ?? (i.coach ? { kind: 'coach', text: i.coach.text } : null);
 }
 
 type Game = ReturnType<typeof useGame.getState>;
