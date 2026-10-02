@@ -103,9 +103,9 @@ Decisions for Garo, not clicks: whether the waterfront and the ridge come into t
 
 1. **Integration.** One branch with everything that ships: merge `shooter`, then `screen-cleanup` (push it first: it exists only on one Mac), then `sky-background`, then this task. Run `pnpm verify` and the Mac browser suite once on the merged result. Landing first load must stay at or under 636 KB; do not raise it.
 2. **iPhone pass.** Real iPhone Safari, portrait and landscape: the game, one ballot sent, `/results`, `/privacy`. Record it honestly in the device checklist (gesture-lab.md). Emulation is not an iPhone.
-3. **Preview and its live check.** Section 3 and 4 of deploy.md: archive, gitleaks, `vercel deploy`, the curl list, the stamp. The vote path needs the owner's Preview-only store (click 2); without it the preview proves only the closed paths, and the first real vote happens on production, with the poll reset after.
+3. **Preview and its live check.** Sections 3 and 4 of deploy.md: `scripts/hand-deploy.sh preview` (archive, secrets scan, deploy; it stops on any finding), the curl list, the stamp. The vote path needs the owner's Preview-only store (click 2); without it the preview proves only the closed paths, and the first real vote happens on production, with the poll reset after.
 4. **Owner yes.** Before asking, confirm the rollback target `dpl_7sUsqUdXcAmG2S4K7MpnQUCwmstm` is still READY and a candidate (deploy.md section 8) and that clicks 1 to 5 are done or knowingly skipped.
-5. **Production deploy.** `vercel deploy --prod ...` from the SHA that passed steps 1 to 3 (deploy.md section 5).
+5. **Production deploy.** `scripts/hand-deploy.sh prod` from the SHA that passed steps 1 to 3 (deploy.md section 5); it runs the same secrets gate.
 6. **Curl checks on the public domain**, the stamp, the vote check (two real votes, then the `reset-poll` line), the analytics check, then the first audit run at 30 minutes (vote-runbook.md).
 7. **Rollback ready.** Confirm the dashboard still offers Instant Rollback for `dpl_7sUsq...` now that it is the previous production deployment, and write down who runs it.
 

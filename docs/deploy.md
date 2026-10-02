@@ -27,7 +27,7 @@ Read through the Vercel MCP (`get_project`, `list_deployments`, `get_deployment`
 
 1. The work is committed on its branch and the tree is clean. Write the SHA down: `SHA=$(git rev-parse HEAD)`.
 2. `pnpm verify` is green (typecheck, vitest, build, `check-first-load` at or under 636 KB, `check-vote-build`). `pnpm audit:prod` says no known vulnerabilities.
-3. The secrets audit is clean (HARD rule): `gitleaks git .` for history and `gitleaks dir` on the scratch copy in step 2 below. Anything found stops the deploy.
+3. The secrets audit is clean (HARD rule). `scripts/hand-deploy.sh` runs it itself, as a gate: `gitleaks git` on the history, then `gitleaks dir` on the exact folder that goes up. Anything found, or no gitleaks installed, ends the script before `vercel deploy` runs (section 3).
 4. For a production deploy: the iPhone Safari pass is recorded (emulation is not an iPhone), and the owner has said yes.
 
 ## 3. Preview deploy (the recipe that has worked)
@@ -36,21 +36,17 @@ A preview is a deployment with no `--prod`. It gets a unique URL behind Vercel l
 
 ```sh
 cd <the worktree or repo on the branch to ship>
-SHA=$(git rev-parse HEAD)
-D=$(mktemp -d "${TMPDIR:-/tmp}/halaverga-deploy.XXXXXX")     # a scratch folder, not the repo
-git archive "$SHA" | tar -x -C "$D"                          # exactly the committed files, no .git, no node_modules, no .env
-mkdir -p "$D/.vercel"
-cp ~/code/halaverga/.vercel/project.json "$D/.vercel/project.json"   # the link to halaverga-flight (gitignored, so not in the archive)
-gitleaks dir "$D" --no-banner --redact                       # must print "no leaks found"; stop on anything else
-cd "$D" && vercel deploy --yes --build-env VERCEL_GIT_COMMIT_SHA="$SHA"
+scripts/hand-deploy.sh preview        # prints the preview URL when the build is done; keep it
 ```
 
-Why each piece:
+The recipe is one short script (`scripts/hand-deploy.sh`, `set -euo pipefail`), not a block to paste, so **a failed step can never be followed by the deploy**. In order: archive the committed files of `HEAD` into a scratch folder, copy in the project link, scan the history, scan the scratch folder, then `vercel deploy`. A finding, a missing gitleaks or a missing link ends it with a message before anything leaves the machine, and it has no skip flag (`tests/hand-deploy.test.ts` runs it with stub tools and pins every one of those stops). The `--prod` deploy goes through the same script, so it passes the same gate (section 5). Extra flags are passed to `vercel deploy`.
+
+Why each piece (all of it is in the script):
 
 - **`git archive`** puts only committed files in the scratch folder, so uncommitted edits and ignored files (`.env*`, `.next`, `node_modules`) cannot ride along. `.vercelignore` then keeps `docs/`, `tests/`, `scripts/`, `art/` and `.env*` out of the upload.
-- **`.vercel/project.json`** links the folder to the project. `~/code/halaverga/.vercel/project.json` holds `projectId`, `orgId` and `projectName`; checked 2026-10-02 that its ids match the project and team above. It exists only in that primary tree.
+- **`.vercel/project.json`** links the folder to the project. `~/code/halaverga/.vercel/project.json` holds `projectId`, `orgId` and `projectName`; checked 2026-10-02 that its ids match the project and team above. It exists only in that primary tree, so the script reads it from there (`HALAVERGA_VERCEL_LINK` points it at another copy) and stops if it is missing.
 - **`--build-env VERCEL_GIT_COMMIT_SHA=$SHA`**: `next.config.ts` stamps every build with `date · short sha`. The archive has no `.git`, so without this the stamp falls back to `uncommitted`. The stamp is how you tell which deployment is which (Field guide footer, and the live-JavaScript check in section 7).
-- **`--yes`** skips the prompts. The command prints the preview URL when the build is done; keep it. The `--logs` flag prints the build log.
+- **`--yes`** skips the prompts. The command prints the preview URL when the build is done; keep it. Add `--logs` to print the build log.
 - Environment variables come from Vercel, not from the folder. The vote store and `VOTE_SALT` are meant to be Production only, so a preview answers 503 `closed` on the vote routes unless the owner has connected a Preview-only throwaway store and set `VOTE_ALLOW_PREVIEW=1` (vote-runbook.md, "Optional extras"). That is what keeps a preview from touching the real poll.
 
 Reaching a preview from a terminal: it answers 302 to login, so use `vercel curl <path> --deployment <preview url>` (the CLI adds the bypass for the logged-in user; `vercel curl --help` read, not run), or a Vercel share link and `curl -c jar.txt -L "<share url>"`, then `-b jar.txt` on each call.
@@ -102,15 +98,15 @@ Rehearsed 2026-10-02 on this branch with Next 16.3.8: functional 18 pass and 2 s
 
 ## 5. Production deploy (owner approves first)
 
-Same recipe, one flag more. Run it only after the owner says yes in chat, and only from the SHA that passed section 2 and the preview checks.
+Same script, one word more: `prod` instead of `preview`. It runs the same gate first (history scan, folder scan, stop on any finding), then adds `--prod`. Run it only after the owner says yes in chat, and only from the SHA that passed section 2 and the preview checks.
 
 ```sh
-cd "$D" && vercel deploy --prod --yes --build-env VERCEL_GIT_COMMIT_SHA="$SHA"
+scripts/hand-deploy.sh prod
 ```
 
 `--prod` builds with the Production environment variables and moves `halaverga-flight.vercel.app` to the new deployment when it is ready. The instant the alias moves, visitors get the new build; the old production deployment stays as the rollback target (section 8).
 
-A staged variant (from Vercel's CLI docs, read here and **not run**): add `--skip-domain`. That creates a production deployment with the Production variables and the vote store attached, but does **not** move the public domain. Test it at its own URL (`vercel curl ... --deployment <url>`: the whole section 4 list and the vote check, with the poll reset afterwards), then `vercel promote <url>` moves the domain, and `vercel promote status` shows it. This gives a full production-grade check before any visitor sees the build. It is a choice for the owner; the plain `--prod` above is the path that has worked.
+A staged variant (from Vercel's CLI docs, read here and **not run**): `scripts/hand-deploy.sh prod --skip-domain`. That creates a production deployment with the Production variables and the vote store attached, but does **not** move the public domain. Test it at its own URL (`vercel curl ... --deployment <url>`: the whole section 4 list and the vote check, with the poll reset afterwards), then `vercel promote <url>` moves the domain, and `vercel promote status` shows it. This gives a full production-grade check before any visitor sees the build. It is a choice for the owner; the plain `--prod` above is the path that has worked.
 
 Right after: section 4 on `https://halaverga-flight.vercel.app`, then confirm the rollback is available (section 8, "Confirm it is armed").
 
@@ -154,7 +150,7 @@ vercel promote status
 
 The REST equivalents are `POST /v1/projects/{projectId}/rollback/{deploymentId}` and `POST /v10/projects/{projectId}/promote/{deploymentId}` (Vercel docs); promote re-points production without rebuilding.
 
-**Plan note (not verifiable here).** Vercel's docs say rolling back to a specific older deployment is a Pro or Enterprise feature; I could not read the team's plan. On a plan without it, an Instant Rollback may only offer the immediately previous production deployment. After the first deploy that is exactly `dpl_7sUsq...`, so the rollback works as written. After a second production deploy it may not, and `promote` is the way to reach `dpl_7sUsq...`. If neither works, the last resort is to redeploy the old commit: `git archive 261a101`, then section 3 with `--prod` and `SHA=261a101...` (full SHA via `git rev-parse 261a101`). That takes about the 17 s the original build took, and needs `origin/codex/world-atmosphere` kept (do not delete that branch; a tag, `git tag prod-before-first-deploy 261a101`, is a safer pin and is the lead's to push).
+**Plan note (not verifiable here).** Vercel's docs say rolling back to a specific older deployment is a Pro or Enterprise feature; I could not read the team's plan. On a plan without it, an Instant Rollback may only offer the immediately previous production deployment. After the first deploy that is exactly `dpl_7sUsq...`, so the rollback works as written. After a second production deploy it may not, and `promote` is the way to reach `dpl_7sUsq...`. If neither works, the last resort is to redeploy the old commit: `HALAVERGA_DEPLOY_REF=261a101 scripts/hand-deploy.sh prod` (the script archives that commit instead of `HEAD`, scans it the same way and stamps the build with its SHA). That takes about the 17 s the original build took, and needs `origin/codex/world-atmosphere` kept (do not delete that branch; a tag, `git tag prod-before-first-deploy 261a101`, is a safer pin and is the lead's to push).
 
 **Confirm it is armed, right after a production deploy.** In the dashboard, the row for `dpl_7sUsq...` should still show as a previous production deployment with Instant Rollback offered. Or list candidates with the MCP `list_deployments` (`rollbackCandidate: true`) and look for the id above. Do this before telling anyone the launch is live.
 
