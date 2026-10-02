@@ -227,6 +227,13 @@ describe('persistence', () => {
     saved[STORAGE] = JSON.stringify({ voteOpen: true }); useGame.setState({ voteOpen: false }); hydrateGame();
     expect(useGame.getState().voteOpen).toBe(false);
   });
+  it('never saves the Controls sheet state (the pause card and Flight settings open it, so it must never come back open after a reload)', () => {
+    useGame.setState({ controlsOpen: true }); persistGame();
+    expect(JSON.parse(saved[STORAGE])).not.toHaveProperty('controlsOpen');
+    expect(PERSISTED_KEYS as readonly string[]).not.toContain('controlsOpen');
+    saved[STORAGE] = JSON.stringify({ controlsOpen: true }); useGame.setState({ controlsOpen: false }); hydrateGame();
+    expect(useGame.getState().controlsOpen).toBe(false);
+  });
   it('never saves the runtime-only touch state', () => {
     useGame.setState({ nearGround: true, leavePrompt: true, zoomNote: true });
     persistGame();
