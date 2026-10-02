@@ -7,14 +7,14 @@ export const surfaces = ['stone', 'glass', 'metal', 'ground', 'paint'] as const;
 function surface(color: string) {
   if (color === colors.glass || color === '#2d3742') return 1;
   if ([colors.steel, colors.edge, '#44434d', '#272e37'].includes(color)) return 2;
-  if ([colors.road, '#6c7a6b', '#6b7b66', '#657362'].includes(color)) return 3;
+  if ([colors.road, '#6c7a6b', '#94a98c', '#8aa084'].includes(color)) return 3;
   if ([colors.white, '#ddaa76', '#b8e8b0'].includes(color)) return 4;
   return 0;
 }
 export function createKit() {
   const pieces: BufferGeometry[][] = surfaces.map(() => []), solids: Solid[] = [];
-  function add(g: BufferGeometry, color: string) {
-    const c = new Color(color), p = g.attributes.position, n = g.attributes.normal, uv = g.attributes.uv;
+  function add(g: BufferGeometry, color: string, lift = 1) {
+    const c = new Color(color).multiplyScalar(lift), p = g.attributes.position, n = g.attributes.normal, uv = g.attributes.uv;
     const shade = new Float32Array(p.count * 3);
     for (let i = 0; i < p.count; i++) {
       shade.set([c.r, c.g, c.b], i * 3);
@@ -26,12 +26,13 @@ export function createKit() {
     g.setAttribute('color', new Float32BufferAttribute(shade, 3));
     pieces[surface(color)].push(g);
   }
+  /** `lift` multiplies the baked vertex colour past 1: a dark texture (the moss) needs more than a white tint can give. */
   function box(x: number, y: number, z: number, w: number, h: number, d: number,
-    color: string, solid = false, ry = 0, rz = 0) {
+    color: string, solid = false, ry = 0, rz = 0, lift = 1) {
     const g = new BoxGeometry(w, h, d);
     g.applyMatrix4(new Matrix4().compose(new Vector3(x, y, z),
       new Quaternion().setFromEuler(new Euler(0, ry, rz)), new Vector3(1, 1, 1)));
-    add(g, color);
+    add(g, color, lift);
     if (solid) solids.push({ position: [x, y, z], size: [w / 2, h / 2, d / 2], rotation: [0, ry, rz] });
   }
   function finish() {

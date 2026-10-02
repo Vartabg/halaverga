@@ -76,4 +76,13 @@ describe('far skyline generator', () => {
     expect(city.geometry.index!.count / 3).toBe(85448); // 85,928 before, minus the old 20 towers and caps (480)
     city.geometry.dispose();
   });
+  it('lifts the district-edge slabs in the ground (moss) group, so they never fall back to stone', () => {
+    const city = makeCity(), color = city.geometry.attributes.color, index = city.geometry.index!, groups = city.geometry.groups;
+    // Only the two slab tints, lifted, reach a linear channel of .9 or more; a hex missing from kit.ts's ground list would show up in the stone group.
+    const peak = groups.map(g => { let top = 0; for (let i = g.start; i < g.start + g.count; i++) top = Math.max(top, color.getX(index.getX(i)), color.getY(index.getX(i)), color.getZ(index.getX(i))); return top; });
+    expect(groups.length).toBe(5);
+    expect(peak[3]).toBeGreaterThanOrEqual(.9);
+    expect(peak.filter((_, i) => i !== 3).every(top => top < .9)).toBe(true);
+    city.geometry.dispose();
+  });
 });
