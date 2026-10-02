@@ -130,11 +130,9 @@
 .section .tried{margin-top:6px}
 .section>details>.action{width:100%;margin-top:8px}
 
-/* The first-visit note in the start card. Landscape phones hide it: the trigger it names only exists after Begin. */
-.demo{display:flex;align-items:center;gap:10px;max-width:38ch;margin:12px 0 0;padding:8px 10px;border:1px solid #58e1ff66;border-radius:4px;background:#142d34e6;color:var(--ink)}
+/* The first-visit note in the start card: passive text, nothing to tap. Landscape phones hide it: the trigger it names only exists after Begin. */
+.demo{max-width:38ch;margin:12px 0 0;padding:8px 10px;border:1px solid #58e1ff66;border-radius:4px;background:#142d34e6;color:var(--ink);pointer-events:none}
 .demo p{margin:0;font-size:12px;line-height:1.45}
-.demo button{flex:none;min-width:64px;min-height:44px;padding:0 12px;border:1px solid #94aaa1;border-radius:3px;background:transparent;color:var(--ink);font-size:13px}
-.demo button:hover{background:#2b4747}
 @media(max-height:430px) and (orientation:landscape){.demo{display:none}}
 
 @media (prefers-reduced-motion:no-preference){.trigger,.row,.action,.switch button{transition:background-color .15s ease,color .15s ease}}
@@ -152,7 +150,7 @@
   .row:has(.radio:checked){border-color:Highlight;background:Canvas}
   .row:has(.radio:focus-visible){outline-color:Highlight}
   .badge,.badge[data-badge=tried],.kbd{border-color:CanvasText;background:Canvas;color:CanvasText}
-  .action,.switch button,.demo button,.action.primary{border-color:ButtonText;background:ButtonFace;color:ButtonText}
+  .action,.switch button,.action.primary{border-color:ButtonText;background:ButtonFace;color:ButtonText}
   .switch button[aria-pressed=true]{background:Highlight;color:HighlightText}
   .glyphBase{stroke:CanvasText;opacity:1}.glyphInk{stroke:Highlight}
 }

@@ -254,11 +254,21 @@ describe('DemoNote', () => {
   beforeEach(() => vi.resetModules());
   afterEach(() => vi.unstubAllGlobals());
   const render = async () => html(createElement((await import('@/ui/controls/DemoNote')).default));
-  it('shows the exact copy and a Got it button on the first visit', async () => {
+  it('shows the exact copy as passive text on the first visit: no button to tap, nothing to dismiss', async () => {
     vi.stubGlobal('localStorage', memoryStorage());
     const m = await render();
     expect(m).toContain('A demo of new ways to fly. After you begin, try each in the Controls menu, then vote.');
-    expect(m).toContain('role="note"'); expect(m).toContain('>Got it</button>');
+    expect(m).toContain('role="note"'); expect(m).not.toContain('<button'); expect(m).not.toContain('Got it');
+  });
+  it('C2 it counts as seen only for the store change that is Begin, and only with a box on screen (display:none has none)', async () => {
+    const { seenAtBegin } = await import('@/ui/controls/DemoNote');
+    const shown = { getClientRects: () => [{}] }, hidden = { getClientRects: () => [] };
+    const off = { started: false }, on = { started: true };
+    expect(seenAtBegin(on, off, shown)).toBe(true);
+    expect(seenAtBegin(on, off, hidden)).toBe(false); // mounted but hidden by CSS: nobody read it
+    expect(seenAtBegin(on, off, null)).toBe(false);
+    expect(seenAtBegin(on, on, shown)).toBe(false); // some other change after Begin
+    expect(seenAtBegin(off, off, shown)).toBe(false); // not Begin yet
   });
   it('stays away once dismissed, and dismissal is stored under its own key', async () => {
     const store = memoryStorage(); vi.stubGlobal('localStorage', store);
@@ -283,7 +293,6 @@ describe('ControlsPicker.module.css contract', () => {
     expect(css).toMatch(/\.row\{[^}]*min-height:(4[4-9]|[5-9]\d)px/);
     expect(css).toMatch(/\.trigger\{[^}]*min-height:44px/);
     expect(css).toMatch(/\.action\{[^}]*min-height:44px/);
-    expect(css).toMatch(/\.demo button\{[^}]*min-height:44px/);
     expect(css).toMatch(/\.switch button\{[^}]*min-height:44px/);
     expect(css).toMatch(/\.check\{[^}]*min-height:44px/);
   });
@@ -334,8 +343,9 @@ describe('ControlsPicker.module.css contract', () => {
     expect(css).toMatch(/@media \(forced-colors:active\)\{[\s\S]*Highlight;color:HighlightText/);
     expect(css).toMatch(/forced-colors:active[\s\S]*\.sheet,\.demo\{border-color:CanvasText;background:Canvas/);
   });
-  it('the demo note is hidden on short landscape screens', () => {
+  it('the demo note is hidden on short landscape screens, and passive: it takes no touches and has no button styles', () => {
     expect(css).toContain('@media(max-height:430px) and (orientation:landscape){.demo{display:none}}');
+    expect(css).toMatch(/\.demo\{[^}]*pointer-events:none/); expect(css).not.toMatch(/\.demo button/);
   });
   it('the backdrop takes the presses under the sheet, both under the header (z-index 8) so Pause and Controls stay above, and both take presses under a pass-through ancestor', () => {
     expect(css).toMatch(/\.backdrop\{position:fixed;inset:0;z-index:7;pointer-events:auto/);
