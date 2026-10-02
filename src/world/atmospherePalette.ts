@@ -36,6 +36,14 @@ export const CLOUD = {
   weatherScale: .55, weatherSwing: .3,
 };
 export const FOG = { color: HAZE, near: 95, far: 330 };
+/** The distant skyline: three layers standing in the sea outside the flyable box. `gaps` are metres from the box edge to the nearest
+ * tower face on the [north, east and west, south] sides. Tints are display hex before fog, as [lit, shaded]: the split is wide on
+ * purpose because fog compresses it to about a fifth. Each layer is paler and cooler than the nearer one. `crown` is roof green. */
+export const SKYLINE = {
+  seed: 2033, crown: '#4f6f4a',
+  gaps: [[110, 120, 200], [170, 180, 260], [240, 250, 330]] as [number, number, number][],
+  tints: [['#889aa6', '#5a6c78'], ['#8496a2', '#64767f'], ['#93a5b0', '#778992']] as [string, string][],
+};
 export const HEMISPHERE = { sky: '#c0dbed', ground: '#647c7a', intensity: 1.7 };
 
 const clamp01 = (x: number) => Math.min(1, Math.max(0, x));
