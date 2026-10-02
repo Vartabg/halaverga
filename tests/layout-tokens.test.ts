@@ -62,7 +62,12 @@ describe('the readout', () => {
     expect(css).toMatch(/\.telemetry \.alt\{font-size:20px;font-weight:700/);
   });
   it('pads 6 px a side at 400 px wide and narrower, so the 38 px number fits the 56 px box it gets at 320 wide and is not cut to an ellipsis', () => {
-    expect(telemetry).toMatch(/max-width:calc\(100% - 2 \* var\(--gx\) - 232px\)/); // 320 - 2 x 16 - 232 = 56 px, less 12 px of padding = 44 for the number
+    // Room for the readout = the row minus the buttons: Controls + Pause is 160 px at normal text, and the pill adds up to 232 px (Vote 64 + Controls 108 +
+    // Pause 44 + 2 gaps). 320 - 2 x 16 - 232 = 56 px with the pill, less 12 px of padding = 44 for the number. The words grow with larger text, the
+    // rest does not, so each budget is `max(normal, fixed px + k em)` of the readout's own font size (layout-fit.spec.ts: 150 and 200 percent).
+    expect(telemetry).toMatch(/max-width:calc\(100% - 2 \* var\(--gx\) - max\(160px, 104px \+ 4\.7em\)\)/);
+    const picker = readFileSync(new URL('../src/ui/controls/ControlsPicker.module.css', import.meta.url), 'utf8');
+    expect(picker).toContain(':global(header):has(.chip) ~ :global([data-testid=flight-telemetry]){max-width:calc(100% - 2 * var(--gx) - max(232px, 144px + 7.5em))}');
     expect(css).toContain('@media(max-width:400px){.telemetry{padding:2px 6px}}');
   });
   it('has one rule: no per-orientation touch overrides', () => {

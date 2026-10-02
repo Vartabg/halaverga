@@ -3,7 +3,7 @@
 /* The picker's root and layer add no box: the Vote chip and the Controls button are flex items of the header's button row (so the row's
    `>button` rules never match them: these buttons keep their own pill styles), and the sheet layer only groups the backdrop and the sheet. */
 .root,.layer{display:contents}
-/* The Controls button is one width in every state (min-width 108 holds the word, an 8 px gap and the 20 px dots slot, which stays reserved
+/* The Controls button is one width in every state, open (lime, same weight) or closed (min-width 108 holds the word, an 8 px gap and the 20 px dots slot, which stays reserved
    when the dots are not showing), so the Vote pill is the only thing that appears or goes. With the pill the cluster is 64 + 8 + 108 + 8 + 44
    = 232 px, the budget the readout (Experience.module.css, .telemetry) leaves at every width. */
 .trigger{position:relative;display:inline-flex;align-items:center;justify-content:center;gap:8px;flex:none;min-height:44px;min-width:108px;padding:0 12px;margin:0;
@@ -11,7 +11,7 @@
   font:13px/1 system-ui,-apple-system,'Segoe UI',Arial,sans-serif;letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
   cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 .trigger:hover{background:#305058}
-.trigger[aria-expanded=true]{background:var(--lime);color:#1a3029;font-weight:600}
+.trigger[aria-expanded=true]{background:var(--lime);color:#1a3029}
 .trigger:focus-visible{outline:2px solid var(--lime);outline-offset:2px}
 .trigger[aria-expanded=true]:focus-visible{outline-color:#f5f0dc;box-shadow:0 0 0 4px #1a3029}
 /* The locked vote's two dots: 8 px circles, 4 px apart, in a 20 px slot that is always there. Counted = filled in the text colour; never lime
@@ -28,6 +28,10 @@
   cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 .chip:hover{background:#e3ffad}
 .chip:focus-visible{outline:3px solid #f5f0dc;outline-offset:2px;box-shadow:0 0 0 5px #1a3029}
+/* With the pill in the row the readout gives up the room for it: 232 px at normal text (Vote 64 + Controls 108 + Pause 44 + two 8 px gaps); the two words
+   (Controls and Vote, about 80 px at 13 px) grow with the text, the rest does not: 144 px + 7.5 em of the readout's own font size. At 320 wide that
+   is a 56 px box, which the number fits (padding 6 px a side). Browsers without :has() keep the narrower base budget. */
+:global(header):has(.chip) ~ :global([data-testid=flight-telemetry]){max-width:calc(100% - 2 * var(--gx) - max(232px, 144px + 7.5em))}
 
 /* Full-viewport catcher under the sheet: it takes the presses (and closes on click), so nothing reaches the flight surface. Both sit under
    the header (z-index 8), so Pause and Controls stay above it: one tap on Pause pauses and closes the sheet. They take presses even

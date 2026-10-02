@@ -1,4 +1,6 @@
 import { expect, type Browser, type Page } from '@playwright/test';
+import { mockResults } from './controls-browser';
+import { voteProblems } from './layout-vote';
 import { settingsFootProblems } from './settings-footer';
 // The overlap and target-size checker behind tests/layout-fit.spec.ts: what a player can touch, where it is, whether it fits, and whether
 // the strip between the buttons is still the flight surface. System Chrome emulation: it checks the layout, never how a thumb feels on a
@@ -70,11 +72,12 @@ function overlap(a: Box & { round?: boolean }, b: Box & { round?: boolean }) {
   const nx = Math.max(r.x, Math.min(c.x, r.x + r.width)), ny = Math.max(r.y, Math.min(c.y, r.y + r.height));
   return Math.hypot(c.x - nx, c.y - ny) < c.r - .5;
 }
-/** The vote chip is allowed to be wide (a progress label) until the vote pill replaces it; every other control on the surface is 96 px or less. */
-const WIDE_OK = ['vote-chip'];
-
-/** `scale`: the text size factor in force (scaleText); a text button grows with it, so the 96 px cap on what may sit on the surface grows too. */
-export type Mode = { play?: boolean; sheet?: boolean; paused?: boolean; settings?: boolean; scale?: number };
+/**
+ * `scale`: the text size factor in force (scaleText); a text button grows with it, so the 96 px cap on what may sit on the surface grows too.
+ * `vote`: which side of the vote's one rule this state is on. locked (under two ways flown): two dots on Controls, and no Vote pill, sheet button
+ * or pause door anywhere. ready (two flown, open ballot): the pill beside Controls, the sheet's button and the pause card's door, and no dots.
+ */
+export type Mode = { play?: boolean; sheet?: boolean; paused?: boolean; settings?: boolean; scale?: number; vote?: 'locked' | 'ready'; squeezed?: boolean /* readout may be clipped, never over a button */ };
 /** Runs the checks of spec section 10.1 that apply to this state; returns one line per problem (empty: the state is clean). */
 export async function audit(page: Page, v: View, mode: Mode = {}): Promise<string[]> {
   const items = await interactive(page), problems: string[] = [], at = (i: Item) => `${i.name} [${Math.round(i.x)},${Math.round(i.y)} ${Math.round(i.width)}x${Math.round(i.height)}]`;
@@ -99,11 +102,11 @@ export async function audit(page: Page, v: View, mode: Mode = {}): Promise<strin
         const el = c as HTMLElement;
         return getComputedStyle(el).display !== 'none' && el.clientWidth > 0 && el.scrollWidth > el.clientWidth + 1 ? [`"${(el.textContent ?? '').trim()}" ${el.scrollWidth} > ${el.clientWidth}`] : [];
       }));
-      for (const c of cut) problems.push(`readout line is cut off: ${c}`);
+      if (!mode.squeezed) for (const c of cut) problems.push(`readout line is cut off: ${c}`);
     }
     // 5 The flight surface gets the gestures: a 16 px grid, every hit is the surface or a control of 96 x 96 or less. On desktop the
     // header cluster is the one other hit (its box stays hit-testable for the trackpad's hover freeze) and it is at most 340 x 44.
-    const bad = await page.evaluate(({ wide, desktop, cap }) => {
+    const bad = await page.evaluate(({ desktop, cap, scale }) => {
       const out: string[] = [];
       for (let y = 8; y < innerHeight; y += 16) for (let x = 8; x < innerWidth; x += 16) {
         const el = document.elementFromPoint(x, y);
@@ -111,17 +114,20 @@ export async function audit(page: Page, v: View, mode: Mode = {}): Promise<strin
         if (desktop && el.closest('header')) continue;
         // A control, or the small box a control sits in (Lift/Land's wrapper, [data-ghost-avoid]).
         const c = el.closest('button, a[href], input, select, summary, label, [role=radio], [data-hold-control], [data-ghost-avoid]');
-        if (c) { const r = c.getBoundingClientRect(), id = c.getAttribute('data-testid') ?? ''; if ((r.width <= cap || wide.includes(id)) && r.height <= cap) continue; }
+        // The top row's buttons are 44 px high and up to 128 wide (Controls holds the word and the dots' slot: 108), a row, not a pad.
+        if (c) { const r = c.getBoundingClientRect(); if ((r.width <= cap && r.height <= cap) || (c.closest('header') && r.width <= 128 * scale && r.height <= 48 * scale)) continue; }
         out.push(`(${x},${y}) ${el.tagName.toLowerCase()}.${String(el.className).slice(0, 30)}${el.getAttribute('data-testid') ? '#' + el.getAttribute('data-testid') : ''}`);
       }
       return out;
-    }, { wide: WIDE_OK, desktop: !v.touch, cap: 96 * (mode.scale ?? 1) });
+    }, { desktop: !v.touch, cap: 96 * (mode.scale ?? 1), scale: mode.scale ?? 1 });
     if (bad.length) problems.push(`${bad.length} grid points do not reach the flight surface, first: ${bad.slice(0, 4).join('; ')}`);
     if (!v.touch) {
       const h = await page.locator('header').boundingBox();
       if (h && (h.width > 340 || h.height > 44.5)) problems.push(`desktop header box is ${Math.round(h.width)}x${Math.round(h.height)}, more than 340x44`);
     }
   }
+  // 8 The vote's one rule (layout-vote.ts).
+  if (mode.vote) problems.push(...await voteProblems(page, mode));
   // 7 Flight settings (the dialog over the paused game): its Resume footer ends at the dialog's bottom edge, at the top and at the end of the scroll.
   if (mode.settings) for (const end of [false, true]) for (const p of await settingsFootProblems(page, end)) problems.push(`settings footer, ${end ? 'end' : 'top'} of the scroll: ${p}`);
   if (mode.sheet) {
@@ -173,7 +179,7 @@ export async function scaleText(page: Page, factor: number): Promise<{ before: n
 }
 
 /** A page at `v`, before Begin: the landing. `saved` seeds the save once; `begin()` starts play. */
-export async function openLanding(browser: Browser, v: View, opts: { saved?: Record<string, unknown>; storage?: Record<string, string>; url?: string } = {}) {
+export async function openLanding(browser: Browser, v: View, opts: { saved?: Record<string, unknown>; storage?: Record<string, string>; url?: string; results?: unknown } = {}) {
   const context = await browser.newContext({ viewport: { width: v.width, height: v.height }, isMobile: v.touch, hasTouch: v.touch });
   const page = await context.newPage(), errors: string[] = [];
   page.on('pageerror', e => errors.push(e.message));
@@ -182,6 +188,7 @@ export async function openLanding(browser: Browser, v: View, opts: { saved?: Rec
   if (Object.keys(seed).length) await page.addInitScript(s => {
     if (!sessionStorage.getItem('layout-seeded')) { sessionStorage.setItem('layout-seeded', '1'); for (const [k, x] of Object.entries(s)) localStorage.setItem(k, x); }
   }, seed);
+  await mockResults(page, opts.results); // before the page loads: the Vote button asks the ballot once, as soon as two ways are flown
   await page.goto(opts.url ?? '/');
   const begin = page.getByRole('button', { name: 'Begin expedition' });
   await expect(begin).toBeEnabled({ timeout: 60000 });

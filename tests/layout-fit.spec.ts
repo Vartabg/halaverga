@@ -3,6 +3,7 @@ import AxeBuilder from '@axe-core/playwright';
 import { computeLayout } from '../src/game/touchLayout';
 import { VOTE_ROUND } from '../src/lib/vote/ballot';
 import { NARROW, VIEWS, audit, openLanding, scaleText, type View } from './layout-audit';
+import { PLAYED } from './layout-vote';
 // The screen cleanup's layout checker (spec section 10.1): at six viewports, in each state, no two controls overlap, every target is
 // 44 x 44 or more, everything is inside the screen, the readout is passive, and the flight surface still gets the gestures (on touch the
 // gaps between the top-row buttons too). The two narrow phones (360, 320) and a 200 percent text size cover the top row's squeeze.
@@ -12,28 +13,29 @@ const wcag = async (page: import('@playwright/test').Page) =>
 const AXE_AT = ['393x852 touch', '1440x900 mouse'];
 
 for (const v of [...VIEWS, ...NARROW]) {
-  test(`${v.name}: landing, playing, sheet, paused, paused-sheet and Flight settings have no overlap, small target or lost surface`, async ({ browser }) => {
+  test(`${v.name}: landing, playing, sheet, paused, paused-sheet and Flight settings (the vote locked) have no overlap, small target or lost surface`, async ({ browser }) => {
     test.setTimeout(120000);
     const t = await openLanding(browser, v), { page } = t, all: string[] = [];
     const check = async (state: string, mode: Parameters<typeof audit>[2]) => { for (const p of await audit(page, v, mode)) all.push(`${state}: ${p}`); };
     await check('landing', {});
-    await t.begin(); await check('playing', { play: true });
+    await t.begin(); await check('playing', { play: true, vote: 'locked' });
     if (AXE_AT.includes(v.name)) await wcag(page);
     await t.press(page.getByTestId('controls-trigger'));
     await expect(page.getByTestId('controls-sheet')).toBeVisible();
-    await check('sheet', { sheet: true });
+    await check('sheet', { sheet: true, vote: 'locked' });
     if (AXE_AT.includes(v.name)) await wcag(page);
     await t.press(page.getByTestId('controls-done'));
     await expect(page.getByTestId('controls-sheet')).toHaveCount(0);
     await t.press(page.getByRole('button', { name: 'Pause expedition' }));
     await expect(page.getByRole('region', { name: 'Expedition paused' })).toBeVisible();
-    await check('paused', {});
+    await expect(page.getByTestId('controls-row')).toBeVisible(); // the pause card's Controls row and vote door are one lazy chunk
+    await check('paused', { vote: 'locked' });
     if (AXE_AT.includes(v.name)) await wcag(page);
     // The pause card's Controls row opens the same sheet over the paused game: the card hides while it shows, and Done brings it back.
     await t.press(page.getByTestId('controls-row'));
     await expect(page.getByTestId('controls-sheet')).toBeVisible();
     await expect(page.getByRole('region', { name: 'Expedition paused' })).toHaveCount(0);
-    await check('paused-sheet', { sheet: true, paused: true });
+    await check('paused-sheet', { sheet: true, paused: true, vote: 'locked' });
     if (AXE_AT.includes(v.name)) await wcag(page);
     await t.press(page.getByTestId('controls-done'));
     await expect(page.getByTestId('controls-sheet')).toHaveCount(0);
@@ -45,6 +47,29 @@ for (const v of [...VIEWS, ...NARROW]) {
     if (AXE_AT.includes(v.name)) await wcag(page);
     await t.press(page.getByRole('button', { name: 'Close dialog' }));
     await expect(page.getByRole('region', { name: 'Expedition paused' })).toBeVisible();
+    expect(all, `${v.name}\n${all.join('\n')}`).toEqual([]);
+    expect(t.errors).toEqual([]); await t.context.close();
+  });
+  // Two ways flown, an open ballot (the default mock): the one state with a Vote button, in its three places. The same overlap, target and surface
+  // checks, plus the vote's rule: the pill beside Controls (8 px), Controls the same width as with the dots, no dots, the sheet's Vote, the pause door.
+  test(`${v.name}: with two ways flown the Vote pill, the sheet's Vote and the pause card's door have no overlap, small target or lost surface`, async ({ browser }) => {
+    test.setTimeout(120000);
+    const t = await openLanding(browser, v, { storage: PLAYED(v) }), { page } = t, all: string[] = [];
+    const check = async (state: string, mode: Parameters<typeof audit>[2]) => { for (const p of await audit(page, v, mode)) all.push(`${state}: ${p}`); };
+    await t.begin();
+    await expect(page.getByTestId('vote-chip')).toBeVisible();
+    await check('vote-ready', { play: true, vote: 'ready' });
+    if (AXE_AT.includes(v.name)) await wcag(page);
+    await t.press(page.getByTestId('controls-trigger'));
+    await expect(page.getByTestId('controls-sheet')).toBeVisible();
+    await check('vote-ready-sheet', { sheet: true, vote: 'ready' });
+    await t.press(page.getByTestId('controls-done'));
+    await expect(page.getByTestId('controls-sheet')).toHaveCount(0);
+    await t.press(page.getByRole('button', { name: 'Pause expedition' }));
+    await expect(page.getByRole('region', { name: 'Expedition paused' })).toBeVisible();
+    await expect(page.getByTestId('vote-open')).toBeVisible(); // the door arrives with the lazy chunk
+    await check('vote-ready-paused', { vote: 'ready' });
+    if (AXE_AT.includes(v.name)) await wcag(page);
     expect(all, `${v.name}\n${all.join('\n')}`).toEqual([]);
     expect(t.errors).toEqual([]); await t.context.close();
   });
@@ -94,25 +119,28 @@ test('375x667 twin: the cluster is the size and place the old header band gave i
 });
 
 // The top row at larger text (D1). The page's text is in px, so a bigger root font size scales nothing: scaleText doubles (or grows by 1.5)
-// every element's own computed size, and each test first checks the text really grew, then audits. The old Vote chip is a long label
-// that does not fit beside the readout at 200 percent on a 393 px phone; it is gone in unit 4 (a short Vote pill replaces it, and only
-// when the vote works), so 200 percent runs with the vote already sent (no Vote button) and 150 percent runs with the chip showing.
-// The Vote pill at 200 percent is unit 4's pass to add. 360 px wide is left out at 200 percent: the skip link (globals.css, top:-70px)
-// wraps to several lines there and its bottom edge slides into view over the row, a global rule that is not unit 2's.
+// every element's own computed size, and each test first checks the text really grew, then audits. Three vote states: sent (no dots, no pill),
+// locked (the dots take no width: Controls is the same box as in the other states) and ready (the Vote pill beside Controls).
+// At 200 percent beside the Vote pill the two buttons' words leave a phone's row no room for the number, so the readout is clipped there (never
+// over a button: its box follows the buttons, see .telemetry); that one case is `squeezed`. 360 px wide is left out at 200 percent: the skip link (globals.css, top:-70px) wraps to several lines there and its bottom edge slides
+// into view over the row, a global rule that is not the row's.
 const SENT = { 'halaverga.vote.v1': JSON.stringify({ round: VOTE_ROUND, touch: { at: Date.now() }, desktop: { at: Date.now() } }) };
-const TEXT_AT: [View, number, boolean][] = [
-  [{ name: '393x852 touch', width: 393, height: 852, touch: true }, 2, true], [{ name: '375x667 touch', width: 375, height: 667, touch: true }, 2, true],
-  [{ name: '393x852 touch', width: 393, height: 852, touch: true }, 1.5, false],
+const P393: View = { name: '393x852 touch', width: 393, height: 852, touch: true }, P375: View = { name: '375x667 touch', width: 375, height: 667, touch: true };
+type VoteAt = 'sent' | 'locked' | 'ready';
+const TEXT_AT: [View, number, VoteAt][] = [
+  [P393, 2, 'sent'], [P375, 2, 'sent'], [P393, 2, 'locked'], [P375, 2, 'locked'], [P393, 1.5, 'ready'], [P375, 1.5, 'ready'], [P393, 2, 'ready'], [P375, 2, 'ready'],
 ];
-for (const [v, f, sent] of TEXT_AT) test(`${v.name} at ${f * 100} percent text${sent ? ', vote already sent' : ', with the Vote chip'}: the text really grows and the top row still fits`, async ({ browser }) => {
-  const t = await openLanding(browser, v, sent ? { storage: SENT } : {}), { page } = t;
+for (const [v, f, at] of TEXT_AT) test(`${v.name} at ${f * 100} percent text, vote ${at}: the text really grows and the top row still fits`, async ({ browser }) => {
+  const t = await openLanding(browser, v, at === 'sent' ? { storage: SENT } : at === 'ready' ? { storage: PLAYED(v) } : {}), { page } = t;
   await t.begin();
   await expect(page.getByTestId('controls-trigger')).toBeVisible();
-  expect(await page.getByTestId('vote-chip').count(), sent ? 'a sent vote has no chip' : 'the chip is in the row').toBe(sent ? 0 : 1);
+  if (at === 'ready') await expect(page.getByTestId('vote-chip')).toBeVisible();
+  expect(await page.getByTestId('vote-chip').count(), at === 'ready' ? 'the pill is in the row' : 'no pill unless the vote works').toBe(at === 'ready' ? 1 : 0);
+  expect(await page.getByTestId('vote-dots').locator('i').count(), 'two dots only while locked').toBe(at === 'locked' ? 2 : 0);
   const { before, after } = await scaleText(page, f);
   expect(before.every(n => n > 0), `probes found: ${before}`).toBe(true);
   expect(after, 'the probes (Controls, the altitude number, the readout unit) grew by the factor').toEqual(before.map(n => n * f));
-  const problems = await audit(page, v, { play: true, scale: f });
+  const problems = await audit(page, v, { play: true, scale: f, ...(at === 'sent' ? {} : { vote: at }), squeezed: at === 'ready' && f >= 2 });
   expect(problems, problems.join('\n')).toEqual([]);
   await t.context.close();
 });
