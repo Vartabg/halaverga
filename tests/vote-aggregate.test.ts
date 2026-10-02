@@ -29,8 +29,8 @@ describe('aggregate: the shape of the answer', () => {
   it('answers an empty hash with two unranked families, nulls and zero votes', () => {
     const r = aggregate([], [], OPTS, NOW, true);
     expect(r).toEqual({ v: 3, round: VOTE_ROUND, asOf: '2026-09-30T14:05:12Z', open: true, families: {
-      touch: { votes: 0, ranked: false, tie: null, order: null, controls: null },
-      desktop: { votes: 0, ranked: false, tie: null, order: null, controls: null } } });
+      touch: { votes: 0, ranked: false, tie: null, order: null, controls: null, lastFlown: null },
+      desktop: { votes: 0, ranked: false, tie: null, order: null, controls: null, lastFlown: null } } });
     expect(aggregate(undefined, undefined, OPTS, NOW, false).open).toBe(false);
   });
   it('asOf is the read time in UTC without milliseconds', () => {

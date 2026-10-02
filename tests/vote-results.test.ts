@@ -11,7 +11,7 @@ afterEach(() => vi.restoreAllMocks());
 
 /** `n` desktop ballots, flow over cursor, spread over `groups` network groups (tags from `from`). */
 function seed(redis: FakeRedis, n: number, groups = 12, from = 0x100) {
-  redis.admin(['HSET', CTL, 'minv', 30, 'cap', 10]); // these scenarios are about 30 votes (the default floor is 100) in groups of up to 3: cap 10 keeps them whole (the favorite cap, 4, is R1's and is tested in vote-fix-round2)
+  redis.admin(['HSET', CTL, 'minv', 30, 'cap', 10]); // these scenarios are about 30 votes (the default floor is 300) in groups of up to 3: cap 10 keeps them whole (the favorite cap, 4, is R1's and is tested in vote-fix-round2)
   for (let i = 0; i < n; i++) redis.admin(['HSETNX', VOTES, nonce(), encodeEntry({ device: 'desktop', favorite: 'flow', tried: ['cursor', 'flow'], last: 'flow' }, HOUR, tag(from + (i % groups) - 0x100))]);
 }
 
@@ -26,7 +26,7 @@ describe('readResults', () => {
   it('an empty store gives two unranked families with nulls, open, and the read time', async () => {
     const r = await readResults(new FakeRedis(), NS, 'r3', T0);
     expect(r).toMatchObject({ v: 3, round: 'r3', asOf: '2026-09-30T14:05:00Z', open: true });
-    expect(r.families.touch).toEqual({ votes: 0, ranked: false, tie: null, order: null, controls: null });
+    expect(r.families.touch).toEqual({ votes: 0, ranked: false, tie: null, order: null, controls: null, lastFlown: null });
     expect(r.families.desktop).toEqual(r.families.touch);
   });
 
@@ -42,6 +42,18 @@ describe('readResults', () => {
     expect(up.families.desktop.order![0]).toBe('flow');
     expect(up.families.desktop.controls!.flow).toEqual({ picked: 30, tried: 30, rate: 100 }); // R2: no wins or losses are published
     expect(Object.keys(up.families.desktop.controls!)).toHaveLength(8);
+  });
+
+  it('V1 with no ctl row the default floor is 300: 299 votes publish a count and nothing else, 300 rank and carry the order check', async () => {
+    const ballots = (n: number) => { // one ballot per network group, Cursor started and Flow flown last, picks split evenly
+      const redis = new FakeRedis();
+      for (let i = 0; i < n; i++) redis.admin(['HSETNX', VOTES, nonce(), encodeEntry({ device: 'desktop', favorite: i % 2 ? 'flow' : 'cursor', tried: ['cursor', 'flow'], last: 'flow' }, HOUR, tag(i))]);
+      return redis;
+    };
+    expect((await readResults(ballots(299), NS, 'r3', T0)).families.desktop).toEqual({ votes: 295, ranked: false, tie: null, order: null, controls: null, lastFlown: null });
+    const up = (await readResults(ballots(300), NS, 'r3', T0)).families.desktop;
+    expect(up).toMatchObject({ votes: 300, ranked: true, lastFlown: { n: 300, last: 50, first: 50, even: 50 } });
+    expect(up.controls).not.toBeNull();
   });
 
   it('ctl mode sets open, and cap and minv are read from ctl: 12 groups of 3 rank at minv 30 but not once cap 2 counts them for 12', async () => {

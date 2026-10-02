@@ -25,7 +25,7 @@ export interface VotePayload {
   /** A control id, or 'tie' (Can't tell). */
   favorite: ControlId | 'tie';
   tried: ControlId[];
-  /** The control flown last: a diagnostic only, never part of the tally. */
+  /** The control flown last: never part of the ranking, only of the order check (LastFlown). */
   last: ControlId;
   /** One random id per Send, kept until answered, so a resend can never count twice. */
   nonce: string;
@@ -37,9 +37,15 @@ export type VoteParse = { ok: true; vote: VotePayload } | { ok: false; status: 4
  * numbers add back up to the exact count of ballots, R2), and its head-to-head win percent (ballot-weighted, not head counts).
  */
 export interface ControlResult { picked: number; tried: number; rate: number | null }
-/** One family's tally. Below the public floor `ranked` is false and everything else but `votes` is null. */
+/**
+ * The order check: among the picks of ballots that tried the family's starting control (its default, flown first by every visitor who
+ * keeps it) and flew another control last, `last` and `first` are the whole percents that went to the control flown last and to the
+ * starting control, and `even` is what each would get if order did not matter. `n` is those picks, rounded down to a multiple of 5.
+ */
+export interface LastFlown { n: number; last: number; first: number; even: number }
+/** One family's tally. Below the public floor `ranked` is false and everything else but `votes` is null. `lastFlown` also stays null until it has enough picks. */
 export interface FamilyResults {
-  votes: number; ranked: boolean; tie: number | null; order: ControlId[] | null; controls: Record<string, ControlResult> | null;
+  votes: number; ranked: boolean; tie: number | null; order: ControlId[] | null; controls: Record<string, ControlResult> | null; lastFlown: LastFlown | null;
 }
 export interface VoteResults { v: typeof VOTE_SCHEMA; round: string; asOf: string; open: boolean; families: Record<VoteDevice, FamilyResults> }
 

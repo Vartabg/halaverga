@@ -4,8 +4,8 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import PrivacyPage from '@/app/privacy/page';
-import { esc, NOISE_LINE, resultsBody, resultsDocument, type ResultsStatus } from '@/app/results/markup';
-import type { VoteResults } from '@/lib/vote/ballot';
+import { esc, FIRST_20_LINE, noiseNote, noisePoints, NOISE_LINE, orderNote, resultsBody, resultsDocument, type ResultsStatus } from '@/app/results/markup';
+import type { LastFlown, VoteResults } from '@/lib/vote/ballot';
 import { PRIVACY_FULL } from '@/lib/vote/privacy';
 import { aggregate } from '@/server/vote/aggregate';
 import { NOW, OPTS, agg, flat, spread } from './helpers/voteAgg';
@@ -72,6 +72,63 @@ describe('W8 results page markup', () => {
 
   it('is a server component: no client JS, no store call in the markup module', () => {
     expect(src('results/markup.ts')).not.toMatch(/use client|from '@\/server|from 'react-dom/); // a route handler cannot import react-dom/server: this is a string builder
+  });
+});
+
+describe('V1 results that do not over-claim', () => {
+  /** A ranked read with the touch family at `touchVotes` and the desktop family at `desktopVotes` (the table rows are the desktop fixture's; only the text is under test). */
+  const at = (touchVotes: number, desktopVotes: number, lastFlown: LastFlown | null = null): VoteResults => {
+    const r = ranked();
+    r.families.touch = { ...r.families.desktop, votes: touchVotes, lastFlown: null };
+    r.families.desktop = { ...r.families.desktop, votes: desktopVotes, lastFlown };
+    return r;
+  };
+
+  it('below the floor a family shows a count and nothing else: no table, bar, percent, control name, noise note or order check, even from a forged unranked read that still carries numbers', () => {
+    const forged = ranked();
+    forged.families.desktop = { ...forged.families.desktop, ranked: false, votes: 295, lastFlown: { n: 250, last: 61, first: 32, even: 47 } };
+    forged.families.touch = { ...forged.families.desktop, votes: 295 };
+    for (const page of [view(forged), view(agg(spread(12, () => ({ favorite: 'flow', tried: ['flow', 'captured'] })), [], { cap: 5, minVotes: 300 }))]) {
+      expect(page).toContain('Not enough votes for a ranking yet on desktop.');
+      for (const bad of [/<table/, /vr-bar|vr-track/, /%/, />Flow</, /Cursor/, /With about/, /luck alone/, /Order check/, /Can(&#x27;|')t tell: about/]) expect(page).not.toMatch(bad);
+    }
+    expect(view(forged)).toContain('About 295 votes so far.');
+  });
+
+  it('at the floor it shows the table and a note computed from that family\'s own count: about 340 divided by the square root of the votes, in whole points', () => {
+    for (const [votes, points] of [[100, 34], [200, 24], [300, 20], [400, 17], [800, 12], [1600, 9]]) expect(noisePoints(votes), String(votes)).toBe(points);
+    expect(Number.isFinite(noisePoints(0)) && Number.isFinite(noisePoints(NaN))).toBe(true); // never prints NaN
+    const page = view(at(300, 800));
+    expect(page).toContain('With about 300 votes, two controls can end up about 20 points apart by luck alone.');
+    expect(page).toContain('With about 800 votes, two controls can end up about 12 points apart by luck alone.');
+    expect(noiseNote(300)).toBe('With about 300 votes, two controls can end up about 20 points apart by luck alone.');
+    expect(page.match(/luck alone/g)).toHaveLength(2); // one per ranked family, none in the footer
+    expect(page.indexOf('luck alone')).toBeGreaterThan(page.indexOf('<table'));
+  });
+
+  it('the footer no longer says that gaps under 10 points are noise', () => {
+    const page = view(at(300, 800));
+    for (const gone of [/under 10 points/, /Fewer than 200/, /mostly noise/]) expect(page).not.toMatch(gone);
+    expect(NOISE_LINE).not.toMatch(/10 points|200 votes|noise/);
+    expect(page).toContain(NOISE_LINE);
+  });
+
+  it('says plainly, once and ahead of the families, that the vote measures the first 20 seconds of flying each way', () => {
+    const page = view(at(300, 800));
+    expect(FIRST_20_LINE).toBe('The vote measures the first 20 seconds of flying each way.');
+    expect(page.match(/first 20 seconds/g)).toHaveLength(1);
+    expect(page.indexOf(FIRST_20_LINE)).toBeLessThan(page.indexOf('data-testid="results-touch"'));
+    expect(view(null, 'unset')).not.toContain('20 seconds'); // no tally, no claim about it
+  });
+
+  it('shows the order check under a ranked family only when it has one, with escaped, clamped whole numbers', () => {
+    const o: LastFlown = { n: 250, last: 61, first: 32, even: 47 };
+    const page = view(at(300, 800, o));
+    expect(page).toContain('Order check, about 250 votes: the control flown last won 61% of picks and the starting control 32%. If order did not matter, each would win about 47%.');
+    expect(orderNote(o)).toContain('about 250 votes');
+    expect(page.match(/Order check/g)).toHaveLength(1);
+    expect(view(at(300, 800))).not.toContain('Order check');
+    expect(orderNote({ n: 250, last: 140, first: -3, even: 47.6 })).toBe('Order check, about 250 votes: the control flown last won 100% of picks and the starting control 0%. If order did not matter, each would win about 48%.');
   });
 });
 

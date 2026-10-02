@@ -6,6 +6,7 @@ import { controlsFor, type ControlId } from '@/game/controlTypes';
 import { MIN_PUBLIC_TAGS, VOTE_ROUND, VOTE_SCHEMA, VOTE_DEVICES, type ControlResult, type FamilyResults, type VoteDevice, type VoteResults } from '@/lib/vote/ballot';
 import { decodeEntry, type DecodedEntry } from '@/lib/vote/entry';
 import { CAP_DEFAULT, MINV_DEFAULT } from './limits';
+import { addOrder, newOrderAcc, orderResult } from './lastFlown';
 import { groupFavCap, pairWeights, rankOrder, round1, roundDown5 } from './score';
 
 /** HGETALL reply to [field, value] pairs: Upstash's flat array, or the object form. Anything else is empty. */
@@ -60,6 +61,7 @@ export function tally(entries: unknown, voidMembers: unknown, opts: TallyOpts, n
   }
   const rows: Record<VoteDevice, Record<string, ReturnType<typeof zero>>> = { touch: {}, desktop: {} };
   const votes = { touch: 0, desktop: 0 }, tie = { touch: 0, desktop: 0 }, nGroups = { touch: 0, desktop: 0 };
+  const order = { touch: newOrderAcc(), desktop: newOrderAcc() }; // the order check: how the last-flown control did against the starting one
   // The groups that gave each control at least one win-point: a control leads only if enough separate networks back it (R1).
   const backers: Record<VoteDevice, Record<string, Set<string>>> = { touch: {}, desktop: {} };
   for (const d of VOTE_DEVICES) for (const c of controlsFor(d)) { rows[d][c.id] = zero(); backers[d][c.id] = new Set(); }
@@ -73,6 +75,7 @@ export function tally(entries: unknown, voidMembers: unknown, opts: TallyOpts, n
       const k = e.tried.length, w = pairWeights(k, e.favorite === null);
       const s = e.favorite === null ? scale : Math.min(scale, favCap / named.get(e.favorite)!);
       votes[device] += s;
+      addOrder(order[device], e, s);
       for (const t of e.tried) r[t].tried += s;
       if (e.favorite !== null) {
         const f = e.favorite;
@@ -99,7 +102,7 @@ export function tally(entries: unknown, voidMembers: unknown, opts: TallyOpts, n
       controls[id] = { picked: Math.round(micro(picked)), tried: Math.round(micro(tried)), wins: round1(wins), losses: round1(losses), rate: n > 0 ? Math.round((100 * wins) / n) : null };
       rank[id] = { wins, losses, groups: backers[d][id].size };
     }
-    families[d] = { votes: roundDown5(votes[d]), ranked, tie: ranked ? Math.round(micro(tie[d])) : null, order: ranked ? rankOrder(rank, registry, nGroups[d]) : null, controls: ranked ? controls : null };
+    families[d] = { votes: roundDown5(votes[d]), ranked, tie: ranked ? Math.round(micro(tie[d])) : null, order: ranked ? rankOrder(rank, registry, nGroups[d]) : null, controls: ranked ? controls : null, lastFlown: ranked ? orderResult(order[d]) : null };
   }
   return { v: VOTE_SCHEMA, round: VOTE_ROUND, asOf: new Date(now).toISOString().slice(0, 19) + 'Z', open, families };
 }
@@ -110,7 +113,7 @@ export function aggregate(entries: unknown, voidMembers: unknown, opts: TallyOpt
   for (const d of VOTE_DEVICES) {
     const f = t.families[d], controls: Record<string, ControlResult> | null = f.controls && {};
     if (controls && f.controls) for (const [id, c] of Object.entries(f.controls)) controls[id] = { picked: roundDown5(c.picked), tried: roundDown5(c.tried), rate: c.rate };
-    families[d] = { ...f, tie: f.tie === null ? null : roundDown5(f.tie), controls };
+    families[d] = { ...f, tie: f.tie === null ? null : roundDown5(f.tie), controls, lastFlown: f.lastFlown && { ...f.lastFlown, n: roundDown5(f.lastFlown.n) } };
   }
   return { ...t, families };
 }

@@ -1,19 +1,27 @@
 // The public tally as one HTML string (spec 5.4, no script, no client JS): the page body and, around it, the whole /results document.
 // /results is a route handler (CODE-6), and a route handler cannot import react-dom/server (Next refuses it), so this is a plain string
-// builder; every dynamic piece is a number, a registry label or a fixed word, and esc() covers the rest. One block per family: not
-// enough votes yet, or a table in ranking order. Nothing here names the store, its keys, a limit, a build or a count that is not
+// builder; every dynamic piece is a number, a registry label or a fixed word, and esc() covers the rest. One block per family: below
+// the ranking floor only a count (no bar, no percent, no control name), or a table in ranking order with the noise note for that count
+// and, once there are enough picks, the order check. Nothing here names the store, its keys, a limit, a build or a count that is not
 // already public.
 import { controlsFor, CONTROL_FAMILIES, type ControlFamily } from '@/game/controlTypes';
-import type { VoteResults } from '@/lib/vote/ballot';
+import type { LastFlown, VoteResults } from '@/lib/vote/ballot';
 import { BASE_CSS, RESULTS_CSS } from './resultsCss';
 
 export type ResultsStatus = 'unset' | 'failed' | null;
 export const NOISE_LINE =
-  'Votes, not people. Anonymous counts, a guide, not a ballot. Every vote is weighted the same, one network counts for only a few votes a day, numbers are rounded down to the nearest 5, and the order uses a cautious estimate. Fewer than 200 votes and gaps under 10 points are mostly noise.';
+  'Votes, not people. Anonymous counts, a guide, not a ballot. Every vote is weighted the same, one network counts for only a few votes a day, numbers are rounded down to the nearest 5, and the order uses a cautious estimate.';
 const FAMILY_NAME: Record<ControlFamily, string> = { touch: 'Touch', desktop: 'Desktop' };
-const pct = (n: number | null) => Math.min(100, Math.max(0, n ?? 0));
+const pct = (n: number | null) => Math.min(100, Math.max(0, Math.round(n ?? 0)));
 const ESC: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#x27;' };
 export const esc = (s: string | number) => String(s).replace(/[&<>"']/g, (c) => ESC[c]);
+export const FIRST_20_LINE = 'The vote measures the first 20 seconds of flying each way.';
+/** How far two shares can sit apart by luck alone at `votes` votes: about 340 / sqrt(votes) points (the 95th percentile of the top-to-bottom spread of five equal controls, audit 2026-10-02: 34 at 100, 24 at 200, 17 at 400, 12 at 800, 9 at 1600). */
+export const noisePoints = (votes: number): number => Math.round(340 / Math.sqrt(Math.max(1, votes || 1)));
+export const noiseNote = (votes: number): string => `With about ${esc(votes)} votes, two controls can end up about ${noisePoints(votes)} points apart by luck alone.`;
+/** The order check line: the control flown last against the starting control, and what even odds would give each. */
+export const orderNote = (o: LastFlown): string =>
+  `Order check, about ${esc(o.n)} votes: the control flown last won ${pct(o.last)}% of picks and the starting control ${pct(o.first)}%. If order did not matter, each would win about ${pct(o.even)}%.`;
 
 const bar = (value: number) => `<span class="vr-track" aria-hidden="true"><span class="vr-bar" style="width:${pct(value)}%"></span></span>`;
 
@@ -28,14 +36,15 @@ function family(fam: ControlFamily, r: VoteResults): string {
       + `<td><span class="vr-share">${bar(pct(c.rate))}${c.rate === null ? 'none yet' : `${c.rate}%`}</span></td></tr>`;
   }).join('');
   return `${head}${about}<table class="vr-table"><caption class="vr-muted">In ranking order, best first</caption><thead><tr><th scope="col">Control</th>`
-    + `<th scope="col">Picked</th><th scope="col">Head to head</th></tr></thead><tbody>${rows}</tbody></table><p>Can&#x27;t tell: about ${f.tie ?? 0}</p></section>`;
+    + `<th scope="col">Picked</th><th scope="col">Head to head</th></tr></thead><tbody>${rows}</tbody></table><p>Can&#x27;t tell: about ${f.tie ?? 0}</p>`
+    + `<p class="vr-muted">${noiseNote(f.votes)}</p>${f.lastFlown ? `<p class="vr-muted">${orderNote(f.lastFlown)}</p>` : ''}</section>`;
 }
 
 /** The tally, or one plain line saying why there is none. */
 export function resultsBody(r: VoteResults | null, status: ResultsStatus): string {
   const note = status === 'unset' ? '<p role="status">Voting isn&#x27;t set up on this deployment yet.</p>'
     : status === 'failed' ? '<p role="status">Couldn&#x27;t reach the vote store right now. Try again in a minute.</p>' : '';
-  const tally = r ? `<p class="vr-lead">As of ${esc(r.asOf.slice(11, 19))} UTC</p>${CONTROL_FAMILIES.map((f) => family(f, r)).join('')}<p class="vr-fine">${NOISE_LINE}</p>` : '';
+  const tally = r ? `<p class="vr-lead">As of ${esc(r.asOf.slice(11, 19))} UTC</p><p class="vr-muted">${FIRST_20_LINE}</p>${CONTROL_FAMILIES.map((f) => family(f, r)).join('')}<p class="vr-fine">${NOISE_LINE}</p>` : '';
   return `<main class="vr-page"><h1 class="vr-title">Halaverga vote results</h1>${note}${tally}<p><a href="/">Back to the game</a> · <a href="/privacy">How your vote is counted</a></p></main>`;
 }
 

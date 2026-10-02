@@ -14,7 +14,8 @@ import { NEON_TIMEOUT_MS, DDL, CLEAN } from '@/server/vote/neonSchema';
 import { runbook } from '@/server/vote/neonRunbook';
 import { readResults } from '@/server/vote/results';
 import { STORE_TIMEOUT_MS } from '@/server/vote/store';
-import { NOISE_LINE } from '@/app/results/markup';
+import { FIRST_20_LINE, NOISE_LINE, noisePoints } from '@/app/results/markup';
+import { LAST_FLOWN_MIN } from '@/server/vote/lastFlown';
 import { PICK_FIRST, PAUSED_TEXT, SAVED_TEXT, STATUS_TEXT } from '@/ui/vote/voteClient';
 import { PENDING_KEY, PENDING_MS } from '@/ui/vote/pending';
 import { SEED_KEY } from '@/ui/vote/ballotPlan';
@@ -51,7 +52,7 @@ describe('docs/voting.md numbers are the code\'s numbers', () => {
     inDocs(PRIVACY_SHORT);
     inDocs(PRIVACY_FULL);
     for (const t of new Set(Object.values(STATUS_TEXT))) inDocs(t);
-    for (const t of [PICK_FIRST, PAUSED_TEXT, SAVED_TEXT, NOISE_LINE.slice(0, 58)]) inDocs(t);
+    for (const t of [PICK_FIRST, PAUSED_TEXT, SAVED_TEXT, NOISE_LINE.slice(0, 58), FIRST_20_LINE]) inDocs(t);
     for (const family of ['touch', 'desktop'] as const) for (const c of controlsFor(family)) inDocs(c.label);
   });
   it('states everything the spec lists for this page', () => {
@@ -99,6 +100,22 @@ describe('docs/voting.md numbers are the code\'s numbers', () => {
       'closed for 30 s (503)', 'reached for 60 s (429)', 'a store error for 5 s (502)', '17th attempt from one address, 121st from one block', '`Retry-After` = the seconds left to the next UTC midnight', '`Retry-After: 5`', '`Retry-After: 60`', 'exactly one request goes to the store as a probe']) inDocs(s);
     const codes = await Promise.all([fire(setup(), 9, () => '203.0.113.9'), fire(setup({}, { mode: 'closed' }), 1, () => '203.0.113.9')]);
     expect(codes.map((c) => c.at(-1)?.status)).toEqual([429, 503]);
+  });
+});
+
+describe('V1 results that do not over-claim: the docs say what the code does', () => {
+  const demo = read('docs/controls-demo.md');
+  it('voting.md documents the order check, its floor, the noise figure and the 20-second limit, and says what the vote cannot tell', () => {
+    for (const s of [`at least **${LAST_FLOWN_MIN}** such counted picks`, '`LAST_FLOWN_MIN`', '340 / sqrt(N)', '34 at 100 votes, 24 at 200, 17 at 400, 12 at 800, 9 at 1,600', '`lastFlown` is `{n, last, first, even}`',
+      '6. **Order and novelty: what the vote can and cannot tell.**', 'a challenger that beats a practiced default is the informative result', 'no score reads it', 'it cannot show which control is better over minutes of play',
+      'the audit simulations disagree on how fast a strong preference shows', '`/results` shows the count and nothing else', 'With about n votes, two controls can end up about x points apart by luck alone.']) inDocs(s);
+    expect([100, 200, 400, 800, 1600].map(noisePoints)).toEqual([34, 24, 17, 12, 9]); // the figures the paragraph quotes are the code's
+    expect(voting).not.toMatch(/Twenty fresh blocks|about 26 comparisons|100 votes need 20 groups/);
+  });
+  it('controls-demo.md carries the limits and the floor the code has (it said 20 a day per block and 30 votes)', () => {
+    for (const s of [`${UNIT_LIMIT} votes a day per network address`, `${BLOCK_LIMIT} a day per network block`, `${ROUND_LIMIT} per network over 30 days`, `${n(GLOBAL_LIMIT)} a day for the whole site`, `at least ${MINV_DEFAULT} counted votes from at least ${MIN_PUBLIC_TAGS} different networks`,
+      FIRST_20_LINE.charAt(0).toLowerCase() + FIRST_20_LINE.slice(1, -1)]) expect(demo, s).toContain(s);
+    expect(demo).not.toMatch(/20 a day per network block|at least 30 counted votes|head-to-head wins and losses/);
   });
 });
 

@@ -16,7 +16,7 @@ const esc = (s: string) => s.replace(/'/g, '&#x27;');
 const N = '0123456789abcdef0123456789abcdef', SEED = 12345;
 const render = (props: Partial<VoteCardProps> = {}) => renderToStaticMarkup(createElement(VoteCard,
   { current: 'draw', tried: ['draw', 'brush'], device: 'touch', seed: SEED, saved: null, probe: null, onClose: () => {}, ...props }));
-const fam = (o: Partial<FamilyResults> = {}): FamilyResults => ({ votes: 0, ranked: false, tie: null, order: null, controls: null, ...o });
+const fam = (o: Partial<FamilyResults> = {}): FamilyResults => ({ votes: 0, ranked: false, tie: null, order: null, controls: null, lastFlown: null, ...o });
 const results = (touch: FamilyResults, desktop: FamilyResults = fam(), open = true): VoteResults =>
   ({ v: 3, round: VOTE_ROUND, asOf: '2026-09-30T14:05:12Z', open, families: { touch, desktop } });
 const ranked = results(fam({ votes: 40, ranked: true, tie: 5, order: ['brush', 'draw', 'one-finger', 'twin-stick', 'conduct'], controls: {} }));

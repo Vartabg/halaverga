@@ -14,7 +14,7 @@ const esc = (s: string) => s.replace(/'/g, '&#x27;');
 const SEED = 12345;
 const render = (props: Partial<VoteCardProps> = {}) => renderToStaticMarkup(createElement(VoteCard,
   { current: 'draw', tried: ['draw', 'brush'], device: 'touch', seed: SEED, saved: null, probe: null, onClose: () => {}, ...props }));
-const fam = (o: Partial<FamilyResults> = {}): FamilyResults => ({ votes: 0, ranked: false, tie: null, order: null, controls: null, ...o });
+const fam = (o: Partial<FamilyResults> = {}): FamilyResults => ({ votes: 0, ranked: false, tie: null, order: null, controls: null, lastFlown: null, ...o });
 const ranked: VoteResults = { v: 3, round: VOTE_ROUND, asOf: '2026-09-30T14:05:12Z', open: true, families: {
   touch: fam({ votes: 40, ranked: true, tie: 5, order: ['brush', 'draw', 'one-finger', 'twin-stick', 'conduct'], controls: {} }), desktop: fam({ votes: 12 }) } };
 const noRadios = (html: string) => expect(html).not.toContain('name="vote-pick"');
