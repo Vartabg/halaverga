@@ -15,7 +15,7 @@ import { NEON_TIMEOUT_MS, DDL, CLEAN } from '@/server/vote/neonSchema';
 import { runbook } from '@/server/vote/neonRunbook';
 import { readResults } from '@/server/vote/results';
 import { STORE_TIMEOUT_MS } from '@/server/vote/store';
-import { FIRST_20_LINE, NOISE_LINE, noisePoints } from '@/app/results/markup';
+import { MIN_20_LINE, MIN_TRIED_SHOWN, NOISE_LINE, noisePoints } from '@/app/results/markup';
 import { LAST_FLOWN_MIN } from '@/server/vote/lastFlown';
 import { PICK_FIRST, PAUSED_TEXT, SAVED_TEXT, STATUS_TEXT } from '@/ui/vote/voteClient';
 import { PENDING_KEY, PENDING_MS } from '@/ui/vote/pending';
@@ -53,7 +53,7 @@ describe('docs/voting.md numbers are the code\'s numbers', () => {
     inDocs(PRIVACY_SHORT);
     inDocs(PRIVACY_FULL);
     for (const t of new Set(Object.values(STATUS_TEXT))) inDocs(t);
-    for (const t of [PICK_FIRST, PAUSED_TEXT, SAVED_TEXT, NOISE_LINE.slice(0, 58), FIRST_20_LINE]) inDocs(t);
+    for (const t of [PICK_FIRST, PAUSED_TEXT, SAVED_TEXT, NOISE_LINE.slice(0, 58), MIN_20_LINE]) inDocs(t);
     for (const family of ['touch', 'desktop'] as const) for (const c of controlsFor(family)) inDocs(c.label);
   });
   it('states everything the spec lists for this page', () => {
@@ -129,8 +129,16 @@ describe('V1 results that do not over-claim: the docs say what the code does', (
   });
   it('controls-demo.md carries the limits and the floor the code has (it said 20 a day per block and 30 votes)', () => {
     for (const s of [`${UNIT_LIMIT} votes a day per network address`, `${BLOCK_LIMIT} a day per network block`, `${ROUND_LIMIT} per network over 30 days`, `${n(GLOBAL_LIMIT)} a day for the whole site`, `at least ${MINV_DEFAULT} counted votes from at least ${MIN_PUBLIC_TAGS} different networks`,
-      FIRST_20_LINE.charAt(0).toLowerCase() + FIRST_20_LINE.slice(1, -1)]) expect(demo, s).toContain(s);
+      MIN_20_LINE.charAt(0).toLowerCase() + MIN_20_LINE.split('. ')[0].slice(1)]) expect(demo, s).toContain(s);
     expect(demo).not.toMatch(/20 a day per network block|at least 30 counted votes|head-to-head wins and losses/);
+  });
+  it('the docs say the 20 seconds are a minimum that is not recorded, and what /results does with controls that have few tries', () => {
+    expect(MIN_20_LINE).toBe('A vote needs at least 20 seconds of flying each way it compares. A vote does not include how long you flew.');
+    for (const text of [voting, demo]) expect(text).not.toMatch(/measures the first 20 seconds|nothing records more/);
+    expect(MIN_TRIED_SHOWN).toBe(30);
+    for (const s of ['`MIN_TRIED_SHOWN`', 'fewer than **30** published tries', '`too few votes to tell`', '340 / sqrt(N), and 170 / sqrt(t)', 'the larger of 340 / sqrt(n) and 170 / sqrt(t)']) inDocs(s);
+    expect(demo).toContain('`too few votes to tell`');
+    expect(voting).not.toMatch(/noisier than that figure says/);
   });
 });
 

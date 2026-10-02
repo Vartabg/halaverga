@@ -4,8 +4,9 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import PrivacyPage from '@/app/privacy/page';
-import { esc, FIRST_20_LINE, noiseNote, noisePoints, NOISE_LINE, orderNote, resultsBody, resultsDocument, type ResultsStatus } from '@/app/results/markup';
-import type { LastFlown, VoteResults } from '@/lib/vote/ballot';
+import { esc, MIN_20_LINE, MIN_TRIED_SHOWN, noiseNote, noisePoints, NOISE_LINE, orderNote, resultsBody, resultsDocument, rowNoisePoints, type ResultsStatus } from '@/app/results/markup';
+import type { ControlId } from '@/game/controlTypes';
+import type { ControlResult, LastFlown, VoteResults } from '@/lib/vote/ballot';
 import { PRIVACY_FULL } from '@/lib/vote/privacy';
 import { aggregate } from '@/server/vote/aggregate';
 import { NOW, OPTS, agg, flat, spread } from './helpers/voteAgg';
@@ -76,11 +77,12 @@ describe('W8 results page markup', () => {
 });
 
 describe('V1 results that do not over-claim', () => {
-  /** A ranked read with the touch family at `touchVotes` and the desktop family at `desktopVotes` (the table rows are the desktop fixture's; only the text is under test). */
+  /** A ranked read with the touch family at `touchVotes` and the desktop family at `desktopVotes`; the controls that were tried carry 4 in 5 of the family's votes as tries, so no row is short of comparisons and the note is the votes figure (the rows are the desktop fixture's, only the text is under test). */
   const at = (touchVotes: number, desktopVotes: number, lastFlown: LastFlown | null = null): VoteResults => {
-    const r = ranked();
-    r.families.touch = { ...r.families.desktop, votes: touchVotes, lastFlown: null };
-    r.families.desktop = { ...r.families.desktop, votes: desktopVotes, lastFlown };
+    const r = ranked(), rows = r.families.desktop.controls!;
+    const thick = (votes: number) => Object.fromEntries(Object.entries(rows).map(([id, c]) => [id, { ...c, tried: c.tried ? Math.floor((votes * 0.8) / 5) * 5 : 0 }]));
+    r.families.touch = { ...r.families.desktop, votes: touchVotes, lastFlown: null, controls: thick(touchVotes) };
+    r.families.desktop = { ...r.families.desktop, votes: desktopVotes, lastFlown, controls: thick(desktopVotes) };
     return r;
   };
 
@@ -106,6 +108,62 @@ describe('V1 results that do not over-claim', () => {
     expect(page.indexOf('luck alone')).toBeGreaterThan(page.indexOf('<table'));
   });
 
+  /** A ranked desktop family read built by hand: `rows` in ranking order, the touch family unranked. */
+  const desktopOf = (votes: number, rows: Array<[ControlId, number, number, number | null]>): VoteResults => {
+    const r = ranked();
+    const controls: Record<string, ControlResult> = {};
+    for (const [id, picked, tried, rate] of rows) controls[id] = { picked, tried, rate };
+    r.families.touch = { votes: 0, ranked: false, tie: null, order: null, controls: null, lastFlown: null };
+    r.families.desktop = { votes, ranked: true, tie: 5, order: rows.map((x) => x[0]), controls, lastFlown: null };
+    return r;
+  };
+  const row = (page: string, label: string) => new RegExp(`<tr><th scope="row">${label}</th>.*?</tr>`).exec(page)![0];
+
+  it('a control with fewer than 30 published tries shows no bar and no percent, only that there are too few votes, and its row comes after the others', () => {
+    expect(MIN_TRIED_SHOWN).toBe(30);
+    const page = view(desktopOf(310, [['flow', 5, 5, 80], ['cursor', 150, 300, 52], ['one-finger-keys', 40, 75, 51], ['mouse-keys', 0, 5, 65], ['draw', 35, 75, 49], ['captured', 0, 0, null]]));
+    for (const id of ['Flow', 'Mouse \\+ keys']) {
+      expect(row(page, id), id).toContain('too few votes to tell');
+      expect(row(page, id), id).not.toMatch(/%|vr-bar|vr-track/);
+    }
+    expect(row(page, 'Cursor')).toContain('52%');
+    expect(row(page, 'Captured')).toContain('none yet'); // nobody met it: the old wording stays
+    const order = ['Cursor', 'One finger \\+ keys', 'Draw', 'Flow', 'Mouse \\+ keys', 'Captured'].map((l) => page.search(new RegExp(`<th scope="row">${l}</th>`)));
+    expect([...order].sort((a, b) => a - b)).toEqual(order); // the three with a percent first, in ranking order; then too few, then none yet
+    expect(page).not.toMatch(/80%|65%/);
+  });
+
+  it('the cut is exactly 30 tries (the published count is rounded down to 5), never a percent below it', () => {
+    const page = view(desktopOf(400, [['cursor', 150, 300, 55], ['draw', 20, 30, 40], ['brush', 14, 25, 90]]));
+    expect(row(page, 'Draw')).toContain('40%');
+    expect(row(page, 'Brush')).toContain('too few votes to tell');
+    expect(row(page, 'Brush')).not.toContain('90%');
+  });
+
+  it('the noise note is the larger of the votes figure and the one from the least-compared row that shows a percent, so an uneven desktop family is not told it is as steady as a touch one', () => {
+    expect([[30, 31], [35, 29], [75, 20], [100, 17], [300, 10]].map(([t]) => rowNoisePoints(t))).toEqual([31, 29, 20, 17, 10]);
+    expect(Number.isFinite(rowNoisePoints(0)) && Number.isFinite(rowNoisePoints(NaN))).toBe(true);
+    const even = view(desktopOf(300, [['cursor', 140, 300, 55], ['draw', 40, 75, 50], ['brush', 38, 75, 48]]));
+    expect(even).toContain('With about 300 votes, two controls can end up about 20 points apart by luck alone.'); // as for touch: 340 / sqrt(300) = 20, 170 / sqrt(75) = 20
+    const uneven = view(desktopOf(300, [['cursor', 140, 300, 55], ['draw', 17, 35, 50], ['flow', 4, 10, 90]]));
+    expect(uneven).toContain('With about 300 votes, two controls can end up about 29 points apart by luck alone.'); // the least-compared row that shows a percent has 35 tries
+    expect(noiseNote(300)).toBe('With about 300 votes, two controls can end up about 20 points apart by luck alone.');
+    expect(noiseNote(300, 35)).toContain('about 29 points');
+    expect(noiseNote(1600, 400)).toContain('about 9 points'); // a good row never makes the note smaller than the votes figure
+  });
+
+  it('a real desktop read: 300 ballots over the default and its four suggested controls plus 10 ballots that picked a never-suggested control show no percent for it', () => {
+    const suggested: ControlId[] = ['one-finger-keys', 'draw', 'conduct', 'brush'];
+    const ballots = [...spread(300, (i) => ({ favorite: i % 2 ? 'cursor' : suggested[i % 4], tried: ['cursor', suggested[i % 4]], last: suggested[i % 4] })),
+      ...spread(10, () => ({ favorite: 'flow', tried: ['cursor', 'flow'], last: 'flow' }), 300)];
+    const page = view(aggregate(flat(ballots), [], { cap: 5, minVotes: 300 }, NOW, true));
+    expect(page).toContain('Desktop controls');
+    expect(row(page, 'Flow')).toContain('too few votes to tell');
+    expect(row(page, 'Flow')).not.toMatch(/%/);
+    for (const label of ['Cursor', 'Draw', 'Brush']) expect(row(page, label), label).toMatch(/\d+%/);
+    expect(page).toMatch(/With about 310 votes, two controls can end up about \d+ points apart by luck alone\./);
+  });
+
   it('the footer no longer says that gaps under 10 points are noise', () => {
     const page = view(at(300, 800));
     for (const gone of [/under 10 points/, /Fewer than 200/, /mostly noise/]) expect(page).not.toMatch(gone);
@@ -113,11 +171,12 @@ describe('V1 results that do not over-claim', () => {
     expect(page).toContain(NOISE_LINE);
   });
 
-  it('says plainly, once and ahead of the families, that the vote measures the first 20 seconds of flying each way', () => {
+  it('says plainly, once and ahead of the families, that a vote needs at least 20 seconds each way and does not include how long you flew (not that it measures exactly 20)', () => {
     const page = view(at(300, 800));
-    expect(FIRST_20_LINE).toBe('The vote measures the first 20 seconds of flying each way.');
-    expect(page.match(/first 20 seconds/g)).toHaveLength(1);
-    expect(page.indexOf(FIRST_20_LINE)).toBeLessThan(page.indexOf('data-testid="results-touch"'));
+    expect(MIN_20_LINE).toBe('A vote needs at least 20 seconds of flying each way it compares. A vote does not include how long you flew.');
+    expect(page.match(/20 seconds/g)).toHaveLength(1);
+    expect(page).not.toMatch(/first 20 seconds|measures/);
+    expect(page.indexOf(MIN_20_LINE)).toBeLessThan(page.indexOf('data-testid="results-touch"'));
     expect(view(null, 'unset')).not.toContain('20 seconds'); // no tally, no claim about it
   });
 
