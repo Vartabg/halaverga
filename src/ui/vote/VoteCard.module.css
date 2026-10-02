@@ -1,6 +1,6 @@
 /* The in-game vote card (spec 1.4). The scrim catches every pointer (so nothing reaches the pause card or controls beneath it),
    and scrolls inside the safe areas; the card itself holds no animation at all, so reduced motion has nothing to stop. */
-.scrim{position:fixed;inset:0;z-index:30;display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;overscroll-behavior:contain;
+.scrim{position:fixed;inset:0;z-index:var(--z-vote);display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;overscroll-behavior:contain;
   -webkit-overflow-scrolling:touch;touch-action:pan-y;background:#0b212ad1;
   padding:max(12px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) max(12px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left))}
 .card{margin:auto;width:min(460px,100%);padding:22px 22px 18px;color:var(--ink);background:#132a30;border:1px solid #80948d;border-radius:6px;

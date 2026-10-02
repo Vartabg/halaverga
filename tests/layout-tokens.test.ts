@@ -1,7 +1,8 @@
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-// The screen cleanup's layout tokens and the shape of the one-row header, read from the source (spec section 2 and the lead's addendum).
-// Started with the top-row unit; later units add the layer map and the hint slot.
+// The screen cleanup's layout tokens, the shape of the one-row header and the layer map, read from the source (spec sections 2 and 10.2 and the
+// lead's addendum H3). The row unit started it; the last unit adds the layers and the names that must be gone.
 const css = readFileSync(new URL('../src/ui/Experience.module.css', import.meta.url), 'utf8');
 const tsx = readFileSync(new URL('../src/ui/Experience.tsx', import.meta.url), 'utf8');
 const rule = (selector: string) => new RegExp(`${selector.replace(/[.[\]()]/g, '\\$&')}\\{([^}]*)\\}`).exec(css)?.[1] ?? '';
@@ -80,5 +81,58 @@ describe('the readout', () => {
   });
   it('has one rule: no per-orientation touch overrides', () => {
     expect(css).not.toMatch(/data-input=touch\]\) \.telemetry/);
+  });
+});
+
+// ---- the layers (spec 2.2; addendum H3) ------------------------------------------------------------------------------------------------
+const SRC = fileURLToPath(new URL('../src', import.meta.url));
+const walk = (dir: string): string[] => readdirSync(dir).flatMap(f => { const p = `${dir}/${f}`; return statSync(p).isDirectory() ? walk(p) : [p]; });
+const files = walk(SRC), under = (f: string) => f.slice(SRC.length + 1), read = (f: string) => readFileSync(`${SRC}/${f}`, 'utf8');
+const globals = read('app/globals.css');
+const LAYERS = ['world', 'veil', 'surface', 'hud', 'play', 'sheet', 'bar', 'card', 'vote'] as const; // back to front
+const z = Object.fromEntries([...globals.matchAll(/--z-([a-z]+):(-?\d+)/g)].map(m => [m[1], Number(m[2])])) as Record<(typeof LAYERS)[number], number>;
+const zOf = (file: string, selector: string) => new RegExp(`${selector.replace(/[.[\]()]/g, '\\$&')}\\{[^}]*z-index:([^;}]+)`).exec(read(file))?.[1];
+
+describe('the layers: every z-index is one named layer, defined once in globals.css', () => {
+  it('defines the nine layers in order, back to front, under the skip link\'s literal 100', () => {
+    expect(Object.keys(z)).toEqual([...LAYERS]);
+    const order = LAYERS.map(l => z[l]);
+    expect(order, 'strictly ascending').toEqual([...order].sort((a, b) => a - b));
+    expect(new Set(order).size).toBe(LAYERS.length);
+    expect(z.world).toBeLessThan(z.veil); expect(z.veil).toBeLessThan(0); expect(z.surface).toBeGreaterThan(0); expect(z.vote).toBeLessThan(100);
+    expect(globals).toMatch(/\.skip\{[^}]*z-index:100[;}]/);
+  });
+  it('every z-index in the CSS is var(--z-<layer>), except the skip link (100) and the vote card\'s sticky footer (1, local to the card)', () => {
+    const odd: string[] = [], seen = new Set<string>();
+    for (const f of files.filter(f => f.endsWith('.css'))) for (const m of read(under(f)).replace(/\/\*[\s\S]*?\*\//g, '').matchAll(/([^{}]*)\{[^{}]*z-index:\s*([^;}]+)/g)) {
+      const value = m[2].trim(), name = /^var\(--z-([a-z]+)\)$/.exec(value)?.[1];
+      if (name) { seen.add(name); if (!(name in z)) odd.push(`${under(f)} ${m[1].trim()}: --z-${name} is not defined`); continue; }
+      const local = (under(f) === 'app/globals.css' && value === '100') || (under(f) === 'ui/vote/VoteCard.module.css' && value === '1' && m[1].includes('.foot[data-ballot]'));
+      if (!local) odd.push(`${under(f)} ${m[1].trim()}: z-index:${value}`);
+    }
+    expect(odd).toEqual([]);
+    expect([...seen].sort(), 'no layer is defined and then never used').toEqual([...LAYERS].sort());
+  });
+  it('no inline zIndex in the .tsx or .ts files but the two Gesture Lab guides, and they use the play layer, not a bare number', () => {
+    const inline = files.filter(f => /\.tsx?$/.test(f)).flatMap(f => read(under(f)).split('\n').filter(l => /zIndex/.test(l)).map(l => `${under(f)}: ${l.trim().replace(/\s+/g, ' ')}`));
+    expect(inline.map(l => l.split(':')[0]).sort()).toEqual(['ui/gesture/GhostGuide.tsx', 'ui/gesture/HoldGuide.tsx']);
+    for (const l of inline) expect(l, 'a layer, never a bare number').toContain("zIndex: 'var(--z-play)'");
+  });
+  it('the layer map: each piece of the screen is on its layer', () => {
+    const MAP: [string, string, string][] = [
+      ['ui/Experience.module.css', '.world', 'world'], ['ui/Experience.module.css', '.vignette', 'veil'],
+      ['ui/Experience.module.css', '.flightSurface', 'surface'], ['ui/gesture/Gesture.module.css', '.surface', 'surface'],
+      ['ui/Experience.module.css', '.telemetry', 'hud'], ['ui/Experience.module.css', '.legend', 'hud'], ['ui/Flow.module.css', '.hud', 'hud'],
+      ['ui/ShooterHud.module.css', '.hud', 'surface'], ['ui/gesture/Gesture.module.css', '.ink', 'hud'],
+      ['ui/Experience.module.css', '.stick', 'play'], ['ui/Experience.module.css', '.actions', 'play'], ['ui/Experience.module.css', '.tapPad', 'play'], ['ui/TouchControls.module.css', '.layer', 'play'],
+      ['ui/controls/ControlsPicker.module.css', '.backdrop', 'sheet'], ['ui/controls/ControlsPicker.module.css', '.sheet', 'sheet'],
+      ['ui/Experience.module.css', '.header', 'bar'], ['ui/Experience.module.css', '.hint', 'bar'],
+      ['ui/Experience.module.css', '.pauseCard', 'card'], ['ui/Experience.module.css', '.recovery', 'card'], ['ui/vote/VoteCard.module.css', '.scrim', 'vote'],
+    ];
+    for (const [file, selector, layer] of MAP) expect(zOf(file, selector), `${file} ${selector}`).toBe(`var(--z-${layer})`);
+  });
+  it('keeps the stacking that mattered: the hint slot is above the touch layer, the sheet above play but under the top row (Pause above the backdrop, D3), cards above the row, the vote on top', () => {
+    expect(z.hud).toBeLessThan(z.play); expect(z.play).toBeLessThan(z.sheet); expect(z.sheet).toBeLessThan(z.bar);
+    expect(z.bar).toBeLessThan(z.card); expect(z.card).toBeLessThan(z.vote); expect(z.surface).toBeLessThan(z.hud);
   });
 });

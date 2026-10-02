@@ -347,9 +347,9 @@ describe('ControlsPicker.module.css contract', () => {
     expect(css).toContain('@media(max-height:430px) and (orientation:landscape){.demo{display:none}}');
     expect(css).toMatch(/\.demo\{[^}]*pointer-events:none/); expect(css).not.toMatch(/\.demo button/);
   });
-  it('the backdrop takes the presses under the sheet, both under the header (z-index 8) so Pause and Controls stay above, and both take presses under a pass-through ancestor', () => {
-    expect(css).toMatch(/\.backdrop\{position:fixed;inset:0;z-index:7;pointer-events:auto/);
-    expect(css).toMatch(/\.sheet\{[^}]*z-index:7;pointer-events:auto/);
+  it('the backdrop takes the presses under the sheet, both on --z-sheet, under the top row (--z-bar) so Pause and Controls stay above, and both take presses under a pass-through ancestor', () => {
+    expect(css).toMatch(/\.backdrop\{position:fixed;inset:0;z-index:var\(--z-sheet\);pointer-events:auto/);
+    expect(css).toMatch(/\.sheet\{[^}]*z-index:var\(--z-sheet\);pointer-events:auto/);
     expect(css).not.toMatch(/\.trigger\{[^}]*z-index/);
   });
 });

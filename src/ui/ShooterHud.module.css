@@ -1,4 +1,4 @@
-.hud{--r:7px;--pip:0rad;--edge:#0b1e22;position:absolute;top:50%;left:50%;width:0;height:0;pointer-events:none;z-index:1}
+.hud{--r:7px;--pip:0rad;--edge:#0b1e22;position:absolute;top:50%;left:50%;width:0;height:0;pointer-events:none;z-index:var(--z-surface)}
 .hud,.hud *{pointer-events:none}
 .hud span,.hud i,.hud b{position:absolute;left:0;top:0;display:block}
 .cross{position:absolute;left:0;top:0;color:#f4fff4;filter:drop-shadow(0 0 1px var(--edge)) drop-shadow(0 0 .5px var(--edge))}
