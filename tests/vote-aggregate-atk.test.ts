@@ -163,6 +163,6 @@ describe('aggregate is deterministic and tolerant', () => {
   it('falls back to the default cap and floor for a cap or floor that is not a usable number', () => {
     const base = aggregate(pairs.flat(), [], { cap: 5, minVotes: 30 }, NOW, true);
     for (const cap of [NaN, 0, -1, Infinity]) expect(aggregate(pairs.flat(), [], { cap, minVotes: 30 }, NOW, true), String(cap)).toEqual(base);
-    expect(aggregate(pairs.flat(), [], { cap: 5, minVotes: NaN }, NOW, true)).toEqual(aggregate(pairs.flat(), [], { cap: 5, minVotes: MINV_DEFAULT }, NOW, true)); // the default floor is 100
+    expect(aggregate(pairs.flat(), [], { cap: 5, minVotes: NaN }, NOW, true)).toEqual(aggregate(pairs.flat(), [], { cap: 5, minVotes: MINV_DEFAULT }, NOW, true)); // the default floor is 300
   });
 });

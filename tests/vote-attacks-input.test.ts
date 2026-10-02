@@ -186,7 +186,7 @@ describe('PRIV-1 and W5 secrets and environments', () => {
 describe('atk:3 unit, block, global and max never change a published number; cap and minv do', () => {
   function seeded() {
     const redis = new FakeRedis(() => T0);
-    redis.admin(['HSET', CTL, 'minv', 30]); // the default floor is 100
+    redis.admin(['HSET', CTL, 'minv', 30]); // the default floor is 300
     for (let i = 0; i < 44; i++) redis.admin(['HSETNX', VOTES, nonce(), encodeEntry({ device: 'desktop', favorite: i % 3 ? 'flow' : 'cursor', tried: ['cursor', 'flow', 'draw'], last: 'draw' }, '2026093014', tag(i % 14))]);
     return redis;
   }

@@ -3,8 +3,8 @@ import { BLOCK_LIMIT, CAP_DEFAULT, DEFAULT_LIMITS, GLOBAL_LIMIT, MAX_ENTRIES, MI
 
 describe('limits: defaults and limitsFrom', () => {
   it('pins the defaults of section 3', () => {
-    expect([UNIT_LIMIT, BLOCK_LIMIT, GLOBAL_LIMIT, MAX_ENTRIES, CAP_DEFAULT, MINV_DEFAULT, ROUND_LIMIT]).toEqual([8, 60, 1200, 6000, 5, 100, 10]);
-    expect(DEFAULT_LIMITS).toEqual({ mode: 'open', unit: 8, block: 60, global: 1200, max: 6000, cap: 5, minv: 100, round: 10 });
+    expect([UNIT_LIMIT, BLOCK_LIMIT, GLOBAL_LIMIT, MAX_ENTRIES, CAP_DEFAULT, MINV_DEFAULT, ROUND_LIMIT]).toEqual([8, 60, 1200, 6000, 5, 300, 10]);
+    expect(DEFAULT_LIMITS).toEqual({ mode: 'open', unit: 8, block: 60, global: 1200, max: 6000, cap: 5, minv: 300, round: 10 });
   });
   it('gives the defaults for an all-null reply (an empty ctl hash)', () => {
     expect(limitsFrom([null, null, null, null, null, null, null, null])).toEqual(DEFAULT_LIMITS);

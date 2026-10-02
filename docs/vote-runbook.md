@@ -12,7 +12,7 @@ For the person who runs the poll. Everything here is done in the Upstash or Neon
 | Reopen (delete `mode`) | votes are accepted again | within 30 s per instance |
 | Shield (`unit 4 block 10 global 300 cap 3`) | more votes get 429, and each network group counts for at most 3 votes a day per family | next vote; `cap` re-scores history at the next results refresh |
 | Share day (`unit 20 block 200 global 3000 cap 40 max 12000 round 50`) for a venue, a class or a planned surge | shared-network votes are counted instead of refused. Afterwards clear the knobs. | next vote; **`cap` re-scores every past day**, check `asOf` and re-run the audit |
-| `minv 200` | raises the ranking floor above its default of 100 (use when the audit shows stuffing at launch) | next results refresh |
+| `minv 600` | raises the ranking floor above its default of 300 (use when the audit shows stuffing at launch; a value under 300 lowers it, which only a demo should do) | next results refresh |
 | `max 12000` | raises the ceiling on stored votes | next vote |
 | Enable Firewall rule K1 (and K2) | denied at the edge before any function or store call | seconds |
 | Pause the Vercel project | takes the game down too. Last resort. | seconds |
@@ -98,13 +98,13 @@ INSERT INTO public.hv_hash (k, field, value) VALUES ('hv:production:ctl','cap','
 Upstash:
 
 ```
-HSET hv:production:ctl minv 200
+HSET hv:production:ctl minv 600
 ```
 
 Neon SQL:
 
 ```sql
-INSERT INTO public.hv_hash (k, field, value) VALUES ('hv:production:ctl','minv','200') ON CONFLICT (k, field) DO UPDATE SET value = EXCLUDED.value;
+INSERT INTO public.hv_hash (k, field, value) VALUES ('hv:production:ctl','minv','600') ON CONFLICT (k, field) DO UPDATE SET value = EXCLUDED.value;
 ```
 
 **Change the ceiling on stored votes**
@@ -279,7 +279,7 @@ SELECT substr(value,1,10) AS hour, count(*) FROM public.hv_hash WHERE k = 'hv:pr
 | Signal | Meaning | Action |
 |---|---|---|
 | Audit names a network group over the cap, or one group that is 30% or more of a day | one network is stuffing (already scaled to `cap` votes) | to remove it entirely, void `T:<day>:<group>` |
-| Audit flags 10 or more groups with the same count of 3 or more, or one control 70% or more of a day with 30+ votes, or an hour more than 3x the median | spread stuffing | void the named groups; set `cap 3` and `minv 200`; if the groups cannot be named, void the hour (this also drops honest votes) |
+| Audit flags 10 or more groups with the same count of 3 or more, or one control 70% or more of a day with 30+ votes, or an hour more than 3x the median | spread stuffing | void the named groups; set `cap 3` and `minv 600`; if the groups cannot be named, void the hour (this also drops honest votes) |
 | Today's `rlg` counter at or over the global limit, or the stored-vote count near 6,000 | the counted budget is used up: every further vote gets 429 until the next UTC day (global limit) or until `max` is raised | void flooded groups first; if the audit shows honest volume, raise `global` or `max` (the 60 s latch clears by itself) |
 | Upstash command graph jumps (Neon: compute hours jump) | wallet attack or a bug | close the vote, enable K1, read the Firewall traffic, rotate the store credentials if in doubt |
 | Vercel bill or transfer alarm | static or invocation flood | enable Firewall rules 5 and 6; last resort pause the project |
@@ -304,7 +304,7 @@ UPSTASH_REDIS_REST_URL=... UPSTASH_REDIS_REST_TOKEN=... node scripts/vote-audit.
 
 ## 5. Local and LAN demos
 
-Off Vercel every client is the single address `local`, so under the default limits the 9th vote from a local or LAN address gets 429. `node scripts/fake-upstash.mjs --demo` (dev only, in memory, `127.0.0.1` only, refuses to run on Vercel) seeds 40 sample touch votes from 14 network groups and presets `ctl unit 200 block 200 global 20000 round 1000 minv 30` (the default ranking floor is 100 votes), printing `demo data seeded: 40 votes, 14 groups; ctl unit, block, global, round raised, minv 30`. Then, on a production build:
+Off Vercel every client is the single address `local`, so under the default limits the 9th vote from a local or LAN address gets 429. `node scripts/fake-upstash.mjs --demo` (dev only, in memory, `127.0.0.1` only, refuses to run on Vercel) seeds 40 sample touch votes from 14 network groups and presets `ctl unit 200 block 200 global 20000 round 1000 minv 30` (the default ranking floor is 300 votes), printing `demo data seeded: 40 votes, 14 groups; ctl unit, block, global, round raised, minv 30`. Then, on a production build:
 
 ```
 node scripts/fake-upstash.mjs --port <store port> --demo &

@@ -45,7 +45,7 @@ describe.skipIf(!hasPg)('the runbook against a real PostgreSQL', () => {
       await pg.sql(it.sql);
       expect(await read(neon), step).toEqual(await read(redis));
     }
-    expect(await read(neon)).toEqual([[null, null, null, null, null, null, '200', null], ['2026093014', 'T:2026093014:a3f'], 0]); // minv stays, the hour void and the hour-group void stay, the poll is empty
+    expect(await read(neon)).toEqual([[null, null, null, null, null, null, '600', null], ['2026093014', 'T:2026093014:a3f'], 0]); // minv stays, the hour void and the hour-group void stay, the poll is empty
   });
 
   it('the read-only statements run and show what the Redis command shows', async () => {

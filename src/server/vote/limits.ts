@@ -8,7 +8,7 @@ export const ROUND_LIMIT = 10; // counted ballots per network per 30 days: nothi
 export const GLOBAL_LIMIT = 1200;
 export const MAX_ENTRIES = 6000;
 export const CAP_DEFAULT = 5;
-export const MINV_DEFAULT = 100;
+export const MINV_DEFAULT = 300; // below this a table is mostly luck (audit 2026-10-02: five equal controls differ by about 20 points at 300 votes); the owner can move it with `minv`
 
 export interface Limits { mode: 'open' | 'closed'; unit: number; block: number; global: number; max: number; cap: number; minv: number; round: number }
 export const DEFAULT_LIMITS: Readonly<Limits> = {

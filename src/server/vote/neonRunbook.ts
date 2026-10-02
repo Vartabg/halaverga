@@ -24,7 +24,7 @@ export function runbook(ns = 'hv:production', day = '20260930', hour = '20260930
     { id: 'shield', title: 'Shield: tighter limits for a scare', ...set(shield) },
     { id: 'share-day', title: 'Share day: wider limits', ...set(shareDay) },
     { id: 'cap', title: 'Change the per-group cap on counted votes', ...set([['cap', '3']]) },
-    { id: 'minv', title: 'Change the votes needed before a ranking shows', ...set([['minv', '200']]) },
+    { id: 'minv', title: 'Change the votes needed before a ranking shows', ...set([['minv', '600']]) },
     { id: 'max', title: 'Change the ceiling on stored votes', ...set([['max', '12000']]) },
     { id: 'clear-knobs', title: 'Put the limits back to their defaults', redis: `HDEL ${ctl} ${gone.join(' ')}`, sql: `DELETE FROM public.hv_hash WHERE k = '${ctl}' AND field IN (${gone.map((f) => `'${f}'`).join(',')});` },
     { id: 'show-knobs', title: 'Show the knobs', redis: `HGETALL ${ctl}`, sql: `SELECT field, value FROM public.hv_hash WHERE k = '${ctl}' ORDER BY field;` },

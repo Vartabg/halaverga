@@ -101,7 +101,7 @@ describe('R1 a few networks all naming one control cannot take first place', () 
 
 describe('R3 a handful of fresh blocks cannot publish an attacker-only ranking', () => {
   const all = ['cursor', 'one-finger-keys', 'flow', 'captured', 'mouse-keys', 'draw', 'conduct', 'brush'];
-  it('R3 36 ballots from 12 fresh blocks, every one claiming all 8 controls for conduct, do not rank the family (the floor is 100 votes)', async () => {
+  it('R3 36 ballots from 12 fresh blocks, every one claiming all 8 controls for conduct, do not rank the family (the floor is 300 votes)', async () => {
     const s = setup();
     const out = await fire(s, 36, (i) => blockIp(i % 12), () => ({ favorite: 'conduct', tried: all, last: 'conduct' }));
     expect(out.every((o) => o.status === 200)).toBe(true);
@@ -109,8 +109,9 @@ describe('R3 a handful of fresh blocks cannot publish an attacker-only ranking',
     expect([f.ranked, f.controls, f.order]).toEqual([false, null, null]);
   });
 
-  it(`R3 ranking takes ${MIN_PUBLIC_TAGS}+ groups and 100 counted votes: 49 unanimous blocks x 5 (2 count each, R1) do not rank, 60 do`, async () => {
-    for (const [blocks, ranked] of [[49, false], [60, true]] as const) {
+  // 150 unanimous blocks would be exactly 300, but a group code has 4,096 values, so a few blocks share one and count for 2 between them: 170 blocks rank with room to spare.
+  it(`R3 ranking takes ${MIN_PUBLIC_TAGS}+ groups and 300 counted votes: 149 unanimous blocks x 5 (2 count each, R1) do not rank, 170 do`, async () => {
+    for (const [blocks, ranked] of [[149, false], [170, true]] as const) {
       const s = setup();
       await fire(s, blocks * 5, (i) => blockIp(i % blocks), () => ({ favorite: 'conduct', tried: all, last: 'conduct' }));
       expect((await readResults(s.redis, NS, 'r3', s.at())).families.desktop.ranked, `${blocks} blocks`).toBe(ranked);
