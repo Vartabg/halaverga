@@ -138,7 +138,7 @@ for (const family of ['desktop', 'touch'] as const) {
     await expect(checkedIn(paused(page))).resolves.toEqual([other]);
     await tapOrClick(paused(page).getByRole('button', { name: 'Resume flight' }), touch);
     await settled(page, other);
-    await expect(trigger(page)).toContainText(other === 'twin-stick' ? 'Twin stick' : 'One finger + keys');
+    await expect(trigger(page)).toHaveAccessibleName(`Controls: ${other === 'twin-stick' ? 'Twin stick' : 'One finger + keys'}`);
     expect(t.errors).toEqual([]); await t.context.close();
   });
 }

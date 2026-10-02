@@ -47,10 +47,14 @@ test('@vote V4 the pause card vote door is on screen without scrolling on a phon
   const p = await votePage(browser, TWO_TOUCH, { touch: true }), phone = p.page;
   await mock(phone, [200]);
   await expect(chip(phone)).toBeVisible();
-  await phone.getByRole('button', { name: 'Pause expedition' }).tap();
-  await expect(paused(phone)).toBeVisible();
-  await expect(chip(phone)).toHaveCount(0); // the pause card owns the vote door now
   const ask = paused(phone).getByText('Which way of flying felt best?', { exact: true }), door = paused(phone).getByTestId('vote-open');
+  // The ask is set on the pause itself, by the lazy vote layer: a Pause tapped before that chunk has mounted gets the plain door, so retry.
+  await expect(async () => {
+    if (await paused(phone).isVisible()) await phone.getByRole('button', { name: 'Resume flight' }).tap();
+    await phone.getByRole('button', { name: 'Pause expedition' }).tap();
+    await expect(paused(phone)).toBeVisible(); await expect(ask).toBeVisible({ timeout: 1000 });
+  }).toPass({ timeout: 25000 });
+  await expect(chip(phone)).toHaveCount(0); // the pause card owns the vote door now
   await expect(door).toBeVisible();
   expect(inside(await box(door), PORTRAIT), 'phone door in the viewport').toBe(true); // before: below the fold (the whole Controls list sat above it)
   expect((await box(ask)).y).toBeLessThan((await box(door)).y);
