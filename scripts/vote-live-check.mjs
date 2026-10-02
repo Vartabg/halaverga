@@ -97,9 +97,10 @@ async function functional() {
     check('reopened 31 s later: 200 at 12 commands', o.status === 200 && o.cost === 12, `status ${o.status}, ${o.cost} commands`);
   }
 
-  // 36 touch entries from 12 groups (3 each): ranked. Voiding one group leaves 33 votes (30 shown) and 11 groups: not ranked.
+  // 36 touch entries from 12 groups (3 each, one per favorite: ballots from one group that name the same favorite share a weight of
+  // 2 with the default cap, so three of a kind would count 2 and 12 groups would give 20 votes, not 35): ranked. Voiding one group leaves 33 votes (30 shown) and 11 groups: not ranked.
   const hour = utcHour(), day = hour.slice(0, 8);
-  for (let j = 0; j < 36; j++) await cmd('HSETNX', VOTES, (1000 + j).toString(16).padStart(32, '0'), `${hour}t${j % 3}072e0${(j % 12).toString(16)}`);
+  for (let j = 0; j < 36; j++) await cmd('HSETNX', VOTES, (1000 + j).toString(16).padStart(32, '0'), `${hour}t${Math.floor(j / 12)}072e0${(j % 12).toString(16)}`);
   if (fast) skip('ranked after seeding, and the void', '--fast; needs the 120 s results cache, run without --fast'); else {
     const ranked = await until(async () => { const r = await results(); return r.families.touch.ranked ? r : null; }, 130000);
     check('36 entries from 12 groups rank touch (votes 35)', !!ranked && ranked.families.touch.votes === 35 && ranked.families.touch.order?.length === 5, JSON.stringify(ranked?.families.touch));
