@@ -1,7 +1,8 @@
 import { expect, test } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import { computeLayout } from '../src/game/touchLayout';
-import { NARROW, VIEWS, audit, openLanding, type View } from './layout-audit';
+import { VOTE_ROUND } from '../src/lib/vote/ballot';
+import { NARROW, VIEWS, audit, openLanding, scaleText, type View } from './layout-audit';
 // The screen cleanup's layout checker (spec section 10.1): at six viewports, in each state, no two controls overlap, every target is
 // 44 x 44 or more, everything is inside the screen, the readout is passive, and the flight surface still gets the gestures (on touch the
 // gaps between the top-row buttons too). The two narrow phones (360, 320) and a 200 percent text size cover the top row's squeeze.
@@ -76,12 +77,26 @@ test('375x667 twin: the cluster is the size and place the old header band gave i
   await t.context.close();
 });
 
-// The top row at 200 percent text: nothing overlaps or leaves the screen.
-test('393x852 at 200 percent root text size: the top row still fits', async ({ browser }) => {
-  const v: View = { name: '393x852 touch', width: 393, height: 852, touch: true };
-  const t = await openLanding(browser, v, { fontSize: '200%' }), { page } = t;
+// The top row at larger text (D1). The page's text is in px, so a bigger root font size scales nothing: scaleText doubles (or grows by 1.5)
+// every element's own computed size, and each test first checks the text really grew, then audits. The old Vote chip is a long label
+// that does not fit beside the readout at 200 percent on a 393 px phone; it is gone in unit 4 (a short Vote pill replaces it, and only
+// when the vote works), so 200 percent runs with the vote already sent (no Vote button) and 150 percent runs with the chip showing.
+// The Vote pill at 200 percent is unit 4's pass to add. 360 px wide is left out at 200 percent: the skip link (globals.css, top:-70px)
+// wraps to several lines there and its bottom edge slides into view over the row, a global rule that is not unit 2's.
+const SENT = { 'halaverga.vote.v1': JSON.stringify({ round: VOTE_ROUND, touch: { at: Date.now() }, desktop: { at: Date.now() } }) };
+const TEXT_AT: [View, number, boolean][] = [
+  [{ name: '393x852 touch', width: 393, height: 852, touch: true }, 2, true], [{ name: '375x667 touch', width: 375, height: 667, touch: true }, 2, true],
+  [{ name: '393x852 touch', width: 393, height: 852, touch: true }, 1.5, false],
+];
+for (const [v, f, sent] of TEXT_AT) test(`${v.name} at ${f * 100} percent text${sent ? ', vote already sent' : ', with the Vote chip'}: the text really grows and the top row still fits`, async ({ browser }) => {
+  const t = await openLanding(browser, v, sent ? { storage: SENT } : {}), { page } = t;
   await t.begin();
-  const problems = await audit(page, v, { play: true });
+  await expect(page.getByTestId('controls-trigger')).toBeVisible();
+  expect(await page.getByTestId('vote-chip').count(), sent ? 'a sent vote has no chip' : 'the chip is in the row').toBe(sent ? 0 : 1);
+  const { before, after } = await scaleText(page, f);
+  expect(before.every(n => n > 0), `probes found: ${before}`).toBe(true);
+  expect(after, 'the probes (Controls, the altitude number, the readout unit) grew by the factor').toEqual(before.map(n => n * f));
+  const problems = await audit(page, v, { play: true, scale: f });
   expect(problems, problems.join('\n')).toEqual([]);
   await t.context.close();
 });

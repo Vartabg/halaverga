@@ -72,7 +72,8 @@ function overlap(a: Box & { round?: boolean }, b: Box & { round?: boolean }) {
 /** The vote chip is allowed to be wide (a progress label) until the vote pill replaces it; every other control on the surface is 96 px or less. */
 const WIDE_OK = ['vote-chip'];
 
-export type Mode = { play?: boolean; sheet?: boolean };
+/** `scale`: the text size factor in force (scaleText); a text button grows with it, so the 96 px cap on what may sit on the surface grows too. */
+export type Mode = { play?: boolean; sheet?: boolean; scale?: number };
 /** Runs the checks of spec section 10.1 that apply to this state; returns one line per problem (empty: the state is clean). */
 export async function audit(page: Page, v: View, mode: Mode = {}): Promise<string[]> {
   const items = await interactive(page), problems: string[] = [], at = (i: Item) => `${i.name} [${Math.round(i.x)},${Math.round(i.y)} ${Math.round(i.width)}x${Math.round(i.height)}]`;
@@ -101,7 +102,7 @@ export async function audit(page: Page, v: View, mode: Mode = {}): Promise<strin
     }
     // 5 The flight surface gets the gestures: a 16 px grid, every hit is the surface or a control of 96 x 96 or less. On desktop the
     // header cluster is the one other hit (its box stays hit-testable for the trackpad's hover freeze) and it is at most 340 x 44.
-    const bad = await page.evaluate(({ wide, desktop }) => {
+    const bad = await page.evaluate(({ wide, desktop, cap }) => {
       const out: string[] = [];
       for (let y = 8; y < innerHeight; y += 16) for (let x = 8; x < innerWidth; x += 16) {
         const el = document.elementFromPoint(x, y);
@@ -109,11 +110,11 @@ export async function audit(page: Page, v: View, mode: Mode = {}): Promise<strin
         if (desktop && el.closest('header')) continue;
         // A control, or the small box a control sits in (Lift/Land's wrapper, [data-ghost-avoid]).
         const c = el.closest('button, a[href], input, select, summary, label, [role=radio], [data-hold-control], [data-ghost-avoid]');
-        if (c) { const r = c.getBoundingClientRect(), id = c.getAttribute('data-testid') ?? ''; if ((r.width <= 96 || wide.includes(id)) && r.height <= 96) continue; }
+        if (c) { const r = c.getBoundingClientRect(), id = c.getAttribute('data-testid') ?? ''; if ((r.width <= cap || wide.includes(id)) && r.height <= cap) continue; }
         out.push(`(${x},${y}) ${el.tagName.toLowerCase()}.${String(el.className).slice(0, 30)}${el.getAttribute('data-testid') ? '#' + el.getAttribute('data-testid') : ''}`);
       }
       return out;
-    }, { wide: WIDE_OK, desktop: !v.touch });
+    }, { wide: WIDE_OK, desktop: !v.touch, cap: 96 * (mode.scale ?? 1) });
     if (bad.length) problems.push(`${bad.length} grid points do not reach the flight surface, first: ${bad.slice(0, 4).join('; ')}`);
     if (!v.touch) {
       const h = await page.locator('header').boundingBox();
@@ -129,16 +130,32 @@ export async function audit(page: Page, v: View, mode: Mode = {}): Promise<strin
   return problems;
 }
 
+/**
+ * Emulates a 200 percent text size (an Android font scale or a text-only zoom): every element gets twice its own computed font size as an
+ * inline px value, read for all elements first so nothing compounds. Setting the root font size scales nothing here, because the page's text
+ * is in px. Returns three probes' font sizes before and after, so a test can check that the text really grew before it audits.
+ */
+export async function scaleText(page: Page, factor: number): Promise<{ before: number[]; after: number[] }> {
+  return page.evaluate(f => {
+    const probes = ['[data-testid=controls-trigger]', '[data-testid=flight-telemetry] > span:last-child', '[data-testid=flight-telemetry] small'];
+    const sizes = () => probes.map(q => { const e = document.querySelector(q); return e ? parseFloat(getComputedStyle(e).fontSize) : NaN; });
+    const before = sizes(), els = [...document.querySelectorAll<HTMLElement>('body *')], px = els.map(e => parseFloat(getComputedStyle(e).fontSize));
+    els.forEach((e, i) => e.style.setProperty('font-size', `${px[i] * f}px`, 'important'));
+    return { before, after: sizes() };
+  }, factor);
+}
+
 /** A page at `v`, before Begin: the landing. `saved` seeds the save once; `begin()` starts play. */
-export async function openLanding(browser: Browser, v: View, opts: { saved?: Record<string, unknown>; url?: string; fontSize?: string } = {}) {
+export async function openLanding(browser: Browser, v: View, opts: { saved?: Record<string, unknown>; storage?: Record<string, string>; url?: string } = {}) {
   const context = await browser.newContext({ viewport: { width: v.width, height: v.height }, isMobile: v.touch, hasTouch: v.touch });
   const page = await context.newPage(), errors: string[] = [];
   page.on('pageerror', e => errors.push(e.message));
-  if (opts.saved) await page.addInitScript(s => {
-    if (!sessionStorage.getItem('layout-seeded')) { sessionStorage.setItem('layout-seeded', '1'); localStorage.setItem('halaverga-flight-v1', JSON.stringify(s)); }
-  }, opts.saved);
+  // `saved` is the game save, `storage` any other localStorage entries (a sent vote, say); both are written once per tab.
+  const seed = { ...opts.storage, ...(opts.saved ? { 'halaverga-flight-v1': JSON.stringify(opts.saved) } : {}) };
+  if (Object.keys(seed).length) await page.addInitScript(s => {
+    if (!sessionStorage.getItem('layout-seeded')) { sessionStorage.setItem('layout-seeded', '1'); for (const [k, x] of Object.entries(s)) localStorage.setItem(k, x); }
+  }, seed);
   await page.goto(opts.url ?? '/');
-  if (opts.fontSize) await page.evaluate(f => { document.documentElement.style.fontSize = f; }, opts.fontSize);
   const begin = page.getByRole('button', { name: 'Begin expedition' });
   await expect(begin).toBeEnabled({ timeout: 60000 });
   const press = (l: ReturnType<Page['locator']>) => v.touch ? l.tap() : l.click();
