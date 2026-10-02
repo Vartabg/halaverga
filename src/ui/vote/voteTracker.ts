@@ -1,5 +1,5 @@
 // The in-game vote's local bookkeeping (spec 3.2). Plain JSON in localStorage, every access wrapped: a missing, throwing or
-// corrupt storage gives safe defaults (nothing played, never voted), so the card simply waits. Nothing here leaves the device.
+// corrupt storage gives safe defaults (nothing played, never voted), so the card simply waits. Nothing here leaves the device except the bare step count named in `tick`.
 // Play time is kept per control and family (controlKey: 'touch:draw' and 'desktop:draw' are separate). Only seconds in which the
 // player gave input count (VoteLayer decides with inputRecent and the held-key set), so merely opening the sheet accrues nothing.
 import { CONTROL_FAMILIES, controlKey, controlsFor, type ControlFamily, type ControlId } from '@/game/controlTypes';

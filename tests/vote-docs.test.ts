@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { controlsFor } from '@/game/controlTypes';
@@ -213,6 +213,13 @@ describe('V2 anonymous counts: the privacy text, the docs and the code say the s
     for (const stage of STAGES) inDocs(`| \`${stage}\` |`);
     expect(read('README.md')).toContain('the one thing that sends what you picked, only when you press Send. The game page also sends anonymous visit and step counts to Vercel Web Analytics');
     expect(read('README.md')).not.toContain('it is the one thing that leaves the device');
+  });
+  it('no doc says the vote is the only thing that leaves the device (every docs/*.md and the README), and the Gesture Lab doc says what the page sends', () => {
+    const files = ['README.md', ...readdirSync('docs').filter(f => f.endsWith('.md')).map(f => `docs/${f}`)];
+    expect(files).toContain('docs/gesture-lab.md');
+    for (const f of files) expect(read(f), f).not.toMatch(/one thing (in the game )?that leaves the device|only place the public sends us data/);
+    const lab = read('docs/gesture-lab.md');
+    for (const s of ['the one thing in the game that sends what you picked', 'anonymous counts of visits and five steps to Vercel Web Analytics', 'voting.md#anonymous-counts-vercel-web-analytics']) expect(lab, s).toContain(s);
   });
   it('launch-readiness.md carries the wiring note for begin and scene_ready, the plan facts and what only the owner can switch on', () => {
     for (const s of ['`begin` and `scene_ready` are not wired yet', 'Web Analytics is not enabled', 'custom events', 'page-level only']) expect(launch, s).toContain(s);
