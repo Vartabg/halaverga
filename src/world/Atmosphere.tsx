@@ -1,29 +1,10 @@
 import { useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { BackSide, Color, ShaderMaterial, Vector3, Vector2 } from 'three';
+import { Color, ShaderMaterial, Vector2 } from 'three';
 import { useGame } from '@/game/store';
 import { runtime } from '@/game/runtime';
+export { Sky } from './Sky';
 const vertex = `varying vec3 vWorld; void main(){ vec4 world=modelMatrix*vec4(position,1.);vWorld=world.xyz; gl_Position=projectionMatrix*viewMatrix*world;}`;
-export function Sky() {
-  const uniforms = useMemo(() => ({ sun: { value: new Vector3(-65, 100, 80).normalize() } }), []);
-  return <mesh><sphereGeometry args={[700, 32, 16]} /><shaderMaterial side={BackSide} depthWrite={false}
-    uniforms={uniforms} vertexShader={vertex.replace('gl_Position=projectionMatrix*viewMatrix*world;', 'gl_Position=projectionMatrix*viewMatrix*world; gl_Position.z=gl_Position.w;')} fragmentShader={`
-    varying vec3 vWorld; uniform vec3 sun;
-    float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
-    float noise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);
-      return mix(mix(hash(i),hash(i+vec2(1,0)),f.x),mix(hash(i+vec2(0,1)),hash(i+1.),f.x),f.y);}
-    void main(){vec3 dir=normalize(vWorld);float h=clamp(dir.y,0.,1.);
-    vec3 color=mix(vec3(.63,.73,.72),vec3(.12,.38,.57),pow(h,.55));
-    float s=dot(dir,sun);color+=vec3(.24,.16,.06)*pow(max(s,0.),18.);
-    color=mix(color,vec3(4.,3.4,2.3),smoothstep(.9996,.9998,s));
-    vec2 p=dir.xz/max(.15,dir.y)*2.;
-    float cloud=noise(p)*.55+noise(p*2.1)*.28+noise(p*4.2)*.13;
-    color=mix(color,vec3(.89,.88,.79),smoothstep(.54,.72,cloud)*smoothstep(.06,.2,h)*.65);
-    gl_FragColor=vec4(color,1.);
-    #include <tonemapping_fragment>
-    #include <colorspace_fragment>
-    }`}/></mesh>;
-}
 export function Water() {
   const material = useRef<ShaderMaterial>(null);
   const uniforms = useMemo(() => ({ time: { value: 0 }, tint: { value: new Color('#146773') }, wake: { value: new Vector2() }, wakeStrength: { value: 0 } }), []);

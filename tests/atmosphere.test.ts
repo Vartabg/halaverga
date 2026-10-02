@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { domeFragment, domeVertex, skyBaseGlsl } from '@/world/skyShader';
 import { FOG, HAZE, HEMISPHERE, SKY, SUN_DIRECTION, SUN_POSITION, SUN_UV, SUN_XZ, directionFromUv, glslVec3, hexToLinear, skyBase, type Rgb } from '@/world/atmospherePalette';
 
 const enc = (x: number) => Math.round(255 * (x <= .0031308 ? 12.92 * x : 1.055 * x ** (1 / 2.4) - .055));
@@ -55,5 +56,18 @@ describe('sky palette', () => {
   it('writes colours as linear GLSL literals', () => {
     expect(glslVec3('#ffffff')).toBe('vec3(1.000000, 1.000000, 1.000000)');
     expect(hexToLinear('#000000')).toEqual([0, 0, 0]);
+  });
+});
+
+describe('sky shader strings', () => {
+  it('build the GLSL twin from the same palette', () => {
+    for (const hex of [HAZE, SKY.low, SKY.mid, SKY.zenith, SKY.warm]) expect(skyBaseGlsl).toContain(glslVec3(hex));
+    expect(skyBaseGlsl).toContain('vec3 skyBase(vec3 dir)');
+  });
+  it('draw the dome display-referred, from the camera, pinned to the far plane', () => {
+    expect(domeFragment).toContain('#include <colorspace_fragment>');
+    expect(domeFragment).not.toContain('tonemapping_fragment');
+    expect(domeFragment).toContain('normalize(vWorld - cameraPosition)');
+    expect(domeVertex).toContain('gl_Position.z = gl_Position.w');
   });
 });
