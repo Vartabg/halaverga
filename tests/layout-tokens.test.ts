@@ -136,3 +136,15 @@ describe('the layers: every z-index is one named layer, defined once in globals.
     expect(z.bar).toBeLessThan(z.card); expect(z.card).toBeLessThan(z.vote); expect(z.surface).toBeLessThan(z.hud);
   });
 });
+
+describe('the names the cleanup removed are gone from src (spec 10.2)', () => {
+  it('has no second header row, flight toast, caption, terminal button, trackpad hint, hint flags or old vote-chip progress', () => {
+    const GONE = ['--lab-row', 'data-lab-bar', 'barSlot', 'flightHint', 'touchHint', 'trackpadHint', '.discovery', 'styles.discovery', 'hintVisible', 'seriesOpen', 'ControlsSection', 'chipProgress', 'chipHint'];
+    const hits = files.flatMap(f => { const text = read(under(f)); return GONE.filter(g => text.includes(g)).map(g => `${under(f)}: ${g}`); });
+    expect(hits).toEqual([]);
+  });
+  it('the Municipal record line in the hint slot is a 44 px target', () => {
+    expect(css).toMatch(/\.hint\[data-kind=record\]\{[^}]*min-height:44px/);
+    expect(css).toMatch(/\.read\{[^}]*min-height:44px/);
+  });
+});

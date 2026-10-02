@@ -119,23 +119,12 @@
 @media (prefers-reduced-motion:no-preference){.glyph:not([data-reduced=true]) .glyphInk{stroke-dasharray:28 72;animation:ctlInk 1.8s linear infinite}}
 @keyframes ctlInk{from{stroke-dashoffset:100}to{stroke-dashoffset:0}}
 
-/* The settings, pause card and Field guide copy of the list. */
-.section{margin:16px 0}
-.sectionTitle{margin:0 0 6px;font:600 15px/1.3 system-ui,-apple-system,'Segoe UI',Arial,sans-serif}
-.details>summary{display:flex;align-items:center;min-height:44px;font-size:14px;font-weight:600;cursor:pointer}
-.details>summary:focus-visible{outline:3px solid var(--lime);outline-offset:2px}
-.switch{display:flex;gap:6px;margin:4px 0 8px}
-.switch button{flex:1;min-height:44px;padding:0 10px;border:1px solid #94aaa1;border-radius:3px;background:transparent;color:var(--ink);font-size:13px}
-.switch button[aria-pressed=true]{background:var(--lime);border-color:var(--lime);color:#1a3029;font-weight:600}
-.section .tried{margin-top:6px}
-.section>details>.action{width:100%;margin-top:8px}
-
 /* The first-visit note in the start card: passive text, nothing to tap. Landscape phones hide it: the trigger it names only exists after Begin. */
 .demo{max-width:38ch;margin:12px 0 0;padding:8px 10px;border:1px solid #58e1ff66;border-radius:4px;background:#142d34e6;color:var(--ink);pointer-events:none}
 .demo p{margin:0;font-size:12px;line-height:1.45}
 @media(max-height:430px) and (orientation:landscape){.demo{display:none}}
 
-@media (prefers-reduced-motion:no-preference){.trigger,.row,.action,.switch button{transition:background-color .15s ease,color .15s ease}}
+@media (prefers-reduced-motion:no-preference){.trigger,.row,.action{transition:background-color .15s ease,color .15s ease}}
 
 @media (forced-colors:active){
   .trigger{border-color:CanvasText;background:Canvas;color:ButtonText;forced-color-adjust:none}
@@ -150,7 +139,6 @@
   .row:has(.radio:checked){border-color:Highlight;background:Canvas}
   .row:has(.radio:focus-visible){outline-color:Highlight}
   .badge,.badge[data-badge=tried],.kbd{border-color:CanvasText;background:Canvas;color:CanvasText}
-  .action,.switch button,.action.primary{border-color:ButtonText;background:ButtonFace;color:ButtonText}
-  .switch button[aria-pressed=true]{background:Highlight;color:HighlightText}
+  .action,.action.primary{border-color:ButtonText;background:ButtonFace;color:ButtonText}
   .glyphBase{stroke:CanvasText;opacity:1}.glyphInk{stroke:Highlight}
 }

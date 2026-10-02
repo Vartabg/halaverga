@@ -293,8 +293,10 @@ describe('ControlsPicker.module.css contract', () => {
     expect(css).toMatch(/\.row\{[^}]*min-height:(4[4-9]|[5-9]\d)px/);
     expect(css).toMatch(/\.trigger\{[^}]*min-height:44px/);
     expect(css).toMatch(/\.action\{[^}]*min-height:44px/);
-    expect(css).toMatch(/\.switch button\{[^}]*min-height:44px/);
     expect(css).toMatch(/\.check\{[^}]*min-height:44px/);
+  });
+  it('has no leftovers of the deleted list copies (the family switch, the section wrapper, the folded details)', () => {
+    for (const gone of ['.switch', '.section', '.details']) expect(css, gone).not.toContain(gone);
   });
   it('the sheet is a popover under the row by default (right edge on the row, 420 wide, one column) and scrolls; the footer is sticky', () => {
     expect(css).not.toContain('--lab-row'); expect(css).not.toMatch(/--top:calc/); // one token: the row's --hdr, from the experience
