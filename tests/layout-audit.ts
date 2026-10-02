@@ -1,4 +1,5 @@
 import { expect, type Browser, type Page } from '@playwright/test';
+import { settingsFootProblems } from './settings-footer';
 // The overlap and target-size checker behind tests/layout-fit.spec.ts: what a player can touch, where it is, whether it fits, and whether
 // the strip between the buttons is still the flight surface. System Chrome emulation: it checks the layout, never how a thumb feels on a
 // real iPhone (docs/screen-cleanup: the physical checks are Garo's).
@@ -73,7 +74,7 @@ function overlap(a: Box & { round?: boolean }, b: Box & { round?: boolean }) {
 const WIDE_OK = ['vote-chip'];
 
 /** `scale`: the text size factor in force (scaleText); a text button grows with it, so the 96 px cap on what may sit on the surface grows too. */
-export type Mode = { play?: boolean; sheet?: boolean; paused?: boolean; scale?: number };
+export type Mode = { play?: boolean; sheet?: boolean; paused?: boolean; settings?: boolean; scale?: number };
 /** Runs the checks of spec section 10.1 that apply to this state; returns one line per problem (empty: the state is clean). */
 export async function audit(page: Page, v: View, mode: Mode = {}): Promise<string[]> {
   const items = await interactive(page), problems: string[] = [], at = (i: Item) => `${i.name} [${Math.round(i.x)},${Math.round(i.y)} ${Math.round(i.width)}x${Math.round(i.height)}]`;
@@ -121,6 +122,8 @@ export async function audit(page: Page, v: View, mode: Mode = {}): Promise<strin
       if (h && (h.width > 340 || h.height > 44.5)) problems.push(`desktop header box is ${Math.round(h.width)}x${Math.round(h.height)}, more than 340x44`);
     }
   }
+  // 7 Flight settings (the dialog over the paused game): its Resume footer ends at the dialog's bottom edge, at the top and at the end of the scroll.
+  if (mode.settings) for (const end of [false, true]) for (const p of await settingsFootProblems(page, end)) problems.push(`settings footer, ${end ? 'end' : 'top'} of the scroll: ${p}`);
   if (mode.sheet) {
     // 6 The sheet is inside the viewport, and its backdrop covers the screen (nothing reaches the surface while it is open).
     const sb = await page.getByTestId('controls-sheet').boundingBox(), bb = await page.getByTestId('controls-backdrop').boundingBox();

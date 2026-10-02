@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { labPage, openGuide, openSettings, pauseCard, resumeFromCard } from './lab-browser';
 import { DESKTOP, openSheet, saved, sheet } from './controls-browser';
+import { settingsFootProblems } from './settings-footer';
 // One Controls place (screen cleanup unit 3): Pause pressed with the sheet open, focus after each way back to the pause card, Flight
 // settings' Resume, the sheet's link to Flight settings, and the pause card that is not ready yet. System Chrome emulation: it checks
 // the wiring and the focus, never how a thumb feels on a real iPhone.
@@ -64,14 +65,21 @@ test('Flight settings has a lime Resume in its footer: Pause, settings, adjust, 
   expect(t.errors).toEqual([]); await t.context.close();
 });
 
-test('Flight settings stays reachable with its Resume at the bottom edge while the settings scroll (375 x 667)', async ({ browser }) => {
-  const t = await labPage(browser, 'standard', { touch: true, viewport: { width: 375, height: 667 } }), { page } = t;
-  await openSettings(page, true);
-  const resume = page.getByRole('dialog', { name: 'Flight settings' }).getByRole('button', { name: 'Resume flight' });
+// The footer is flush with the dialog's bottom edge: its bottom is within 1 px of the dialog's padding-box bottom, at the top of the scroll
+// (where a sticky offset of 0 once left a 20 to 28 px strip with live settings showing under Resume) and at the end of it.
+const FOOT_VIEWS = [{ name: '852x393 touch', width: 852, height: 393, touch: true }, { name: '375x667 touch', width: 375, height: 667, touch: true },
+  { name: '1440x900 mouse', width: 1440, height: 900, touch: false }] as const;
+for (const v of FOOT_VIEWS) test(`${v.name}: Flight settings' Resume footer ends at the dialog's bottom edge, with nothing showing under it, and is reachable`, async ({ browser }) => {
+  const t = await labPage(browser, 'standard', { touch: v.touch, viewport: { width: v.width, height: v.height } }), { page } = t;
+  await openSettings(page, v.touch);
+  const dialog = page.getByRole('dialog', { name: 'Flight settings' }), resume = dialog.getByRole('button', { name: 'Resume flight' });
+  expect(await dialog.evaluate(d => d.scrollHeight > d.clientHeight + 100), 'the settings really scroll here, so the footer is sticky').toBe(true);
+  expect(await settingsFootProblems(page), 'at the top of the scroll').toEqual([]);
   const b = (await resume.boundingBox())!;
-  expect(b.y + b.height, 'Resume is inside the screen without scrolling').toBeLessThanOrEqual(667 + .5);
+  expect(b.y + b.height, 'Resume is inside the screen without scrolling').toBeLessThanOrEqual(v.height + .5);
   expect(b.height).toBeGreaterThanOrEqual(44);
-  await resume.tap();
+  expect(await settingsFootProblems(page, true), 'at the end of the scroll').toEqual([]);
+  await (v.touch ? resume.tap() : resume.click());
   await expect(pauseButton(page)).toBeVisible();
   expect(t.errors).toEqual([]); await t.context.close();
 });

@@ -12,7 +12,7 @@ const wcag = async (page: import('@playwright/test').Page) =>
 const AXE_AT = ['393x852 touch', '1440x900 mouse'];
 
 for (const v of [...VIEWS, ...NARROW]) {
-  test(`${v.name}: landing, playing, sheet, paused and paused-sheet have no overlap, small target or lost surface`, async ({ browser }) => {
+  test(`${v.name}: landing, playing, sheet, paused, paused-sheet and Flight settings have no overlap, small target or lost surface`, async ({ browser }) => {
     test.setTimeout(120000);
     const t = await openLanding(browser, v), { page } = t, all: string[] = [];
     const check = async (state: string, mode: Parameters<typeof audit>[2]) => { for (const p of await audit(page, v, mode)) all.push(`${state}: ${p}`); };
@@ -37,6 +37,13 @@ for (const v of [...VIEWS, ...NARROW]) {
     if (AXE_AT.includes(v.name)) await wcag(page);
     await t.press(page.getByTestId('controls-done'));
     await expect(page.getByTestId('controls-sheet')).toHaveCount(0);
+    await expect(page.getByRole('region', { name: 'Expedition paused' })).toBeVisible();
+    // Flight settings over the paused game: the dialog fits, nothing in it overlaps or is under 44 px, and its Resume footer is flush.
+    await t.press(page.getByRole('region', { name: 'Expedition paused' }).getByRole('button', { name: 'Flight settings', exact: true }));
+    await expect(page.getByRole('dialog', { name: 'Flight settings' })).toBeVisible();
+    await check('settings', { settings: true });
+    if (AXE_AT.includes(v.name)) await wcag(page);
+    await t.press(page.getByRole('button', { name: 'Close dialog' }));
     await expect(page.getByRole('region', { name: 'Expedition paused' })).toBeVisible();
     expect(all, `${v.name}\n${all.join('\n')}`).toEqual([]);
     expect(t.errors).toEqual([]); await t.context.close();
