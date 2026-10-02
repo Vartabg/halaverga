@@ -27,7 +27,7 @@ void main() {
   vec2 p = vWorld.xz;
   float a = p.x * .9 + p.y * 1.7 + time * .6 + sin(p.y * .37), b = p.x * 2.4 - p.y * .8 - time * .9 + sin(p.x * .42);
   float c = p.x * 5.3 + p.y * 3.2 + time * .8;
-  float fa = 1. - smoothstep(.35, 1.1, fwidth(a)), fb = 1. - smoothstep(.35, 1.1, fwidth(b)), fc = 1. - smoothstep(.35, 1.1, fwidth(c));
+  float fa = 1. - smoothstep(.4, 1.2, fwidth(a)), fb = 1. - smoothstep(.2, .7, fwidth(b)), fc = 1. - smoothstep(.15, .5, fwidth(c));
   vec3 n = normalize(vec3(cos(a) * .045 * fa + cos(b) * .028 * fb, 1., sin(a) * .04 * fa + sin(c) * .022 * fc));
   vec3 view = normalize(cameraPosition - vWorld), reflected = reflect(-view, n);
   float fresnel = .025 + .65 * pow(1. - max(dot(n, view), 0.), 4.);
