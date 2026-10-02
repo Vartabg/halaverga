@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { cloudCoverage, makeCloudData } from '@/world/cloudData';
 import { domeFragment, domeVertex, skyBaseGlsl } from '@/world/skyShader';
 import { waterFragment, waterVertex } from '@/world/waterShader';
-import { CLOUD, FOG, HAZE, HEMISPHERE, SKY, SUN_DIRECTION, SUN_DISC, SUN_POSITION, SUN_UV, SUN_XZ, directionFromUv, driftClouds, glslVec3, hexToLinear, skyBase, type Rgb } from '@/world/atmospherePalette';
+import { CLOUD, FOG, HAZE, HEMISPHERE, SKY, SUN_CREAM, SUN_DIRECTION, SUN_DISC, SUN_PALE, SUN_POSITION, SUN_UV, SUN_XZ, directionFromUv, driftClouds, glslVec3, hexToLinear, skyBase, type Rgb } from '@/world/atmospherePalette';
 
 const enc = (x: number) => Math.round(255 * (x <= .0031308 ? 12.92 * x : 1.055 * x ** (1 / 2.4) - .055));
 const screen = (c: Rgb) => c.map(enc);
@@ -87,6 +87,20 @@ describe('sky shader strings', () => {
     expect(r).toBe(255); expect(g).toBeGreaterThan(215); expect(g).toBeLessThan(250);
     expect(b).toBeGreaterThan(120); expect(b).toBeLessThan(200);
     expect(r > 190 && g < 110 && b < 100).toBe(false);
+  });
+});
+
+describe('sun glow and cloud scale', () => {
+  it('mixes the glow gold, cream, pale, sky: an add would push the blue sky through white', () => {
+    for (const hex of [SUN_DISC, SUN_CREAM, SUN_PALE]) expect(domeFragment).toContain(glslVec3(hex));
+    expect(domeFragment).not.toMatch(/col \+= [^;]*pow\(s, 160/);
+    const [r, g, b] = hexRgb(SUN_CREAM);
+    expect(r).toBe(255); expect(g).toBeGreaterThan(220); expect(b).toBeGreaterThan(160); expect(b).toBeLessThan(215); // cream: warmer than the pale lift, never white
+  });
+  it('keeps the cloud plane high, so the top of a level phone frame is not magnified far beyond the horizon', () => {
+    const density = (deg: number) => CLOUD.scale / (Math.sin(deg * Math.PI / 180) + CLOUD.lift); // cloud texture repeats per radian
+    expect(density(10) / density(40)).toBeLessThan(2); // the old lift of .3 gave 2.6
+    expect(domeFragment).toContain('dir.xz / (h + CLOUD_LIFT)');
   });
 });
 

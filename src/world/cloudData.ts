@@ -71,7 +71,7 @@ export function makeCloudData(size = 256, seed = 2113): Uint8Array {
 }
 
 /** The density the dome shows at a texel (matches the shader mix of R and G), 0..1. */
-export const cloudDensityAt = (data: Uint8Array, i: number) => (data[i * 4] * .7 + data[i * 4 + 1] * .3) / 255;
+export const cloudDensityAt = (data: Uint8Array, i: number) => (data[i * 4] * .75 + data[i * 4 + 1] * .25) / 255;
 /** Share of texels above the half-density point of the dome's ramp (threshold + ramp / 2). */
 export function cloudCoverage(data: Uint8Array, threshold: number, ramp = .1) {
   let n = 0;

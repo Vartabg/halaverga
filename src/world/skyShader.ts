@@ -1,4 +1,4 @@
-import { CLOUD, HAZE, SKY, SKY_STOPS_H, SUN_COLOR, SUN_DISC, SUN_XZ, glslVec3 } from './atmospherePalette';
+import { CLOUD, HAZE, SKY, SKY_STOPS_H, SUN_CREAM, SUN_DISC, SUN_PALE, SUN_XZ, glslVec3 } from './atmospherePalette';
 
 const num = (v: number) => v.toFixed(5);
 
@@ -10,7 +10,6 @@ const vec3 SKY_LOW = ${glslVec3(SKY.low)};
 const vec3 SKY_MID = ${glslVec3(SKY.mid)};
 const vec3 SKY_ZENITH = ${glslVec3(SKY.zenith)};
 const vec3 SKY_WARM = ${glslVec3(SKY.warm)};
-const vec3 SKY_SUN = ${glslVec3(SUN_COLOR)};
 const vec2 SUN_XZ = vec2(${num(SUN_XZ[0])}, ${num(SUN_XZ[1])});
 vec3 skyBase(vec3 dir) {
   float h = max(dir.y, 0.);
@@ -34,18 +33,22 @@ void main() {
 
 /** Display-referred: the colours below are what appear on screen (toneMapped is off, colorspace_fragment only encodes sRGB). The
  * direction is taken from the camera, not the origin, so the horizon is at eye level whatever the height. Clouds are a flat layer
- * read in five taps of a baked texture: the shape, two blurred reads for the lighting (one shifted toward the sun), the weather
- * map and an edge roughness read. They fade out before the horizon so nothing smears into curtains. */
+ * read in five taps of a baked texture: the shape, two lightly blurred reads for the lighting (one shifted toward the sun), the
+ * weather map and an edge roughness read that grows with height, where the flat layer is magnified most. They fade out before the
+ * horizon so nothing smears into curtains. The sun's glow is mixed, not added: gold core, cream, a pale lift, then the sky. */
 export const domeFragment = /* glsl */`
 varying vec3 vWorld;
 uniform vec3 uSun;
 uniform sampler2D uClouds;
 uniform vec2 uWind;
-const vec3 SUN_DISC = ${glslVec3(SUN_DISC)};
+const vec3 SUN_GOLD = ${glslVec3(SUN_DISC)};
+const vec3 SUN_CREAM = ${glslVec3(SUN_CREAM)};
+const vec3 SUN_PALE = ${glslVec3(SUN_PALE)};
 const vec3 CLOUD_LIT = ${glslVec3(CLOUD.lit)};
 const vec3 CLOUD_SHADE = ${glslVec3(CLOUD.shade)};
 const float CLOUD_COVER = ${num(CLOUD.coverage)};
 const float CLOUD_SCALE = ${num(CLOUD.scale)};
+const float CLOUD_LIFT = ${num(CLOUD.lift)};
 const float WEATHER_SCALE = ${num(CLOUD.weatherScale)};
 const float WEATHER_SWING = ${num(CLOUD.weatherSwing)};
 const vec2 CLOUD_OFFSET = vec2(${num(CLOUD.offset[0])}, ${num(CLOUD.offset[1])});
@@ -56,22 +59,26 @@ void main() {
   vec3 dir = normalize(vWorld - cameraPosition);
   float h = max(dir.y, 0.);
   vec3 col = skyBase(dir);
-  vec2 uv = dir.xz / (h + .3) * CLOUD_SCALE + CLOUD_OFFSET + uWind;
+  vec2 uv = dir.xz / (h + CLOUD_LIFT) * CLOUD_SCALE + CLOUD_OFFSET + uWind;
   vec4 t = texture2D(uClouds, uv);
-  float n = t.r * .7 + t.g * .3;
-  float soft = texture2D(uClouds, uv, 2.).r, softSun = texture2D(uClouds, uv + SUN_XZ * .02, 2.).r;
+  float n = t.r * .75 + t.g * .25;
+  float soft = texture2D(uClouds, uv, 1.5).r, softSun = texture2D(uClouds, uv + SUN_XZ * .02, 1.5).r;
   float cover = CLOUD_COVER + (.5 - texture2D(uClouds, uv * WEATHER_SCALE).b) * WEATHER_SWING;
-  float rough = (texture2D(uClouds, uv * 3.1 + .37).g - .5) * .16;
+  float rough = (texture2D(uClouds, uv * 3.1 + .37).g - .5) * (.13 + .1 * smoothstep(.3, .9, h));
+  float shape = n + rough;
   float ramp = clamp(fwidth(n) * 5., .03, .1);
-  float dens = smoothstep(cover, cover + ramp, n + rough) * smoothstep(.02, .2, h);
-  float lit = clamp(.5 + (soft - softSun) * 7., 0., 1.);
+  float dens = smoothstep(cover, cover + ramp, shape) * smoothstep(.02, .2, h);
+  float lit = clamp(.62 + (soft - softSun) * 6. + rough * .4, 0., 1.);
   vec3 cloud = mix(CLOUD_SHADE, CLOUD_LIT, lit);
   float s = max(dot(dir, uSun), 0.);
-  cloud += SKY_SUN * pow(1. - dens, 3.) * dens * pow(s, 8.) * .6;
+  float rim = dens * (1. - smoothstep(cover + ramp, cover + .2, shape));
+  cloud += SUN_CREAM * rim * pow(s, 5.) * .9;
   cloud = mix(cloud, SKY_HAZE, exp(-h * 9.) * .6);
   col = mix(col, cloud, dens * .92);
-  col += SKY_SUN * (pow(s, 16.) * .18 + pow(s, 160.) * .5) * (1. - dens * .8);
-  col = mix(col, SUN_DISC, smoothstep(.99984, .99996, s) * (1. - dens * .9));
+  float q = 1. - s, veil = 1. - dens * .85;
+  col = mix(col, SUN_PALE, exp(-q * 70.) * .4 * veil);
+  col = mix(col, SUN_CREAM, exp(-q * 330.) * .9 * veil);
+  col = mix(col, SUN_GOLD, (1. - smoothstep(.00011, .00042, q)) * (1. - dens * .9));
   gl_FragColor = vec4(col, 1.);
   #include <colorspace_fragment>
   gl_FragColor.rgb += (dither(gl_FragCoord.xy) - .5) / 255.;

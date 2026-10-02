@@ -16,8 +16,11 @@ export const SUN_POSITION: [number, number, number] = [-65, 100, 80];
 const sunLength = Math.hypot(...SUN_POSITION);
 export const SUN_DIRECTION: Rgb = [SUN_POSITION[0] / sunLength, SUN_POSITION[1] / sunLength, SUN_POSITION[2] / sunLength];
 export const SUN_COLOR = '#ffe6b2';
-/** The sun's disc as it appears on screen: warm gold, soft edged, never white and never orange. */
-export const SUN_DISC = '#ffeeaa';
+/** The sun's disc as it appears on screen: warm gold, soft edged, never white and never orange. The glow around it is a mix, not an
+ * add (an add pushes blue sky through white): gold core, then cream, then a pale lift that fades into the sky. */
+export const SUN_DISC = '#ffe8a0';
+export const SUN_CREAM = '#ffecbc';
+export const SUN_PALE = '#e4eef8';
 /** Equirectangular centre of the sun (three's mapping: u = atan2(z, x) / 2pi + .5, v = asin(y) / pi + .5). */
 export const SUN_UV: [number, number] = [Math.atan2(SUN_DIRECTION[2], SUN_DIRECTION[0]) / (2 * Math.PI) + .5, Math.asin(SUN_DIRECTION[1]) / Math.PI + .5];
 const flat = Math.hypot(SUN_DIRECTION[0], SUN_DIRECTION[2]);
@@ -30,9 +33,11 @@ export const SKY = { low: '#a9cbe3', mid: '#7fb0dc', zenith: '#3f7fc4', warm: '#
 /** Dome elevation (dir.y) of the low and mid colour stops: about 10 and 30 degrees. */
 export const SKY_STOPS_H = { low: .17, mid: .5 };
 /** Clouds: lit and shaded colours, density threshold, texture repeats per unit of plane projection, drift in uv per second, start
- * offset, and the weather map (its scale in the plane, and how far it moves the threshold: banks where it is high, gaps where low). */
+ * offset, and the weather map (its scale in the plane, and how far it moves the threshold: banks where it is high, gaps where low).
+ * `lift` is the plane's height in the projection dir.xz / (h + lift): a higher one keeps the clouds overhead as fine as the ones near
+ * the horizon (a low one magnifies the top of a level phone frame about four times and smears it). */
 export const CLOUD = {
-  lit: '#f4f4ee', shade: '#aebbc8', coverage: .45, scale: .5, wind: [.003, .001] as [number, number], offset: [.18, .62] as [number, number],
+  lit: '#fbf8ee', shade: '#a3bad0', coverage: .45, scale: .84, lift: .55, wind: [.003, .001] as [number, number], offset: [.18, .62] as [number, number],
   weatherScale: .55, weatherSwing: .3,
 };
 /** Fog is three's linear smoothstep on view depth, applied after tone mapping, so the colour is exactly what appears on screen. The
