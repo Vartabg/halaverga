@@ -413,6 +413,18 @@ User playtest feedback: the separate Surge action was awkward, steering required
 
 This is the next playtest candidate. The original five-minute performance sample below belongs to the first-flight source hashes, not this control revision; no new iPhone performance claim is made.
 
+## Screen cleanup · 2026-10-02
+
+The top row, the one Controls sheet, the Vote that shows only when it works, the one hint line and the nine named layers (the decisions are in [DECISIONS.md](DECISIONS.md), the iPhone checklist in [screen-cleanup.md](screen-cleanup.md)). All of this is Chrome emulation, node tests and real DevTools touches on this Mac. None of it is iPhone validation, a trackpad check or a screen-reader check.
+
+- `pnpm typecheck`: 0 errors. `pnpm test`: 178 files, 2203 tests pass.
+- `pnpm build` passes. `node scripts/check-first-load.mjs`: 9 scripts, 629.6 KB (the budget is 631 KB, ratcheted down from 636 KB; the build before the cleanup measured 635.6 KB), no scene, blaster, touch, lab, controls, vote or Field guide marker in the first load. `node scripts/check-vote-build.mjs` passes.
+- `playwright test` in full against a production `next start` of this tree (127.0.0.1, port 3476, the served HTML held the build's `.next/BUILD_ID`), system Chrome: 455 passed, 1 skipped (`webkit-gesture.spec.ts`: WebKit is not installed here), 0 failed. That run includes `layout-fit.spec.ts` (overlap, 44 px targets, containment, passive readout and hint, the 16 px flight-surface grid, 150 and 200 percent text, forced colors, axe), `accessibility.spec.ts` (reduced motion, axe AA), `screen-touch-sheet.spec.ts` (real touches on the sheet, Pause, the strip and a second finger) and the vote, controls, hint and twin specs. `keyboard-row.spec.ts` (Tab order in the row and on the pause card, ring at every stop, Escape and focus return) was added after that run and passes on the same build.
+- Layers: the paint order of every element at 70,490 sampled points in 70 screen states (landing, play, sheet, paused, settings, guide, vote, Flow, tap pad, twin, Draw and Brush, at 1440, 1024, 393, 375 and 852 wide) is identical on the build before the `--z-*` remap and on the final build.
+- Secrets: `gitleaks git` over the branch's commits since its base found no leaks. A `gitleaks dir` scan of the working directory flags only generated build files under the gitignored `.next/`.
+
+Still open, Garo only: the seven iPhone checks in [screen-cleanup.md](screen-cleanup.md), portrait and landscape, Safari tab and Home Screen app, and a real trackpad.
+
 ## First build: verified locally
 
 - TypeScript and Next.js production build pass.
