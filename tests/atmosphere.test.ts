@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { cloudCoverage, makeCloudData } from '@/world/cloudData';
 import { domeFragment, domeVertex, skyBaseGlsl } from '@/world/skyShader';
+import { waterFragment, waterVertex } from '@/world/waterShader';
 import { CLOUD, FOG, HAZE, HEMISPHERE, SKY, SUN_DIRECTION, SUN_DISC, SUN_POSITION, SUN_UV, SUN_XZ, directionFromUv, driftClouds, glslVec3, hexToLinear, skyBase, type Rgb } from '@/world/atmospherePalette';
 
 const enc = (x: number) => Math.round(255 * (x <= .0031308 ? 12.92 * x : 1.055 * x ** (1 / 2.4) - .055));
@@ -124,5 +125,19 @@ describe('cloud drift', () => {
     const o = { x: .3, y: .1 };
     driftClouds(o, .016, true); driftClouds(o, 2, true);
     expect(o).toEqual({ x: .3, y: .1 });
+  });
+});
+
+describe('water shader', () => {
+  it('takes the scene fog after the colour space chunk, so the sea ends in the same haze as the city', () => {
+    expect(waterVertex).toContain('#include <fog_pars_vertex>'); expect(waterVertex).toContain('#include <fog_vertex>');
+    expect(waterVertex).toContain('vec4 mvPosition = viewMatrix * world');
+    expect(waterFragment).toContain('#include <fog_pars_fragment>');
+    expect(waterFragment.indexOf('#include <fog_fragment>')).toBeGreaterThan(waterFragment.indexOf('#include <colorspace_fragment>'));
+    expect(waterFragment).not.toContain('smoothstep(110., 360.'); // the private far blend is gone
+  });
+  it('fades every ripple octave once it is finer than a pixel, and keeps the sky reflection display-referred', () => {
+    for (const phase of ['a', 'b', 'c']) expect(waterFragment).toContain(`fwidth(${phase})`);
+    expect(waterFragment).toContain('skyBase(reflected)');
   });
 });

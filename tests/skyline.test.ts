@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { WORLD } from '@/game/motion';
 import { SKYLINE } from '@/world/atmospherePalette';
@@ -84,5 +85,15 @@ describe('far skyline generator', () => {
     expect(peak[3]).toBeGreaterThanOrEqual(.9);
     expect(peak.filter((_, i) => i !== 3).every(top => top < .9)).toBe(true);
     city.geometry.dispose();
+  });
+  it('draws it as one static, unshadowed, fogged, display-referred mesh in the Scene', () => {
+    const mesh = readFileSync('src/world/Skyline.tsx', 'utf8'), scene = readFileSync('src/world/Scene.tsx', 'utf8'), water = readFileSync('src/world/Atmosphere.tsx', 'utf8');
+    expect(mesh).toContain('toneMapped: false'); expect(mesh).toContain('fog: true');
+    expect(mesh).toContain('castShadow={false}'); expect(mesh).toContain('receiveShadow={false}');
+    expect(mesh).not.toContain('useFrame'); expect(mesh).not.toContain('invalidate');
+    expect(mesh).toContain('geometry.dispose()'); expect(mesh).toContain('material.dispose()');
+    expect(scene).toContain('<Skyline />');
+    // the sea follows the camera and takes the fog uniforms
+    expect(water).toContain('UniformsLib.fog'); expect(water).toContain('camera.position.x'); expect(water).toMatch(/<shaderMaterial[^>]* fog\b/);
   });
 });
