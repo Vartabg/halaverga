@@ -13,10 +13,11 @@ import styles from './ControlsPicker.module.css';
  * closes as the sheet opens; either way the game stays paused, and closing the sheet shows the pause card again.
  */
 export function ControlsRow({ fromPanel = false }: { fromPanel?: boolean }) {
-  const current = useCurrentControl(useControlFamily());
-  return <button type="button" className={`${pause.secondary} ${styles.rowButton}`} data-testid="controls-row" aria-haspopup="dialog"
+  const label = controlById(useCurrentControl(useControlFamily())).label;
+  // The name is the top row's `Controls: <label>`: the visible words are its two parts, in order (WCAG 2.5.3).
+  return <button type="button" className={`${pause.secondary} ${styles.rowButton}`} data-testid="controls-row" aria-haspopup="dialog" aria-label={`Controls: ${label}`}
     onClick={() => useGame.setState(fromPanel ? { panel: false, controlsOpen: true } : { controlsOpen: true })}>
-    <b>Controls</b><span>{controlById(current).label}</span><i aria-hidden="true">›</i>
+    <b>Controls</b><span>{label}</span><i aria-hidden="true">›</i>
   </button>;
 }
 

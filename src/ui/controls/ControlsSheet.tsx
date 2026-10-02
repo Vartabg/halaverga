@@ -36,11 +36,13 @@ export function VoteButton({ family, primary = false }: { family: ControlFamily;
     data-sent={sent ? '' : undefined} onClick={() => useGame.setState({ voteOpen: true })}>{sent ? 'Vote sent: see results' : 'Vote: which felt best?'}</button>;
 }
 
-/** On touch, a one-line way from the sheet to Flight settings (size, left-handed, look speed live there): Pause, then the dialog. */
+/**
+ * On touch, a one-line way from the sheet to Flight settings (size, left-handed, look speed live there): Pause, then the dialog. It shares
+ * the tried line's row, so it adds no height to the footer; the name carries what is in there (it starts with the visible words, 2.5.3).
+ */
 function SettingsLink() {
-  return <button type="button" className={styles.link} data-testid="controls-settings" onClick={() => { pause(); useGame.setState({ panel: true }); }}>
-    <b>Flight settings</b><span>Size, left-handed, look speed</span>
-  </button>;
+  return <button type="button" className={styles.link} data-testid="controls-settings" aria-label="Flight settings: size, left-handed, look speed"
+    onClick={() => { pause(); useGame.setState({ panel: true }); }}>Flight settings</button>;
 }
 
 /**
@@ -57,8 +59,7 @@ export default function ControlsSheet({ family, onClose }: { family: ControlFami
       <ControlList family={family} name="controls-sheet" onPicked={(_, how) => { if (how.touch) onClose(); }} />
     </div>
     <div className={styles.foot}>
-      <TriedLine family={family} />
-      {family === 'desktop' ? <KeysToggle /> : <SettingsLink />}
+      {family === 'desktop' ? <><TriedLine family={family} /><KeysToggle /></> : <div className={styles.footLine}><TriedLine family={family} /><SettingsLink /></div>}
       <div className={styles.buttons}>
         <VoteButton family={family} primary />
         <button type="button" className={styles.action} data-testid="controls-done" onClick={onClose}>Done</button>

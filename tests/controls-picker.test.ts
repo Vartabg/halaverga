@@ -150,7 +150,7 @@ describe('ControlsSheet and the Controls row (SSR)', () => {
   });
   it('the Controls row is one button with the word and the control now in use; it carries no list', () => {
     const row = html(createElement(ControlsRow, {}));
-    expect(row).toContain('data-testid="controls-row"'); expect(row).toContain('aria-haspopup="dialog"');
+    expect(row).toContain('data-testid="controls-row"'); expect(row).toContain('aria-haspopup="dialog"'); expect(row).toContain('aria-label="Controls: Cursor"');
     expect(row).toContain('<b>Controls</b><span>Cursor</span>'); expect(row).toContain('<i aria-hidden="true">');
     expect(row).not.toContain('controls-list'); expect(row).not.toContain('radio'); // the list lives only in the sheet
     useGame.setState({ trackpadSteering: 'flow' });
@@ -164,7 +164,9 @@ describe('ControlsSheet and the Controls row (SSR)', () => {
   });
   it('the sheet footer links to Flight settings on touch only; the desktop footer has the number-keys checkbox instead', () => {
     const touch = html(createElement(ControlsSheet, { family: 'touch', onClose: noop })), desktop = html(createElement(ControlsSheet, { family: 'desktop', onClose: noop }));
-    expect(touch).toContain('data-testid="controls-settings"'); expect(touch).toContain('<b>Flight settings</b><span>Size, left-handed, look speed</span>');
+    expect(touch).toMatch(/<button[^>]*data-testid="controls-settings"[^>]*aria-label="Flight settings: size, left-handed, look speed"[^>]*>Flight settings<\/button>/);
+    expect(touch.indexOf('data-testid="controls-tried"')).toBeLessThan(touch.indexOf('data-testid="controls-settings"')); // one row with the tried line
+    expect(touch).toContain('footLine'); expect(touch.indexOf('footLine')).toBeLessThan(touch.indexOf('data-testid="controls-tried"'));
     expect(desktop).not.toContain('controls-settings'); expect(desktop).not.toContain('Flight settings');
   });
   it('the entry mounts the note or the trigger, and the trigger part waits for Begin', () => {
@@ -305,8 +307,9 @@ describe('ControlsPicker.module.css contract', () => {
     expect(short).not.toBeNull();
     expect(short![1]).toMatch(/\.sheet\{width:min\(680px/); expect(short![1]).toMatch(/\.sheetBody \.list\{grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
   });
-  it('the Controls row and the footer link are 44 px tall targets', () => {
+  it('the Controls row and the footer link are 44 px tall targets, the link in the tried line\'s row (no extra footer height)', () => {
     expect(css).toMatch(/\.link\{[^}]*min-height:44px/);
+    expect(css).toMatch(/\.footLine\{display:flex;[^}]*justify-content:space-between/);
     expect(css).toMatch(/\.rowButton\{[^}]*width:100%/); // its height is the shared .secondary 44 px
   });
   it('checked rows and buttons are dark on lime; the trigger is ink on the dark pill; focus is visible', () => {
