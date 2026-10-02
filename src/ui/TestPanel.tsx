@@ -102,6 +102,6 @@ export default function TestPanel({ onClose, onResume, ready }: { onClose: () =>
       }}>Download measurements</button>
     </details>
     <button className={styles.secondary} onClick={() => { runtime.reset = true; onClose(); }}>Return to arrival terrace</button>
-    <div className={styles.modalFoot}><button className={styles.primary} aria-label="Resume flight" disabled={!ready} onClick={onResume}>Resume</button></div>
+    <div className={styles.modalFoot} data-testid="settings-foot"><button className={styles.primary} aria-label="Resume flight" disabled={!ready} onClick={onResume}>Resume</button></div>
   </Modal>;
 }
