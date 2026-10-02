@@ -7,7 +7,7 @@ import { headerBand, readInsets, viewportBox } from './touchInsets';
 import { isStandalone, keepPlaying, leaveGame } from './playSession';
 import LazyControls from './LazyControls';
 import styles from './Experience.module.css';
-type Props = { ready: boolean; onEnter: () => void };
+type Props = { ready: boolean; onEnter: () => void; note?: string };
 // Would the touch cluster fit this screen? The same pure layout the controls use, from the visual viewport and the safe areas.
 function crampedNow(probe: HTMLElement | null): boolean {
   if (!probe || !touchMode()) return false;
@@ -17,7 +17,7 @@ function crampedNow(probe: HTMLElement | null): boolean {
   return computeLayout(box.w, box.h, insets, top, prefs).cramped;
 }
 /** The pause card, the "Leave the game?" card (a back swipe during touch play) and the notes that explain a refused Resume. */
-export default function PauseCard({ ready, onEnter }: Props) {
+export default function PauseCard({ ready, onEnter, note = '' }: Props) {
   const leave = useGame(s => s.leavePrompt), zoomNote = useGame(s => s.zoomNote), shooter = useGame(s => s.shooter);
   const tipSeen = useGame(s => s.homeTipSeen);
   const probe = useRef<HTMLDivElement>(null);
@@ -41,7 +41,7 @@ export default function PauseCard({ ready, onEnter }: Props) {
     {probeNode}
     <p className={styles.eyebrow}>SUIT HOLDING POSITION</p><h2>Take your time.</h2><p>Your expedition will be here.</p>
     {shooter && runtime.shooter.stats.kills > 0 && <p>Drones downed: {runtime.shooter.stats.kills}</p>}
-    <p className={styles.note} role="status">{zoomNote ? 'Pinch out to normal size, then tap Resume.' : cramped ? 'Screen too short for touch controls. Zoom out or turn the phone.' : ''}</p>
+    <p className={styles.note} role="status">{note || (zoomNote ? 'Pinch out to normal size, then tap Resume.' : cramped ? 'Screen too short for touch controls. Zoom out or turn the phone.' : '')}</p>
     <button className={styles.primary} disabled={!ready} onClick={onEnter}>{ready ? 'Resume flight' : 'Restoring your suit…'} <span aria-hidden="true">↗</span></button>
     <LazyControls name="control-pause" />
     <button className={styles.secondary} onClick={() => useGame.setState({ panel: true })}>Adjust flight settings</button>

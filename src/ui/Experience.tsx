@@ -8,6 +8,7 @@ import { pause, resume, useInput } from './useInput';
 import { useShooterInput } from './useShooterInput';
 import { usePlayGuard } from './usePlayGuard';
 import { onPlayGesture } from './playSession';
+import { useFieldGuide } from './useFieldGuide';
 import { touchMode } from '@/game/pointerMode';
 import { unlockBlasterAudio } from './audioUnlock';
 import { useAudio } from './useAudio';
@@ -15,7 +16,6 @@ import { trackpadPill } from './trackpadPill';
 import { labFault } from './labSwitch';
 import Boundary from './Boundary';
 import TapControls from './TapControls';
-import FieldGuide from './FieldGuide';
 import Telemetry from './Telemetry';
 import FlowHud from './FlowHud';
 import FlowWelcome from './FlowWelcome';
@@ -56,7 +56,7 @@ export default function Experience() {
   const [TouchControls, setTouchControls] = useState<ComponentType | null>(null);
   const [LabControls, setLabControls] = useState<ComponentType<LabProps> | null>(null);
   const lab = state.controlLab;
-  const main = useRef<HTMLElement>(null);
+  const main = useRef<HTMLElement>(null), guide = useFieldGuide(hydrated);
   useEffect(() => {
     let cancelled = false;
     hydrateGame();
@@ -119,11 +119,10 @@ export default function Experience() {
     useLoader.clear(GLTFLoader, SUIT_URL);
     setFailed(false); setSceneKey(v => v + 1); state.set({ ready: false, flying: false, landing: false });
   };
-  const fallback = <div className={styles.recovery} role="alert"><h2>The world needs a moment.</h2><p>Your field guide remains available. Reload the scene to continue from your saved landing.</p><button className={styles.primary} onClick={retry}>Reload scene</button></div>;
+  const fallback = <div className={styles.recovery} role="alert"><h2>The world needs a moment.</h2><p>Your field guide remains available. Reload the scene to continue from your saved landing.</p>{guide.note && <p>{guide.note}</p>}<button className={styles.primary} onClick={retry}>Reload scene</button></div>;
   const standard = lab === 'standard', playing = state.started && !state.paused, twin = state.touchScheme === 'twin';
   const ready = state.ready && touchReady && (standard || !!LabControls);
   const seriesOpen = twin && !state.tapControls && state.hintProgress.touch < HINT_STEPS.touch;
-  const reticle = <Reticle />;
   const pill = standard && trackpadPill({ steering: state.trackpadSteering, shooter: state.shooter, cruising: state.trackpadFlying, flying: state.flying, canLand: state.canLand });
   const flightHint = state.message || (state.flying && state.canLand ? 'SURFACE IN REACH · LAND' : state.limitCue && state.limitCue !== 'solid' ? state.limitHint : state.flying && state.descendBlocked ? 'NO LANDING BELOW · MOVE TO OPEN GROUND' : state.limitHint);
   useEffect(() => {
@@ -153,7 +152,7 @@ export default function Experience() {
         <p className={styles.eyebrow}><span className={styles.statusDot} /> EXPEDITION 001 <span>/</span> MERIDIAN</p>
         <p className={styles.introCopy}>Eighty years of silence.<br />An entire world still waiting to be understood.</p>
         <button className={styles.primary} disabled={!ready} onClick={enter}>{ready ? 'Begin expedition' : 'Preparing your suit…'}<span aria-hidden="true">↗</span></button>
-        <p className={styles.introHint} role="status">{state.zoomNote ? 'Pinch out to normal size, then tap Begin.' : ready ? 'Explore freely. Leave whenever you like.' : 'Building the district and collision map.'}</p>
+        <p className={styles.introHint} role="status">{guide.note || (state.zoomNote ? 'Pinch out to normal size, then tap Begin.' : ready ? 'Explore freely. Leave whenever you like.' : 'Building the district and collision map.')}</p>
         <Optional><ControlsEntry part="note" /></Optional>
       </section>}
       {!state.started && <footer className={styles.introFooter}><span>2033 <small>CATASTROPHE</small><b>—</b> 2113 <small>ARRIVAL</small></span><span>INTERACTIVE FLIGHT STUDY <i>01</i></span></footer>}
@@ -164,7 +163,7 @@ export default function Experience() {
           : playing && LabControls && <LabControls key={`${lab}-${state.inputEpoch}`} scheme={lab as LabProps['scheme']} onError={() => labFault(LAB_FAILED)} />}
         {playing && <>
           {state.tapControls && <TapControls key={state.inputEpoch} />}
-          {state.shooter ? <Boundary fallback={reticle} onError={() => shooterFault('hud', null)}><ShooterHud /></Boundary> : reticle}
+          {state.shooter ? <Boundary fallback={<Reticle />} onError={() => shooterFault('hud', null)}><ShooterHud /></Boundary> : <Reticle />}
           {!state.shooter && standard && twin && touchMode() && <Boundary fallback={null} onError={() => {}}><ControlsHint coarse /></Boundary>}
           {flightHint && <p className={styles.flightHint} data-shooter={String(state.shooter)}>{flightHint}</p>}
           <Telemetry />
@@ -183,11 +182,11 @@ export default function Experience() {
           {/* One message at a time: a limit cue owns the pill while it shows. */}
           {state.desktopMode === 'trackpad' && pill && !state.limitHint && <div className={styles.trackpadHint}>{pill}</div>}
         </>}
-        {state.paused && !state.panel && !state.journal && !failed && !state.voteOpen && <PauseCard ready={ready} onEnter={enter} />}
+        {state.paused && !state.panel && !guide.Guide && !failed && !state.voteOpen && <PauseCard ready={ready} onEnter={enter} note={guide.note} />}
         {!failed && <Optional><VoteLayer onResume={enter} /></Optional>}
       </>}
       <div className="sr-only" aria-live="polite">{state.message}</div>
-      {state.journal && <FieldGuide onClose={closeGuide} />}
+      {guide.Guide && <Boundary fallback={null} onError={guide.fail}><guide.Guide onClose={closeGuide} /></Boundary>}
       {state.panel && <TestPanel onClose={closePanel} />}
       {state.started && !failed && standard && state.desktopMode === 'trackpad' && state.trackpadSteering === 'flow' && !state.flowIntroSeen && !state.panel && !state.journal && <FlowWelcome />}
     </main>
