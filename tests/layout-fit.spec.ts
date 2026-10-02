@@ -3,7 +3,7 @@ import AxeBuilder from '@axe-core/playwright';
 import { computeLayout } from '../src/game/touchLayout';
 import { VOTE_ROUND } from '../src/lib/vote/ballot';
 import { NARROW, VIEWS, audit, openLanding, scaleText, type View } from './layout-audit';
-import { PLAYED } from './layout-vote';
+import { PLAYED, rowFormProblems } from './layout-vote';
 // The screen cleanup's layout checker (spec section 10.1): at six viewports, in each state, no two controls overlap, every target is
 // 44 x 44 or more, everything is inside the screen, the readout is passive, and the flight surface still gets the gestures (on touch the
 // gaps between the top-row buttons too). The two narrow phones (360, 320) and a 200 percent text size cover the top row's squeeze.
@@ -120,17 +120,24 @@ test('375x667 twin: the cluster is the size and place the old header band gave i
 
 // The top row at larger text (D1). The page's text is in px, so a bigger root font size scales nothing: scaleText doubles (or grows by 1.5)
 // every element's own computed size, and each test first checks the text really grew, then audits. Three vote states: sent (no dots, no pill),
-// locked (the dots take no width: Controls is the same box as in the other states) and ready (the Vote pill beside Controls).
-// At 200 percent beside the Vote pill the two buttons' words leave a phone's row no room for the number, so the readout is clipped there (never
-// over a button: its box follows the buttons, see .telemetry); that one case is `squeezed`. 360 px wide is left out at 200 percent: the skip link (globals.css, top:-70px) wraps to several lines there and its bottom edge slides
-// into view over the row, a global rule that is not the row's.
+// locked (the dots take no width: Controls is the same box as in the other states) and ready (the Vote pill in the row).
+// The altitude number is never cut, at any size: with the pill, a phone at larger text has no room for the number beside three buttons, so the
+// row wraps the pill under Controls (the one case the header is taller than the 44 px row, `--row-extra`; rowFormProblems) and keeps the number.
+// Not covered, because the room is not there: 320 wide at 200 percent (Controls, Pause and the 77 px number are 326 px, locked or ready; the readout is
+// clipped there, never over a button), and 360 wide at 200 percent, where the skip link (globals.css, top:-70px) wraps to several lines and its
+// bottom edge slides into view over the row, a global rule that is not the row's.
 const SENT = { 'halaverga.vote.v1': JSON.stringify({ round: VOTE_ROUND, touch: { at: Date.now() }, desktop: { at: Date.now() } }) };
 const P393: View = { name: '393x852 touch', width: 393, height: 852, touch: true }, P375: View = { name: '375x667 touch', width: 375, height: 667, touch: true };
+const P430: View = { name: '430x932 touch', width: 430, height: 932, touch: true }, P360: View = { name: '360x740 touch', width: 360, height: 740, touch: true };
+const P320: View = { name: '320x568 touch', width: 320, height: 568, touch: true };
 type VoteAt = 'sent' | 'locked' | 'ready';
-const TEXT_AT: [View, number, VoteAt][] = [
-  [P393, 2, 'sent'], [P375, 2, 'sent'], [P393, 2, 'locked'], [P375, 2, 'locked'], [P393, 1.5, 'ready'], [P375, 1.5, 'ready'], [P393, 2, 'ready'], [P375, 2, 'ready'],
+// [view, text factor, vote state, whether the pill must wrap (undefined: either, the checks hold for both)]
+const TEXT_AT: [View, number, VoteAt, boolean?][] = [
+  [P393, 2, 'sent'], [P375, 2, 'sent'], [P393, 2, 'locked'], [P375, 2, 'locked'],
+  [P393, 1.5, 'ready', false], [P375, 1.5, 'ready', false], [P393, 2, 'ready', true], [P375, 2, 'ready', true],
+  [P430, 1.5, 'ready'], [P430, 2, 'ready', true], [P360, 1.5, 'ready', true], [P320, 1.5, 'ready', true],
 ];
-for (const [v, f, at] of TEXT_AT) test(`${v.name} at ${f * 100} percent text, vote ${at}: the text really grows and the top row still fits`, async ({ browser }) => {
+for (const [v, f, at, wraps] of TEXT_AT) test(`${v.name} at ${f * 100} percent text, vote ${at}: the text really grows, the number is whole and the top row still fits`, async ({ browser }) => {
   const t = await openLanding(browser, v, at === 'sent' ? { storage: SENT } : at === 'ready' ? { storage: PLAYED(v) } : {}), { page } = t;
   await t.begin();
   await expect(page.getByTestId('controls-trigger')).toBeVisible();
@@ -140,8 +147,15 @@ for (const [v, f, at] of TEXT_AT) test(`${v.name} at ${f * 100} percent text, vo
   const { before, after } = await scaleText(page, f);
   expect(before.every(n => n > 0), `probes found: ${before}`).toBe(true);
   expect(after, 'the probes (Controls, the altitude number, the readout unit) grew by the factor').toEqual(before.map(n => n * f));
-  const problems = await audit(page, v, { play: true, scale: f, ...(at === 'sent' ? {} : { vote: at }), squeezed: at === 'ready' && f >= 2 });
+  const problems = await audit(page, v, { play: true, scale: f, ...(at === 'sent' ? {} : { vote: at }) });
   expect(problems, problems.join('\n')).toEqual([]);
+  // The number is whole: its box is as wide as its text, and it is the 20 px bold number grown by the factor (so the box is not simply collapsed).
+  const num = await page.getByTestId('flight-telemetry').evaluate(e => { const n = e.querySelector('span:last-child') as HTMLElement; return { box: n.clientWidth, text: n.scrollWidth }; });
+  expect(num.text, 'the number has a width').toBeGreaterThan(30 * f);
+  expect(num.box, `the altitude number is whole at ${f * 100} percent (box ${num.box}, text ${num.text})`).toBeGreaterThanOrEqual(num.text);
+  const form = await rowFormProblems(page);
+  expect(form.problems, form.problems.join('\n')).toEqual([]);
+  if (wraps !== undefined) expect(form.stacked, wraps ? 'the pill wraps under Controls to leave the number its room' : 'the pill stays beside Controls: the number has the room').toBe(wraps);
   await t.context.close();
 });
 

@@ -77,7 +77,7 @@ function overlap(a: Box & { round?: boolean }, b: Box & { round?: boolean }) {
  * `vote`: which side of the vote's one rule this state is on. locked (under two ways flown): two dots on Controls, and no Vote pill, sheet button
  * or pause door anywhere. ready (two flown, open ballot): the pill beside Controls, the sheet's button and the pause card's door, and no dots.
  */
-export type Mode = { play?: boolean; sheet?: boolean; paused?: boolean; settings?: boolean; scale?: number; vote?: 'locked' | 'ready'; squeezed?: boolean /* readout may be clipped, never over a button */ };
+export type Mode = { play?: boolean; sheet?: boolean; paused?: boolean; settings?: boolean; scale?: number; vote?: 'locked' | 'ready' };
 /** Runs the checks of spec section 10.1 that apply to this state; returns one line per problem (empty: the state is clean). */
 export async function audit(page: Page, v: View, mode: Mode = {}): Promise<string[]> {
   const items = await interactive(page), problems: string[] = [], at = (i: Item) => `${i.name} [${Math.round(i.x)},${Math.round(i.y)} ${Math.round(i.width)}x${Math.round(i.height)}]`;
@@ -102,7 +102,7 @@ export async function audit(page: Page, v: View, mode: Mode = {}): Promise<strin
         const el = c as HTMLElement;
         return getComputedStyle(el).display !== 'none' && el.clientWidth > 0 && el.scrollWidth > el.clientWidth + 1 ? [`"${(el.textContent ?? '').trim()}" ${el.scrollWidth} > ${el.clientWidth}`] : [];
       }));
-      if (!mode.squeezed) for (const c of cut) problems.push(`readout line is cut off: ${c}`);
+      for (const c of cut) problems.push(`readout line is cut off: ${c}`);
     }
     // 5 The flight surface gets the gestures: a 16 px grid, every hit is the surface or a control of 96 x 96 or less. On desktop the
     // header cluster is the one other hit (its box stays hit-testable for the trackpad's hover freeze) and it is at most 340 x 44.
@@ -114,8 +114,9 @@ export async function audit(page: Page, v: View, mode: Mode = {}): Promise<strin
         if (desktop && el.closest('header')) continue;
         // A control, or the small box a control sits in (Lift/Land's wrapper, [data-ghost-avoid]).
         const c = el.closest('button, a[href], input, select, summary, label, [role=radio], [data-hold-control], [data-ghost-avoid]');
-        // The top row's buttons are 44 px high and up to 128 wide (Controls holds the word and the dots' slot: 108), a row, not a pad.
-        if (c) { const r = c.getBoundingClientRect(); if ((r.width <= cap && r.height <= cap) || (c.closest('header') && r.width <= 128 * scale && r.height <= 48 * scale)) continue; }
+        // The top row's buttons are 44 px high; Controls is 108 wide at normal text (the word, the gap and the dots' slot) and grows with the word, 46 px for a doubling:
+        // a row, not a pad. The Vote pill and Pause are narrower still.
+        if (c) { const r = c.getBoundingClientRect(); if ((r.width <= cap && r.height <= cap) || (c.closest('header') && r.width <= 109 + 46 * (scale - 1) && r.height <= 45)) continue; }
         out.push(`(${x},${y}) ${el.tagName.toLowerCase()}.${String(el.className).slice(0, 30)}${el.getAttribute('data-testid') ? '#' + el.getAttribute('data-testid') : ''}`);
       }
       return out;

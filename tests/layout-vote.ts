@@ -34,3 +34,34 @@ export async function voteProblems(page: Page, mode: Mode): Promise<string[]> {
   if (!has && !pausedCard && !mode.sheet) problems.push('no row, no pause card and no sheet to check the vote on');
   return problems;
 }
+
+/**
+ * The shape of the top row with the Vote pill in it: one line (the pill 8 px left of Controls), or, when the readout needs the room (large text on a
+ * phone), the pill wrapped under Controls with Pause still on the first line. Either way `--row-extra` is the header's height beyond the 44 px row (what
+ * `--hdr` adds, so a hint or card lands under the pill) and no passive text (the readout, a hint) sits over a button. Returns whether it wrapped.
+ */
+export async function rowFormProblems(page: Page): Promise<{ stacked: boolean; problems: string[] }> {
+  const box = (id: string) => page.getByTestId(id).boundingBox(), problems: string[] = [];
+  const chip = await page.getByTestId('vote-chip').count() ? await box('vote-chip') : null, trig = (await box('controls-trigger'))!, header = (await page.locator('header').boundingBox())!;
+  const pause = (await page.getByRole('button', { name: 'Pause expedition' }).boundingBox())!;
+  const extra = await page.locator('main').evaluate(m => m.style.getPropertyValue('--row-extra'));
+  const stacked = !!chip && chip.y > trig.y + 1;
+  if (stacked) {
+    if (Math.abs(pause.y - trig.y) > 1) problems.push(`Pause is not on Controls' line: ${JSON.stringify({ pause, controls: trig })}`);
+    if (Math.abs(chip!.y - (trig.y + trig.height + 8)) > 1) problems.push(`the wrapped pill is not 8 px under Controls: ${JSON.stringify({ pill: chip, controls: trig })}`);
+    if (Math.abs(chip!.x + chip!.width - (trig.x + trig.width)) > 1) problems.push(`the wrapped pill is not right-aligned under Controls: ${JSON.stringify({ pill: chip, controls: trig })}`);
+    if (Math.abs(header.height - 96) > 1) problems.push(`the wrapped row is ${header.height.toFixed(1)} px tall, not 96`);
+  } else if (chip && Math.abs(chip.y - trig.y) > 1) problems.push(`the pill is neither beside nor under Controls: ${JSON.stringify({ pill: chip, controls: trig })}`);
+  if (!stacked && header.height > 44.5) problems.push(`the row is ${header.height.toFixed(1)} px tall without a wrapped pill`);
+  const want = Math.round(header.height - 44);
+  if (extra !== `${want}px`) problems.push(`--row-extra is "${extra}", the header is ${header.height.toFixed(1)} px tall (${want}px expected)`);
+  // Passive text never sits over a button: the readout, and whichever hint is showing (the controls hint today, the hint slot after).
+  const buttons = [trig, pause, ...(chip ? [chip] : [])];
+  for (const id of ['flight-telemetry', 'controls-hint', 'hint-slot']) {
+    const t = page.getByTestId(id);
+    if (!await t.count()) continue;
+    const b = await t.boundingBox();
+    if (b) for (const o of buttons) if (Math.min(b.x + b.width, o.x + o.width) - Math.max(b.x, o.x) > .5 && Math.min(b.y + b.height, o.y + o.height) - Math.max(b.y, o.y) > .5) problems.push(`${id} ${JSON.stringify(b)} sits over a button ${JSON.stringify(o)}`);
+  }
+  return { stacked, problems };
+}
