@@ -103,13 +103,13 @@ Advance (MIN_VISIBLE = 1 s on every step except simple/mouse step 0). Actions co
 - simple/mouse 3: moved.
 - When a step is done, `nextStep` skips every later step whose action is already done, without showing it. Example: W and six clicks during "Slide to look", then an 80 px glance, finishes the series.
 - STEP_TIMEOUT: the shoot steps and the keys step end after 20 s shown (the clock stops while paused). A timeout hides the step for this page load only and is never saved (`progressToSave`): saved progress never passes the first step that timed out, so the phone's "Point at a drone to fire" lesson comes back on the next visit.
-- While a hint shows (`store.hintVisible`, runtime only), the blaster sound notice waits (it is retried on the next shot) and the one-finger panel steps aside, so only one message is on screen.
+- While a hint shows (`store.coach`, runtime only, published by `ControlsHint` and shown in the one hint slot under the top row), the blaster sound notice waits (it is retried on the next shot) and the one-finger panel steps aside, so only one message is on screen.
 
 The 5-shot fallback and the 20 s timeout are deviations from the approved plan that Garo confirmed on 2026-09-23. Hints have no transition or animation, sit above the crosshair band, and are announced once each through a polite live region.
 
 ## Buttons and blaster-off identity
 
-- Phone default (One thumb): Lift/Land only, in main's bottom-right spot; no Fire or Aim button at any setting. Two thumbs: the cluster (Fire, Aim, Rise, Descend) replaces Lift/Land. Header buttons and the Municipal record button are not play controls.
+- Phone default (One thumb): Lift/Land only, in main's bottom-right spot; no Fire or Aim button at any setting. Two thumbs: the cluster (Fire, Aim, Rise, Descend) replaces Lift/Land. The top row's buttons and the Municipal record line are not play controls.
 - Blaster off (the setting, or `?shooter=0`): no Fire controls, Lift/Land in main's spot, main's touch hint unchanged (also with tap controls), SimpleTrackpadHud's blaster-off branch rendering main's exact output, `Shooter.tsx` unmounted (auto-fire never runs), no controls hint.
 
   Two thumbs (opt-in) with the blaster off keeps its stick, look, Rise and Descend (no Fire or Aim) and its hint series ends on "Hold Descend to land". One thumb (the default) with the blaster off matches main. Desktop with the blaster off matches main.

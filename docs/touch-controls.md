@@ -39,7 +39,7 @@ Settings live in Flight settings › Touch controls on any touch screen (`any-po
 | --- | --- |
 | left | 12 |
 | right | w − 12 |
-| top | header bottom − box.y + 8 (fallback max(44, insetTop + 44) + 8). The header is measured, so the top bar's second row (the Controls button, portrait, up to 839 px wide) moves this band down by itself |
+| top | band bottom − box.y + 8 (fallback max(44, insetTop + 44) + 8). The band is the invisible `[data-band]` marker (`--band` in `Experience.module.css`), measured by `headerBand()`. After the screen cleanup the top row is one 44 px row, but the marker keeps the pre-cleanup header height (a top gap of 28 px, or 20 at 600 px wide and narrower, or 12 in short landscape, plus 44 px, or plus 96 px where the old header had two rows: up to 839 px wide, except short landscape from 640 px wide), so the twin and lab bands did not move (checked: band and every twin cluster box identical at ten viewports against the build before the cleanup; emulation only) |
 | bottom | h − max(12, insets.bottom − 8) |
 
 **Anchor** (the corner the cluster is measured from): landscape (w − 12, h − max(12, insets.bottom)), ignoring the side inset, because the Dynamic Island or notch is vertically centred and the corner is free; portrait (w − 12 − insets.right, h − max(12, insets.bottom)). In landscape, a hit circle that would reach into the side inset within 70 px + r of mid-height (beside the island) moves the whole cluster inward, so gaps hold.
@@ -90,7 +90,7 @@ Floors: every hit diameter ≥ 44 px, Fire ≥ 68 px, every gap ≥ 8 px. Worked
 
 **Ghost ring** (opacity 0.25 × control opacity, hidden while the stick is held), from (left band, anchor bottom): landscape (+130k, −96k); compact (+100k, −76k); portrait (+96k, −150k).
 
-Pause stays in the header, above the top band. On touch, the Municipal record button moves top-left, under the header and above the stick zone, and the altitude readout leaves the stick zone: top right under the header in landscape, left below the hint bands in portrait.
+Pause stays in the top row, above the top band. The altitude readout is the top-left of that row on every screen, passive, and the Municipal record line (one 44 px Read button) and every other line of advice share the one hint slot under the row, so nothing else sits in the stick zone's top edge. On touch the row's box passes touches through to the flight surface (only its buttons take them), so a thumb sliding across the strip beside the readout steers.
 
 ## Stick (`src/game/twinStick.ts`)
 
@@ -170,7 +170,7 @@ Releasing held input clears keys, thumbs, the stick, tap, surge, lift and a manu
 
 **Wake lock.** Requested at Begin and Resume, released on pause, and re-requested when the page is visible again while playing.
 
-**Home Screen tip.** The home indicator, Control Center and Notification Center cannot be blocked. In touch mode outside a Home Screen app, the pause card shows "Tip: Share › Add to Home Screen for full screen." until Got it. A web manifest (`display: standalone`) and Apple web-app metadata make the Home Screen app open full screen. Portrait also shows "Best played sideways."
+**Home Screen tip.** The home indicator, Control Center and Notification Center cannot be blocked. In touch mode outside a Home Screen app, the pause card shows "Tip: Share › Add to Home Screen for full screen." as a muted line (no button); it counts as seen when Resume is pressed. A web manifest (`display: standalone`) and Apple web-app metadata make the Home Screen app open full screen. Portrait also shows "Best played sideways."
 
 **Not used on iPhone:** haptics, Fullscreen API and orientation lock (unsupported there).
 
@@ -211,7 +211,7 @@ Automated checks are emulation only (system Chrome CDP touch; Playwright WebKit 
 - a full 360 in flight: a fast swipe that ends in a rest band keeps turning, to the right (outer band) and to the left (the stick-line strip in landscape, the left edge in portrait), in both orientations (node math: 0.73-0.75 s landscape, 1.15 s portrait; the emulated review measured portrait about 0.5 s slower); and a quick flick that stops mid-pad and rests never spins;
 - a slow aim near the edge never starts an edge turn; Edge turning off stops it;
 - the one-thumb scheme: a thumb resting about 25 px from the edge turns all the way round in about 2 s (node math 1.80 s);
-- the Controls button at the top does not crowd the look pad or the cluster in either orientation, and the Controls sheet opens under the header without covering them;
+- the Controls button at the top does not crowd the look pad or the cluster in either orientation, and the Controls sheet (a bottom sheet on a phone) and the Vote pill, when it shows, do not cover or crowd them;
 - One finger and Twin stick switch from the Controls sheet mid-flight with no stuck input, on the iPhone.
 
 Recommendation, pending Garo's OK (a project setting): turn the Vercel Toolbar off for Preview. Automated preview runs send `x-vercel-skip-toolbar: 1`.
