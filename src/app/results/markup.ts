@@ -19,9 +19,9 @@ export const FIRST_20_LINE = 'The vote measures the first 20 seconds of flying e
 /** How far two shares can sit apart by luck alone at `votes` votes: about 340 / sqrt(votes) points (the 95th percentile of the top-to-bottom spread of five equal controls, audit 2026-10-02: 34 at 100, 24 at 200, 17 at 400, 12 at 800, 9 at 1600). */
 export const noisePoints = (votes: number): number => Math.round(340 / Math.sqrt(Math.max(1, votes || 1)));
 export const noiseNote = (votes: number): string => `With about ${esc(votes)} votes, two controls can end up about ${noisePoints(votes)} points apart by luck alone.`;
-/** The order check line: the control flown last against the starting control, and what even odds would give each. */
+/** The order check line: the control flown last against the starting control, and what equal liking would give each. Equal liking, not "no order effect": a control that is simply better liked also leaves that share, so order and liking cannot be told apart from these numbers. */
 export const orderNote = (o: LastFlown): string =>
-  `Order check, about ${esc(o.n)} votes: the control flown last won ${pct(o.last)}% of picks and the starting control ${pct(o.first)}%. If order did not matter, each would win about ${pct(o.even)}%.`;
+  `Order check, about ${esc(o.n)} votes: the control flown last won ${pct(o.last)}% of picks and the starting control ${pct(o.first)}%. If every control tried were liked equally, each would win about ${pct(o.even)}%. Order and liking cannot be told apart here.`;
 
 const bar = (value: number) => `<span class="vr-track" aria-hidden="true"><span class="vr-bar" style="width:${pct(value)}%"></span></span>`;
 

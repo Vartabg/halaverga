@@ -90,7 +90,7 @@ describe('V1 results that do not over-claim', () => {
     forged.families.touch = { ...forged.families.desktop, votes: 295 };
     for (const page of [view(forged), view(agg(spread(12, () => ({ favorite: 'flow', tried: ['flow', 'captured'] })), [], { cap: 5, minVotes: 300 }))]) {
       expect(page).toContain('Not enough votes for a ranking yet on desktop.');
-      for (const bad of [/<table/, /vr-bar|vr-track/, /%/, />Flow</, /Cursor/, /With about/, /luck alone/, /Order check/, /Can(&#x27;|')t tell: about/]) expect(page).not.toMatch(bad);
+      for (const bad of [/<table/, /vr-bar|vr-track/, /%/, />Flow</, /Cursor/, /With about/, /luck alone/, /Order check/, /liked equally/, /Can(&#x27;|')t tell: about/]) expect(page).not.toMatch(bad);
     }
     expect(view(forged)).toContain('About 295 votes so far.');
   });
@@ -124,11 +124,12 @@ describe('V1 results that do not over-claim', () => {
   it('shows the order check under a ranked family only when it has one, with escaped, clamped whole numbers', () => {
     const o: LastFlown = { n: 250, last: 61, first: 32, even: 47 };
     const page = view(at(300, 800, o));
-    expect(page).toContain('Order check, about 250 votes: the control flown last won 61% of picks and the starting control 32%. If order did not matter, each would win about 47%.');
+    expect(page).toContain('Order check, about 250 votes: the control flown last won 61% of picks and the starting control 32%. If every control tried were liked equally, each would win about 47%. Order and liking cannot be told apart here.');
+    expect(page).not.toMatch(/order did not matter|if order/i); // the baseline is equal liking, never "no order effect": a better-liked challenger leaves the same gap
     expect(orderNote(o)).toContain('about 250 votes');
     expect(page.match(/Order check/g)).toHaveLength(1);
     expect(view(at(300, 800))).not.toContain('Order check');
-    expect(orderNote({ n: 250, last: 140, first: -3, even: 47.6 })).toBe('Order check, about 250 votes: the control flown last won 100% of picks and the starting control 0%. If order did not matter, each would win about 48%.');
+    expect(orderNote({ n: 250, last: 140, first: -3, even: 47.6 })).toBe('Order check, about 250 votes: the control flown last won 100% of picks and the starting control 0%. If every control tried were liked equally, each would win about 48%. Order and liking cannot be told apart here.');
   });
 });
 

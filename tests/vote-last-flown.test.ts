@@ -11,10 +11,17 @@ const run = (bs: B[], opts = OPTS) => aggregate(flat(bs), [], opts, NOW, true);
 const many = (n: number, mk: () => Omit<B, 'tag'>, from: number): B[] => spread(n, mk, from);
 
 describe('V1 the order check: the control flown last against the starting control', () => {
-  it(`is null below ${LAST_FLOWN_MIN} counted picks and shows from ${LAST_FLOWN_MIN}: last 75%, starting control 25%, even odds 50% (two controls tried)`, () => {
+  it(`is null below ${LAST_FLOWN_MIN} counted picks and shows from ${LAST_FLOWN_MIN}: last 75%, starting control 25%, equal-liking baseline 50% (two controls tried)`, () => {
     const bs = (last: number, first: number) => [...many(last, () => T('draw'), 0), ...many(first, () => T('one-finger'), 300)];
     expect(touch(run(bs(149, 50))).lastFlown).toBeNull(); // 199 picks
     expect(touch(run(bs(150, 50))).lastFlown).toEqual({ n: 200, last: 75, first: 25, even: 50 });
+  });
+
+  it('the baseline is equal liking, not "no order effect": a challenger liked 60 to 40 with no order effect in the data already sits 10 points over it', () => {
+    // Every pick here follows liking alone (60% the challenger flown last, 40% the default), so order does nothing by construction.
+    const r = touch(run([...many(120, () => T('draw'), 0), ...many(80, () => T('one-finger'), 300)])).lastFlown;
+    expect(r).toEqual({ n: 200, last: 60, first: 40, even: 50 });
+    // The entry keeps no order, so these ballots are exactly what an equally liked pair with a novelty effect would store: the gap cannot say which.
   });
 
   it('counts only the picks that carry an order: not Can\'t tell, not a ballot without the starting control, not one that ends on it', () => {
@@ -28,13 +35,13 @@ describe('V1 the order check: the control flown last against the starting contro
     expect(touch(run([...base, ...noise])).lastFlown).toEqual(touch(run(base)).lastFlown);
   });
 
-  it('three controls tried: even odds is a third each, and a pick of the third control counts for neither side', () => {
+  it('three controls tried: the equal-liking baseline is a third each, and a pick of the third control counts for neither side', () => {
     const three: B['tried'] = ['one-finger', 'draw', 'brush'];
     const bs = [...many(70, () => T('brush', 'brush', three), 0), ...many(70, () => T('one-finger', 'brush', three), 100), ...many(60, () => T('draw', 'brush', three), 200)];
     expect(touch(run(bs)).lastFlown).toEqual({ n: 200, last: 35, first: 35, even: 33 });
   });
 
-  it('a mix of two and three tried gives the weighted even odds', () => {
+  it('a mix of two and three tried gives the weighted equal-liking baseline', () => {
     const three: B['tried'] = ['one-finger', 'draw', 'brush'];
     const bs = [...many(100, () => T('draw'), 0), ...many(100, () => T('one-finger', 'brush', three), 100)]; // half 1/2, half 1/3: 41.7%
     expect(touch(run(bs)).lastFlown).toMatchObject({ n: 200, last: 50, first: 50, even: 42 });

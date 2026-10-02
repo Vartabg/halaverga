@@ -40,7 +40,8 @@ export interface ControlResult { picked: number; tried: number; rate: number | n
 /**
  * The order check: among the picks of ballots that tried the family's starting control (its default, flown first by every visitor who
  * keeps it) and flew another control last, `last` and `first` are the whole percents that went to the control flown last and to the
- * starting control, and `even` is what each would get if order did not matter. `n` is those picks, rounded down to a multiple of 5.
+ * starting control, and `even` is what each would get if every control tried were liked equally (1 in k on a ballot of k), which is not the
+ * same as "order did not matter": a control that is simply better liked moves `last` away from `even` with no order effect at all. `n` is those picks, rounded down to a multiple of 5.
  */
 export interface LastFlown { n: number; last: number; first: number; even: number }
 /** One family's tally. Below the public floor `ranked` is false and everything else but `votes` is null. `lastFlown` also stays null until it has enough picks. */
