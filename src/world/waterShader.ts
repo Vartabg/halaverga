@@ -1,3 +1,4 @@
+import { WATER_BODY, glslRgb } from './atmospherePalette';
 import { skyBaseGlsl } from './skyShader';
 
 export const waterVertex = /* glsl */`
@@ -31,7 +32,7 @@ void main() {
   vec3 n = normalize(vec3(cos(a) * .045 * fa + cos(b) * .028 * fb, 1., sin(a) * .04 * fa + sin(c) * .022 * fc));
   vec3 view = normalize(cameraPosition - vWorld), reflected = reflect(-view, n);
   float fresnel = .025 + .65 * pow(1. - max(dot(n, view), 0.), 4.);
-  vec3 body = vec3(.018, .16, .145) + vec3(.005, .012, .008) * sin(a) * sin(b) * fa * fb;
+  vec3 body = ${glslRgb(WATER_BODY)} + vec3(.005, .012, .008) * sin(a) * sin(b) * fa * fb;
   float wd = length(p - wake);
   body += vec3(.15, .33, .26) * wakeStrength * exp(-wd * .28) * pow(max(0., sin(wd * 5. - time * 7.)), 6.);
   vec3 glint = pow(max(dot(reflected, uSun), 0.), 500.) * vec3(2.2, 1.8, 1.1);

@@ -2,6 +2,7 @@ import { BufferGeometry, Float32BufferAttribute } from 'three';
 import { mulberry32 } from '@/game/combat';
 import { WORLD } from '@/game/motion';
 import { SKYLINE } from './atmospherePalette';
+import { pickMood, weather } from './skylineDamage';
 import { bakeTower, towerSpecs, type Buffers, type Part } from './skylineParts';
 
 /** The distant skyline: broken modern towers standing in the sea in three hazy layers, outside the flyable box, world-fixed (no
@@ -31,10 +32,10 @@ function outline([north, side, south]: [number, number, number]) {
   return { total, at };
 }
 
-/** Builds the skyline: its merged geometry (positions and baked per-vertex colour, one draw call), the tower records the tests read,
+/** Builds the skyline: its merged geometry (positions, baked per-vertex colour and a per-tower seed, one draw call), the tower records the tests read,
  * and the triangle count. */
 export function makeSkyline(seed = SKYLINE.seed) {
-  const rng = mulberry32(seed), out: Buffers = { position: [], color: [], index: [] }, towers: Tower[] = [];
+  const rng = mulberry32(seed), out: Buffers = { position: [], color: [], index: [], seed: [] }, towers: Tower[] = [];
   SKYLINE.gaps.forEach((gaps, layer) => {
     const path = outline(gaps), [lo, hi] = HEIGHTS[layer];
     for (let s = rng() * 30; s < path.total;) {
@@ -49,13 +50,16 @@ export function makeSkyline(seed = SKYLINE.seed) {
       const landmark = rng() < .1, tall = cluster ? cluster.height : landmark ? [hi, LANDMARK] : [lo, hi];
       const h = tall[0] + (tall[1] - tall[0]) * rng() ** (cluster || landmark ? 1 : 1.3);
       const lean = rng() < .1 ? .03 + rng() * .04 : 0, leanAxis = rng() * Math.PI * 2, bright = 1 + (rng() - .5) * .12;
-      const baked = bakeTower(out, { x, z, yaw, lean, leanAxis, layer, bright }, towerSpecs(rng, w, d, h, layer));
+      // What time did to this tower comes from its own stream, so adding damage never moves a tower (the layout draws from `rng` only).
+      const look = mulberry32(seed * 7 + towers.length * 7919 + 17), mood = pickMood(look), tag = look() * .999;
+      const baked = bakeTower(out, { x, z, yaw, lean, leanAxis, layer, bright, mood, seed: tag }, weather(towerSpecs(rng, w, d, h, layer), look, w, d, layer));
       towers.push({ layer, x, z, w, d, yaw, lean, top: Math.max(...baked.parts.map(q => q.max[1])), foot: baked.foot, parts: baked.parts });
     }
   });
   const geometry = new BufferGeometry();
   geometry.setAttribute('position', new Float32BufferAttribute(out.position, 3));
   geometry.setAttribute('color', new Float32BufferAttribute(out.color, 3));
+  geometry.setAttribute('aSeed', new Float32BufferAttribute(out.seed, 1));
   geometry.setIndex(out.index);
   geometry.computeBoundingSphere();
   return { geometry, towers, triangles: out.index.length / 3 };

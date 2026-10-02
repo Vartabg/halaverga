@@ -8,8 +8,9 @@ export function hexToLinear(hex: string): Rgb {
   const n = parseInt(hex.slice(1), 16);
   return [decode((n >> 16 & 255) / 255), decode((n >> 8 & 255) / 255), decode((n & 255) / 255)];
 }
-/** A hex colour as a linear GLSL vec3 literal. */
-export const glslVec3 = (hex: string) => `vec3(${hexToLinear(hex).map(v => v.toFixed(6)).join(', ')})`;
+/** A linear colour as a GLSL vec3 literal, and a hex colour as one. */
+export const glslRgb = (c: Rgb) => `vec3(${c.map(v => v.toFixed(6)).join(', ')})`;
+export const glslVec3 = (hex: string) => glslRgb(hexToLinear(hex));
 
 /** The sun. It does not move: the hero, arm cannon and FX are tuned against it. Light, dome, water glint, environment glow all read this. */
 export const SUN_POSITION: [number, number, number] = [-65, 100, 80];
@@ -49,8 +50,20 @@ export const FOG = { color: HAZE, near: 70, far: 590 };
 export const SKYLINE = {
   seed: 2033, crown: '#4f6f4a',
   gaps: [[110, 120, 200], [170, 180, 260], [240, 250, 330]] as [number, number, number][],
-  tints: [['#889aa6', '#5a6c78'], ['#8496a2', '#64767f'], ['#93a5b0', '#778992']] as [string, string][],
+  tints: [['#a0a198', '#586a76'], ['#939fa2', '#64767f'], ['#93a5b0', '#778992']] as [string, string][],
 };
+/** Scene.tsx tones the city, hero and sea body with ACES at this exposure. */
+export const EXPOSURE = 1.2;
+/** The sea body before tone mapping (deep teal): waterShader adds shimmer, wake and glint to it. */
+export const WATER_BODY: Rgb = [.018, .16, .145];
+/** three's ACES filmic curve (the Hill fit) in JS, for colours that are tone mapped in a shader and needed elsewhere as they appear. */
+export function acesFilmic(c: Rgb, exposure = EXPOSURE): Rgb {
+  const m = [[.59719, .35458, .04823], [.0760, .90834, .01566], [.02840, .13383, .83777]], o = [[1.60475, -.53108, -.07367], [-.10208, 1.10813, -.00605], [-.00327, -.07276, 1.07602]];
+  const v = m.map(r => (r[0] * c[0] + r[1] * c[1] + r[2] * c[2]) * exposure / .6).map(x => (x * (x + .0245786) - .000090537) / (x * (.983729 * x + .432951) + .238081));
+  return o.map(r => Math.min(1, Math.max(0, r[0] * v[0] + r[1] * v[1] + r[2] * v[2]))) as Rgb;
+}
+/** The sea body as it appears on screen (display linear): the foot of a distant tower mists toward the water, not toward the sky. */
+export const SEA_BODY = acesFilmic(WATER_BODY);
 export const HEMISPHERE = { sky: '#c0dbed', ground: '#647c7a', intensity: 1.7 };
 
 const clamp01 = (x: number) => Math.min(1, Math.max(0, x));

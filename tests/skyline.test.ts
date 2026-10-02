@@ -2,10 +2,12 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { WORLD } from '@/game/motion';
-import { SKYLINE } from '@/world/atmospherePalette';
+import { SEA_BODY, SKYLINE, acesFilmic, type Rgb } from '@/world/atmospherePalette';
 import { HILL, makeCity } from '@/world/cityData';
 import { surface } from '@/world/kit';
+import { pickMood } from '@/world/skylineDamage';
 import { VISTA, makeSkyline, type Tower } from '@/world/skylineData';
+import { mulberry32 } from '@/game/combat';
 
 const sky = makeSkyline();
 const hash = (s: ReturnType<typeof makeSkyline>) => createHash('sha256')
@@ -64,6 +66,44 @@ describe('far skyline generator', () => {
     const near = sky.towers.filter(t => north(t, 0));
     expect(near.length).toBeGreaterThan(2);
     for (const t of near) expect(Math.hypot(t.x, t.z - 72)).toBeGreaterThanOrEqual(340), expect(Math.hypot(t.x, t.z - 72)).toBeLessThanOrEqual(410);
+  });
+  it('weathers the towers: lost floors, sheared roofs, leaning panels and clusters of green crowns, all attached', () => {
+    const near = (layer: number, k: string) => sky.towers.filter(t => t.layer === layer && t.parts.some(p => p.kind === k)).length;
+    expect(near(0, 'core')).toBeGreaterThan(8); expect(near(1, 'core')).toBeGreaterThan(8); expect(near(2, 'core')).toBe(0); // only the near layers lose floors
+    expect(near(0, 'upper')).toBe(near(0, 'core')); // a recessed core always carries a block above it
+    expect(sky.towers.filter(t => t.parts.some(p => p.shear > 0)).length).toBeGreaterThan(25);
+    for (const t of sky.towers) for (const p of t.parts) expect(p.shear).toBeLessThan(10.1);
+    expect(near(0, 'crown')).toBeGreaterThanOrEqual(12); // about a third of the nearest layer, was a fifth
+    const crowns = sky.towers.flatMap(t => t.parts.filter(p => p.kind === 'crown'));
+    expect(crowns.length).toBeGreaterThan(30);
+    for (const c of crowns) { expect(c.max[1] - c.min[1]).toBeLessThan(7); } // tufts, not towers
+    expect(sky.triangles).toBeLessThanOrEqual(6000);
+  });
+  it('gives every tower a seed (its layer plus a fraction) and its own mood, so no two read as twins', () => {
+    const seed = sky.geometry.attributes.aSeed;
+    expect(seed.count).toBe(sky.geometry.attributes.position.count);
+    const layers = new Set<number>(), fractions = new Set<number>();
+    for (let i = 0; i < seed.count; i++) { const v = seed.getX(i); expect(v).toBeGreaterThanOrEqual(0); expect(v).toBeLessThan(3); layers.add(Math.floor(v)); fractions.add(Math.round((v % 1) * 1000)); }
+    expect([...layers].sort()).toEqual([0, 1, 2]);
+    expect(fractions.size).toBeGreaterThan(150); // about one per tower
+    const moods = new Set<string>(); for (let i = 0; i < 400; i++) moods.add(pickMood(mulberry32(i * 31 + 5)).tone.join());
+    expect(moods.size).toBeGreaterThanOrEqual(5);
+  });
+  it('keeps the layout of the skyline: damage comes from each tower\'s own stream, not the layout\'s', () => {
+    expect([0, 1, 2].map(layer => sky.towers.filter(t => t.layer === layer).length)).toEqual([46, 65, 72]);
+  });
+  it('knows the sea\'s colour on screen: the tower feet mist toward it, and ACES twins three\'s curve', () => {
+    const enc = (x: number) => Math.round(255 * (x <= .0031308 ? 12.92 * x : 1.055 * x ** (1 / 2.4) - .055));
+    const [r, g, b] = SEA_BODY.map(enc); // measured on a downward frame: #06817d (the sea at near-normal incidence)
+    expect(Math.abs(r - 6)).toBeLessThanOrEqual(8); expect(Math.abs(g - 129)).toBeLessThanOrEqual(8); expect(Math.abs(b - 125)).toBeLessThanOrEqual(8);
+    const grey = (x: number): Rgb => [x, x, x];
+    let last = -1; for (const x of [.01, .05, .18, .5, 1, 4]) { const v = acesFilmic(grey(x))[1]; expect(v).toBeGreaterThan(last); last = v; }
+    expect(acesFilmic(grey(100))[0]).toBeGreaterThan(.97); expect(acesFilmic(grey(0))[0]).toBeLessThan(.001);
+  });
+  it('draws the foot as sea, a thin contact shade, a varied window grid and a fog that never takes a tower all the way', () => {
+    const mesh = readFileSync('src/world/Skyline.tsx', 'utf8');
+    for (const part of ['FOOT_SEA', 'aSeed', 'smoothstep(fogNear, fogFar, vFogDepth) * .88', 'drip', 'dim += pane']) expect(mesh).toContain(part);
+    expect(mesh).not.toMatch(/mix\(diffuseColor\.rgb, \$\{glslVec3\(HAZE\)\}/); // the foot no longer mists toward the sky haze
   });
   it('keeps the canal vista open and flanks it with landmark clusters', () => {
     for (const t of sky.towers) if (t.layer < 2 && t.z < WORLD.minZ) expect(Math.abs(t.x)).toBeGreaterThanOrEqual(VISTA);
