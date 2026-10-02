@@ -3,7 +3,7 @@ import AxeBuilder from '@axe-core/playwright';
 import { begin, centre, resume, seed, shots, twinTouchPage } from './shooter-browser';
 // Progressive controls hints (docs/simple-controls.md): one instruction at a time, advanced by doing it, persisted so it never repeats.
 const hint = (p: Page) => p.getByTestId('controls-hint');
-const soundNotice = (p: Page) => p.locator('p', { hasText: 'Blaster sound is off · Settings' });
+const soundNotice = (p: Page) => p.locator('p', { hasText: 'Blaster sound is off · Pause, then Flight settings' });
 const locked = (p: Page) => p.evaluate(() => !!document.pointerLockElement);
 const saved = (p: Page) => p.evaluate(() => JSON.parse(localStorage.getItem('halaverga-flight-v1') || '{}').hintProgress);
 const errorsOf = (p: Page) => { const errors: string[] = []; p.on('pageerror', e => errors.push(e.message)); return errors; };

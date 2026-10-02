@@ -20,12 +20,12 @@ const TICKS = [0, 90, 180, 270].map(angle), XTICKS = [45, 135, 225, 315].map(ang
 const ios = () => /iPhone|iPad/.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Mac/.test(navigator.userAgent));
 // Once per page load: each sound nudge. It waits while a controls hint is on screen (one message at a time) and is retried on
 // the next shot, so a newcomer sees it only after the hint series is done. The default desktop profile (classic free trackpad)
-// never nudges, as before the blaster: its players learn that sound starts off from the Field guide and Flight settings.
+// never nudges, as before the blaster: its players learn that sound starts off from the Field guide and Flight settings (both on the pause card).
 let mutedNudged = false, silentNudged = false;
 function nudge() {
   const { muted, hintVisible, desktopMode, trackpadSteering } = useGame.getState();
   if (hintVisible || (!touchMode() && desktopMode === 'trackpad' && trackpadSteering === 'free')) return;
-  if (muted && !mutedNudged) { mutedNudged = true; useGame.setState({ message: 'Blaster sound is off · Settings' }); }
+  if (muted && !mutedNudged) { mutedNudged = true; useGame.setState({ message: 'Blaster sound is off · Pause, then Flight settings' }); }
   else if (!muted && !silentNudged && ios() && !('audioSession' in navigator)) {
     silentNudged = true; useGame.setState({ message: 'No blaster sound? Check the silent switch.' });
   }
