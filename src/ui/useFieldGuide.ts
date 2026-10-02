@@ -4,20 +4,24 @@ import { useGame } from '@/game/store';
 // held in state, not in next/dynamic: every open that finds it missing calls import() again, so a load that failed (offline, deploy
 // skew) is retried by the next open instead of leaving a dead component behind. It is warmed once hydration is done. `journal` stays
 // the store's one "guide wanted" flag (the header button, the skip link, the terminal and the E key all set it): while the chunk is on
-// its way the pause card stays with a status line, and a failed load puts `journal` back so nothing is stranded.
+// its way the pause card stays with a status line, and a failed load puts `journal` back so nothing is stranded. That card keeps every
+// other door live, so anything that claims the screen first (Flight settings from the header or the card, the vote card from the card
+// or the header chip) cancels the pending open: one dialog at a time, and the guide never lands on top of it.
 export const GUIDE_LOADING = 'Opening field guide…', GUIDE_FAILED = 'The field guide could not load. Try again.';
 type GuideProps = { onClose: () => void };
 const loadGuide = () => import('./FieldGuide');
 export function useFieldGuide(hydrated: boolean) {
-  const journal = useGame(s => s.journal), paused = useGame(s => s.paused);
+  const journal = useGame(s => s.journal), paused = useGame(s => s.paused), panel = useGame(s => s.panel), voteOpen = useGame(s => s.voteOpen);
   const [Guide, setGuide] = useState<ComponentType<GuideProps> | null>(null), [failed, setFailed] = useState(false);
   useEffect(() => { if (hydrated) void loadGuide().then(m => setGuide(() => m.default)).catch(() => {}); }, [hydrated]);
   useEffect(() => {
     if (!journal || Guide) return;
     let live = true;
+    setFailed(false);
     loadGuide().then(m => { setGuide(() => m.default); setFailed(false); }, () => { if (live) { useGame.setState({ journal: false }); setFailed(true); } });
     return () => { live = false; };
   }, [journal, Guide]);
+  useEffect(() => { if (journal && !Guide && (panel || voteOpen)) useGame.setState({ journal: false }); }, [journal, Guide, panel, voteOpen]);
   // A failure note belongs to the pause it happened in: playing again clears it.
   useEffect(() => { if (!paused) setFailed(false); }, [paused]);
   const fail = () => { useGame.setState({ journal: false }); setFailed(true); };
