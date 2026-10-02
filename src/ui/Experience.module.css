@@ -14,10 +14,14 @@
 .introVignette::after{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 22% 40%,#10272fa6 0%,#10272f80 35%,transparent 85%)}
 .vignette:not(.introVignette){background:linear-gradient(180deg,#102a3266,transparent 12%,transparent 86%,#0a222ba6)}
 /* One 44 px row at --top. Landing: brand left, Field guide right. In play (data-play): only the buttons, as wide as the button cluster
-   (the desktop trackpad's hover freeze keys on `header`, so the box stays and shrinks; touch keeps a full-row block for now). */
+   (the desktop trackpad's hover freeze keys on `header`, so the box stays and shrinks; on touch the box takes no touches at all, below). */
 .header{position:absolute;top:var(--top);left:max(var(--gx),env(safe-area-inset-left));right:max(var(--gx),env(safe-area-inset-right));min-height:var(--row);display:flex;justify-content:space-between;align-items:center;gap:8px;z-index:8}
 .header[data-play]{left:auto;width:max-content;max-width:calc(100% - 2 * var(--gx));justify-content:flex-end}
-:global(html[data-input=touch]) .header[data-play]{left:max(var(--gx),env(safe-area-inset-left));width:auto}
+/* FEEL: on touch the header box passes touches through to the flight surface and only its buttons take them, so the strip beside the readout
+   and the 8 px gaps between the buttons fly like the rest of the screen. The Controls sheet and its backdrop are siblings of the header
+   (not inside this box) and set pointer-events:auto themselves. */
+:global(html[data-input=touch]) .header[data-play]{pointer-events:none}
+:global(html[data-input=touch]) .header[data-play] button{pointer-events:auto}
 .brand{display:flex;align-items:center;gap:11px;font-size:17px;font-weight:800;letter-spacing:.16em;text-shadow:0 1px 7px #152f34}.brand svg{width:35px;height:35px}.brand small{display:block;font-size:8px;letter-spacing:.28em;font-weight:500;margin-top:5px}
 .headerActions{display:flex;align-items:center;gap:8px}.headerActions>button{border:1px solid #97aaa688;background:#142d34e6;min-width:44px;min-height:44px;padding:0 17px;border-radius:3px;font-size:12px;letter-spacing:.04em;backdrop-filter:blur(8px)}.headerActions>button:hover{background:#305058}
 .headerActions>.pause{flex:none;width:44px;padding:0;display:grid;place-items:center;border-radius:50%}.pause svg{width:20px;height:20px;display:block}
