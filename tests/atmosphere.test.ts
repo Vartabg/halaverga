@@ -54,6 +54,15 @@ describe('sky palette', () => {
     expect(FOG.far).toBeLessThan(650);
     expect(HEMISPHERE.intensity).toBe(1.7);
   });
+  it('fogs gently near and fully by 590 m, inside the camera far plane', () => {
+    const factor = (depth: number) => { const t = Math.min(1, Math.max(0, (depth - FOG.near) / (FOG.far - FOG.near))); return t * t * (3 - 2 * t); };
+    expect(FOG.near).toBe(70); expect(FOG.far).toBe(590);
+    expect(factor(70)).toBe(0); expect(factor(100)).toBeLessThan(.02);
+    for (const depth of [590, 620, 650]) expect(factor(depth)).toBe(1);
+    // aerial perspective: a smooth rise through the skyline distances (the spawn sees the three layers at about 380, 440 and 500 m)
+    expect(factor(380)).toBeGreaterThan(.6); expect(factor(380)).toBeLessThan(.7);
+    expect(factor(440)).toBeGreaterThan(.78); expect(factor(500)).toBeGreaterThan(.9); expect(factor(500)).toBeLessThan(1);
+  });
   it('writes colours as linear GLSL literals', () => {
     expect(glslVec3('#ffffff')).toBe('vec3(1.000000, 1.000000, 1.000000)');
     expect(hexToLinear('#000000')).toEqual([0, 0, 0]);

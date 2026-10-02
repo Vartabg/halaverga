@@ -6,6 +6,7 @@ import { ACESFilmicToneMapping } from 'three';
 import City from './City';
 import DistrictBoundary from './DistrictBoundary';
 import { Sky, Water } from './Atmosphere';
+import Skyline from './Skyline';
 import Suit from './Suit';
 import Player from '@/game/Player';
 import CameraRig from '@/game/CameraRig';
@@ -74,7 +75,7 @@ export default function Scene({ onLoss }: { onLoss: () => void }) {
     <directionalLight position={SUN_POSITION} color={SUN_COLOR} intensity={3.5} castShadow={quality === 'high'}
       shadow-mapSize={[2048, 2048]} shadow-camera-left={-110} shadow-camera-right={110}
       shadow-camera-top={110} shadow-camera-bottom={-110} shadow-camera-far={380} shadow-bias={-.0002} shadow-normalBias={.09} />
-    <EnvironmentLight /><Sky /><Water />
+    <EnvironmentLight /><Sky /><Water /><Skyline />
     <Suspense fallback={null}>
       <Physics paused={paused} timeStep={1 / 60} updatePriority={-50} gravity={[0, -22, 0]}>
         <City /><DistrictBoundary /><Player /><FlightPresentation /><Suit /><CameraRig />

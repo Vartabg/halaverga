@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import { WORLD } from '@/game/motion';
 import { SKYLINE } from '@/world/atmospherePalette';
+import { makeCity } from '@/world/cityData';
 import { VISTA, makeSkyline, type Tower } from '@/world/skylineData';
 
 const sky = makeSkyline();
@@ -67,5 +68,12 @@ describe('far skyline generator', () => {
     const tall = (from: number, to: number) => sky.towers.filter(t => t.layer < 2 && t.z < WORLD.minZ && t.x > from && t.x < to && t.top >= 85);
     expect(tall(-130, -60).length).toBeGreaterThanOrEqual(2);
     expect(tall(60, 110).length).toBeGreaterThanOrEqual(1);
+  });
+  it('leaves the colliders alone and keeps the old skyline boxes out of the city mesh', () => {
+    const city = makeCity();
+    expect(city.solids.length).toBe(101);
+    expect(createHash('sha256').update(JSON.stringify(city.solids)).digest('hex').slice(0, 16)).toBe('ef8cefd9ae2bbdc6');
+    expect(city.geometry.index!.count / 3).toBe(85448); // 85,928 before, minus the old 20 towers and caps (480)
+    city.geometry.dispose();
   });
 });

@@ -35,7 +35,9 @@ export const CLOUD = {
   lit: '#f4f4ee', shade: '#aebbc8', coverage: .45, scale: .5, wind: [.003, .001] as [number, number], offset: [.18, .62] as [number, number],
   weatherScale: .55, weatherSwing: .3,
 };
-export const FOG = { color: HAZE, near: 95, far: 330 };
+/** Fog is three's linear smoothstep on view depth, applied after tone mapping, so the colour is exactly what appears on screen. The
+ * far end stays under the camera far plane (650): the sea's far-plane clip always lands in full haze. */
+export const FOG = { color: HAZE, near: 70, far: 590 };
 /** The distant skyline: three layers standing in the sea outside the flyable box. `gaps` are metres from the box edge to the nearest
  * tower face on the [north, east and west, south] sides. Tints are display hex before fog, as [lit, shaded]: the split is wide on
  * purpose because fog compresses it to about a fifth. Each layer is paler and cooler than the nearer one. `crown` is roof green. */
