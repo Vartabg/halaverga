@@ -3,7 +3,8 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { WORLD } from '@/game/motion';
 import { SKYLINE } from '@/world/atmospherePalette';
-import { makeCity } from '@/world/cityData';
+import { HILL, makeCity } from '@/world/cityData';
+import { surface } from '@/world/kit';
 import { VISTA, makeSkyline, type Tower } from '@/world/skylineData';
 
 const sky = makeSkyline();
@@ -74,16 +75,26 @@ describe('far skyline generator', () => {
     const city = makeCity();
     expect(city.solids.length).toBe(101);
     expect(createHash('sha256').update(JSON.stringify(city.solids)).digest('hex').slice(0, 16)).toBe('ef8cefd9ae2bbdc6');
-    expect(city.geometry.index!.count / 3).toBe(85448); // 85,928 before, minus the old 20 towers and caps (480)
+    expect(city.geometry.index!.count / 3).toBe(86784); // 85,928 before, minus the old 20 towers and caps (480), plus the 4 cut-up hills (1,336)
     city.geometry.dispose();
   });
-  it('lifts the district-edge slabs in the ground (moss) group, so they never fall back to stone', () => {
-    const city = makeCity(), color = city.geometry.attributes.color, index = city.geometry.index!, groups = city.geometry.groups;
-    // Only the two slab tints, lifted, reach a linear channel of .9 or more; a hex missing from kit.ts's ground list would show up in the stone group.
-    const peak = groups.map(g => { let top = 0; for (let i = g.start; i < g.start + g.count; i++) top = Math.max(top, color.getX(index.getX(i)), color.getY(index.getX(i)), color.getZ(index.getX(i))); return top; });
-    expect(groups.length).toBe(5);
-    expect(peak[3]).toBeGreaterThanOrEqual(.9);
-    expect(peak.filter((_, i) => i !== 3).every(top => top < .9)).toBe(true);
+  it('draws the district-edge hills on the stone texture in grey-green: the moss texture is yellow, and any tint on it came out lime', () => {
+    const hue = (hex: string) => {
+      const [r, g, b] = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16) / 255), hi = Math.max(r, g, b), lo = Math.min(r, g, b), d = hi - lo;
+      return { h: d ? 60 * (hi === g ? 2 + (b - r) / d : hi === r ? ((g - b) / d + 6) % 6 : 4 + (r - g) / d) : 0, s: hi ? d / hi : 0 };
+    };
+    for (const hex of [HILL.wall, HILL.top, HILL.outerWall, HILL.outerTop]) {
+      expect(surface(hex)).toBe(0); // stone, not the ground (moss) group
+      expect(hue(hex).h).toBeGreaterThanOrEqual(85); expect(hue(hex).s).toBeLessThanOrEqual(.32); // sage and grey, never yellow-green or saturated
+    }
+  });
+  it('cuts each hill into cells with their own tone, so a 200 m top is not one flat colour', () => {
+    const city = makeCity(), pos = city.geometry.attributes.position, nor = city.geometry.attributes.normal, color = city.geometry.attributes.color;
+    const tops = new Set<number>();
+    for (let i = 0; i < pos.count; i++) // the near east hill's top face: x 114 to 166, y 15.5, z -117.5 to 87.5
+      if (nor.getY(i) > .9 && Math.abs(pos.getY(i) - 15.5) < .01 && pos.getX(i) >= 114 && pos.getX(i) <= 166 && pos.getZ(i) >= -117.5 && pos.getZ(i) <= 87.5) tops.add(Math.round(color.getY(i) * 1000));
+    expect(tops.size).toBeGreaterThan(8);
+    expect(Math.max(...tops) / Math.min(...tops)).toBeGreaterThan(1.25);
     city.geometry.dispose();
   });
   it('draws it as one static, unshadowed, fogged, display-referred mesh in the Scene', () => {

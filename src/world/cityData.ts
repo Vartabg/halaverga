@@ -1,8 +1,9 @@
 import { createKit, building, car, colors } from './kit';
 import { trees } from './reclamationData';
 import { heroRuins } from './heroRuins';
-/** The district-edge hills are moss on a dark texture: a plain tint left their shaded faces near black against the new sky. */
-const SLAB_LIFT = 2.7;
+/** The district-edge hills: grey-green concrete walls and mossy tops on the stone texture (the moss texture is yellow, so any tint on
+ * it came out lime). Neither hex is in kit.ts's surface() lists, so both fall in the stone group. */
+export const HILL = { wall: '#98a498', top: '#8d9f74', outerWall: '#8e9d92', outerTop: '#869870', lift: [3, 1.5] as [number, number] };
 export function makeCity() {
   const k = createKit();
   // A hillside on either side of the submerged transport corridor.
@@ -24,8 +25,8 @@ export function makeCity() {
   ];
   entries.forEach((e, i) => building(k, ...e, i));
   for (const side of [-1, 1]) {
-    k.box(side * 140, 3, -15, 52, 25, 205, '#94a98c', true, 0, 0, SLAB_LIFT);
-    k.box(side * 179, 12, -36, 40, 43, 200, '#8aa084', true, 0, 0, SLAB_LIFT);
+    k.hill(side * 140, 3, -15, 52, 25, 205, HILL.wall, HILL.top, HILL.lift);
+    k.hill(side * 179, 12, -36, 40, 43, 200, HILL.outerWall, HILL.outerTop, HILL.lift);
     building(k, side * 140, 15.5, -70, 21, 23, 9, '#c49a7c', 23);
     building(k, side * 173, 33.5, -125, 19, 18, 7, '#a8a58e', 24);
   }
