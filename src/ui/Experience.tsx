@@ -19,9 +19,7 @@ import Boundary from './Boundary';
 import TapControls from './TapControls';
 import Telemetry from './Telemetry';
 import HintSlot, { useMessageClock } from './HintSlot';
-import FlowHud from './FlowHud';
 import FlowWelcome from './FlowWelcome';
-import SimpleTrackpadHud from './SimpleTrackpadHud';
 import PauseCard from './PauseCard';
 import SheetLost from './SheetLost';
 import styles from './Experience.module.css';
@@ -38,6 +36,10 @@ const loadTouch = () => import('./TouchControls');
 // The controls lessons (one mount, standard controls only: they publish their line to the one hint slot). Its own small chunk, warmed after hydration.
 const loadHint = () => import('./ControlsHint');
 const ControlsHint = dynamic(loadHint, { ssr: false, loading: () => null });
+// The Flow and Simple trackpad panels are passive and belong to non-default profiles (the free cursor is the desktop default): their own
+// chunks, fetched only when that profile is on after Begin. A chunk that fails to load leaves the panel out; the controls themselves are not in it.
+const FlowHud = dynamic(() => import('./FlowHud'), { ssr: false, loading: () => null });
+const SimpleTrackpadHud = dynamic(() => import('./SimpleTrackpadHud'), { ssr: false, loading: () => null });
 // Flight settings open only after Begin, so they are a chunk warmed then: settings copy never grows the landing first load.
 const loadPanel = () => import('./TestPanel');
 // The Gesture Lab (Draw, Conduct, Brush) replaces the standard controls only while chosen. Its surface is held in state like the
@@ -173,8 +175,8 @@ export default function Experience() {
             {/* A mouse click activates Lift/Land without focusing it, so the next Space still reaches flight (Tab + Space works). */}
             <button className={styles.action} onMouseDown={e => { if (!touchMode()) e.preventDefault(); }} onClick={() => { runtime.lift = true; }}><span aria-hidden="true">{state.flying ? '↓' : '↑'}</span>{state.landing ? 'Cancel landing' : state.flying ? 'Land' : 'Lift'}</button>
           </div>
-          {standard && state.desktopMode === 'trackpad' && state.trackpadSteering === 'flow' && <FlowHud />}
-          {standard && state.desktopMode === 'trackpad' && state.trackpadSteering === 'simple' && <SimpleTrackpadHud />}
+          {standard && state.desktopMode === 'trackpad' && state.trackpadSteering === 'flow' && <Optional><FlowHud /></Optional>}
+          {standard && state.desktopMode === 'trackpad' && state.trackpadSteering === 'simple' && <Optional><SimpleTrackpadHud /></Optional>}
           {/* The desktop legend: a control caption, not advice, so it stays at the bottom and steps aside for a limit cue. */}
           {state.desktopMode === 'trackpad' && pill && !state.limitHint && <div className={styles.legend} data-testid="legend">{pill}</div>}
         </>}
