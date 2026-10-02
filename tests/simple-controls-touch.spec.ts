@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { openSettings } from './lab-browser';
+import { openSettings, pickControl } from './lab-browser';
 import AxeBuilder from '@axe-core/playwright';
 import { aiming, autoTouchPage, hud, shots, speed, telemetry } from './shooter-browser';
 // Simple-by-default phone controls on the classic one thumb (the default since 2026-09-26): one play button (Lift/Land), no Fire or
@@ -35,7 +35,7 @@ for (const viewport of [PORTRAIT, LANDSCAPE]) {
       await expect(page.getByLabel('Auto-fire assist on touch screens')).toHaveCount(0);
       // Touch: the blaster section leads, above the fold, with one line about touch only.
       const line = page.getByText('One thumb flies. Tap a drone to blast it.'); await expect(line).toBeVisible();
-      const af = (await line.boundingBox())!, desk = (await page.getByTestId('controls-section').boundingBox())!;
+      const af = (await line.boundingBox())!, desk = (await page.getByTestId('controls-row').boundingBox())!; // the one Controls row: the list itself lives in the sheet
       expect(af.y).toBeLessThan(desk.y); expect(af.y + af.height).toBeLessThanOrEqual(viewport.height);
       await expect(page.getByText(/left click fires once the mouse is captured/)).toHaveCount(0);
       // Nothing is away from its default here, so More controls is folded (progressive disclosure) and opens on a tap; on classic
@@ -48,11 +48,14 @@ for (const viewport of [PORTRAIT, LANDSCAPE]) {
       await expect(page.getByLabel('Shot magnet (shots bend toward drones)')).toBeVisible();
       const scan = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze();
       expect(scan.violations).toEqual([]);
-      // Two thumbs (opt-in) brings the Auto-fire assist and the Aim-button switch back.
-      const section = page.getByTestId('controls-section');
-      if (!(await section.locator('details').evaluate(d => (d as HTMLDetailsElement).open))) await section.locator('summary').tap();
-      await section.getByRole('radio', { name: 'Twin stick', exact: true }).tap();
+      // Two thumbs (opt-in, chosen in the Controls sheet that Flight settings' row opens) brings the Auto-fire assist and the Aim-button
+      // switch back: a touch pick closes the sheet, the pause card is back, and Flight settings shows them on the next open.
+      await expect(page.getByTestId('controls-list')).toHaveCount(0); // no second list in Flight settings
+      await pickControl(page, 'Twin stick', true);
+      await openSettings(page, true);
       await expect(page.getByLabel('Auto-fire assist on touch screens')).toBeChecked();
+      // The dialog is a fresh one, so More controls is folded again unless something in it is off its default.
+      if (!(await page.getByTestId('more-controls').evaluate(d => (d as HTMLDetailsElement).open))) await page.getByText('More controls', { exact: true }).tap();
       await expect(page.getByLabel('Show Aim button on touch screens')).toBeVisible();
       expect(t.errors).toEqual([]); await t.context.close();
     });

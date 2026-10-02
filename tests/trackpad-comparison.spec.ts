@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { settingsCurrent, settingsPick, openSettings, closeAndResume } from './lab-browser';
+import { settingsCurrent, pickControl, resumeFromCard, openSettings, closeAndResume } from './lab-browser';
 import { readFile } from 'node:fs/promises';
 const surface = (p: Page) => p.getByTestId('flight-surface');
 const speed = async (p: Page) => Number(await p.getByTestId('flight-telemetry').getAttribute('data-speed'));
@@ -26,8 +26,8 @@ for (const camera of ['first', 'third']) test(`captured trackpad cruises, steers
   await expect(page.getByRole('button', { name: 'Resume flight' })).not.toBeVisible();
   await openSettings(page);
   expect(await settingsCurrent(page)).toBe('captured');
-  await settingsPick(page, 'Cursor');
-  await closeAndResume(page);
+  await pickControl(page, 'Cursor');
+  await resumeFromCard(page);
   await page.mouse.click(720, 500); await expect.poll(() => speed(page)).toBeGreaterThan(7);
   expect(await page.evaluate(() => document.pointerLockElement)).toBeNull();
   expect(errors).toEqual([]);
@@ -60,8 +60,8 @@ test('capture rejection provides free steering and an unexpected capture loss pa
   await page.mouse.click(720, 500);
   await expect(page.getByText('Captured steering is unavailable.', { exact: false }).first()).toBeVisible();
   await page.mouse.click(720, 500); await expect.poll(() => speed(page)).toBeGreaterThan(7);
-  await openSettings(page); await settingsPick(page, 'Captured');
-  await closeAndResume(page); await page.mouse.click(720, 500);
+  await openSettings(page); await pickControl(page, 'Captured');
+  await resumeFromCard(page); await page.mouse.click(720, 500);
   await expect.poll(() => page.evaluate(() => !!document.pointerLockElement)).toBe(true);
   await page.evaluate(() => document.exitPointerLock());
   await expect(page.getByRole('button', { name: 'Resume flight' })).toBeVisible();

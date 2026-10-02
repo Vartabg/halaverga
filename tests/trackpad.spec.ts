@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { settingsCurrent, settingsPick, openSettings, closeAndResume } from './lab-browser';
+import { settingsCurrent, pickControl, resumeFromCard, openSettings, closeAndResume } from './lab-browser';
 const scene = (page: Page) => page.getByTestId('flight-surface');
 const telemetry = (page: Page) => page.getByTestId('flight-telemetry');
 const speed = async (page: Page) => Number(await telemetry(page).getAttribute('data-speed'));
@@ -83,8 +83,8 @@ test('HUD hover keeps the cruise; a click, resize, pause and zoom clear it witho
 test('optional mouse capture persists and failure offers trackpad recovery', async ({ page }) => {
   const errors: string[] = []; page.on('pageerror', e => errors.push(e.message));
   await begin(page); await openSettings(page);
-  await settingsPick(page, 'Mouse + keys');
-  await closeAndResume(page);
+  await pickControl(page, 'Mouse + keys'); // Flight settings' Controls row opens the sheet; the pick, Done, and the pause card is back
+  await resumeFromCard(page);
   await page.mouse.click(720, 500);
   await expect.poll(() => page.evaluate(() => document.pointerLockElement?.tagName)).toBe('CANVAS');
   await page.keyboard.press('Escape');
@@ -97,8 +97,8 @@ test('optional mouse capture persists and failure offers trackpad recovery', asy
   await page.mouse.click(720, 500);
   await expect(page.getByText('Mouse capture is unavailable.', { exact: false }).first()).toBeVisible();
   await openSettings(page);
-  await settingsPick(page, 'Cursor');
-  await closeAndResume(page);
+  await pickControl(page, 'Cursor');
+  await resumeFromCard(page);
   await page.mouse.click(720, 500); await expect.poll(() => speed(page)).toBeGreaterThan(7);
   expect(errors).toEqual([]);
 });

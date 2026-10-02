@@ -12,7 +12,7 @@ const wcag = async (page: import('@playwright/test').Page) =>
 const AXE_AT = ['393x852 touch', '1440x900 mouse'];
 
 for (const v of [...VIEWS, ...NARROW]) {
-  test(`${v.name}: landing, playing, sheet and paused have no overlap, small target or lost surface`, async ({ browser }) => {
+  test(`${v.name}: landing, playing, sheet, paused and paused-sheet have no overlap, small target or lost surface`, async ({ browser }) => {
     test.setTimeout(120000);
     const t = await openLanding(browser, v), { page } = t, all: string[] = [];
     const check = async (state: string, mode: Parameters<typeof audit>[2]) => { for (const p of await audit(page, v, mode)) all.push(`${state}: ${p}`); };
@@ -29,6 +29,15 @@ for (const v of [...VIEWS, ...NARROW]) {
     await expect(page.getByRole('region', { name: 'Expedition paused' })).toBeVisible();
     await check('paused', {});
     if (AXE_AT.includes(v.name)) await wcag(page);
+    // The pause card's Controls row opens the same sheet over the paused game: the card hides while it shows, and Done brings it back.
+    await t.press(page.getByTestId('controls-row'));
+    await expect(page.getByTestId('controls-sheet')).toBeVisible();
+    await expect(page.getByRole('region', { name: 'Expedition paused' })).toHaveCount(0);
+    await check('paused-sheet', { sheet: true, paused: true });
+    if (AXE_AT.includes(v.name)) await wcag(page);
+    await t.press(page.getByTestId('controls-done'));
+    await expect(page.getByTestId('controls-sheet')).toHaveCount(0);
+    await expect(page.getByRole('region', { name: 'Expedition paused' })).toBeVisible();
     expect(all, `${v.name}\n${all.join('\n')}`).toEqual([]);
     expect(t.errors).toEqual([]); await t.context.close();
   });

@@ -73,7 +73,7 @@ function overlap(a: Box & { round?: boolean }, b: Box & { round?: boolean }) {
 const WIDE_OK = ['vote-chip'];
 
 /** `scale`: the text size factor in force (scaleText); a text button grows with it, so the 96 px cap on what may sit on the surface grows too. */
-export type Mode = { play?: boolean; sheet?: boolean; scale?: number };
+export type Mode = { play?: boolean; sheet?: boolean; paused?: boolean; scale?: number };
 /** Runs the checks of spec section 10.1 that apply to this state; returns one line per problem (empty: the state is clean). */
 export async function audit(page: Page, v: View, mode: Mode = {}): Promise<string[]> {
   const items = await interactive(page), problems: string[] = [], at = (i: Item) => `${i.name} [${Math.round(i.x)},${Math.round(i.y)} ${Math.round(i.width)}x${Math.round(i.height)}]`;
@@ -126,6 +126,30 @@ export async function audit(page: Page, v: View, mode: Mode = {}): Promise<strin
     const sb = await page.getByTestId('controls-sheet').boundingBox(), bb = await page.getByTestId('controls-backdrop').boundingBox();
     if (!sb || sb.x < -.5 || sb.y < -.5 || sb.x + sb.width > v.width + .5 || sb.y + sb.height > v.height + .5) problems.push(`sheet outside the viewport: ${JSON.stringify(sb)}`);
     if (!bb || bb.x > .5 || bb.y > .5 || bb.width < v.width - .5 || bb.height < v.height - .5) problems.push(`backdrop does not cover the screen: ${JSON.stringify(bb)}`);
+    if (sb) {
+      // The sheet's two forms (unit 3). A phone (600 px and narrower, or a short landscape window): a bottom sheet, centred, 8 px above the
+      // bottom edge (no safe area here), at most 420 wide (680 in two columns on a short landscape window). Otherwise a one-column popover
+      // under the row (68 px down: the row's 16 + 44 + 8), 420 wide at most, its right edge on the row's right edge.
+      const short = v.height <= 550 && v.width > v.height, bottom = v.width <= 600 || short;
+      const cols = new Set(await page.locator('[data-testid=controls-sheet] [data-control]').evaluateAll(els => els.map(e => Math.round(e.getBoundingClientRect().x))));
+      if (bottom) {
+        if (Math.abs(sb.y + sb.height - (v.height - 8)) > 1) problems.push(`bottom sheet is not 8 px above the bottom edge: ${JSON.stringify(sb)}`);
+        if (Math.abs(sb.x + sb.width / 2 - v.width / 2) > 1) problems.push(`bottom sheet is not centred: ${JSON.stringify(sb)}`);
+        if (sb.width > (short ? 680.5 : 420.5) || sb.width > v.width - 32 + .5) problems.push(`bottom sheet is too wide: ${Math.round(sb.width)}`);
+        if (sb.y < 60 - .5) problems.push(`bottom sheet reaches up into the top row: ${JSON.stringify(sb)}`);
+        if ((cols.size > 1) !== short) problems.push(`list columns: ${cols.size} (${short ? 'a short landscape window lists two' : 'one column expected'})`);
+      } else {
+        if (Math.abs(sb.y - 68) > 1) problems.push(`popover does not start under the row (y 68): ${JSON.stringify(sb)}`);
+        if (Math.abs(sb.x + sb.width - (v.width - Math.max(16, v.width * .045))) > 1) problems.push(`popover's right edge is not the row's: ${JSON.stringify(sb)}`);
+        if (sb.width > 420.5) problems.push(`popover is wider than 420: ${Math.round(sb.width)}`);
+        if (cols.size !== 1) problems.push(`popover lists ${cols.size} columns, one expected`);
+        // It never covers the crosshair at the centre of a desktop window (the crosshair exists only while playing).
+        if (!mode.paused && sb.x <= v.width / 2 && v.width / 2 <= sb.x + sb.width && sb.y <= v.height / 2 && v.height / 2 <= sb.y + sb.height) problems.push(`popover covers the centre crosshair: ${JSON.stringify(sb)}`);
+      }
+      // The touch sheet ends with a way to Flight settings; the desktop one has the number-keys checkbox instead.
+      const link = await page.getByTestId('controls-settings').count();
+      if (link !== (v.touch ? 1 : 0)) problems.push(`Flight settings link count ${link} on ${v.touch ? 'touch' : 'desktop'}`);
+    }
   }
   return problems;
 }

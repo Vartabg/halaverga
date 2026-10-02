@@ -209,7 +209,7 @@ test('phone: tapping the current row closes the sheet; the backdrop closes it; r
   await row(page, 'one-finger').tap();
   await expect(sheet(page)).toHaveCount(0);
   await openSheet(page, true);
-  await page.touchscreen.tap(20, 700);
+  await page.touchscreen.tap(20, 200); // the backdrop: above the bottom sheet, which starts about y 300 at this size
   await expect(sheet(page)).toHaveCount(0);
   await expect(paused(page)).toHaveCount(0);
   expect(t.errors).toEqual([]); await t.context.close();

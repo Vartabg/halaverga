@@ -98,7 +98,7 @@ test(`${SHORT.width}x${SHORT.height}: the sheet's list scrolls under a real touc
   await openSheet(t);
   const s = sheet(page), overflow = await s.evaluate(e => e.scrollHeight - e.clientHeight);
   expect(overflow, 'the list overflows at this height').toBeGreaterThan(8);
-  const b = await box(s), heading = (await tel(page)).heading, from = { x: b.x + b.width / 2, y: b.y + b.height * .75 };
+  const b = await box(s), heading = (await tel(page)).heading, from = { x: b.x + b.width / 2, y: b.y + b.height * .4 }; // inside the list, above the sticky footer
   await t.finger.down(from); await t.finger.drag({ x: from.x, y: from.y - Math.min(overflow + 40, 160) }, 10, 16); await t.finger.up();
   await expect.poll(() => s.evaluate(e => e.scrollTop), { timeout: 3000 }).toBeGreaterThan(4);
   await expect(s).toBeVisible();

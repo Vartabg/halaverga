@@ -96,16 +96,30 @@ test('Controls on a desktop: the trigger and sheet by keyboard, list radios, fal
   await page.keyboard.press('Escape');
   await expect(sheet).toHaveCount(0); await expect(page.getByRole('button', { name: 'Pause expedition' })).toBeVisible();
   await expect(trigger).toHaveAccessibleName('Controls: Cursor');
-  // Flight settings carries the same list (the sheet never opens it).
+  // Flight settings has one Controls row, not a second list: the row names the control in use and opens the same sheet (the dialog
+  // closes as the sheet opens, the game stays paused). The pause card hides while the sheet shows and returns with focus on its row.
   await page.getByRole('button', { name: 'Pause expedition' }).focus(); await page.keyboard.press('Enter');
   await pauseCard(page).getByRole('button', { name: 'Flight settings', exact: true }).focus(); await page.keyboard.press('Enter');
   const dialog = page.locator('dialog[open]');
   await expect(dialog).toHaveCount(1);
   await expect(page.getByRole('button', { name: 'Pause expedition' })).toHaveCount(0);
-  const settings = dialog.getByTestId('controls-list');
-  await expect(settings).toHaveRole('group'); await expect(settings).toHaveAccessibleName('Controls');
-  await settings.getByRole('radio', { name: /^Conduct/ }).check();
-  await expect(settings.getByRole('radio', { name: /^Conduct/ })).toBeChecked();
+  await expect(dialog.getByTestId('controls-list')).toHaveCount(0); await expect(dialog.getByTestId('controls-section')).toHaveCount(0);
+  const door = dialog.getByTestId('controls-row');
+  await expect(door).toHaveAccessibleName('Controls: Cursor'); await expect(door).toHaveAttribute('aria-haspopup', 'dialog');
+  { const b = (await door.boundingBox())!; expect(b.height).toBeGreaterThanOrEqual(44); }
+  await door.focus(); await page.keyboard.press('Enter');
+  await expect(dialog).toHaveCount(0); await expect(sheet).toBeVisible(); await expect(pauseCard(page)).toHaveCount(0);
+  await expect(sheet.getByTestId('controls-list').getByRole('radio', { name: /^Cursor/ })).toBeFocused();
+  await radio(/^Cursor/).press('ArrowUp'); // wraps to the last: Brush
+  await radio(/^Brush/).press('ArrowUp');
+  await expect(radio(/^Conduct/)).toBeChecked(); await expect(radio(/^Conduct/)).toBeFocused();
+  await wcag(page); // the sheet over the paused game
+  await page.keyboard.press('Escape');
+  await expect(sheet).toHaveCount(0); await expect(pauseCard(page)).toBeVisible();
+  await expect(pauseCard(page).getByTestId('controls-row')).toBeFocused(); // focus returns to the door that opened it
+  await expect(pauseCard(page).getByTestId('controls-row')).toHaveAccessibleName('Controls: Conduct');
+  await pauseCard(page).getByRole('button', { name: 'Flight settings', exact: true }).focus(); await page.keyboard.press('Enter');
+  await expect(dialog).toHaveCount(1);
   await wcag(page);
   // Conduct's fallback buttons under More controls: every one at least 44 x 44, and a press is confirmed in a status line.
   const group = dialog.getByRole('group', { name: 'Lab actions' });
@@ -123,7 +137,7 @@ test('Controls on a desktop: the trigger and sheet by keyboard, list radios, fal
   await expect(trigger).toHaveAccessibleName('Controls: Conduct');
   expect(errors).toEqual([]);
 });
-test('Controls on a phone: play, the pause card list and the sheet satisfy AA checks', async ({ browser }) => {
+test('Controls on a phone: play, the pause card row, the sheet over the paused game and the sheet in play satisfy AA checks', async ({ browser }) => {
   const context = await browser.newContext({ viewport: { width: 852, height: 393 }, isMobile: true, hasTouch: true });
   const page = await context.newPage(), errors: string[] = []; page.on('pageerror', e => errors.push(e.message));
   await page.emulateMedia({ reducedMotion: 'reduce' }); await page.goto('/?controls=brush');
@@ -133,14 +147,19 @@ test('Controls on a phone: play, the pause card list and the sheet satisfy AA ch
   await aa(page);
   await page.getByRole('button', { name: 'Pause expedition' }).tap();
   const card = page.getByRole('region', { name: 'Expedition paused' });
-  // On a short screen the list is folded under its summary; opening it lists the five touch controls.
-  const section = card.getByTestId('controls-section');
-  await expect(section.locator('summary')).toHaveText('Controls: Brush');
-  await section.locator('summary').tap();
-  const list = section.getByTestId('controls-list');
+  // The pause card carries one Controls row, not the list: it names the control in use and opens the sheet over the paused game,
+  // where the five touch controls are listed. A touch pick closes the sheet and the pause card is back, naming the new control.
+  await expect(card.getByTestId('controls-list')).toHaveCount(0);
+  await expect(card.getByTestId('controls-row')).toHaveAccessibleName('Controls: Brush');
+  await card.getByTestId('controls-row').tap();
+  const pausedSheet = page.getByTestId('controls-sheet');
+  await expect(pausedSheet).toBeVisible(); await expect(card).toHaveCount(0);
+  const list = pausedSheet.getByTestId('controls-list');
   await expect(list.getByRole('radio')).toHaveCount(5);
+  await aa(page);
   await list.getByRole('radio', { name: /^Draw/ }).tap();
-  await expect(list.getByRole('radio', { name: /^Draw/ })).toBeChecked();
+  await expect(pausedSheet).toHaveCount(0); await expect(card).toBeVisible();
+  await expect(card.getByTestId('controls-row')).toHaveAccessibleName('Controls: Draw');
   await aa(page);
   await card.getByRole('button', { name: 'Resume flight' }).tap();
   const trigger = page.getByTestId('controls-trigger');
