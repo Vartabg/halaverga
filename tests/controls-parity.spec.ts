@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
+import { controlName } from './controls-browser';
 import { controlsFor, settingsFor, type ControlFamily, type ControlId } from '../src/game/controlTypes';
 import { CONTROLS_VERSION } from '../src/game/store';
 import { labPage, openSettings, openGuide, flightSettings, pauseCard, resumeFromCard, settingsCurrent as settingsRowName } from './lab-browser';
@@ -153,14 +154,14 @@ for (const family of ['desktop', 'touch'] as const) {
     await expect(paused(page).getByTestId('controls-row')).toHaveAccessibleName(`Controls: ${label}`);
     await tapOrClick(paused(page).getByRole('button', { name: 'Resume flight' }), touch);
     await settled(page, other);
-    await expect(trigger(page)).toHaveAccessibleName(`Controls: ${label}`);
+    await expect(trigger(page)).toHaveAccessibleName(controlName(label));
     expect(t.errors).toEqual([]); await t.context.close();
   });
 }
 
 test('?controls=bogus is ignored and still lets Begin enable: the family default plays', async ({ browser }) => {
   const t = await labPage(browser, 'standard', { url: '/?controls=bogus', saved: SEED }), { page } = t;
-  await expect(trigger(page)).toHaveAccessibleName('Controls: Cursor');
+  await expect(trigger(page)).toHaveAccessibleName(controlName('Cursor'));
   expect(await controlId(page)).toBe('cursor');
   expect((await signature(page)).labSurface).toBe(false);
   expect(t.errors).toEqual([]); await t.context.close();
@@ -173,6 +174,6 @@ test('?controls=<id> stays this session only: the saved choice is untouched, a p
   const after = await page.evaluate(() => JSON.parse(localStorage.getItem('halaverga-flight-v1') || '{}'));
   expect(after.trackpadSteering ?? 'free').toBe('free');
   await page.goto('/'); await page.getByRole('button', { name: 'Begin expedition' }).click();
-  await expect(trigger(page)).toHaveAccessibleName('Controls: Cursor');
+  await expect(trigger(page)).toHaveAccessibleName(controlName('Cursor'));
   expect(t.errors).toEqual([]); await t.context.close();
 });

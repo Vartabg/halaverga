@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { controlName } from './controls-browser';
 import { clearOfDrones, countDraws, startInk, drawStats, guideShown, labPage, lift, tel, type Lab } from './lab-browser';
 // Desktop parity (spec 2.6 desktop table) on a non-touch Mac-sized page, system Chrome: click-to-ink strokes (no button held) in
 // Draw and Brush, the 650 ms rest commit, Escape cancelling the ink, no phone UI, and the renderer budget per scheme. The pointer
@@ -78,7 +79,7 @@ for (const viewport of [V, { width: 325, height: 928 }]) {
       expect(await locked(page), scheme).toBe(false);
       expect(await paused(page), scheme).toBe(0);
       await expect(page.getByTestId('controls-trigger')).toBeVisible();
-      await expect(page.getByTestId('controls-trigger')).toHaveAccessibleName(`Controls: ${scheme[0].toUpperCase()}${scheme.slice(1)}`);
+      await expect(page.getByTestId('controls-trigger')).toHaveAccessibleName(controlName(`${scheme[0].toUpperCase()}${scheme.slice(1)}`));
       expect(await page.evaluate(() => document.documentElement.dataset.controlId), scheme).toBe(scheme);
       await expect(page.getByRole('button', { name: /^(Lift|Land)$/ })).toBeVisible();
       expect(t.errors, scheme).toEqual([]); await t.context.close();

@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { box, inside, openSheet, sheet } from './controls-browser';
-import { card, chip, DESK, lift, mock, notYet, paused, playing, PORTRAIT, TWO_DESK, TWO_TOUCH, votePage } from './vote-browser';
+import { card, chip, DESK, lift, lockedName, mock, notYet, paused, playing, PORTRAIT, TWO_DESK, TWO_TOUCH, VOTE_NAME, votePage } from './vote-browser';
 // Third-review low findings in a real browser (V4, V5, V7, CODE-4). System Chrome emulation, /api/vote and /api/results always mocked.
 // PLAYTEST_URL=http://127.0.0.1:3441. Emulation is not iPhone validation.
 
@@ -43,7 +43,7 @@ test('@vote V7 after this family voted the Controls sheet has no lime Vote butto
   expect(t.errors).toEqual([]); await t.context.close();
 });
 
-test('@vote V4 the pause card vote door is on screen without scrolling on a phone in portrait and on a 900 px desktop, with the ask above it, and the chip steps aside', async ({ browser }) => {
+test('@vote V4 the pause card vote door is on screen without scrolling on a phone in portrait and on a 900 px desktop, with the ask above it, and the pill steps aside', async ({ browser }) => {
   const p = await votePage(browser, TWO_TOUCH, { touch: true }), phone = p.page;
   await mock(phone, [200]);
   await expect(chip(phone)).toBeVisible();
@@ -54,7 +54,7 @@ test('@vote V4 the pause card vote door is on screen without scrolling on a phon
     await phone.getByRole('button', { name: 'Pause expedition' }).tap();
     await expect(paused(phone)).toBeVisible(); await expect(ask).toBeVisible({ timeout: 1000 });
   }).toPass({ timeout: 25000 });
-  await expect(chip(phone)).toHaveCount(0); // the pause card owns the vote door now
+  await expect(chip(phone)).toHaveCount(0); // the pause card owns the vote door now (the whole top row is empty while paused)
   await expect(door).toBeVisible();
   expect(inside(await box(door), PORTRAIT), 'phone door in the viewport').toBe(true); // before: below the fold (the whole Controls list sat above it)
   expect((await box(ask)).y).toBeLessThan((await box(door)).y);
@@ -68,12 +68,16 @@ test('@vote V4 the pause card vote door is on screen without scrolling on a phon
   expect(p.errors.concat(d.errors)).toEqual([]); await p.context.close(); await d.context.close();
 });
 
-test('@vote CODE-4 the chip name holds its visible text on a phone too, where the dot is hidden and the seconds sit under the count', async ({ browser }) => {
-  const t = await votePage(browser, {}, { touch: true }), { page } = t, c = chip(page);
-  await mock(page, [200]);
-  await expect(c).toBeVisible();
-  const visible = (await c.locator('span').first().innerText()).replace(/\s+/g, ' ').trim();
-  expect(visible).toMatch(/^Vote 0\/2 \d+ s$/); // what is on screen (innerText of the visible text span leaves out the hidden dot)
-  await expect(c).toHaveAccessibleName(/^Vote 0\/2 \d+ s ?\. Fly two ways for 20 seconds first\.$/); // before: the seconds were aria-hidden, so the name lacked them
-  expect(t.errors).toEqual([]); await t.context.close();
+test('@vote CODE-4 the Controls and Vote names hold their visible words on a phone too: the dots are decoration with a text twin, and the pill says Vote', async ({ browser }) => {
+  const t = await votePage(browser, {}, { touch: true }), { page } = t, trigger = page.getByTestId('controls-trigger');
+  await expect(trigger).toBeVisible();
+  expect((await trigger.innerText()).trim()).toBe('Controls'); // what is on screen: the word (the dots are aria-hidden shapes)
+  await expect(trigger).toHaveAccessibleName(lockedName('One finger')); // the name starts with that word and ends with the dots' twin
+  await t.context.close();
+  const r = await votePage(browser, TWO_TOUCH, { touch: true });
+  await expect(chip(r.page)).toBeVisible();
+  expect((await chip(r.page).innerText()).trim()).toBe('Vote');
+  await expect(chip(r.page)).toHaveAccessibleName(VOTE_NAME); // before: the visible seconds were the name; now the visible word is
+  await expect(r.page.getByTestId('controls-trigger')).toHaveAccessibleName('Controls: One finger'); // no twin once the dots are gone
+  expect(t.errors.concat(r.errors)).toEqual([]); await r.context.close();
 });

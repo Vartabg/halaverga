@@ -95,7 +95,9 @@ export const guideShown = (page: Page) => page.evaluate(() => {
  * emulation, isMobile) or a non-touch desktop. `saved` seeds the save once. Captures page errors and every aria-live text.
  */
 export async function labPage(browser: Browser, scheme: AnyControl, opts: { touch?: boolean; viewport?: { width: number; height: number };
-  saved?: Record<string, unknown>; url?: string; init?: () => void } = {}) {
+  saved?: Record<string, unknown>; url?: string; init?: () => void;
+  /** Runs on the new page before it navigates: routes that the page's first requests (the vote's ballot check) must already meet. */
+  routes?: (page: Page) => Promise<unknown> } = {}) {
   const touch = !!opts.touch, viewport = opts.viewport ?? (touch ? PHONE : DESKTOP);
   const context = await browser.newContext({ viewport, isMobile: touch, hasTouch: touch });
   const page = await context.newPage(), errors: string[] = [];
@@ -110,6 +112,7 @@ export async function labPage(browser: Browser, scheme: AnyControl, opts: { touc
   if (opts.saved) await page.addInitScript(s => {
     if (!sessionStorage.getItem('lab-seeded')) { sessionStorage.setItem('lab-seeded', '1'); localStorage.setItem('halaverga-flight-v1', JSON.stringify(s)); }
   }, opts.saved);
+  if (opts.routes) await opts.routes(page);
   await page.goto(opts.url ?? (scheme === 'standard' ? '/' : `/?controls=${scheme}`));
   const begin = page.getByRole('button', { name: 'Begin expedition' });
   await expect(begin).toBeEnabled({ timeout: 60000 });

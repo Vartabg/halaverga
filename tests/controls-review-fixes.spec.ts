@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { DESKTOP, controlsPage, mockVote, openSheet, playInit, row, sheet, trigger } from './controls-browser';
+import { DESKTOP, controlsPage, mockResults, mockVote, openSheet, playInit, row, sheet, trigger } from './controls-browser';
 // Fixes from the 2026-09-28 controls-picker review: touch scroll in the sheet and the vote card, the vote pausing the game it opens
 // over, a vote that needs some play, and a failed lazy chunk leaving the page standing. System Chrome emulation (touch emulation for
 // the phone rows), never an iPhone. /api/vote and /api/results are always mocked. Run against a production build on port 3391 only.
@@ -55,25 +55,25 @@ test('touch: a swipe outside the sheet is still cancelled while playing (the pag
   await t.context.close();
 });
 
-test('the sheet Vote button pauses the game behind the card; Keep playing resumes it', async ({ browser }) => {
-  const t = await controlsPage(browser, 'standard', { viewport: DESKTOP }), { page } = t;
+test('the sheet Vote button (there once two ways are flown) pauses the game behind the card; Not yet resumes it', async ({ browser }) => {
+  const t = await controlsPage(browser, 'standard', { viewport: DESKTOP, init: playInit({ 'desktop:cursor': 25, 'desktop:draw': 25 }), routes: p => mockResults(p) }), { page } = t;
   await mockVote(page);
   await openSheet(page);
   await expect(playing(page)).toHaveCount(1);
-  await sheet(page).getByRole('button', { name: 'Vote: which felt best?' }).click();
+  await sheet(page).getByTestId('controls-vote').click();
   await expect(card(page)).toBeVisible();
   await expect(playing(page)).toHaveCount(0); // paused: W A S D from the card's buttons cannot fly the suit
-  await card(page).getByRole('button', { name: 'Keep playing' }).click();
+  await card(page).getByRole('button', { name: 'Not yet' }).click();
   await expect(card(page)).toHaveCount(0);
   await expect(playing(page)).toHaveCount(1);
   expect(t.errors).toEqual([]); await t.context.close();
 });
 
 test('vote card on a phone in landscape scrolls by touch, and Send stays reachable', async ({ browser }) => {
-  const t = await controlsPage(browser, 'standard', { touch: true, viewport: LANDSCAPE, init: playInit({ 'touch:one-finger': 60, 'touch:draw': 60 }) }), { page, finger } = t;
+  const t = await controlsPage(browser, 'standard', { touch: true, viewport: LANDSCAPE, init: playInit({ 'touch:one-finger': 60, 'touch:draw': 60 }), routes: p => mockResults(p) }), { page, finger } = t;
   await mockVote(page);
   await openSheet(page, true);
-  await sheet(page).getByRole('button', { name: 'Vote: which felt best?' }).tap();
+  await sheet(page).getByTestId('controls-vote').tap();
   await expect(card(page)).toBeVisible();
   await expect(playing(page)).toHaveCount(0);
   await expect(card(page).getByTestId('vote-choices')).toBeVisible();
@@ -84,19 +84,17 @@ test('vote card on a phone in landscape scrolls by touch, and Send stays reachab
   await t.context.close();
 });
 
-test('a vote needs play: with one way flown the card offers a way to fly a second, and Keep playing is not recorded; with two the ballot lists them', async ({ browser }) => {
+test('a vote needs play: with fewer than two ways flown the sheet has no Vote button, only the line, and nothing is recorded; with two the button opens the ballot that lists them', async ({ browser }) => {
   const fresh = await controlsPage(browser, 'standard', { viewport: DESKTOP });
   await mockVote(fresh.page);
   await openSheet(fresh.page);
-  await fresh.page.getByTestId('controls-vote').click();
-  await expect(card(fresh.page).getByTestId('vote-need-more')).toContainText('20 seconds');
-  await expect(card(fresh.page).getByRole('button', { name: 'Send vote' })).toHaveCount(0);
-  await expect(card(fresh.page).getByRole('radio')).toHaveCount(0);
-  await card(fresh.page).getByRole('button', { name: 'Keep playing' }).click();
+  await expect(fresh.page.getByTestId('controls-tried')).toHaveText('Tried 0 of 2 needed to vote');
+  await expect(fresh.page.getByTestId('controls-vote')).toHaveCount(0);
+  await expect(card(fresh.page)).toHaveCount(0);
   expect(await fresh.page.evaluate(() => localStorage.getItem('halaverga.vote.v1'))).toBeNull(); // no Skip mark, no vote mark
   expect(fresh.errors).toEqual([]); await fresh.context.close();
 
-  const played = await controlsPage(browser, 'standard', { viewport: DESKTOP, init: playInit({ 'desktop:cursor': 25, 'desktop:draw': 25 }) });
+  const played = await controlsPage(browser, 'standard', { viewport: DESKTOP, init: playInit({ 'desktop:cursor': 25, 'desktop:draw': 25 }), routes: p => mockResults(p) });
   const bodies = await mockVote(played.page);
   await openSheet(played.page);
   await played.page.getByTestId('controls-vote').click();

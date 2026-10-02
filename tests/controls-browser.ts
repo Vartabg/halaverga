@@ -30,10 +30,17 @@ export const voteResults = (families: Record<string, unknown> = {}, open = true)
   const empty = { votes: 0, ranked: false, tie: null, order: null, controls: null };
   return { v: 3, round: VOTE_ROUND, asOf: '2026-09-30T14:05:12Z', open, families: { touch: empty, desktop: empty, ...families } };
 };
+/** Answers /api/results (never a real database): a body, a failing status, or 'abort' (no connection). Install it BEFORE the page loads (labPage's `routes`) when the page
+ *  must see it: the Vote button asks the ballot once, as soon as two ways are flown, and a request that beats the route reaches the real server. */
+export async function mockResults(page: Page, results: unknown = voteResults()) {
+  await page.route('**/api/results', r => (results === 'abort' ? r.abort('failed') : typeof results === 'number'
+    ? r.fulfill({ status: results, contentType: 'application/json', body: JSON.stringify({ ok: false, error: results === 503 ? 'closed' : 'store-failed' }) })
+    : r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(results) })));
+}
 /** /api/vote and /api/results never reach a real database: both are always mocked. Returns the vote bodies the page sent. */
 export async function mockVote(page: Page, results: unknown = voteResults()) {
   const bodies: Array<Record<string, unknown>> = [];
-  await page.route('**/api/results', r => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(results) }));
+  await mockResults(page, results);
   await page.route('**/api/vote', r => { bodies.push(r.request().postDataJSON()); return r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true }) }); });
   return bodies;
 }
@@ -46,6 +53,9 @@ export function playInit(secs: Record<string, number>): () => void {
 export const blockStorage = () => Object.defineProperty(window, 'localStorage', { get() { throw new DOMException('blocked', 'SecurityError'); } });
 
 export const trigger = (p: Page) => p.getByTestId('controls-trigger');
+/** The top Controls button's accessible name for a control: `Controls: <label>`, and while the vote is locked (fewer than two ways flown, the
+ *  default state of a fresh page) the text twin of its two dots after it. The pause card's and Flight settings' rows never carry the twin. */
+export const controlName = (label: string) => new RegExp(`^Controls: ${label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(: vote unlocks after two ways, [0-2] of 2 tried)?$`);
 export const sheet = (p: Page) => p.getByTestId('controls-sheet');
 export const row = (p: Page, id: ControlId) => sheet(p).locator(`[data-control="${id}"]`);
 export const rows = (p: Page) => sheet(p).locator('[data-control]');

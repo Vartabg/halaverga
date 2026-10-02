@@ -1,7 +1,8 @@
 import { expect, test, type Page } from '@playwright/test';
+import { controlName } from './controls-browser';
 import { controlById, controlKey, controlsFor, type ControlFamily, type ControlId } from '../src/game/controlTypes';
 import { labPage } from './lab-browser';
-import { controlId, mockVote, openSheet, paused, playInit, row, sheet, trigger } from './controls-browser';
+import { controlId, mockResults, mockVote, openSheet, paused, playInit, row, sheet, trigger } from './controls-browser';
 import { DRIVES } from './controls-every-drive';
 // Every control type, end to end (owner 2026-09-28: "all different types of controls available for the demo ... an online vote").
 // For each id on its own family: choose it in the Controls sheet, see its input layer mount (data attributes), do one real gesture,
@@ -20,7 +21,7 @@ const tapOrClick = (l: ReturnType<Page['locator']>, touch: boolean) => touch ? l
 /** The mounted layer for the id, by the page's own data attributes and test ids. */
 async function expectLayer(page: Page, id: ControlId) {
   const lab = LABS.includes(id), hint = page.locator('[class*="trackpadHint"]');
-  await expect(trigger(page)).toHaveAccessibleName(`Controls: ${controlById(id).label}`);
+  await expect(trigger(page)).toHaveAccessibleName(controlName(controlById(id).label));
   expect(await controlId(page)).toBe(id);
   expect(await page.evaluate(() => document.documentElement.dataset.controls ?? null)).toBe(lab ? id : null);
   await expect(page.getByTestId('lab-surface')).toHaveCount(lab ? 1 : 0);
@@ -45,7 +46,7 @@ for (const { name, family, touch, viewport } of SIZES) {
         // (on a landing, from two tried) does not fire mid-test. The real accrual of tried seconds is tested in vote.spec.ts.
         const others = Object.fromEntries(controlsFor(family).map(c => [controlKey(family, c.id), 21]));
         const saved = { flowIntroSeen: true, ...(touch && (LABS.includes(id) || id === 'twin-stick') ? { autoFire: false } : {}) };
-        const t = await labPage(browser, 'standard', { touch, viewport, saved, init: playInit(others) }), { page, finger } = t;
+        const t = await labPage(browser, 'standard', { touch, viewport, saved, init: playInit(others), routes: p => mockResults(p) }), { page, finger } = t;
         const bodies = await mockVote(page);
 
         // 1. Choose it in the sheet (a tap on a phone: a mouse click would flip the family), then close the sheet.

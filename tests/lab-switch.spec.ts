@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { controlName } from './controls-browser';
 import { droneIn, labPage, lift, shots, tel, openSettings, resumeFromCard, settingsCurrent } from './lab-browser';
 import { controlId, openSheet, paused, row, saved, sheet, trigger } from './controls-browser';
 // Control switching (spec 8, controls picker 2026-09-28): Cursor stays the desktop default; ?controls= is a session override; the
@@ -8,14 +9,14 @@ import { controlId, openSheet, paused, row, saved, sheet, trigger } from './cont
 const controls = (p: import('@playwright/test').Page) => p.evaluate(() => document.documentElement.dataset.controls ?? null);
 const list = (root: import('@playwright/test').Locator) => root.getByTestId('controls-list');
 const radio = (root: import('@playwright/test').Locator, name: RegExp) => list(root).getByRole('radio', { name });
-const isCurrent = (p: import('@playwright/test').Page, label: string) => expect(trigger(p)).toHaveAccessibleName(`Controls: ${label}`);
+const isCurrent = (p: import('@playwright/test').Page, label: string) => expect(trigger(p)).toHaveAccessibleName(controlName(label));
 
 test('Cursor is the default: the free-cursor surface, no lab surface or data-controls, and the trigger names it', async ({ browser }) => {
   const t = await labPage(browser, 'standard'), { page } = t;
   await expect(page.getByTestId('flight-surface')).toHaveCount(1);
   await expect(page.getByTestId('lab-surface')).toHaveCount(0);
   await expect(trigger(page)).toBeVisible();
-  await expect(trigger(page)).toHaveAccessibleName('Controls: Cursor');
+  await expect(trigger(page)).toHaveAccessibleName(controlName('Cursor'));
   await expect(trigger(page)).toHaveAttribute('aria-haspopup', 'dialog');
   await isCurrent(page, 'Cursor');
   expect(await controls(page)).toBeNull();

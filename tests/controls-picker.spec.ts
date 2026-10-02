@@ -1,6 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
+import { controlName } from './controls-browser';
 import { expect, test, type Page } from '@playwright/test';
-import { DESKTOP, DESKTOP_IDS, PHONE_LANDSCAPE, PHONE_PORTRAIT, SIZES, TOUCH_IDS, blockStorage, box, controlId, controlsPage, inside, lift, mockVote,
+import { DESKTOP, DESKTOP_IDS, PHONE_LANDSCAPE, PHONE_PORTRAIT, SIZES, TOUCH_IDS, blockStorage, box, controlId, controlsPage, inside, lift, mockResults, mockVote,
   openSheet, overlaps, paused, playInit, row, rowIds, saved, shots, sheet, tel, trigger } from './controls-browser';
 // The controls picker: header trigger, sheet, digit keys, the demo note (spec sections 3 and 4). System Chrome emulation (touch
 // emulation for the phone rows): it checks wiring, layout and semantics, never how any control feels on a real iPhone or Mac
@@ -27,13 +28,13 @@ const LAYERS: Record<string, { save: Record<string, unknown>; layer: Layer }> = 
 
 test('desktop keys 1-8 each mount the right layer, are saved, and never pause', async ({ browser }) => {
   const t = await controlsPage(browser, 'standard', { viewport: DESKTOP }), { page } = t;
-  await expect(trigger(page)).toHaveAccessibleName('Controls: Cursor');
+  await expect(trigger(page)).toHaveAccessibleName(controlName('Cursor'));
   // 2..8 then 1: pressing the current control's digit is a no-op, so each press below is a real switch.
   for (const n of [2, 3, 4, 5, 6, 7, 8, 1]) {
     const id = DESKTOP_IDS[n - 1], want = LAYERS[id];
     await page.keyboard.press(`Digit${n}`);
     await expect.poll(() => controlId(page)).toBe(id);
-    await expect(trigger(page)).toHaveAccessibleName(`Controls: ${LABELS[n - 1]}`);
+    await expect(trigger(page)).toHaveAccessibleName(controlName(LABELS[n - 1]));
     await want.layer(page);
     if (['draw', 'conduct', 'brush'].includes(id)) expect(await page.evaluate(() => document.documentElement.dataset.controls)).toBe(id);
     else await expect(page.getByTestId('lab-surface')).toHaveCount(0);
@@ -123,19 +124,36 @@ test('a click outside the sheet closes it without a shot and without pausing; Do
   await openSheet(page); await row(page, 'draw').click();
   await expect.poll(() => controlId(page)).toBe('draw');
   await expect(sheet(page)).toBeVisible();
-  await expect(trigger(page)).toHaveAccessibleName('Controls: Draw');
+  await expect(trigger(page)).toHaveAccessibleName(controlName('Draw'));
   expect(t.errors).toEqual([]); await t.context.close();
 });
 
-test('the sheet Vote button closes the sheet and opens the vote card (mocked)', async ({ browser }) => {
-  const t = await controlsPage(browser, 'standard', { viewport: DESKTOP }), { page } = t;
+test('the sheet Vote button (there once two ways are flown) closes the sheet and opens the vote card (mocked)', async ({ browser }) => {
+  const t = await controlsPage(browser, 'standard', { viewport: DESKTOP, init: playInit({ 'desktop:cursor': 25, 'desktop:draw': 25 }), routes: p => mockResults(p) }), { page } = t;
   await mockVote(page);
   await openSheet(page);
-  await sheet(page).getByRole('button', { name: 'Vote: which felt best?' }).click();
+  await sheet(page).getByTestId('controls-vote').click();
   await expect(page.getByTestId('vote-card')).toBeVisible();
   await expect(sheet(page)).toHaveCount(0);
   expect(t.errors).toEqual([]); await t.context.close();
 });
+
+for (const v of [PHONE_LANDSCAPE, PHONE_PORTRAIT]) {
+  test(`phone ${v.width}x${v.height}: with two ways flown the sheet footer holds Vote beside Done, both on screen, 44 px tall`, async ({ browser }) => {
+    const t = await controlsPage(browser, 'standard', { touch: true, viewport: v, init: playInit({ 'touch:one-finger': 25, 'touch:draw': 25 }), routes: p => mockResults(p) }), { page } = t;
+    await expect(page.getByTestId('vote-chip')).toBeVisible();
+    await openSheet(page, true);
+    const vote = sheet(page).getByTestId('controls-vote'), done = sheet(page).getByTestId('controls-done');
+    for (const [what, l] of [['Vote', vote], ['Done', done]] as const) {
+      const b = await box(l);
+      expect(inside(b, v), what).toBe(true); expect(b.height, what).toBeGreaterThanOrEqual(44);
+    }
+    expect((await box(vote)).x, 'Vote comes first').toBeLessThan((await box(done)).x);
+    const fits = await sheet(page).evaluate(e => e.scrollHeight <= e.clientHeight + 1);
+    if (v.height < 500) expect(fits, 'the two-column landscape sheet still fits with the Vote button').toBe(true);
+    expect(t.errors).toEqual([]); await t.context.close();
+  });
+}
 
 test('Tried X of N counts controls with 20 s of seeded play, and marks their rows', async ({ browser }) => {
   const t = await controlsPage(browser, 'standard', { viewport: DESKTOP, init: playInit({ 'desktop:cursor': 30, 'desktop:draw': 20, 'desktop:flow': 19 }) }), { page } = t;
@@ -165,7 +183,7 @@ test('the desktop sheet lists the eight desktop controls with digits 1-8', async
 for (const v of [PHONE_LANDSCAPE, PHONE_PORTRAIT]) {
   test(`phone ${v.width}x${v.height}: five touch controls, sheet inside the screen, footer reachable, 44 px rows, a touch pick closes it and flight works`, async ({ browser }) => {
     const t = await controlsPage(browser, 'twin-stick', { touch: true, viewport: v }), { page, finger } = t;
-    await expect(trigger(page)).toHaveAccessibleName('Controls: Twin stick');
+    await expect(trigger(page)).toHaveAccessibleName(controlName('Twin stick'));
     await openSheet(page, true);
     expect(await rowIds(page)).toEqual(TOUCH_IDS);
     for (const label of ['Cursor', 'Flow', 'Captured', 'Mouse + keys', 'One finger + keys']) await expect(sheet(page).getByText(label, { exact: true })).toHaveCount(0);
@@ -179,11 +197,12 @@ for (const v of [PHONE_LANDSCAPE, PHONE_PORTRAIT]) {
     expect(s.y, 'sheet under the header').toBeGreaterThanOrEqual(head.y + head.height - 1);
     for (const id of TOUCH_IDS) expect((await box(row(page, id))).height, id).toBeGreaterThanOrEqual(44);
     // A landscape phone lists the five rows in two columns, so they fit at 852 x 393 without scrolling (750 x 340 scrolls by touch:
-    // controls-review-fixes.spec.ts). Done and Vote stay in view either way.
+    // controls-review-fixes.spec.ts). Done stays in view either way (Vote joins it once two ways are flown: the next test).
     const fits = await sheet(page).evaluate(e => e.scrollHeight <= e.clientHeight + 1);
     expect(fits, 'five rows fit the sheet').toBe(true);
     if (v.height < 500) expect((await box(row(page, 'twin-stick'))).x, 'two columns').toBeGreaterThan((await box(row(page, 'one-finger'))).x + 100);
-    for (const name of ['Done', 'Vote: which felt best?']) expect(inside(await box(sheet(page).getByRole('button', { name })), v), name).toBe(true);
+    await expect(sheet(page).getByTestId('controls-vote')).toHaveCount(0); // fewer than two ways flown: the line above, no Vote button
+    expect(inside(await box(sheet(page).getByTestId('controls-done')), v), 'Done').toBe(true);
     // A touch pick closes the sheet at once, the store changes, and the one-finger hold flies with no further tap.
     await row(page, 'one-finger').tap();
     await expect(sheet(page)).toHaveCount(0);
@@ -297,7 +316,7 @@ test('blocked localStorage still works: the demo note dismisses for the page and
   await expect(first.getByTestId('demo-note')).toHaveCount(0);
   await context.close();
   const t = await controlsPage(browser, 'standard', { viewport: DESKTOP, init: blockStorage, saved: null }), { page } = t;
-  await expect(trigger(page)).toHaveAccessibleName('Controls: Cursor');
+  await expect(trigger(page)).toHaveAccessibleName(controlName('Cursor'));
   await page.keyboard.press('Digit2');
   await expect.poll(() => controlId(page)).toBe('one-finger-keys');
   await openSheet(page);

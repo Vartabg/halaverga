@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { openSheet, sheet } from './controls-browser';
 import { card, chip, mock, notYet, openFromChip, paused, pickAndSend, playing, radio, sendBtn, TWO_DESK, voteMark, votePage, voteResults } from './vote-browser';
 // What Send does with each answer (spec 1.7, 1.8, 1.5): one nonce, a kept pick, honest copy, focus and Escape after a failure. System
 // Chrome emulation; /api/vote and /api/results are always mocked. PLAYTEST_URL=http://127.0.0.1:3421 pnpm test:browser -g "@vote".
@@ -63,7 +64,7 @@ test('@vote a 429 shows the busy copy, keeps the pick, never says the vote is in
   expect(bodies).toHaveLength(1);
   expect((await voteMark(page))?.desktop?.at).toBeUndefined(); // the device is not marked as voted
   expect(await page.evaluate(() => localStorage.getItem('halaverga.vote.pending'))).toContain('"desktop"'); // the pick is kept
-  // The vote card has the game paused, and the top row is empty while paused: the chip is back once the card is closed unsent.
+  // The vote card has the game paused, and the top row is empty while paused: the pill is back once the card is closed unsent.
   await notYet(page).click();
   await expect(chip(page)).toBeVisible();
   expect(t.errors).toEqual([]); await t.context.close();
@@ -98,7 +99,9 @@ test("@vote a 503 on Send replaces the ballot with Voting isn't open right now, 
 
 for (const [name, results] of [['open:false', voteResults({}, false)], ['a failing /api/results', 503 as number], ['a 500 from /api/results', 500 as number]] as const) {
   test(`@vote the soft paused line shows when the probe says ${name}; the ballot stays and Send is still attempted`, async ({ browser }) => {
-    const t = await votePage(browser, TWO_DESK), { page } = t, bodies = await mock(page, [200], results);
+    const t = await votePage(browser, TWO_DESK), { page } = t;
+    await expect(chip(page)).toBeVisible(); // the pill's own ballot check has been answered (open), so only the CARD's read meets the mock below
+    const bodies = await mock(page, [200], results);
     await openFromChip(page);
     await expect(card(page).getByTestId('vote-paused')).toHaveText('Voting may be paused. You can still try to send.');
     await expect(card(page)).toHaveAttribute('data-phase', 'ballot');
@@ -132,7 +135,7 @@ test('@vote after a failed send focus is on Send, Escape still closes the card, 
   expect(t.errors).toEqual([]); await t.context.close();
 });
 
-test('@vote a manual Not yet or Escape leaves no Skip mark and the chip stays', async ({ browser }) => {
+test('@vote a manual Not yet or Escape leaves no Skip mark and the pill stays', async ({ browser }) => {
   const t = await votePage(browser, TWO_DESK), { page } = t;
   await mock(page, [200]);
   await openFromChip(page);
@@ -143,19 +146,25 @@ test('@vote a manual Not yet or Escape leaves no Skip mark and the chip stays', 
   await page.keyboard.press('Escape');
   await expect(card(page)).toHaveCount(0);
   expect(await voteMark(page)).toBeNull();
-  await expect(chip(page)).toHaveAttribute('data-ready', '');
+  await expect(chip(page)).toBeVisible();
   expect(t.errors).toEqual([]); await t.context.close();
 });
 
-test('@vote a device that already voted sees the thanks and no second ballot when the card is opened from the pause card', async ({ browser }) => {
+test('@vote a device that already voted sees the thanks and no second ballot when the card is opened from the Controls sheet, and the pause card has no door', async ({ browser }) => {
   const t = await votePage(browser, TWO_DESK, { extra: { 'halaverga.vote.v1': JSON.stringify({ round: 'r3', desktop: { at: Date.now() - 1000 } }) } }), { page } = t;
   await mock(page, [200]);
-  await expect(chip(page)).toHaveCount(0); // no chip after a vote
-  await page.getByRole('button', { name: 'Pause expedition' }).click();
-  await expect(paused(page)).toBeVisible();
-  await page.getByTestId('vote-open').click();
+  await expect(chip(page)).toHaveCount(0); // no pill after a vote
+  await openSheet(page);
+  await expect(sheet(page).getByTestId('controls-vote')).toHaveText('Vote sent: see results');
+  await sheet(page).getByTestId('controls-vote').click();
   await expect(card(page)).toHaveAttribute('data-phase', 'done');
   await expect(card(page).getByRole('status')).toHaveText('Your vote is in. Thanks.');
   await expect(card(page).getByRole('radio')).toHaveCount(0);
+  await card(page).getByRole('button', { name: 'Done' }).click();
+  await expect(card(page)).toHaveCount(0);
+  await expect(playing(page)).toBeVisible(); // the card was opened over a running game, so Done gives it back
+  await playing(page).click();
+  await expect(paused(page)).toBeVisible();
+  await expect(paused(page).getByTestId('vote-open')).toHaveCount(0); // sent: nothing on the pause card
   expect(t.errors).toEqual([]); await t.context.close();
 });

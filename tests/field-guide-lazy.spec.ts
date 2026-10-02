@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { mockResults, playInit } from './controls-browser';
 // The Field guide is a lazy chunk (src/ui/useFieldGuide.ts). System Chrome emulation: these check the wiring a player can see (the status
 // line while it loads, the failure line, the retry on the next open, no stranded pause card), never how it behaves on a real phone.
 type Mode = 'fail' | 'slow' | 'hold' | 'pass';
@@ -125,8 +126,9 @@ test('the skip link keeps its target and opens the guide once the chunk lands', 
 // may not pile a second dialog on top (before this, Escape then closed the guide, resumed play and silently discarded the other one).
 const modals = (page: Page) => page.locator('dialog[open], [role="dialog"]');
 /** Starts a held guide open from a paused card; `door` then claims the screen; the chunk is released and has landed before this returns. */
-async function claimedWhileLoading(page: Page, door: () => Promise<void>) {
+async function claimedWhileLoading(page: Page, door: () => Promise<void>, before: () => Promise<void> = async () => {}) {
   const chunk = await guideChunk(page, 'fail');
+  await before();
   await page.goto('/?shooter=0'); await begin(page);
   chunk.mode.now = 'hold';
   await pauseThenGuide(page);
@@ -157,14 +159,14 @@ test('Flight settings in the loading window cancels the guide: one dialog, and t
   await expect(modals(page)).toHaveCount(1);
 });
 
-// The header gear and the header Vote chip are not on the paused screen any more, so the pause card's own doors (Flight settings above, the vote door
-// below) are the ones that can claim the screen while the guide loads.
+// The header gear and the header Vote pill are not on the paused screen any more, so the pause card's own doors (Flight settings above, the vote door
+// below) are the ones that can claim the screen while the guide loads. The vote door is only there once the vote works: two ways flown, an open ballot.
 
 test('the vote door in the loading window cancels the guide: one dialog, and closing it puts the pause card back', async ({ page }) => {
   await claimedWhileLoading(page, async () => {
     await card(page).getByTestId('vote-open').click();
     await expect(page.getByTestId('vote-card')).toBeVisible();
-  });
+  }, async () => { await page.addInitScript(playInit({ 'desktop:cursor': 25, 'desktop:draw': 25 })); await mockResults(page); });
   await expect(modals(page)).toHaveCount(1);
   await expect(page.getByTestId('vote-card')).toBeVisible();
   await expect(page.getByRole('dialog', { name: 'Field guide' })).toHaveCount(0);

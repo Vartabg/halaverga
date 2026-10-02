@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { controlName } from './controls-browser';
 import { openSettings, closeAndResume, pauseCard } from './lab-browser';
 import AxeBuilder from '@axe-core/playwright';
 import { twinTouchPage } from './shooter-browser';
@@ -72,7 +73,7 @@ test('Controls on a desktop: the trigger and sheet by keyboard, list radios, fal
   await wcag(page);
   // The trigger: a button named by its visible text (2.5.3), at least 44 x 44, announcing the dialog it opens.
   const trigger = page.getByTestId('controls-trigger');
-  await expect(trigger).toHaveAccessibleName('Controls: Draw');
+  await expect(trigger).toHaveAccessibleName(controlName('Draw'));
   await expect(trigger).toHaveAttribute('aria-haspopup', 'dialog'); await expect(trigger).toHaveAttribute('aria-expanded', 'false');
   { const b = (await trigger.boundingBox())!; expect(b.height).toBeGreaterThanOrEqual(44); expect(b.width).toBeGreaterThanOrEqual(44); }
   // The sheet is a non-modal dialog named Controls; the list is one native radio group and every row is at least 44 px high. Arrow
@@ -95,7 +96,7 @@ test('Controls on a desktop: the trigger and sheet by keyboard, list radios, fal
   // Escape closes the sheet, never pauses, and the view of play returns.
   await page.keyboard.press('Escape');
   await expect(sheet).toHaveCount(0); await expect(page.getByRole('button', { name: 'Pause expedition' })).toBeVisible();
-  await expect(trigger).toHaveAccessibleName('Controls: Cursor');
+  await expect(trigger).toHaveAccessibleName(controlName('Cursor'));
   // Flight settings has one Controls row, not a second list: the row names the control in use and opens the same sheet (the dialog
   // closes as the sheet opens, the game stays paused). The pause card hides while the sheet shows and returns with focus on its row.
   await page.getByRole('button', { name: 'Pause expedition' }).focus(); await page.keyboard.press('Enter');
@@ -134,7 +135,7 @@ test('Controls on a desktop: the trigger and sheet by keyboard, list radios, fal
   await expect(dialog.getByRole('region', { name: 'Control lab measurements table' })).toHaveAttribute('tabindex', '0');
   await wcag(page);
   await closeAndResume(page);
-  await expect(trigger).toHaveAccessibleName('Controls: Conduct');
+  await expect(trigger).toHaveAccessibleName(controlName('Conduct'));
   expect(errors).toEqual([]);
 });
 test('Controls on a phone: play, the pause card row, the sheet over the paused game and the sheet in play satisfy AA checks', async ({ browser }) => {
@@ -163,14 +164,14 @@ test('Controls on a phone: play, the pause card row, the sheet over the paused g
   await aa(page);
   await card.getByRole('button', { name: 'Resume flight' }).tap();
   const trigger = page.getByTestId('controls-trigger');
-  await expect(trigger).toHaveAccessibleName('Controls: Draw');
+  await expect(trigger).toHaveAccessibleName(controlName('Draw'));
   // A tap on the trigger opens the sheet; a tap on a row switches at once, closes the sheet and keeps playing.
   await trigger.tap();
   const sheet = page.getByTestId('controls-sheet');
   await expect(sheet).toBeVisible(); await aa(page);
   await sheet.getByRole('radio', { name: /^Conduct/ }).tap();
   await expect(sheet).toHaveCount(0);
-  await expect(trigger).toHaveAccessibleName('Controls: Conduct');
+  await expect(trigger).toHaveAccessibleName(controlName('Conduct'));
   await expect(page.getByRole('button', { name: 'Pause expedition' })).toBeVisible();
   await aa(page);
   expect(errors).toEqual([]); await context.close();
