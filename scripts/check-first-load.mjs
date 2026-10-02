@@ -21,8 +21,9 @@ const VOTE = ['VoteCard-module', 'vote-card', '/api/vote', 'halaverga.vote'];
 // The Field guide (copy, municipal record, build stamp, QR) is a chunk opened from the header, the skip link, the terminal or the E key
 // (useFieldGuide): its headings and button copy are unique to it, so the landing page can never pull it back in by a static import.
 const GUIDE = ['Explore through text', 'MERIDIAN · EARTH · 2113', 'Recover municipal record', 'Playtest this build'];
-// Main measured 614.9 KB (PR #11); the blaster keeps only its input handlers and plain state on the landing page.
-const BUDGET_KB = 636;
+// Main measured 614.9 KB (PR #11); the blaster keeps only its input handlers and plain state on the landing page. The screen cleanup moved the Field guide
+// to a lazy chunk and measured 629.6 KB (it was 635.6 KB), so the budget is ceil(629.6) + 1. A ratchet: it is lowered when a change measures lower, never raised.
+const BUDGET_KB = 631;
 const html = await readFile(root + '.next/server/app/index.html', 'utf8').catch(() => {
   throw new Error('No landing build found: run `next build` first.');
 });

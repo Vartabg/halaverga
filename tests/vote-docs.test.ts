@@ -44,8 +44,8 @@ describe('docs/voting.md numbers are the code\'s numbers', () => {
     for (const s of ['25 h (90,000 s)', '| 30 days |', 'expire after 90,000 s']) inDocs(s);
     expect(read('src/ui/vote/voteClient.ts')).toMatch(/opts\.timeoutMs \?\? 7000[\s\S]*opts\.retryDelayMs \?\? 1000/);
     for (const s of ['7 s per attempt, one retry after 1 s']) inDocs(s);
-    expect(read('scripts/check-first-load.mjs')).toContain('const BUDGET_KB = 636;');
-    inDocs('636 KB, printed 636.0 KB');
+    expect(read('scripts/check-first-load.mjs')).toContain('const BUDGET_KB = 631;');
+    inDocs('631 KB, printed 629.6 KB');
   });
   it('quotes the card and page texts, the outcome copy and the results sentence word for word, and names every control', () => {
     inDocs(PRIVACY_SHORT);
