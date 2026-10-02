@@ -176,7 +176,7 @@ Releasing held input clears keys, thumbs, the stick, tap, surge, lift and a manu
 
 ## Hints (`src/ui/hintSteps.ts`)
 
-Two thumbs: "Left thumb: move" → "Right thumb: look" → "Tap Lift off to fly" → "Aim at drones · Fire to shoot" (auto-fire off: "Hold Fire to shoot"; blaster off: "Hold Descend to land"). The steps finish on a stick move, 0.2 rad of touch look (or a hit), a Rise or Descend press (or lift-off), and a hit or 5 shots (blaster off: a landing). Only the third and fourth steps time out, after 20 s shown (never saved). One thumb (the default, blaster on): one 6 s line per page load, "Drag to fly · tap a drone", then main's "ONE THUMB TO FLY · TWO TO MOVE + LOOK" on the ground. The version-3 migration restarts touch hint progress.
+Two thumbs: "Left thumb: move" → "Right thumb: look" → "Tap Lift off to fly" → "Aim at drones · Fire to shoot" (auto-fire off: "Hold Fire to shoot"; blaster off: "Hold Descend to land"). The steps finish on a stick move, 0.2 rad of touch look (or a hit), a Rise or Descend press (or lift-off), and a hit or 5 shots (blaster off: a landing). Only the third and fourth steps time out, after 20 s shown (never saved). One thumb (the default, blaster on): the line "Drag to fly · tap a drone" sits in the one hint slot under the top row (with the blaster off, or with tap controls, "Drag to fly") until the first takeoff or the first touch on the flight surface, once per page load; a message, a landing cue or a limit cue pre-empts it and it comes back after they clear if the player has not flown yet. The 8 px bottom caption ("ONE THUMB TO FLY · TWO TO MOVE + LOOK") no longer exists. The version-3 migration restarts touch hint progress.
 
 ## Screen diagnostics
 
