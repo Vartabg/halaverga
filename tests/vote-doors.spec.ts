@@ -128,6 +128,14 @@ test('@vote an idle session that only opens the sheet and steps through the cont
   for (let i = 0; i < 4; i++) { await page.keyboard.press('Tab'); await page.waitForTimeout(150); }
   await sheet(page).hover();
   await page.waitForTimeout(3600);
+  // The backdrop is a header sibling now, not a dialog: moving the mouse across it for 3 s is not game input either.
+  const spot = await page.evaluate(() => {
+    const b = document.querySelector('[data-testid=controls-backdrop]');
+    for (let x = 20; x < innerWidth; x += 20) if (document.elementFromPoint(x, 450) === b) return { x, y: 450 };
+    return null;
+  });
+  expect(spot, 'a point on the backdrop outside the sheet').not.toBeNull();
+  for (let i = 0; i < 12; i++) { await page.mouse.move(spot!.x + (i % 2) * 8, spot!.y); await page.waitForTimeout(250); }
   await page.keyboard.press('Escape');
   await expect(sheet(page)).toHaveCount(0);
   await page.waitForTimeout(2600);

@@ -12,6 +12,8 @@ function setup() {
 }
 const game = { closest: () => null };
 const inDialog = { closest: (sel: string) => (sel.includes('dialog') ? {} : null) };
+// The Controls backdrop is a header sibling and no dialog: only the data-apart marker in the selector list keeps it out of the game.
+const onBackdrop = { closest: (sel: string) => (sel.split(',').map(x => x.trim()).includes('[data-apart]') ? {} : null) };
 
 describe('play input (what counts as playing for the vote)', () => {
   it('nothing has happened: not active', () => {
@@ -48,6 +50,16 @@ describe('play input (what counts as playing for the vote)', () => {
     s.fire('keydown', { code: 'Digit3', target: game }); s.fire('keydown', { code: 'Numpad8', target: game });
     s.fire('pointermove', { target: null });
     expect(s.input.active(1001)).toBe(false);
+  });
+
+  it('the Controls backdrop (data-apart, outside the header and the dialog) is not game input: no move, press, wheel or key counts', () => {
+    const s = setup();
+    s.at(1000);
+    s.fire('pointermove', { target: onBackdrop }); s.fire('pointerdown', { pointerId: 4, target: onBackdrop });
+    s.fire('wheel', { target: onBackdrop }); s.fire('keydown', { code: 'KeyW', target: onBackdrop });
+    expect(s.input.active(1001)).toBe(false);
+    s.fire('pointermove', { target: game }); // the same module still counts the game, so the case above is not a no-op
+    expect(s.input.active(1001)).toBe(true);
   });
 
   it('a blur forgets held keys and pointers, and stop removes every listener', () => {
