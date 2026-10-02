@@ -10,7 +10,7 @@ vi.mock('@/game/store', async importOriginal => {
 import { useGame } from '@/game/store';
 import { VOTE_ROUND } from '@/lib/vote/ballot';
 import ControlsPicker from '@/ui/controls/ControlsPicker';
-import { VoteButton } from '@/ui/controls/ControlsSheet';
+import ControlsSheet, { VoteButton } from '@/ui/controls/ControlsSheet';
 import PauseControls from '@/ui/controls/PauseControls';
 import { ballotNow, ballotOf, lockedTail, READY_TEXT, setBallot, VOTE_NAME, voteView } from '@/ui/controls/useVoteState';
 import { QUESTION } from '@/ui/vote/question';
@@ -165,6 +165,21 @@ describe('the Controls sheet footer', () => {
     expect(button('touch')).toContain('>Vote</button>'); // the other family still has its Vote
     setBallot('closed'); expect(button('touch')).toBe('');
     setBallot('unknown'); expect(button('touch')).toBe('');
+  });
+});
+
+describe('CODE-9 the tried line once the vote is sent', () => {
+  const sheet = (family: 'touch' | 'desktop') => html(createElement(ControlsSheet, { family, onClose: () => {} }));
+  const card = () => html(createElement(PauseControls)); // the pause card follows the last pointer: desktop here
+  it('a sent family needs nothing more, whatever it flew: the sheet and the pause card read Tried 0 of 8, never "needed to vote"', () => {
+    seedPlay({}); voted('desktop');
+    for (const m of [sheet('desktop'), card()]) { expect(m).toContain('Tried 0 of 8'); expect(m).not.toContain('needed to vote'); }
+  });
+  it('the family that has not voted still reads how many it needs, and sending one family does not change the other', () => {
+    seedPlay({}); voted('desktop');
+    expect(sheet('touch')).toContain('Tried 0 of 2 needed to vote'); expect(sheet('touch')).not.toContain('Tried 0 of 5');
+    vi.unstubAllGlobals();
+    expect(sheet('desktop')).toContain('Tried 0 of 2 needed to vote'); expect(card()).toContain('Tried 0 of 2 needed to vote');
   });
 });
 
