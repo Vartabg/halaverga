@@ -34,7 +34,7 @@ export const CLOUD = {
   weatherScale: .55, weatherSwing: .3,
 };
 export const FOG = { color: HAZE, near: 95, far: 330 };
-export const HEMISPHERE = { sky: '#c0dbed', ground: '#737657', intensity: 1.7 };
+export const HEMISPHERE = { sky: '#c0dbed', ground: '#647c7a', intensity: 1.7 };
 
 const clamp01 = (x: number) => Math.min(1, Math.max(0, x));
 const smooth = (a: number, b: number, x: number) => { const t = clamp01((x - a) / (b - a)); return t * t * (3 - 2 * t); };
