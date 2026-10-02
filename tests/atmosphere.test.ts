@@ -98,8 +98,11 @@ describe('sun glow and cloud scale', () => {
     expect(r).toBe(255); expect(g).toBeGreaterThan(220); expect(b).toBeGreaterThan(160); expect(b).toBeLessThan(215); // cream: warmer than the pale lift, never white
   });
   it('keeps the cloud plane high, so the top of a level phone frame is not magnified far beyond the horizon', () => {
-    const density = (deg: number) => CLOUD.scale / (Math.sin(deg * Math.PI / 180) + CLOUD.lift); // cloud texture repeats per radian
-    expect(density(10) / density(40)).toBeLessThan(2); // the old lift of .3 gave 2.6
+    const sin = (deg: number) => Math.sin(deg * Math.PI / 180), a = CLOUD.lift;
+    const across = (deg: number) => 1 / (sin(deg) + a); // cloud texture repeats per radian of view, along the horizon
+    const up = (deg: number) => (1 + a * sin(deg)) / (sin(deg) + a) ** 2; // and up the frame
+    expect(across(10) / across(40)).toBeLessThan(1.8); // a lift of .3 gave 2.0
+    expect(up(10) / up(40)).toBeLessThan(2.5); // a lift of .3 gave 3.5, the "four times" smear at the top of a phone frame
     expect(domeFragment).toContain('dir.xz / (h + CLOUD_LIFT)');
   });
 });

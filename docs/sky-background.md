@@ -7,8 +7,9 @@ Fiction (AGENTS.md): a fictional modern hillside city destroyed in 2033, visited
 afternoon over a flooded, overgrown, damaged city, not an apocalypse and not a flat grey haze.
 
 Status: **S1 (sky dome, sun, clouds, sky colours and the coherence of water reflection, fog colour, hemisphere and environment) and S2
-(horizon band, sea haze, distant skyline, fog range) are built.** Nothing is pushed. The old skyline boxes are gone: the background is
-now a sky, one haze, and a seeded three-layer skyline standing in the sea.
+(horizon band, sea haze, distant skyline, fog range) are built, and repair round 1 (after the first review of the S2 frames) is in; see
+"Repair round 1" near the end, which supersedes the numbers below where they differ.** Nothing is pushed. The old skyline boxes are
+gone: the background is now a sky, one haze, and a seeded three-layer skyline standing in the sea.
 
 ## One source of truth: `src/world/atmospherePalette.ts`
 
@@ -17,9 +18,10 @@ lazy world chunk; `grep -rn atmospherePalette src/game src/ui` returns nothing).
 `Atmosphere.tsx` sits beside it and a case-insensitive filesystem (macOS) resolves `./Atmosphere` to the `.ts` file first
 (`tsc` reports TS1149). S2 extended this file.
 
-Exports: `SUN_POSITION`, `SUN_DIRECTION`, `SUN_COLOR`, `SUN_DISC`, `SUN_UV`, `SUN_XZ`, `HAZE`, `SKY`, `SKY_STOPS_H`, `CLOUD`, `FOG`,
-`SKYLINE` (S2: seed, crown green, layer gaps, layer tints), `HEMISPHERE`, `hexToLinear`, `glslVec3`, `skyBase` (the TypeScript twin of
-the GLSL `skyBase`), `directionFromUv`, `driftClouds`.
+Exports: `SUN_POSITION`, `SUN_DIRECTION`, `SUN_COLOR`, `SUN_DISC`, `SUN_CREAM`, `SUN_PALE`, `SUN_UV`, `SUN_XZ`, `HAZE`, `SKY`,
+`SKY_STOPS_H`, `CLOUD`, `FOG`, `SKYLINE` (S2: seed, crown green, layer gaps, layer tints), `HEMISPHERE`, `EXPOSURE`, `WATER_BODY`,
+`SEA_BODY`, `acesFilmic`, `hexToLinear`, `glslRgb`, `glslVec3`, `skyBase` (the TypeScript twin of the GLSL `skyBase`),
+`directionFromUv`, `driftClouds`.
 Colours are display hex (what appears on screen). Nothing else in the repo hand-types the sun or a sky colour any more: the
 directional light, the dome, the water glint and reflection, the environment map (glow centre and sky half), fog and hemisphere all read
 this file. `scripts/arm_cannon/render.py` still carries the old olive hemisphere ground and its own sun for the Blender cannon renders;
@@ -34,8 +36,8 @@ it was left alone on purpose.
 | Sky mid (30 deg) | `#7fb0dc` | |
 | Sky zenith | `#3f7fc4` | |
 | Warm sun-side lift | `#f2e6cc` | Lifts the low sky toward the sun only, zero at the horizon and on the far side. |
-| Sun light / sun disc | `#ffe6b2` / `#ffeeaa` | The light is unchanged. The disc is a fixed on-screen gold, soft edged. |
-| Cloud lit / shade | `#f4f4ee` / `#aebbc8` | |
+| Sun light / disc / cream / pale | `#ffe6b2` / `#ffe8a0` / `#ffecbc` / `#e4eef8` | The light is unchanged. The disc is a fixed on-screen gold, soft edged; cream and pale are the glow (round 1). |
+| Cloud lit / shade | `#fbf8ee` / `#a3bad0` | Round 1: warmer tops, a cooler shade (was `#f4f4ee` / `#aebbc8`). |
 | Hemisphere sky / ground | `#c0dbed` / `#647c7a` | Ground was `#737657` (olive); see the A/B below. Intensity 1.7 unchanged. |
 | Fog | HAZE, near 70, far 590 | S1 changed the colour (was `#a9c0b8`), S2 the range (was 95 to 330). See the factor table below. |
 
@@ -57,7 +59,7 @@ the SUN constant in the scratch capture script.
 - `cloudData.ts`: one 256x256 RGBA8 tileable texture made once at load with an integer hash (no `Math.random`, no `sin`): R coarse
   billow cumulus (domain warped), G finer detail, B a broad weather map that makes banks and clear gaps. Texture: repeat wrap, mipmaps,
   no colour space, created in `useMemo`, disposed on unmount (the Scene remounts after context loss).
-- Cloud shader: a flat layer projected as `dir.xz / (h + .3)`, faded out before the horizon (no vertical curtain streaks; checked with a
+- Cloud shader (S1 numbers; round 1 raised the lift to .55, see below): a flat layer projected as `dir.xz / (h + .3)`, faded out before the horizon (no vertical curtain streaks; checked with a
   strong contrast stretch of the rows 3 to 10 degrees above the horizon). Five taps and no loops: shape, a blurred read and a blurred
   read shifted toward the sun for the lighting (lit rims toward the sun, cool shaded bases), the weather map, and an edge-roughness read.
   The edge ramp follows `fwidth`, so edges stay crisp when a cloud is magnified at the zenith.
@@ -66,9 +68,10 @@ the SUN constant in the scratch capture script.
   Measured on the production build (top 140 rows of the 1440x900 hero view, sky-only strips, 126,000 px): 5 s of play 62,747 px differ;
   reduced motion over 4 s 430 px differ, all by at most 2 levels (sub-pixel camera jitter at cloud edges, no translation); paused, then
   resized and restored, 0 px differ.
-- `CLOUD.offset = (.18, .62)` was picked by a CPU twin of the cloud mask (a search over 2,500 offsets) so that the sun neighbourhood stays
-  clear for the first 40 s of drift, the first view has a bank in the upper third with nothing over the middle of the skyline, and the
-  look-up and level views keep 30 to 50 percent coverage. If the texture, scale, coverage or wind change, pick the offset again.
+- `CLOUD.offset` was picked by a CPU twin of the cloud mask (a search over 1,600 offsets) so that the sun neighbourhood stays clear, the
+  first view keeps the middle of the skyline clear, and the look-up and level views keep a believable amount of cloud. Round 1 changed
+  the texture scale, lift and coverage, so it was picked again, and the search now also keeps the HUD text clear (see round 1). If the
+  texture, scale, lift, coverage or wind change, pick the offset again.
 - `waterShader.ts`, `Atmosphere.tsx` (`Water`): the body (deep teal, shimmer, wake) is still tone mapped like the city; the reflection is
   `skyBase(reflected)`, display-referred, mixed in by the Fresnel term, so at a grazing angle the water meets the dome with no seam; the
   sun glint is tone mapped and added on top; the far end fades to HAZE between 110 and 360 m (S2 replaced this with scene fog). The
@@ -109,7 +112,7 @@ the SUN constant in the scratch capture script.
 - HUD legibility, white against the pixels behind the HALAVERGA brand text (ground-horizon-hud, median background): portrait 2.84 to 2.46,
   desktop 2.67 to 2.78. The brand sits over a cloud edge in portrait, so it is a little weaker there than over the old grey sky.
   The telemetry in portrait went 1.59 to 1.81 (median) and 1.56 to 1.36 (80th percentile). The CSS scrim is unchanged.
-- Tests: `tests/atmosphere.test.ts` (16 tests): one sun, haze exact at and below eye level, ramp stops, bluer with height, warm lift
+- Tests (S1; round 1 added more): `tests/atmosphere.test.ts` (16 tests): one sun, haze exact at and below eye level, ramp stops, bluer with height, warm lift
   toward the sun only, fog colour equals haze, GLSL strings built from the palette, display-referred dome pinned to the far plane,
   disc colour, cloud data deterministic, tileable and 32 to 48 percent coverage, drift holds still when paused or reduced.
   `pnpm test` runs 175 files and 2,158 tests, all green (one earlier full run under CPU load showed a single timing failure that did
@@ -118,6 +121,8 @@ the SUN constant in the scratch capture script.
   (one `classic-blast` second-finger tap failed once under CPU contention from another build and passed on two re-runs of the file).
 
 ## What S2 changed
+
+(S2 numbers for the skyline look, the foot mist and the edge hills are superseded by round 1 below.)
 
 ### Fog, one haze for sea, city and skyline
 
@@ -223,6 +228,68 @@ triangles; the 101 colliders and their hash `ef8cefd9ae2bbdc6` are unchanged).
   shape variety, 100 to 400 m outside the flyable box, 340 to 410 m from the spawn camera, canal vista and landmark clusters, colliders and
   city triangle count, edge hills in the ground group, mount source checks) and `tests/atmosphere.test.ts` (19 tests, 3 new: fog numbers,
   water fog chunks, ripple fades).
+
+## Repair round 1 (2026-10-02, after the first review of the S2 frames)
+
+Garo: "better, you're trending in the right direction; the sky and the background still are ruining the demo". A second round of reviewers
+looked at the S2 frames (`scratchpad/sky/after0`) and raised 13 problems. Each was checked on those frames first. Measured frames of this
+round: `scratchpad/sky/fix0` (production build of the final commit, 33 frames and 3 sheets on port 3530, 0 missing, 0 camera mismatches,
+0 page errors, desktop Chrome on Metal at phone-shaped viewports: emulation, not iPhone validation).
+
+### What was real and what was done
+
+| Problem | Verdict | Change |
+|---|---|---|
+| Sun is a flat yellow dot in a cool white bloom | Real: disc `#ffeeaa` (10 px), then `#edf2f5` (sat .05) within 4 px | The glow is mixed, not added (an add pushes blue sky through white): gold core `#ffe8a0`, cream `#ffecbc`, pale lift `#e4eef8`, sky. The disc is about 1.5x larger with a soft edge. Cloud rims toward the sun get a cream silver lining. Measured on `toward-sun-*`: disc `#ffe8a0`, cream `#eee3c6` (sat .17) at 26 px, pale `#ccd5db` at 50 px, sky `#8ab5dc` at 220 px; before `#ffeeaa` then `#e8f0f9` (sat .07). |
+| Edge hills are lime (and flat, and one wall near black) | Real: sat .50 to .72, hue 70 to 72. Cause: the moss texture is yellow (mean 88, 87, 30), so any tint on it is lime | `HILL` in `cityData.ts`: grey-green walls and sage tops on the stone texture (hexes not in `surface()`'s lists), `kit.hill()` cuts each hill into 16 m cells with their own tone, tops mossy and walls darker toward the water. Colliders are the same plain boxes (hash `ef8cefd9ae2bbdc6` unchanged). Measured: tops sat .24 to .31 (was .55 to .62), hue 75 to 82; shaded walls luma 69 to 77 (was 50 to 56). City mesh 85,448 to 86,784 triangles. |
+| Skyline is clean, uniform, cardboard (3 reports) | Real: faces within 1 level of each other, flat roofs, one grid | `skylineDamage.ts` (new) and `skylineParts.ts`: each tower has a mood (bleached, moss-stained, rusty, glassy, dark, plain), a darker low third, and damage from its own seeded stream so the layout never moves (layer counts 46, 65, 72 unchanged): lost floors (a recessed core between two blocks) on 13 of layer 1's 46 and 16 of layer 2's 65, sheared roofs on 33, leaning facade panels, and clusters of green crowns (14 of layer 1's 46, was 8). Lit faces on the two near layers are warmer. The shader varies the window grid per tower (a vertex seed sets bay width and floor height), darkens blocks of panes and dim floors, and drips moss stains on the two near layers. 4,772 triangles (was 3,816, cap 6,000). |
+| Near towers have a hard, pale foot | Real: at `edge-out-desktop` x 950, y 520 the foot was luma 199 against water 163 | The foot now mists toward the colour the sea really has there (`SEA_BODY`, the ACES twin of the water body, mirrored with the haze by the grazing angle, as `waterShader.ts` does), over a thin darker contact shade. The ACES twin matches the sea on a downward frame (`#01827c` computed, `#06817d` measured). Measured: 159 at the waterline against water 162; the 25 px above it are 12 to 14 levels darker (the contact shade and the darker low floors), a soft ramp, not an edge. |
+| Clouds smeared and streaky at the top of a level phone frame | Real cause: projection `dir.xz / (h + .3)` magnifies the top of the frame about 4x; the lighting taps used a +2 mip bias on top | Lift .55 and scale .84 (the 10 to 40 degree texture density ratio falls from 2.0 to 1.65 along the horizon and from 3.5 to 2.2 up the frame), taps blurred by 1.5 not 2, edge roughness grows with height, shade colour cooler. `tests/atmosphere.test.ts` pins both ratios (below 1.8 and 2.5). |
+| Cloud coverage looks like 55 to 60 percent | Not borne out: measured on the S2 frames (cloud = not blue dominant, upper rows), 38 to 44 percent. Perceived busyness, not amount | Left near the 35 to 45 brief; now 27 to 34 percent in `ground-up` and the hero frames (the hero frame is deliberately clearer: see the offset), 46 to 69 percent in `toward-sun` (the sun sits in a bank). |
+| Centre of the first play frame is a milky void; the farthest tower is invisible | Real: farthest tower 217 against haze 219 | The skyline's own fog is capped at 88 percent, so the farthest layer keeps a trace of its colour: tower 209 against haze 219 (10 levels). The haze band above the horizon falls off faster (22 not 18, weight .78), so it reads as mist, not a white wall. The authored stops at 0, 10, 30 and 90 degrees still hold. |
+| Landing screen is dark teal murk | Real, and not fixable in the world: see the flags. Measured sky luma 100 at `y 150 to 330` on a phone before and 101 now | Not changed. |
+| Black notch (luma 14) beside the slab ends at `low-water` | Real pixels, but it is the shaded canal-side face of the district's own bank and barrier geometry inside the flyable box, not background | Skipped: changing it would change the district's materials. Flagged. |
+
+### Cloud offset, HUD and frame 0
+
+The offset (`.725, .525`) comes from a CPU twin of the dome's cloud density (bilinear texture, weather map, edge roughness) over 1,600
+offsets and three viewports (portrait, desktop, landscape): about 35 to 40 percent cloud in the upper 40 percent of the frame, the canal
+vista (centre column, 3 to 13 degrees up) 3 to 13 percent cloud, the sun clear at frame 0, and the exposed HUD text zones (brand, telemetry)
+clear. The first S2 offset put a cloud behind the brand and telemetry text and a bank over the middle of the skyline. White text behind the
+brand now has 2.68:1 on a phone (median background; S2 2.38) and 2.91:1 on desktop (S2 2.60); the telemetry 1.86 (S2 1.83).
+
+### Measurements (production build, `fix0`)
+
+- Renderer counters (spawn and 80 m): **19 draw calls, 584,518 triangles**, 19 geometries, 20 textures (S2: 19, 582,208, 19, 20). The +2,310
+  triangles are the cut-up hills (+1,336) and the skyline damage (+956 net).
+- Landing first load: `node scripts/check-first-load.mjs` prints **635.6 KB** of 636 KB, unchanged. No dependency, no network asset.
+  `grep -rn atmospherePalette src/game src/ui` returns nothing. Every module is under 200 lines (`kit.ts` 121, `Skyline.tsx` 65,
+  `skylineParts.ts` 92, `skylineDamage.ts` 49).
+- Drone-eye detector (`r > 190, g < 110, b < 100, r - g > 120`): 0 pixels in all 33 frames.
+- Horizon seam on columns of sea and haze only: worst adjacent-row step 1 (`high-horizon-desktop`) and 3 (`edge-out-desktop`).
+- Darkest tower pixels in `edge-out-*` (not blue, not cloud): minimum 81 (desktop and landscape), 91 (portrait); 50 and 52 pixels of about
+  100,000 are under 85, all in the recessed cores. Nothing near black.
+- Behaviour: clouds drift in play (78,984 px differ over 5 s in the top 140 rows); paused, resized and restored: 0 px differ; reduced
+  motion: 6,729 px differ by sub-pixel edge shimmer (S2: 6,950), no translation.
+- Tests: `pnpm test` runs 176 files and 2,180 tests, all green. New: sun glow mix and cloud density ratio (`atmosphere.test.ts`, 21 tests);
+  hills on the stone texture and cut into cells, the weathering counts, seeds and moods, the layout kept (46, 65, 72), the ACES twin and
+  the sea colour, and the foot shader source (`skyline.test.ts`, 17 tests). Browser specs on the scratch production build on port 3530:
+  `recovery.spec.ts` and `flow-recovery.spec.ts` 16 of 16 (graphics loss rebuilds the skyline), `classic-blast.spec.ts`,
+  `lab-switch.spec.ts` and `accessibility.spec.ts` 28 of 28.
+
+### Owner flags that remain
+
+1. **The landing screen is still the same murk, and only a CSS change fixes it.** The scrim over the canvas
+   (`src/ui/Experience.module.css` lines 5, 6 and 34) darkens the landing sky to luma about 100. This round was fenced off the UI, so
+   it is unchanged. A scratch-only trial of the proposed values (three small edits, the patch is `scratchpad/sky/fix/landing-scrim.patch`
+   and applies cleanly) lifts the same sky to luma 165 and the headline still reads: base top stop `rgba(7,25,32,.67)` to `.3` fading out by
+   18 percent; `.introVignette::after` to `radial-gradient(ellipse at 30% 55%,#10272f66 0%,#10272f40 35%,transparent 80%)`; the phone rule's
+   top stop `#102a32aa` to `#102a3255`, fading out by 18 percent. In play, the top 12 percent still gets a dark band from
+   `.vignette:not(.introVignette)` (`#102a3266`): it is visible as a step at the top of every play frame. Needs Garo's yes.
+2. The black bank-end faces at `low-water` (district geometry, above).
+3. The sun still sits behind the camera at the default heading (D2). Moving it is the one-line change in the deferred list.
+4. Real phone confirmation is still owed: no Safari or iPhone frame exists, and OLED brightness changes how a pale sky reads. The skyline
+   shader now has about 12 more ALU ops per skyline pixel and no new texture; the dome has the same five taps. Not timed on a device.
 
 ## Deferred (not in this pass)
 
