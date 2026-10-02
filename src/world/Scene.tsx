@@ -20,6 +20,7 @@ import ArmCannon from './ArmCannon';
 import { useGame } from '@/game/store';
 import { clearInput } from '@/game/runtime';
 import EnvironmentLight from './EnvironmentLight';
+import { FOG, HEMISPHERE, SUN_COLOR, SUN_POSITION } from './atmospherePalette';
 import { labFault } from '@/ui/labSwitch';
 import { useTouchCapable } from '@/ui/useTouchCapable';
 // The Gesture Lab's scene parts load only when a lab scheme is on (spec 10): the drone screen history (-9), Draw's world probe
@@ -68,9 +69,9 @@ export default function Scene({ onLoss }: { onLoss: () => void }) {
     gl={{ antialias: true, alpha: false, powerPreference: 'high-performance', stencil: false }}
     onCreated={({ gl }) => { gl.toneMapping = ACESFilmicToneMapping; gl.toneMappingExposure = 1.2; }}>
     <GraphicsRecovery onLoss={onLoss} />
-    <fog attach="fog" args={['#a9c0b8', 95, 330]} />
-    <hemisphereLight args={['#c0dbed', '#737657', 1.7]} />
-    <directionalLight position={[-65, 100, 80]} color="#ffe6b2" intensity={3.5} castShadow={quality === 'high'}
+    <fog attach="fog" args={[FOG.color, FOG.near, FOG.far]} />
+    <hemisphereLight args={[HEMISPHERE.sky, HEMISPHERE.ground, HEMISPHERE.intensity]} />
+    <directionalLight position={SUN_POSITION} color={SUN_COLOR} intensity={3.5} castShadow={quality === 'high'}
       shadow-mapSize={[2048, 2048]} shadow-camera-left={-110} shadow-camera-right={110}
       shadow-camera-top={110} shadow-camera-bottom={-110} shadow-camera-far={380} shadow-bias={-.0002} shadow-normalBias={.09} />
     <EnvironmentLight /><Sky /><Water />
