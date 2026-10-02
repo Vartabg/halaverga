@@ -3,7 +3,10 @@
 /* The picker's root and layer add no box: the Vote chip and the Controls button are flex items of the header's button row (so the row's
    `>button` rules never match them: these buttons keep their own pill styles), and the sheet layer only groups the backdrop and the sheet. */
 .root,.layer{display:contents}
-.trigger{position:relative;display:inline-flex;align-items:center;justify-content:center;flex:none;min-height:44px;min-width:88px;padding:0 16px;margin:0;
+/* The Controls button is one width in every state (min-width 108 holds the word, an 8 px gap and the 20 px dots slot, which stays reserved
+   when the dots are not showing), so the Vote pill is the only thing that appears or goes. With the pill the cluster is 64 + 8 + 108 + 8 + 44
+   = 232 px, the budget the readout (Experience.module.css, .telemetry) leaves at every width. */
+.trigger{position:relative;display:inline-flex;align-items:center;justify-content:center;gap:8px;flex:none;min-height:44px;min-width:108px;padding:0 12px;margin:0;
   border:1px solid #58e1ff66;border-radius:24px;background:#142d34e6;-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);color:var(--ink);
   font:13px/1 system-ui,-apple-system,'Segoe UI',Arial,sans-serif;letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
   cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
@@ -11,25 +14,20 @@
 .trigger[aria-expanded=true]{background:var(--lime);color:#1a3029;font-weight:600}
 .trigger:focus-visible{outline:2px solid var(--lime);outline-offset:2px}
 .trigger[aria-expanded=true]:focus-visible{outline-color:#f5f0dc;box-shadow:0 0 0 4px #1a3029}
-/* The header Vote chip (44 px, static). Below two tried: outline with `Vote n/2 · s`; from two: lime. Up to 520 px wide (every phone in portrait) the
-   seconds sit under `Vote n/2` and the long label's tail is visually hidden (still in the accessible name), so the chip stays inside the viewport. */
-.chip{position:relative;display:inline-flex;align-items:center;justify-content:center;flex:none;min-height:44px;min-width:44px;
-  padding:0 14px;margin:0;border:1px solid #58e1ff66;border-radius:24px;background:#142d34e6;-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);color:var(--ink);
-  font:13px/1 system-ui,-apple-system,'Segoe UI',Arial,sans-serif;letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+/* The locked vote's two dots: 8 px circles, 4 px apart, in a 20 px slot that is always there. Counted = filled in the text colour; never lime
+   (lime is for what can be pressed). Their text twin is the end of the button's accessible name and the sheet's tried line. */
+.dots{display:inline-flex;align-items:center;gap:4px;flex:none;width:20px;height:8px}
+.dots i{display:block;box-sizing:border-box;width:8px;height:8px;border:1px solid #f5f0dcb3;border-radius:50%}
+.dots i[data-on]{background:var(--ink);border-color:var(--ink)}
+.trigger[aria-expanded=true] .dots i{border-color:#1a3029}
+.trigger[aria-expanded=true] .dots i[data-on]{background:#1a3029}
+/* The Vote pill: only in the row while the vote works, so it is always the lime call to vote (44 px, a 64 px minimum so the row's budget holds). */
+.chip{position:relative;display:inline-flex;align-items:center;justify-content:center;flex:none;min-height:44px;min-width:64px;
+  padding:0 14px;margin:0;border:1px solid var(--lime);border-radius:24px;background:var(--lime);color:#1a3029;
+  font:600 13px/1 system-ui,-apple-system,'Segoe UI',Arial,sans-serif;letter-spacing:.02em;white-space:nowrap;
   cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
-.chip:hover{background:#305058}
-.chip[data-ready]{background:var(--lime);border-color:var(--lime);color:#1a3029;font-weight:600}
-.chip[data-ready]:hover{background:#e3ffad}
-.chip:focus-visible{outline:3px solid var(--lime);outline-offset:2px}
-.chip[data-ready]:focus-visible{outline-color:#f5f0dc;box-shadow:0 0 0 5px #1a3029}
-@media(max-width:400px){.trigger,.chip{padding:0 12px}}
-@media(max-width:520px){
-  .chip{padding:0 10px;font-size:12px}
-  .chipMore{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
-  .chipText{display:flex;flex-direction:column;align-items:center;gap:1px;line-height:1.1}
-  .chipSecs{font-size:11px}
-  .chipDot{display:none}
-}
+.chip:hover{background:#e3ffad}
+.chip:focus-visible{outline:3px solid #f5f0dc;outline-offset:2px;box-shadow:0 0 0 5px #1a3029}
 
 /* Full-viewport catcher under the sheet: it takes the presses (and closes on click), so nothing reaches the flight surface. Both sit under
    the header (z-index 8), so Pause and Controls stay above it: one tap on Pause pauses and closes the sheet. They take presses even
@@ -131,9 +129,10 @@
   .trigger{border-color:CanvasText;background:Canvas;color:ButtonText;forced-color-adjust:none}
   .trigger[aria-expanded=true]{background:Highlight;color:HighlightText}
   .trigger:focus-visible{outline:2px solid Highlight;box-shadow:none}
-  .chip{border-color:ButtonText;background:ButtonFace;color:ButtonText;forced-color-adjust:none}
-  .chip[data-ready]{border-color:Highlight;background:Highlight;color:HighlightText}
-  .chip:focus-visible,.chip[data-ready]:focus-visible{outline:3px solid Highlight;box-shadow:none}
+  .chip{border-color:Highlight;background:Highlight;color:HighlightText;forced-color-adjust:none}
+  .chip:focus-visible{outline:3px solid CanvasText;box-shadow:none}
+  .dots i{border-color:CanvasText}.dots i[data-on]{background:Highlight;border-color:Highlight}
+  .trigger[aria-expanded=true] .dots i{border-color:HighlightText}.trigger[aria-expanded=true] .dots i[data-on]{background:HighlightText}
   .sheet,.demo{border-color:CanvasText;background:Canvas;color:CanvasText}
   .foot{background:Canvas;border-top-color:CanvasText}
   .row:has(.radio:checked){border-color:Highlight;background:Canvas}

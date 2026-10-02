@@ -11,6 +11,8 @@ vi.mock('@/game/store', async importOriginal => {
 import { useGame } from '@/game/store';
 import { validateVote, VOTE_ROUND } from '@/lib/vote/ballot';
 import PauseControls, { ControlsRow } from '@/ui/controls/PauseControls';
+import { setBallot } from '@/ui/controls/useVoteState';
+import { livePlay } from '@/ui/vote/voteTracker';
 import { savePending, readPending } from '@/ui/vote/pending';
 import { pickFocus, type FocusPlan, type Pickable } from '@/ui/vote/restoreFocus';
 import { needLine } from '@/ui/vote/VoteNeed';
@@ -19,7 +21,8 @@ import { STATUS_TEXT } from '@/ui/vote/voteClient';
 import { memory } from './helpers/voteFetch';
 
 // Third-review low findings, visitor side (spec-final 19). Node only: focus in a real page and the layout at 393 x 852 and 1440 x 900 are tests/vote-doors.spec.ts.
-afterEach(() => { useGame.setState({ voteNudge: false }); });
+const seedPlay = (secs: Record<string, number>) => { const p = livePlay(); for (const k of Object.keys(p.secs)) p.secs[k] = secs[k] ?? 0; };
+afterEach(() => { useGame.setState({ voteNudge: false }); seedPlay({}); setBallot('unknown'); });
 
 describe('V6 the need-more line is right at 0 of 2 and at 1 of 2', () => {
   it('says two ways when nothing is flown and one more way after one, with the count in both, and clamps a count that cannot be', () => {
@@ -59,7 +62,9 @@ describe('V5 where focus goes when the card closes', () => {
 describe('V4 the vote door in the pause card', () => {
   const door = (nudge: boolean) => { useGame.setState({ voteNudge: nudge }); return renderToStaticMarkup(createElement(PauseControls)); };
   const src = (file: string) => readFileSync(new URL(`../src/ui/${file}`, import.meta.url), 'utf8');
-  it('an eligible player sees the ask and the door above the Controls row, so the door is right under Resume (it sat past the fold, at y 1310 on a 900 px desktop)', () => {
+  const works = () => { seedPlay({ 'desktop:cursor': 25, 'desktop:draw': 25 }); setBallot('open'); }; // two ways flown, a ballot that is not closed
+  it('a player who is asked sees the ask and the door above the Controls row, so the door is right under Resume (it sat past the fold, at y 1310 on a 900 px desktop)', () => {
+    works();
     const m = door(true);
     expect(m.indexOf('Which way of flying felt best?')).toBeGreaterThan(-1);
     expect(m.indexOf('data-testid="vote-open"')).toBeGreaterThan(m.indexOf('Which way of flying felt best?'));
@@ -68,17 +73,21 @@ describe('V4 the vote door in the pause card', () => {
     expect(m.match(/data-testid="vote-open"/g)).toHaveLength(1);
     expect(m.match(/data-testid="controls-row"/g)).toHaveLength(1);
   });
-  it('a player who is not eligible has the button once, after the Controls row, and no ask line; the Flight settings row and the Field guide have no door at all', () => {
+  it('a player whose vote works but who is not asked (a Skip in the last day) has the button first and no ask line; one whose vote is locked has no door at all; neither the Flight settings row nor the Field guide has one', () => {
+    works();
     const m = door(false);
     expect(m.match(/data-testid="vote-open"/g)).toHaveLength(1);
-    expect(m.indexOf('data-testid="vote-open"')).toBeGreaterThan(m.indexOf('data-testid="controls-row"'));
-    expect(m).not.toContain('Which way of flying felt best?'); expect(m).not.toContain('data-nudge');
+    expect(m.indexOf('data-testid="vote-open"')).toBeLessThan(m.indexOf('data-testid="controls-row"'));
+    expect(m).not.toContain('>Which way of flying felt best?<'); expect(m).not.toContain('data-nudge'); // the question is only in the button's name
+    seedPlay({ 'desktop:cursor': 25 });
+    const locked = door(true);
+    expect(locked).not.toContain('vote-open'); expect(locked).not.toContain('Which way of flying felt best?'); expect(locked).toContain('Tried 1 of 2 needed to vote');
     expect(renderToStaticMarkup(createElement(ControlsRow, { fromPanel: true }))).not.toContain('vote-open'); // what Flight settings carries
     for (const file of ['TestPanel.tsx', 'FieldGuide.tsx']) for (const word of ['vote-open', 'VoteDoor', 'PauseControls']) expect(src(file).replace("import { ControlsRow } from './controls/PauseControls';", ''), `${file} ${word}`).not.toContain(word);
   });
   it('the landing page carries none of it: PauseCard holds no vote words and no control names (the door and the Controls row are in the lazy Controls chunk, which took the pause card back under the zero-headroom budget)', () => {
     const card = src('PauseCard.tsx');
-    for (const s of ['Which way of flying felt best', 'vote-open', 'voteNudge', 'voteAsk', 'Vote: which felt best', 'controls-row', 'ControlList', 'ControlsSheet', 'controlById']) expect(card, s).not.toContain(s);
+    for (const s of ['Which way of flying felt best', 'vote-open', 'voteNudge', 'voteAsk', 'which felt best', 'controls-row', 'ControlList', 'ControlsSheet', 'controlById']) expect(card, s).not.toContain(s);
     expect(card).toContain("from './LazyControls'");
   });
 });

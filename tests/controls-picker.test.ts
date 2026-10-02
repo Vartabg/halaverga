@@ -27,6 +27,8 @@ const html = (node: Parameters<typeof renderToStaticMarkup>[0]) => renderToStati
 const rowsOf = (markup: string) => markup.split('<label').slice(1).map(r => r.split('</label>')[0]);
 const idsOf = (markup: string) => [...markup.matchAll(/data-control="([^"]+)"/g)].map(m => m[1]);
 const noop = () => {};
+// While the vote is locked (nothing flown in these tests) the Controls button's name ends with the twin of its two dots (addendum C1).
+const LOCKED = ': vote unlocks after two ways, 0 of 2 tried';
 
 const fresh = () => useGame.setState({ started: false, paused: false, voteOpen: false, controlsOpen: false, controlLab: 'standard', touchScheme: 'classic',
   trackpadSteering: 'free', desktopMode: 'trackpad' });
@@ -47,8 +49,8 @@ describe('trigger (SSR)', () => {
   it('shows the word Controls and names the control in its accessible name, closed, with aria-haspopup (the visible word is a prefix of the name: WCAG 2.5.3)', () => {
     useGame.setState({ started: true, paused: false });
     const touch = html(createElement(ControlsPicker, { family: 'touch' })), desktop = html(createElement(ControlsPicker, { family: 'desktop' }));
-    expect(touch).toContain('aria-label="Controls: One finger"'); expect(touch).toContain('>Controls</button>');
-    expect(desktop).toContain('aria-label="Controls: Cursor"'); expect(desktop).toContain('>Controls</button>');
+    expect(touch).toContain(`aria-label="Controls: One finger${LOCKED}"`); expect(touch).toMatch(/>Controls<span class="[^"]*_dots_/);
+    expect(desktop).toContain(`aria-label="Controls: Cursor${LOCKED}"`); expect(desktop).toMatch(/>Controls<span class="[^"]*_dots_/);
     for (const m of [touch, desktop]) {
       expect(m).toContain('aria-haspopup="dialog"'); expect(m).toContain('aria-expanded="false"');
       expect(m).toContain('data-testid="controls-trigger"'); expect(m).not.toContain('role="dialog"');
@@ -56,14 +58,14 @@ describe('trigger (SSR)', () => {
   });
   it('names the current control whatever the settings are', () => {
     useGame.setState({ started: true, paused: false, touchScheme: 'twin' });
-    expect(html(createElement(ControlsPicker, { family: 'touch' }))).toContain('aria-label="Controls: Twin stick"');
+    expect(html(createElement(ControlsPicker, { family: 'touch' }))).toContain(`aria-label="Controls: Twin stick${LOCKED}"`);
     useGame.setState({ trackpadSteering: 'simple' });
-    expect(html(createElement(ControlsPicker, { family: 'desktop' }))).toContain('aria-label="Controls: One finger + keys"');
+    expect(html(createElement(ControlsPicker, { family: 'desktop' }))).toContain(`aria-label="Controls: One finger + keys${LOCKED}"`);
     useGame.setState({ desktopMode: 'mouse' });
-    expect(html(createElement(ControlsPicker, { family: 'desktop' }))).toContain('aria-label="Controls: Mouse + keys"');
+    expect(html(createElement(ControlsPicker, { family: 'desktop' }))).toContain(`aria-label="Controls: Mouse + keys${LOCKED}"`);
     useGame.setState({ controlLab: 'brush' });
-    expect(html(createElement(ControlsPicker, { family: 'touch' }))).toContain('aria-label="Controls: Brush"');
-    expect(html(createElement(ControlsPicker, { family: 'desktop' }))).toContain('aria-label="Controls: Brush"');
+    expect(html(createElement(ControlsPicker, { family: 'touch' }))).toContain(`aria-label="Controls: Brush${LOCKED}"`);
+    expect(html(createElement(ControlsPicker, { family: 'desktop' }))).toContain(`aria-label="Controls: Brush${LOCKED}"`);
   });
   it('is only in the top row while playing: paused, the trigger and the chip are gone, and the sheet is its own layer', () => {
     useGame.setState({ started: true, paused: true });
@@ -133,12 +135,12 @@ describe('ControlList (SSR)', () => {
 });
 
 describe('ControlsSheet and the Controls row (SSR)', () => {
-  it('the sheet is a non-modal dialog named Controls with the tried line, Vote and Done', () => {
+  it('the sheet is a non-modal dialog named Controls with the tried line and Done (the Vote button joins them only once two ways are flown)', () => {
     const touch = html(createElement(ControlsSheet, { family: 'touch', onClose: noop }));
     expect(touch).toContain('role="dialog"'); expect(touch).toContain('aria-modal="false"');
     expect(touch).toMatch(/aria-labelledby="([^"]+)"/); expect(touch).toContain('>Controls</h2>');
     expect(touch).toContain('Tried 0 of 2 needed to vote'); expect(touch).toContain('aria-live="polite"');
-    expect(touch).toContain('>Vote: which felt best?</button>'); expect(touch).toContain('>Done</button>');
+    expect(touch).not.toContain('controls-vote'); expect(touch).toContain('>Done</button>'); // a locked vote has no button, only the line above
     expect(touch).not.toContain('Number keys 1-8');
     const desktop = html(createElement(ControlsSheet, { family: 'desktop', onClose: noop }));
     expect(desktop).toContain('Tried 0 of 2 needed to vote'); expect(desktop).toContain('Number keys 1-8 switch controls');
@@ -156,10 +158,10 @@ describe('ControlsSheet and the Controls row (SSR)', () => {
     useGame.setState({ trackpadSteering: 'flow' });
     expect(html(createElement(ControlsRow, { fromPanel: true }))).toContain('<b>Controls</b><span>Flow</span>'); // the row names whatever is in use now
   });
-  it('the pause card door is the row, the tried line and the vote door: no list, no Try every control, no second copy of the sheet', () => {
+  it('the pause card door is the row and the tried line (and the vote door once the vote works): no list, no Try every control, no second copy of the sheet', () => {
     const pause = html(createElement(PauseControls));
-    expect(pause).toContain('data-testid="controls-row"'); expect(pause).toContain('Tried 0 of 2 needed to vote'); // a vote door sits here, so the line may say what a vote needs
-    expect(pause).toContain('data-testid="vote-open"');
+    expect(pause).toContain('data-testid="controls-row"'); expect(pause).toContain('Tried 0 of 2 needed to vote'); // the line says what a vote needs
+    expect(pause).not.toContain('data-testid="vote-open"'); // a locked vote has no door (tests/use-vote-state.test.ts: it joins them when two ways are flown)
     for (const gone of ['controls-list', 'controls-section', 'Try every control', 'Number keys 1-8', '<details', 'name="control-pause"']) expect(pause, gone).not.toContain(gone);
   });
   it('the sheet footer links to Flight settings on touch only; the desktop footer has the number-keys checkbox instead', () => {
@@ -173,7 +175,7 @@ describe('ControlsSheet and the Controls row (SSR)', () => {
     expect(html(createElement(ControlsEntry, { part: 'note' }))).toContain('role="note"');
     expect(html(createElement(ControlsEntry, { part: 'trigger' }))).toBe('');
     useGame.setState({ started: true });
-    expect(html(createElement(ControlsEntry, { part: 'trigger' }))).toContain('aria-label="Controls: Cursor"');
+    expect(html(createElement(ControlsEntry, { part: 'trigger' }))).toContain(`aria-label="Controls: Cursor${LOCKED}"`);
     expect(html(createElement(ControlsEntry, { part: 'trigger', failed: true }))).toBe('');
   });
 });

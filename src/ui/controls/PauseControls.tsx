@@ -4,6 +4,8 @@ import { useGame } from '@/game/store';
 import { useCurrentControl } from './ControlList';
 import { TriedLine } from './ControlsSheet';
 import { useControlFamily } from './useControlFamily';
+import { useVoteState, VOTE_NAME } from './useVoteState';
+import { QUESTION } from '@/ui/vote/question';
 import pause from '../Experience.module.css';
 import styles from './ControlsPicker.module.css';
 
@@ -22,27 +24,29 @@ export function ControlsRow({ fromPanel = false }: { fromPanel?: boolean }) {
 }
 
 /**
- * The pause card's vote door: the ask above the button for a player who is eligible (they may never land to get the auto-open), the
- * button alone otherwise. It lives in this chunk, not in PauseCard, so its words are not in the landing's zero-headroom first load.
+ * The pause card's vote door: there only while the vote works (two ways flown, this family has not voted, the ballot is not known
+ * closed), with the question above the button for a player who is also asked (`nudge`: they may never land to get the auto-open).
+ * The visible word is `Vote`; the accessible name adds the question. It lives in this chunk, not in PauseCard, so its words are not in
+ * the landing's zero-headroom first load.
  */
 export function VoteDoor({ nudge }: { nudge: boolean }) {
   return <>
-    {nudge && <p className={pause.voteAsk}>Which way of flying felt best?</p>}
-    <button className={`${pause.secondary} ${pause.voteOpen}`} data-testid="vote-open" data-nudge={nudge ? '' : undefined} onClick={() => useGame.setState({ voteOpen: true })}>Vote: which felt best?</button>
+    {nudge && <p className={pause.voteAsk}>{QUESTION}</p>}
+    <button className={`${pause.secondary} ${pause.voteOpen}`} data-testid="vote-open" data-nudge={nudge ? '' : undefined} aria-label={VOTE_NAME}
+      onClick={() => useGame.setState({ voteOpen: true })}>Vote</button>
   </>;
 }
 
 /**
  * What the pause card holds of the controls (through the landing's one LazyControls door, so none of it is landing first load): the vote
- * door (V4: right under Resume for a player who is asked, after the Controls row for everyone else), the Controls row, and the tried line
- * under it, which says how many ways a vote needs while it is still locked.
+ * door when the vote works (V4: right under Resume, so it is on screen on a phone), the Controls row, and the tried line under it, which
+ * says how many ways a vote needs while it is still locked. A locked, closed or sent vote shows no button here.
  */
 export default function PauseControls() {
-  const nudge = useGame(s => s.voteNudge), family = useControlFamily();
+  const nudge = useGame(s => s.voteNudge), family = useControlFamily(), { state } = useVoteState(family);
   return <>
-    {nudge && <VoteDoor nudge />}
+    {state === 'ready' && <VoteDoor nudge={nudge} />}
     <ControlsRow />
     <TriedLine family={family} voting />
-    {!nudge && <VoteDoor nudge={false} />}
   </>;
 }

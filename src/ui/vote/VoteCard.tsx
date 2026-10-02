@@ -7,12 +7,13 @@ import { currentControlId } from '../controls/selectControl';
 import { ballotOptions, readSeed, suggestNext } from './ballotPlan';
 import { readPending, type Pending } from './pending';
 import VoteChoices from './VoteChoices';
+import { QUESTION } from './question';
 import VoteNeed from './VoteNeed';
 import { ALREADY_TEXT, canSend, cardPhase, castVote, fetchResults, PAUSED_TEXT, PICK_FIRST, SAVED_TEXT, savedPick, sendLabel, SENDING_TEXT, STATUS_TEXT,
   tallyLine, type Probe, type VoteOutcome } from './voteClient';
 import styles from './VoteCard.module.css';
 
-export const HEADING = 'Which way of flying felt best?';
+export const HEADING = QUESTION;
 export const SUB_LINE = 'Pick the one that felt best. Only the ways you have flown are listed.';
 export type CloseKind = 'skip' | 'done';
 export type VoteCardProps = {

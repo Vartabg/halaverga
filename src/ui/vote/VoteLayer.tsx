@@ -80,7 +80,7 @@ export default function VoteLayer({ onResume }: { onResume: () => void }) {
   }), []);
 
   // Auto-open: at most once per page load, only on a landing (flying true -> false while started and not paused), when eligible.
-  // A pause the player opened never opens it (that path is the pause card's "Vote: which felt best?").
+  // A pause the player opened never opens it (that path is the pause card's Vote button, there once two ways are flown).
   useEffect(() => useGame.subscribe((s, prev) => {
     if (autoDone.current || s.voteOpen || !prev.flying || s.flying || !s.started || s.paused || s.panel || s.journal) return;
     const family = currentFamily();
