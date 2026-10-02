@@ -8,6 +8,7 @@ import { ONE_DESK, votePage } from './vote-browser';
 const CAPTURED = { desktopMode: 'trackpad', trackpadSteering: 'captured', flowIntroSeen: true } as const;
 const lesson = (p: import('@playwright/test').Page) => p.getByTestId('controls-hint');
 const ONE_WAY = 'One way flown. Try another for 20 s, then vote.';
+const TERMINAL = { checkpoint: { x: -6, y: 21.1, z: 60 }, flowIntroSeen: true };
 
 test('@hint D6: a control picked under the open sheet is named once the sheet closes, for its 4 s', async ({ browser }) => {
   const t = await labPage(browser, 'standard', { viewport: { width: 1440, height: 900 } }), { page } = t;
@@ -91,4 +92,33 @@ test('@hint C3: the first way to reach 20 s puts one line in the slot (once, and
   await had.page.waitForTimeout(1800);
   expect(await said(had.page)).not.toContain(ONE_WAY); // someone who arrives with a way flown is not told
   expect(had.errors).toEqual([]); await had.context.close();
+});
+
+test('@hint the Read button shows its keyboard focus ring: no ancestor clips it (WCAG 2.4.7)', async ({ browser }) => {
+  const t = await labPage(browser, 'standard', { viewport: { width: 1440, height: 900 }, saved: TERMINAL }), { page } = t;
+  await expect(hintSlot(page)).toHaveAttribute('data-kind', 'record', { timeout: 15000 });
+  const read = hintSlot(page).getByRole('button');
+  for (let i = 0; i < 8 && !(await read.evaluate(b => b === document.activeElement)); i++) await page.keyboard.press('Tab');
+  await expect(read).toBeFocused();
+  expect(await read.evaluate(b => b.matches(':focus-visible'))).toBe(true);
+  // The ring is drawn outside the button (outline offset plus width): every ancestor that clips must still hold all of it.
+  const clipped = await read.evaluate(b => {
+    const cs = getComputedStyle(b), grow = parseFloat(cs.outlineOffset) + parseFloat(cs.outlineWidth), r = b.getBoundingClientRect(), out: string[] = [];
+    for (let a = b.parentElement; a && a !== document.documentElement; a = a.parentElement) {
+      const s = getComputedStyle(a), clips = s.overflowX !== 'visible' || s.overflowY !== 'visible' || s.clipPath !== 'none' || /paint/.test(s.contain);
+      const q = a.getBoundingClientRect(), bw = parseFloat(s.borderLeftWidth) + 0;
+      if (clips && (r.left - grow < q.left + bw - .5 || r.top - grow < q.top + bw - .5 || r.right + grow > q.right - bw + .5 || r.bottom + grow > q.bottom - bw + .5)) out.push(`${a.tagName.toLowerCase()}.${String(a.className).slice(0, 30)} clips the ring (overflow ${s.overflowX}/${s.overflowY})`);
+    }
+    return out;
+  });
+  expect(clipped).toEqual([]);
+  // And the pixels say so: the middle of the ring's left edge is the lime of the global focus outline.
+  const box = (await read.boundingBox())!, x = Math.floor(box.x - 6.5), y = Math.round(box.y + box.height / 2);
+  const png = (await page.screenshot({ clip: { x, y, width: 1, height: 1 } })).toString('base64');
+  const px = await page.evaluate(async b64 => {
+    const img = new Image(); img.src = 'data:image/png;base64,' + b64; await img.decode();
+    const c = document.createElement('canvas'); c.width = c.height = 1; const g = c.getContext('2d')!; g.drawImage(img, 0, 0); return Array.from(g.getImageData(0, 0, 1, 1).data);
+  }, png);
+  expect(Math.abs(px[0] - 212) + Math.abs(px[1] - 241) + Math.abs(px[2] - 151), `the ring's pixel is ${px.slice(0, 3)}`).toBeLessThan(24);
+  expect(t.errors).toEqual([]); await t.context.close();
 });

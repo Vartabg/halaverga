@@ -72,8 +72,8 @@
 @media(min-width:601px){.hint{font-size:14px}}
 @media(max-height:550px) and (orientation:landscape){.hint{max-width:min(60vw,52ch)}}
 .hint[data-kind=limit]{border-color:#f2b35e}
-.hint[data-kind=record]{padding:0;min-height:44px;overflow:hidden}
-.read{display:block;min-height:44px;padding:0 16px;border:0;background:transparent;color:inherit;font:inherit;white-space:nowrap;pointer-events:auto}.read:hover{background:#2b4747}
+.hint[data-kind=record]{padding:0;min-height:44px}
+.read{display:block;min-height:44px;padding:0 16px;border:0;border-radius:7px;background:transparent;color:inherit;font:inherit;white-space:nowrap;pointer-events:auto}.read:hover{background:#2b4747}
 @media(forced-colors:active){.vignette{display:none}.header,.intro,.introFooter,.telemetry{background:Canvas;color:CanvasText}.hint{background:Canvas;color:CanvasText;border-color:CanvasText}.read:hover{background:Canvas}.primary,.action,.secondary,.headerActions>button{background:ButtonFace!important;color:ButtonText!important}.pause svg{fill:currentColor;forced-color-adjust:auto}.tapPad button[aria-pressed=true]{background:Highlight;color:HighlightText}.reticle{border-color:CanvasText}}
 
 .districtMap{display:block;width:100%;height:auto;margin:18px 0;border:1px solid var(--line);border-radius:6px}
