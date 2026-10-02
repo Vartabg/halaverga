@@ -85,3 +85,19 @@ test('393x852 at 200 percent root text size: the top row still fits', async ({ b
   expect(problems, problems.join('\n')).toEqual([]);
   await t.context.close();
 });
+
+// Forced colors (D4): the Pause icon is drawn in the button's own text colour, and the row still fits.
+test('1440x900 forced colors: the Pause icon takes the button text colour and the row is clean', async ({ browser }) => {
+  const v: View = { name: '1440x900 mouse', width: 1440, height: 900, touch: false };
+  const t = await openLanding(browser, v), { page } = t;
+  await page.emulateMedia({ forcedColors: 'active' });
+  await t.begin();
+  const [fill, color] = await page.evaluate(() => {
+    const b = document.querySelector('button[aria-label="Pause expedition"]')!;
+    return [getComputedStyle(b.querySelector('path')!).fill, getComputedStyle(b).color];
+  });
+  expect(fill, 'the icon is currentColor, which is ButtonText here').toBe(color);
+  const problems = await audit(page, v, { play: true });
+  expect(problems, problems.join('\n')).toEqual([]);
+  await t.context.close();
+});

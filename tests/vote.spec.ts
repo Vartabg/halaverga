@@ -56,7 +56,7 @@ test('@vote two tried: the chip is lime and says Vote: which felt best?, and aft
 });
 
 for (const [name, viewport] of [['portrait 393x852', PORTRAIT], ['landscape 852x393', LANDSCAPE]] as const) {
-  test(`@vote ${name}: the chip stays on screen beside the trigger, and the trigger does not move when the chip goes away`, async ({ browser }) => {
+  test(`@vote ${name}: the chip stays on screen left of the trigger, and the trigger does not move when the chip goes away`, async ({ browser }) => {
     const t = await votePage(browser, TWO_TOUCH, { touch: true, viewport }), { page } = t;
     await mock(page, [200]);
     await expect(chip(page)).toBeVisible();
@@ -65,7 +65,7 @@ for (const [name, viewport] of [['portrait 393x852', PORTRAIT], ['landscape 852x
     expect(overlaps(c, before), 'chip clear of the trigger').toBe(false);
     await expect(chip(page)).toHaveAccessibleName(/^Vote ?: which felt best\?$/); // the tail is visually clipped up to 520 px, not removed
     if (viewport.width <= 520) expect(c.width, 'narrow: the short label').toBeLessThan(100);
-    expect(c.x).toBeGreaterThan(before.x + before.width - 1); // it grows away from the trigger
+    expect(c.x + c.width).toBeLessThanOrEqual(before.x + 1); // DOM and screen order are Vote, Controls, Pause: it sits to the left of Controls
     expect(c.height).toBeGreaterThanOrEqual(44); expect(c.width).toBeGreaterThanOrEqual(44);
     await openFromChip(page, true);
     await pickAndSend(page, 'One finger', true);

@@ -63,6 +63,8 @@ test('@vote a 429 shows the busy copy, keeps the pick, never says the vote is in
   expect(bodies).toHaveLength(1);
   expect((await voteMark(page))?.desktop?.at).toBeUndefined(); // the device is not marked as voted
   expect(await page.evaluate(() => localStorage.getItem('halaverga.vote.pending'))).toContain('"desktop"'); // the pick is kept
+  // The vote card has the game paused, and the top row is empty while paused: the chip is back once the card is closed unsent.
+  await notYet(page).click();
   await expect(chip(page)).toBeVisible();
   expect(t.errors).toEqual([]); await t.context.close();
 });

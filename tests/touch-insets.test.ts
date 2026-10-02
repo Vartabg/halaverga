@@ -30,6 +30,12 @@ describe('headerBand', () => {
     expect(headerBand({ y: 0 }, 0)).toBe(80);
     expect(headerBand({ y: 30 }, 0)).toBe(50);
   });
+  it('measures the [data-band] marker (the pre-cleanup header height), not the shorter one-row header', () => {
+    const asked: string[] = [];
+    vi.stubGlobal('document', { querySelector: (s: string) => { asked.push(s); return { getBoundingClientRect: () => ({ bottom: 116, height: 96 }) }; } });
+    expect(headerBand({ y: 0 }, 0)).toBe(124);
+    expect(asked).toEqual(['main [data-band]']);
+  });
   it('falls back to 44 px under the top inset when the header is missing or collapsed', () => {
     vi.stubGlobal('document', { querySelector: () => null });
     expect(headerBand({ y: 0 }, 0)).toBe(52);
