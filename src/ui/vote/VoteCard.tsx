@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useId, useRef, useState } from 'react';
 import { controlsFor, type ControlId } from '@/game/controlTypes';
+import { track } from '@/lib/track';
 import type { VoteDevice } from '@/lib/vote/ballot';
 import { PRIVACY_SHORT } from '@/lib/vote/privacy';
 import { currentControlId } from '../controls/selectControl';
@@ -62,10 +63,12 @@ export default function VoteCard({ current, tried, device, already = false, guar
     return () => window.removeEventListener('keydown', esc, true);
   });
   useEffect(() => { if (phase === 'done' || phase === 'closed') endBtn.current?.focus({ preventScroll: true }); }, [phase]);
+  useEffect(() => { if (phase === 'ballot') track('vote_card_shown'); }, [phase]); // an anonymous count of the ballot showing: no pick, no code
 
   const send = async () => {
     if (busy || phase !== 'ballot') return;
     if (pick === null) { setMsg(PICK_FIRST); root.current?.querySelector<HTMLInputElement>('input[name="vote-pick"]')?.focus(); return; }
+    track('vote_sent'); // Send tapped with a pick, whether or not the server then accepts it; carries nothing of the vote
     setBusy(true); setMsg('');
     const now = currentControlId(device), r = await castVote({ favorite: pick, tried: offered, last: offered.includes(now) ? now : current }, device, { nonce: nonce.current });
     nonce.current = r.nonce;

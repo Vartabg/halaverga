@@ -3,6 +3,7 @@
 // Play time is kept per control and family (controlKey: 'touch:draw' and 'desktop:draw' are separate). Only seconds in which the
 // player gave input count (VoteLayer decides with inputRecent and the held-key set), so merely opening the sheet accrues nothing.
 import { CONTROL_FAMILIES, controlKey, controlsFor, type ControlFamily, type ControlId } from '@/game/controlTypes';
+import { track } from '@/lib/track';
 import { VOTE_MIN_TRIED, VOTE_ROUND } from '@/lib/vote/ballot';
 
 export const PLAY_KEY = 'halaverga.vote.play.v2';
@@ -56,9 +57,15 @@ export function readPlay(storage?: VoteStorage | null, round = VOTE_ROUND): Vote
 }
 export function savePlay(play: VotePlay, storage?: VoteStorage | null) { writeJson(storageOf(storage), PLAY_KEY, play); }
 
-/** Adds played seconds to one control key (in place; the layer saves every 10 s and on pagehide). Unknown keys are ignored. */
+/** Adds played seconds to one control key (in place; the layer saves every 10 s and on pagehide). Unknown keys are ignored.
+ *  The tick that makes a family's second control reach TRIED_S is the anonymous count `second_way_20s` (src/lib/track.ts). */
 export function tick(play: VotePlay, key: string, secs = 1): VotePlay {
-  if (key in play.secs && finite(secs) && secs > 0) play.secs[key] += Math.min(secs, 60);
+  if (key in play.secs && finite(secs) && secs > 0) {
+    const was = play.secs[key];
+    play.secs[key] += Math.min(secs, 60);
+    const family = CONTROL_FAMILIES.find(f => key.startsWith(`${f}:`));
+    if (family && was < TRIED_S && play.secs[key] >= TRIED_S && triedIds(play, family).length === VOTE_MIN_TRIED) track('second_way_20s');
+  }
   return play;
 }
 /** Controls of the family played for TRIED_S or more, in registry order, plus the current one (the card always offers what you are playing). */

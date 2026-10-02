@@ -3,6 +3,7 @@ import { dirname, join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { controlsFor } from '@/game/controlTypes';
 import { MIN_PUBLIC_TAGS, VOTE_MAX_BYTES, VOTE_MIN_TRIED } from '@/lib/vote/ballot';
+import { STAGES } from '@/lib/track';
 import { PRIVACY_FULL, PRIVACY_SHORT } from '@/lib/vote/privacy';
 import { BLOCK_LIMIT, CAP_DEFAULT, GLOBAL_LIMIT, limitsFrom, MAX_ENTRIES, MINV_DEFAULT, ROUND_LIMIT, UNIT_LIMIT } from '@/server/vote/limits';
 import { RESULTS_MAX_STALE_MS, RESULTS_RETRY_MS, RESULTS_TTL_MS } from '@/server/vote/cachedResults';
@@ -191,5 +192,29 @@ describe('the other docs are not stale, and every relative link resolves', () =>
       if (/^(https?:|mailto:)/.test(m[1])) continue;
       expect(existsSync(join(dirname(f), m[1])), `${f} -> ${m[1]}`).toBe(true);
     }
+  });
+});
+
+describe('V2 anonymous counts: the privacy text, the docs and the code say the same thing', () => {
+  const launch = read('docs/launch-readiness.md');
+  it('the full privacy text says what Vercel Web Analytics does: the five steps in order, no cookie, no pick or code, what Vercel records, 24 hours, and the opt-out', () => {
+    const steps = ['Begin', 'scene ready', 'a second way flown for 20 seconds', 'vote card shown', 'vote sent'].map(t => PRIVACY_FULL.indexOf(t));
+    expect(steps.every(i => i > 0) && [...steps].sort((a, b) => a - b).join() === steps.join()).toBe(true);
+    for (const s of ['with Vercel Web Analytics', 'It sets no cookie, and a count holds no pick and no vote code', 'Vercel records the time, page, referrer, country, region, city, browser, system and device type',
+      'an anonymous visitor hash it discards after 24 hours', 'If your browser sends Do Not Track or Global Privacy Control, nothing is counted']) expect(PRIVACY_FULL, s).toContain(s);
+    expect(PRIVACY_FULL).toContain('Vercel, our host, keeps its own server logs.'); // the older host-logs sentence is still there
+    expect(PRIVACY_SHORT).not.toMatch(/Analytics|count/); // the ballot line is about the vote, which still sends only what it lists
+  });
+  it('voting.md no longer says the vote is the only thing that leaves the device, names the five steps and every property of the design, and the README matches', () => {
+    expect(voting).not.toMatch(/one thing in the game that leaves the device|only place the public sends us data/);
+    for (const s of ['the one thing in the game that sends what the player picked', '## Anonymous counts (Vercel Web Analytics)', 'does **not** check Do Not Track or Global Privacy Control itself', 'each at most once per page load',
+      'the tests fail on any other call', 'Custom events are a Vercel Pro or Enterprise feature', 'on a Hobby team only page views are recorded', '`AnalyticsBoot`', '`process.env.VERCEL`', 'the numbers are a floor',
+      "The page CSP (`COMMON_CSP`) names no `script-src`, `connect-src` or `default-src`", 'A script CSP added to the game later must allow']) inDocs(s);
+    for (const stage of STAGES) inDocs(`| \`${stage}\` |`);
+    expect(read('README.md')).toContain('the one thing that sends what you picked, only when you press Send. The game page also sends anonymous visit and step counts to Vercel Web Analytics');
+    expect(read('README.md')).not.toContain('it is the one thing that leaves the device');
+  });
+  it('launch-readiness.md carries the wiring note for begin and scene_ready, the plan facts and what only the owner can switch on', () => {
+    for (const s of ['`begin` and `scene_ready` are not wired yet', 'Web Analytics is not enabled', 'custom events', 'page-level only']) expect(launch, s).toContain(s);
   });
 });
