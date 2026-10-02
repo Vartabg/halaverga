@@ -93,13 +93,7 @@ export default function Experience() {
     if (touchBlast) html.dataset.touchBlast = ''; else delete html.dataset.touchBlast;
     return () => { delete html.dataset.touchBlast; };
   }, [touchBlast]);
-  // html dataset.labBar: while the header bar shows, the bands under the header move down by --lab-row (Experience.module.css).
   const bar = state.started && !failed;
-  useEffect(() => {
-    const html = document.documentElement;
-    if (bar) html.dataset.labBar = ''; else delete html.dataset.labBar;
-    return () => { delete html.dataset.labBar; };
-  }, [bar]);
   useInput(); useAudio(); useShooterInput({ unlock: unlockBlasterAudio }); usePlayGuard();
   const failure = useCallback(() => { setFailed(true); pause(); }, []);
   // Begin/Resume is an activation gesture: it unlocks blaster audio (a no-op while the blaster is off or muted), and it refuses to
@@ -108,8 +102,8 @@ export default function Experience() {
     if (!onPlayGesture()) { useGame.setState({ zoomNote: true }); return; }
     useGame.setState({ zoomNote: false }); unlockBlasterAudio(); resume(); main.current?.focus();
   };
-  const closePanel = () => { state.set({ panel: false }); if (state.started && state.ready && !failed) enter(); };
-  const closeGuide = () => { state.set({ journal: false }); if (state.started && state.ready && !failed) enter(); };
+  // Closing Flight settings or the Field guide returns to the pause card: Resume is always the player's own tap.
+  const closePanel = () => state.set({ panel: false }), closeGuide = () => state.set({ journal: false });
   // A rejected suit-asset load stays cached under its URL, so a bare remount would rethrow the same failure. The
   // clear is imported here rather than at module scope to keep three.js out of the landing page's first load.
   const retry = async () => {
@@ -137,15 +131,20 @@ export default function Experience() {
         {hydrated && !failed && <Boundary key={sceneKey} fallback={null} onError={failure}><Scene onLoss={failure} /></Boundary>}
       </div>
       <div className={`${styles.vignette} ${!state.started ? styles.introVignette : ''}`} aria-hidden="true" />
-      <header className={styles.header} data-bar={bar ? '' : undefined}>
-        <div className={styles.brand}><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M5 26V6h5v8h12V6h5v20h-5v-8H10v8Z" fill="currentColor" /></svg><span>HALAVERGA<small>RETURN TO EARTH</small></span></div>
-        {bar && <div className={styles.barSlot}><Optional><ControlsEntry part="trigger" /></Optional></div>}
+      <header className={styles.header} data-play={bar ? '' : undefined}>
+        {!bar && <div className={styles.brand}><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M5 26V6h5v8h12V6h5v20h-5v-8H10v8Z" fill="currentColor" /></svg><span>HALAVERGA<small>RETURN TO EARTH</small></span></div>}
+        {/* The top row: while playing, Vote (when it shows), Controls, Pause; the Field guide and Flight settings are on the pause card. */}
         <div className={styles.headerActions}>
-          <button id="field-guide" onClick={() => { pause(); state.set({ journal: true }); }}>Field guide</button>
-          {state.started && <button onClick={() => { pause(); state.set({ panel: true }); }} aria-label="Flight settings">⚙</button>}
-          {playing && <button onClick={pause} aria-label="Pause expedition">Ⅱ</button>}
+          {bar ? <>
+            <Optional><ControlsEntry part="trigger" /></Optional>
+            {playing && <button className={styles.pause} onClick={pause} aria-label="Pause expedition"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4h4v16H7zM13 4h4v16h-4z" fill="currentColor" /></svg></button>}
+          </> : <button id="field-guide" onClick={() => { pause(); state.set({ journal: true }); }}>Field guide</button>}
         </div>
       </header>
+      {/* The skip link's target while the row has no Field guide button; the Controls sheet is the header's sibling (it needs no pass-through
+          of its own); data-band is the invisible marker touchInsets.headerBand measures (the pre-cleanup band, see --band). */}
+      {bar && <><span id="field-guide" className="sr-only" tabIndex={-1} /><Optional><ControlsEntry part="sheet" /></Optional></>}
+      {state.started && <div className={styles.bandProbe} data-band="" aria-hidden="true" />}
       <h1 className={state.started || failed ? 'sr-only' : styles.heroTitle}>Earth,<br /><em>after us.</em></h1>
       {failed && fallback}
       {!state.started && !failed && <section className={styles.intro} aria-label="Begin expedition">

@@ -51,6 +51,8 @@ type GameState = {
   /** Runtime only (never saved): the vote card is open (the lab keys and auto-open wait); voteNudge: eligible to vote, so the
    *  pause card leads with the vote (VoteLayer sets it; players who never land never see the auto-open). */
   voteOpen: boolean; voteNudge: boolean;
+  /** Runtime only (never saved): the Controls sheet is open. */
+  controlsOpen: boolean;
   flying: boolean; landing: boolean; canLand: boolean; nearTerminal: boolean; limitCue: LimitCue; limitHint: string; clearanceActive: boolean; inputEpoch: number;
   checkpoint: Vec; discovered: boolean; message: string;
   set: (patch: Partial<Omit<GameState, 'set'>>) => void;
@@ -65,7 +67,7 @@ export const useGame = create<GameState>((set) => ({
   autoFire: true, aimButton: true, hintProgress: { touch: 0, simple: 0, mouse: 0 }, hintVisible: false,
   touchScheme: 'classic', touchLook: 1, touchAim: 1, lookAccel: true, edgeRest: true, invertY: false, flipSides: false,
   controlSize: 1, controlOpacity: .85, flyWhereILook: false, homeTipSeen: false, controlLab: 'standard',
-  nearGround: false, leavePrompt: false, zoomNote: false, descendBlocked: false, voteOpen: false, voteNudge: false,
+  nearGround: false, leavePrompt: false, zoomNote: false, descendBlocked: false, voteOpen: false, voteNudge: false, controlsOpen: false,
   flying: false, landing: false, canLand: false, nearTerminal: false, limitCue: '', limitHint: '', clearanceActive: false, inputEpoch: 0,
   checkpoint: START, discovered: false, message: '', set,
 }));

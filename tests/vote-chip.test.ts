@@ -84,12 +84,12 @@ describe('VoteChip (SSR)', () => {
     voted('desktop');
     expect(chip('desktop')).toBe(''); expect(chip('touch')).toContain('data-testid="vote-chip"');
   });
-  it('the picker mounts it right after the trigger, once the game has begun, and not when the picker is not started', () => {
+  it('the picker mounts it right before the trigger (DOM order is Vote, Controls), once the game has begun, and not when the picker is not started', () => {
     expect(html(createElement(ControlsPicker, { family: 'desktop' }))).toBe('');
     useGame.setState({ started: true, paused: false });
     const m = html(createElement(ControlsPicker, { family: 'desktop' }));
-    expect(m.indexOf('data-testid="controls-trigger"')).toBeGreaterThan(-1);
-    expect(m.indexOf('data-testid="vote-chip"')).toBeGreaterThan(m.indexOf('data-testid="controls-trigger"'));
+    expect(m.indexOf('data-testid="vote-chip"')).toBeGreaterThan(-1);
+    expect(m.indexOf('data-testid="controls-trigger"')).toBeGreaterThan(m.indexOf('data-testid="vote-chip"'));
     expect(m).not.toContain('controls-sheet'); // the chip is not inside the sheet
     voted('desktop');
     expect(html(createElement(ControlsPicker, { family: 'desktop' }))).not.toContain('vote-chip');
@@ -142,9 +142,10 @@ describe('the sheet footer and the settings copy', () => {
 });
 
 describe('the picker CSS contract for the chip', () => {
-  it('the root is a three-column grid with equal side columns and the trigger in the middle, so the trigger does not move', () => {
-    expect(css).toMatch(/\.root\{display:grid;grid-template-columns:minmax\(0,1fr\) minmax\(0,auto\) minmax\(0,1fr\)/);
-    expect(css).toMatch(/\.root>\.trigger\{grid-column:2\}/); expect(css).toMatch(/\.chip\{[^}]*grid-column:3/);
+  it('the root adds no box: the chip and the trigger are flex items of the header row, and neither is a grid cell any more', () => {
+    expect(css).toMatch(/\.root,\.layer\{display:contents\}/);
+    expect(css).not.toMatch(/grid-column:[23]\}/); expect(css).not.toMatch(/\.chip\{[^}]*grid-column/);
+    expect(css).toMatch(/\.trigger\{[^}]*flex:none[^}]*min-width:88px/); expect(css).toMatch(/\.chip\{[^}]*flex:none/);
   });
   it('the chip is 44 px, has a 3 px focus ring, no animation, and keeps forced-colors styles', () => {
     const rule = /\n\.chip\{[^}]*\}/.exec(css)![0];

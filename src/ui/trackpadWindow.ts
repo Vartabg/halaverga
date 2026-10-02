@@ -12,7 +12,7 @@ import { touchMode } from '@/game/pointerMode';
 type Point = { x: number; y: number };
 const clamp = (v: number, hi: number) => Math.max(0, Math.min(hi, v));
 const cruising = () => runtime.trackpad.active && !document.pointerLockElement && !touchMode();
-/** The header (brand, lab bar, Field guide, settings, Pause) and any other control: the cursor is reaching for it, not steering. */
+/** The header (its Controls, Vote and Pause buttons) and any other control: the cursor is reaching for it, not steering. */
 const CHROME = 'header, button, a, input, select, [role="radiogroup"], [role="dialog"], dialog';
 const onChrome = (t: EventTarget | null) => t instanceof Element && !!t.closest(CHROME);
 /** last/seen are shared with useTrackpad: last is the latest cursor point, seen false until a move seeds it (no jump on re-entry). */

@@ -36,19 +36,24 @@ export default function PauseCard({ ready, onEnter, note = '' }: Props) {
     <button className={styles.primary} autoFocus disabled={!ready} onClick={() => { useGame.setState({ leavePrompt: false }); keepPlaying(); onEnter(); }}>Keep playing <span aria-hidden="true">↗</span></button>
     <button className={styles.secondary} onClick={leaveGame}>Leave</button>
   </section>;
-  const gotIt = () => { useGame.setState({ homeTipSeen: true }); persistGame(); };
+  // The Home Screen tip is one muted line, not a card with a button: it counts as seen when Resume is pressed with it on screen.
+  const showTip = tip && !tipSeen;
+  const resume = () => { if (showTip) { useGame.setState({ homeTipSeen: true }); persistGame(); } onEnter(); };
   return <section className={styles.pauseCard} aria-label="Expedition paused">
     {probeNode}
-    <p className={styles.eyebrow}>SUIT HOLDING POSITION</p><h2>Take your time.</h2><p>Your expedition will be here.</p>
+    <h2>Take your time.</h2>
     {shooter && runtime.shooter.stats.kills > 0 && <p>Drones downed: {runtime.shooter.stats.kills}</p>}
     <p className={styles.note} role="status">{note || (zoomNote ? 'Pinch out to normal size, then tap Resume.' : cramped ? 'Screen too short for touch controls. Zoom out or turn the phone.' : '')}</p>
-    <button className={styles.primary} disabled={!ready} onClick={onEnter}>{ready ? 'Resume flight' : 'Restoring your suit…'} <span aria-hidden="true">↗</span></button>
+    <button className={styles.primary} autoFocus disabled={!ready} onClick={resume}>{ready ? 'Resume flight' : 'Restoring your suit…'} <span aria-hidden="true">↗</span></button>
     <LazyControls name="control-pause" />
-    <button className={styles.secondary} onClick={() => useGame.setState({ panel: true })}>Adjust flight settings</button>
     {/* The vote door is inside the Controls chunk above (V4): right under Resume for players who are asked, after the list for everyone
         else, and its words cost the landing page nothing. The vote card (VoteLayer) opens over the paused game; this card hides while it
         shows and returns after Skip. */}
-    <p className={styles.portraitLine}>Best played sideways.</p>
-    {tip && !tipSeen && <div className={styles.homeTip}><p>Tip: Share › Add to Home Screen for full screen.</p><button className={styles.secondary} onClick={gotIt}>Got it</button></div>}
+    <div className={styles.pair}>
+      <button className={styles.secondary} onClick={() => useGame.setState({ journal: true })}>Field guide</button>
+      <button className={styles.secondary} onClick={() => useGame.setState({ panel: true })}>Flight settings</button>
+    </div>
+    <p className={`${styles.pauseNote} ${styles.portraitLine}`}>Best played sideways.</p>
+    {showTip && <p className={styles.pauseNote}>Tip: Share › Add to Home Screen for full screen.</p>}
   </section>;
 }
