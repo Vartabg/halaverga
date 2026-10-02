@@ -16,6 +16,8 @@ export const SUN_POSITION: [number, number, number] = [-65, 100, 80];
 const sunLength = Math.hypot(...SUN_POSITION);
 export const SUN_DIRECTION: Rgb = [SUN_POSITION[0] / sunLength, SUN_POSITION[1] / sunLength, SUN_POSITION[2] / sunLength];
 export const SUN_COLOR = '#ffe6b2';
+/** The sun's disc as it appears on screen: warm gold, soft edged, never white and never orange. */
+export const SUN_DISC = '#ffeeaa';
 /** Equirectangular centre of the sun (three's mapping: u = atan2(z, x) / 2pi + .5, v = asin(y) / pi + .5). */
 export const SUN_UV: [number, number] = [Math.atan2(SUN_DIRECTION[2], SUN_DIRECTION[0]) / (2 * Math.PI) + .5, Math.asin(SUN_DIRECTION[1]) / Math.PI + .5];
 const flat = Math.hypot(SUN_DIRECTION[0], SUN_DIRECTION[2]);

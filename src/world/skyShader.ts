@@ -1,4 +1,4 @@
-import { CLOUD, HAZE, SKY, SKY_STOPS_H, SUN_COLOR, SUN_XZ, glslVec3 } from './atmospherePalette';
+import { CLOUD, HAZE, SKY, SKY_STOPS_H, SUN_COLOR, SUN_DISC, SUN_XZ, glslVec3 } from './atmospherePalette';
 
 const num = (v: number) => v.toFixed(5);
 
@@ -41,6 +41,7 @@ varying vec3 vWorld;
 uniform vec3 uSun;
 uniform sampler2D uClouds;
 uniform vec2 uWind;
+const vec3 SUN_DISC = ${glslVec3(SUN_DISC)};
 const vec3 CLOUD_LIT = ${glslVec3(CLOUD.lit)};
 const vec3 CLOUD_SHADE = ${glslVec3(CLOUD.shade)};
 const float CLOUD_COVER = ${num(CLOUD.coverage)};
@@ -70,7 +71,7 @@ void main() {
   cloud = mix(cloud, SKY_HAZE, exp(-h * 9.) * .6);
   col = mix(col, cloud, dens * .92);
   col += SKY_SUN * (pow(s, 16.) * .18 + pow(s, 160.) * .5) * (1. - dens * .8);
-  col = mix(col, SKY_SUN * 1.5, smoothstep(.99984, .99996, s) * (1. - dens * .9));
+  col = mix(col, SUN_DISC, smoothstep(.99984, .99996, s) * (1. - dens * .9));
   gl_FragColor = vec4(col, 1.);
   #include <colorspace_fragment>
   gl_FragColor.rgb += (dither(gl_FragCoord.xy) - .5) / 255.;

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { cloudCoverage, makeCloudData } from '@/world/cloudData';
 import { domeFragment, domeVertex, skyBaseGlsl } from '@/world/skyShader';
-import { CLOUD, FOG, HAZE, HEMISPHERE, SKY, SUN_DIRECTION, SUN_POSITION, SUN_UV, SUN_XZ, directionFromUv, driftClouds, glslVec3, hexToLinear, skyBase, type Rgb } from '@/world/atmospherePalette';
+import { CLOUD, FOG, HAZE, HEMISPHERE, SKY, SUN_DIRECTION, SUN_DISC, SUN_POSITION, SUN_UV, SUN_XZ, directionFromUv, driftClouds, glslVec3, hexToLinear, skyBase, type Rgb } from '@/world/atmospherePalette';
 
 const enc = (x: number) => Math.round(255 * (x <= .0031308 ? 12.92 * x : 1.055 * x ** (1 / 2.4) - .055));
 const screen = (c: Rgb) => c.map(enc);
@@ -70,6 +70,13 @@ describe('sky shader strings', () => {
     expect(domeFragment).not.toContain('tonemapping_fragment');
     expect(domeFragment).toContain('normalize(vWorld - cameraPosition)');
     expect(domeVertex).toContain('gl_Position.z = gl_Position.w');
+  });
+  it('draws a warm gold sun disc, never white and never orange', () => {
+    expect(domeFragment).toContain(glslVec3(SUN_DISC));
+    const [r, g, b] = hexRgb(SUN_DISC);
+    expect(r).toBe(255); expect(g).toBeGreaterThan(215); expect(g).toBeLessThan(250);
+    expect(b).toBeGreaterThan(120); expect(b).toBeLessThan(200);
+    expect(r > 190 && g < 110 && b < 100).toBe(false);
   });
 });
 
