@@ -11,7 +11,7 @@ export type HintEnv = { shooter: boolean; coarse: boolean; tapControls: boolean;
  * touch on the flight surface) of the page load; the series tracks are progressive and persisted.
  * Touch twin sticks teach flight too, so the touch series also runs with the blaster off; desktop keeps its order and shows
  * nothing with the blaster off. Classic one thumb (the phone default) with the blaster off, or tap controls with it off, gets 'drag':
- * the plain `Drag to fly` that the deleted 8 px ONE THUMB TO FLY caption used to cover.
+ * the plain `Drag to fly` that the deleted 8 px bottom caption used to cover.
  * The free cursor (the desktop default again, Garo 2026-09-24) gets no hint: its trackpad pill states the whole mapping.
  * Captured and flow keep the 'Hold C to fire' line.
  */
@@ -26,8 +26,8 @@ export function hintTrack(env: HintEnv): HintTrack {
 
 /** Every string is 30 characters or fewer, so each hint fits one line at 320 px. */
 export const HINT_TEXT = {
-  // Twin stick has no Lift button (Rise and Descend replace it), so step 3 names the one it shows.
-  touch: ['Left thumb: move', 'Right thumb: look', 'Tap Rise to lift off'] as [string, string, string],
+  // Step 3 names the cluster's Rise button as it reads on the ground ("Lift off", TouchCluster); twin hides the Lift/Land button, not this one.
+  touch: ['Left thumb: move', 'Right thumb: look', 'Tap Lift off to fly'] as [string, string, string],
   /** Touch step 3: blaster on with auto-fire, blaster on without it, blaster off. */
   touchAuto: 'Aim at drones · Fire to shoot',
   touchButton: 'Hold Fire to shoot',

@@ -50,7 +50,7 @@ describe('hintTrack', () => {
 describe('hintText', () => {
   it('teaches the twin sticks in four steps, the last one by blaster and auto-fire', () => {
     expect(HINT_STEPS.touch).toBe(4);
-    expect([0, 1, 2].map(k => hintText('touch', k, on))).toEqual(['Left thumb: move', 'Right thumb: look', 'Tap Rise to lift off']);
+    expect([0, 1, 2].map(k => hintText('touch', k, on))).toEqual(['Left thumb: move', 'Right thumb: look', 'Tap Lift off to fly']);
     expect(hintText('touch', 3, on)).toBe('Aim at drones · Fire to shoot');
     expect(hintText('touch', 3, { autoFire: true, captured: false, shooter: true })).toBe('Aim at drones · Fire to shoot');
     expect(hintText('touch', 3, { autoFire: false, captured: false, shooter: true })).toBe('Hold Fire to shoot');
