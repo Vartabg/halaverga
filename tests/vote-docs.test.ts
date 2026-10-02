@@ -112,6 +112,13 @@ describe('V1 results that do not over-claim: the docs say what the code does', (
     expect([100, 200, 400, 800, 1600].map(noisePoints)).toEqual([34, 24, 17, 12, 9]); // the figures the paragraph quotes are the code's
     expect(voting).not.toMatch(/Twenty fresh blocks|about 26 comparisons|100 votes need 20 groups/);
   });
+  it('the runbook describes the baseline check by its real thresholds, and its minv example raises the floor instead of lowering it', () => {
+    for (const s of ['**The last-flown check**', 'at least 30 picks', '3 standard errors', 'at least 10 points', '1 in k chance', 'order <family>: last-flown won X% of N picks (chance Y%)']) expect(runbookMd, s).toContain(s);
+    expect(runbookMd).not.toMatch(/70% or more of 30\+ entries/);
+    const minv = runbook('hv:production', '20260930', '2026093014', 'a3f').find((i) => i.id === 'minv')!;
+    expect(Number(/ minv (\d+)$/.exec(minv.redis)![1])).toBeGreaterThan(MINV_DEFAULT);
+    expect(runbookMd).toContain(`its default of ${MINV_DEFAULT}`);
+  });
   it('controls-demo.md carries the limits and the floor the code has (it said 20 a day per block and 30 votes)', () => {
     for (const s of [`${UNIT_LIMIT} votes a day per network address`, `${BLOCK_LIMIT} a day per network block`, `${ROUND_LIMIT} per network over 30 days`, `${n(GLOBAL_LIMIT)} a day for the whole site`, `at least ${MINV_DEFAULT} counted votes from at least ${MIN_PUBLIC_TAGS} different networks`,
       FIRST_20_LINE.charAt(0).toLowerCase() + FIRST_20_LINE.slice(1, -1)]) expect(demo, s).toContain(s);

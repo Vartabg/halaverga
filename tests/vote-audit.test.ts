@@ -1,7 +1,7 @@
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { controlsFor } from '@/game/controlTypes';
+import { controlsFor, DEFAULT_CONTROL } from '@/game/controlTypes';
 import { encodeEntry, decodeEntry } from '@/lib/vote/entry';
 import { aggregate } from '@/server/vote/aggregate';
 import { analyze, collect, decode, main, type AuditInput } from '../scripts/vote-audit.mjs';
@@ -17,8 +17,9 @@ const has = (r: { flags: string[] }, re: RegExp) => r.flags.some((f) => re.test(
 describe('vote-audit --self-test and the drift guard', () => {
   const run = (env: Record<string, string>, args = ['--self-test']) => execFileSync(process.execPath, ['scripts/vote-audit.mjs', ...args], { env: env as NodeJS.ProcessEnv, encoding: 'utf8', timeout: 10_000, stdio: ['ignore', 'pipe', 'pipe'] });
   it('runs with no environment and prints the registry ids and decoded samples that match src/lib/vote/entry.ts', () => {
-    const out = JSON.parse(run({ PATH: process.env.PATH ?? '' })) as { familyIds: Record<string, string[]>; decoded: Record<string, unknown> };
+    const out = JSON.parse(run({ PATH: process.env.PATH ?? '' })) as { familyIds: Record<string, string[]>; defaults: Record<string, string>; decoded: Record<string, unknown> };
     expect(out.familyIds).toEqual({ touch: controlsFor('touch').map((c) => c.id), desktop: controlsFor('desktop').map((c) => c.id) });
+    expect(out.defaults).toEqual(DEFAULT_CONTROL); // the starting control the order check reads
     for (const k of Object.keys(out.decoded)) expect(out.decoded[k], k).toEqual(decodeEntry(k));
     expect(out.decoded['2026093014d2857a3f']).toEqual({ hour: '2026093014', device: 'desktop', favorite: 'flow', tried: ['cursor', 'flow', 'brush'], last: 'brush', tag: 'a3f' });
     expect(out.decoded['2026093014t415201c']).toMatchObject({ device: 'touch', favorite: 'brush', tried: ['one-finger', 'draw', 'brush'], last: 'draw', tag: '01c' });
@@ -117,16 +118,54 @@ describe('vote-audit analyze', () => {
     expect(has(report(run6([8, 9, 10, 12, 13, 14], () => 10)), /flat/)).toBe(false);
     expect(has(report(run6([8, 9, 10, 11, 12, 13], (i) => (i % 2 ? 20 : 10))), /flat/)).toBe(false);
   });
-  it('flags one control at 70% of 30 or more entries of a family, and a pick that is the last-flown control', () => {
+  it('flags one control at 70% of 30 or more entries of a family', () => {
     const skew = (n: number, hit: number) => at(9, n, 0, (i) => ({ favorite: i < hit ? 'flow' : 'cursor', tried: ['cursor', 'flow', 'brush'], last: 'brush' }));
     expect(has(report(skew(30, 22)), /20260930: flow is 73% of 30 desktop entries/)).toBe(true);
     expect(has(report(skew(30, 20)), /is \d+% of 30 desktop entries/)).toBe(false);
     expect(has(report(skew(29, 29)), /desktop entries/)).toBe(false);
-    const recency = (n: number, hit = n) => at(9, n, 0, (i) => ({ favorite: ids('desktop')[i % 8], tried: two(i), last: i < hit ? ids('desktop')[i % 8] : two(i)[1] }));
-    expect(has(report(recency(30)), /the pick is the last-flown control in 70% or more of 30 entries/)).toBe(true);
-    expect(has(report(recency(30, 21)), /last-flown control/)).toBe(true);
-    expect(has(report(recency(30, 20)), /last-flown control/)).toBe(false);
-    expect(has(report(recency(29)), /last-flown/)).toBe(false);
+  });
+  describe('V1 the last-flown check is judged against chance for the ballots, not against a fixed 70%', () => {
+    const two = ['cursor', 'flow'] as B['tried'], three = ['cursor', 'flow', 'brush'] as B['tried'];
+    /** n picks of one family on one day: `wins` of them name the control flown last, the rest name another tried control; `extra` Can't tell ballots on top. */
+    const picks = (n: number, wins: number, tried: B['tried'] = two, device: B['device'] = 'desktop', extra = 0) => [
+      ...at(9, n, 0, (i) => ({ device, favorite: i < wins ? tried.at(-1)! : tried[i % (tried.length - 1)], tried, last: tried.at(-1)! })),
+      ...at(9, extra, 2000, () => ({ device, favorite: 'tie' as const, tried, last: tried.at(-1)! })),
+    ];
+    const flagged = (bs: B[]) => has(report(bs), /the last-flown control won \d+% of \d+ \w+ picks/);
+
+    it('two controls tried: half is chance, so 70% of 30 picks (the old alarm) is not a flag, 70% of 100 is', () => {
+      expect(flagged(picks(30, 21))).toBe(false); // 2.2 standard errors: a fair poll does this about one day in fifty
+      expect(flagged(picks(100, 70))).toBe(true);
+      expect(report(picks(100, 70)).flags.find((f) => /last-flown/.test(f))).toBe('20260930: the last-flown control won 70% of 100 desktop picks, chance for these ballots is 50% (4.0 standard errors over)');
+      expect(flagged(picks(100, 50))).toBe(false);
+    });
+    it('three controls tried: chance is a third, so 55% is a flag where the fixed 70% never was', () => {
+      expect(flagged(picks(60, 33, three))).toBe(true); // 20 expected, 33 seen
+      expect(flagged(picks(60, 24, three))).toBe(false); // 40%: a little over chance, inside the noise
+      expect(report(picks(60, 33, three)).flags.find((f) => /last-flown/.test(f))).toMatch(/won 55% of 60 desktop picks, chance for these ballots is 33% \(3\.\d standard errors over\)/);
+    });
+    it('needs 30 picks, 3 standard errors and 10 points over chance: all three, not any one', () => {
+      expect(flagged(picks(29, 29))).toBe(false); // too few picks, whatever the share
+      expect(flagged(picks(30, 30))).toBe(true);
+      expect(flagged(picks(1000, 560))).toBe(false); // 3.8 standard errors, but only 6 points over chance: ordinary novelty, printed in the summary, not flagged
+      expect(flagged(picks(1000, 600))).toBe(true);
+    });
+    it('Can\'t tell is no pick: it neither dilutes the share nor counts as a loss', () => {
+      expect(flagged(picks(60, 45, two, 'desktop', 100))).toBe(true); // 75% of 60 picks (it was 28% of 160 entries under the old rule)
+      expect(flagged(picks(20, 20, two, 'desktop', 100))).toBe(false); // 20 picks are too few
+    });
+    it('is judged for each family and day on its own, and names the family', () => {
+      const mixed = [...picks(60, 30, two, 'desktop'), ...at(9, 60, 3000, (i) => ({ device: 'touch' as const, favorite: i < 50 ? 'draw' as const : 'one-finger' as const, tried: ['one-finger', 'draw'] as B['tried'], last: 'draw' as const }))];
+      const r = report(mixed);
+      expect(r.flags.filter((f) => /last-flown/.test(f))).toEqual(['20260930: the last-flown control won 83% of 60 touch picks, chance for these ballots is 50% (5.2 standard errors over)']);
+    });
+    it('prints, per family, the last-flown share against chance and the default against the control flown last', () => {
+      const bs = [...picks(60, 45), ...at(9, 10, 3000, () => ({ device: 'desktop' as const, favorite: 'brush' as const, tried: ['flow', 'brush'] as B['tried'], last: 'brush' as const }))];
+      const line = report(bs).lines.find((l) => l.startsWith('order desktop:'))!;
+      expect(line).toBe('order desktop: last-flown won 79% of 70 picks (chance 50%); default flown and another control last: last won 75%, default 25% of 60 picks (chance 50% each)');
+      expect(report(bs).lines.some((l) => l.startsWith('order touch:'))).toBe(false); // no touch picks, no touch line
+      expect(report([]).lines.some((l) => l.startsWith('order '))).toBe(false);
+    });
   });
   it('flags 10 or more groups with the same count of 3, and a group that is 30% of a day', () => {
     const groups = (n: number, size = 3) => Array.from({ length: n }, (_, g) => at(9, size, g * 9).map((b) => ({ ...b, tag: tag(g) }))).flat();
@@ -137,9 +176,9 @@ describe('vote-audit analyze', () => {
     expect(has(report(share), /group b20 \(desktop\) is 31% of 20260930/)).toBe(true);
     expect(report(share).voidLines).toEqual([]);
   });
-  it('the hour line names the top groups, the top pick and the recency share', () => {
+  it('the hour line names the top groups, the top pick and the last-flown share of picks against chance', () => {
     const r = report([...at(9, 3, 0).map((b) => ({ ...b, tag: 'a3f' })), ...at(9, 1, 5).map((b) => ({ ...b, tag: '0c1' }))]);
-    expect(r.lines.find((l) => l.startsWith('hour 2026093009'))).toMatch(/^hour 2026093009: 4 entries; groups a3f:3 0c1:1; top d:\w[\w-]* \d+%; last-flown \d+%; picks d:/);
+    expect(r.lines.find((l) => l.startsWith('hour 2026093009'))).toMatch(/^hour 2026093009: 4 entries; groups a3f:3 0c1:1; top d:\w[\w-]* \d+%; last-flown \d+% of \d+ picks \(chance \d+%\); picks d:/);
   });
 });
 

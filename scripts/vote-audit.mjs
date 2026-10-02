@@ -9,6 +9,7 @@ import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const FAMILY_IDS = {"touch":["one-finger","twin-stick","draw","conduct","brush"],"desktop":["cursor","one-finger-keys","flow","captured","mouse-keys","draw","conduct","brush"]};
+const DEFAULTS = {"touch":"one-finger","desktop":"cursor"}; // src/game/controlTypes.ts DEFAULT_CONTROL: the control every visitor starts on
 const ROUND = 'r3:s3';
 const SAMPLES = ['2026093014d2857a3f', '2026093014t415201c', '2026093014dx052b20', '2026133014d2857a3f', '2026093014d2807a3f', '2026093014d285'];
 
@@ -28,7 +29,19 @@ export function decode(s) {
 
 const inc = (m, k, by = 1) => m.set(k, (m.get(k) ?? 0) + by);
 const top = (m, n) => [...m].sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1)).slice(0, n);
-const pct = (a, b) => Math.round((100 * a) / b);
+const pct = (a, b) => (b ? Math.round((100 * a) / b) : 0);
+/** Last-flown maths over the picks of `list` (a tie is no pick). A ballot that tried k controls gives its last-flown control a 1/k chance, so the baseline follows the ballot mix: with the default plus one suggested control (k = 2) it is 50%.
+ *  sub: ballots that tried the default and flew another control last, the shape /results reports (the starting control stands in for "flown first"). */
+function order(list) {
+  const o = { n: 0, last: 0, chance: 0, variance: 0, sub: 0, subLast: 0, subFirst: 0, subChance: 0 };
+  for (const e of list) {
+    if (!e.favorite) continue;
+    const p = 1 / e.tried.length, first = DEFAULTS[e.device], win = e.favorite === e.last;
+    o.n++; o.chance += p; o.variance += p * (1 - p); if (win) o.last++;
+    if (e.last !== first && e.tried.includes(first)) { o.sub++; o.subChance += p; if (win) o.subLast++; else if (e.favorite === first) o.subFirst++; }
+  }
+  return { ...o, z: (o.last - o.chance) / Math.sqrt(o.variance || 1) };
+}
 
 /** The report. input: { pairs: [nonce, entry][], voids: string[], ctl: {field: value}, rlg: {YYYYMMDD: number|null}, hlen, ns, now, hours }. */
 export function analyze({ pairs, voids, ctl, rlg, hlen, ns, now, hours }) {
@@ -59,10 +72,10 @@ export function analyze({ pairs, voids, ctl, rlg, hlen, ns, now, hours }) {
   for (const e of whole) (byDay.get(e.day) ?? byDay.set(e.day, []).get(e.day)).push(e);
   const hours2 = [...byHour.keys()].sort();
   for (const h of hours2) {
-    const list = byHour.get(h), tags = new Map(), picks = new Map();
+    const list = byHour.get(h), tags = new Map(), picks = new Map(), o = order(list);
     for (const e of list) { inc(tags, e.tag); inc(picks, `${e.device[0]}:${e.favorite ?? 'tie'}`); }
     const [[best, n]] = top(picks, 1);
-    lines.push(`hour ${h}: ${list.length} entries; groups ${top(tags, 3).map(([g, c]) => `${g}:${c}`).join(' ')}; top ${best} ${pct(n, list.length)}%; last-flown ${pct(list.filter((e) => e.favorite === e.last).length, list.length)}%; picks ${top(picks, 99).map(([k, c]) => `${k} ${c}`).join(', ')}`);
+    lines.push(`hour ${h}: ${list.length} entries; groups ${top(tags, 3).map(([g, c]) => `${g}:${c}`).join(' ')}; top ${best} ${pct(n, list.length)}%; last-flown ${pct(o.last, o.n)}% of ${o.n} picks (chance ${pct(o.chance, o.n)}%); picks ${top(picks, 99).map(([k, c]) => `${k} ${c}`).join(', ')}`);
   }
   const counts = hours2.map((h) => byHour.get(h).length), sorted = [...counts].sort((a, b) => a - b), median = sorted[Math.floor(sorted.length / 2)];
   for (const h of hours2) if (byHour.get(h).length > 3 * median) flag(`hour ${h} has ${byHour.get(h).length} entries, more than 3 times the median ${median}`);
@@ -85,13 +98,18 @@ export function analyze({ pairs, voids, ctl, rlg, hlen, ns, now, hours }) {
     }
     const same = [...sizes].filter(([n, c]) => n >= 3 && c >= 10);
     if (same.length) flag(`${day}: ${same.map(([n, c]) => `${c} groups with ${n === 5 ? '5 or more' : n} entries`).join(', ')}`);
-    if (list.length >= 30 && list.filter((e) => e.favorite === e.last).length / list.length >= 0.7) flag(`${day}: the pick is the last-flown control in 70% or more of ${list.length} entries`);
     for (const device of Object.keys(FAMILY_IDS)) {
       const own = list.filter((e) => e.device === device), picks = new Map();
       for (const e of own) if (e.favorite) inc(picks, e.favorite);
       const [[id, n] = ['', 0]] = top(picks, 1);
       if (own.length >= 30 && n / own.length >= 0.7) flag(`${day}: ${id} is ${pct(n, own.length)}% of ${own.length} ${device} entries`);
+      const o = order(own); // last-flown wins well past chance for this ballot mix: 30+ picks, 3 standard errors and 10 points over
+      if (o.n >= 30 && o.z >= 3 && o.last - o.chance >= o.n / 10) flag(`${day}: the last-flown control won ${pct(o.last, o.n)}% of ${o.n} ${device} picks, chance for these ballots is ${pct(o.chance, o.n)}% (${o.z.toFixed(1)} standard errors over)`);
     }
+  }
+  for (const device of Object.keys(FAMILY_IDS)) {
+    const o = order(es.filter((e) => e.device === device));
+    if (o.n) lines.push(`order ${device}: last-flown won ${pct(o.last, o.n)}% of ${o.n} picks (chance ${pct(o.chance, o.n)}%); default flown and another control last: last won ${pct(o.subLast, o.sub)}%, default ${pct(o.subFirst, o.sub)}% of ${o.sub} picks (chance ${pct(o.subChance, o.sub)}% each)`);
   }
   if (voidLines.size) lines.push('Paste to void (reversible with SREM; a group void keeps honest votes from other groups):', ...voidLines);
   if (!flags.length) lines.push('No flags.');
@@ -113,7 +131,7 @@ export async function collect(url, token, ns, days, fetchImpl = fetch) {
 
 /** The CLI. Returns the exit code. fetchImpl is for tests (the fake store), never a network address. */
 export async function main(argv, env, fetchImpl = fetch) {
-  if (argv.includes('--self-test')) { console.log(JSON.stringify({ familyIds: FAMILY_IDS, decoded: Object.fromEntries(SAMPLES.map((s) => [s, decode(s)])) })); return 0; }
+  if (argv.includes('--self-test')) { console.log(JSON.stringify({ familyIds: FAMILY_IDS, defaults: DEFAULTS, decoded: Object.fromEntries(SAMPLES.map((s) => [s, decode(s)])) })); return 0; }
   const arg = (n, d) => { const i = argv.indexOf(`--${n}`); return i >= 0 ? argv[i + 1] : d; };
   const name = arg('env', env.VOTE_ENV || 'production'), hours = Number(arg('hours', '48'));
   if (!/^[a-z]{1,20}$/.test(name) || !Number.isInteger(hours) || hours < 1 || hours > 720) { console.error('usage: node scripts/vote-audit.mjs [--hours 1..720] [--env production|preview|local] --yes'); return 2; }
