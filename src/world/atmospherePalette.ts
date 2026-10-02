@@ -38,7 +38,7 @@ export const SKY_STOPS_H = { low: .17, mid: .5 };
  * `lift` is the plane's height in the projection dir.xz / (h + lift): a higher one keeps the clouds overhead as fine as the ones near
  * the horizon (a low one magnifies the top of a level phone frame about four times and smears it). */
 export const CLOUD = {
-  lit: '#fbf8ee', shade: '#a3bad0', coverage: .45, scale: .84, lift: .55, wind: [.003, .001] as [number, number], offset: [.18, .62] as [number, number],
+  lit: '#fbf8ee', shade: '#a3bad0', coverage: .45, scale: .84, lift: .55, wind: [.003, .001] as [number, number], offset: [.725, .525] as [number, number],
   weatherScale: .55, weatherSwing: .3,
 };
 /** Fog is three's linear smoothstep on view depth, applied after tone mapping, so the colour is exactly what appears on screen. The
