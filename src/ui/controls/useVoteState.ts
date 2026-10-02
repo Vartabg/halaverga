@@ -71,5 +71,3 @@ export function useReadyToast(state: VoteState) {
     else if (state === 'ready' && sawLocked.current && !toasted) { toasted = true; useGame.setState({ message: READY_TEXT }); }
   }, [state]);
 }
-/** Tests only: lets the toast fire again. */
-export const forgetToast = () => { toasted = false; };
