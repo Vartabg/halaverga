@@ -6,7 +6,7 @@ The exact hand-deploy that has worked, the checks after it, and how to undo it. 
 
 ## 1. What production is today (read-only, 2026-10-02)
 
-Read through the Vercel MCP (`get_project`, `list_deployments`, `get_deployment`, `list_deployment_aliases`, `get_firewall_config`) and with plain `curl` on the public domain. Nothing was changed.
+Read through the Vercel MCP (`get_project`, `list_deployments`, `get_deployment`, `list_deployment_aliases`, `get_firewall_config`, `get_git_deployment_context`) and with plain `curl` on the public domain; the firewall, deployment list and plan rows were read again late the same day and had not changed. Nothing was changed.
 
 | Fact | Value |
 |---|---|
