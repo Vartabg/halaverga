@@ -8,7 +8,7 @@ afternoon over a flooded, overgrown, damaged city, not an apocalypse and not a f
 
 Status: **S1 (sky dome, sun, clouds, sky colours and the coherence of water reflection, fog colour, hemisphere and environment) and S2
 (horizon band, sea haze, distant skyline, fog range) are built, and repair round 1 (after the first review of the S2 frames) is in; see
-"Repair round 1" near the end, which supersedes the numbers below where they differ.** Nothing is pushed. The old skyline boxes are
+"Repair round 1" and "Repair round 2" near the end, which supersede the numbers below where they differ.** Nothing is pushed. The old skyline boxes are
 gone: the background is now a sky, one haze, and a seeded three-layer skyline standing in the sea.
 
 ## One source of truth: `src/world/atmospherePalette.ts`
@@ -290,6 +290,69 @@ brand now has 2.68:1 on a phone (median background; S2 2.38) and 2.91:1 on deskt
 3. The sun still sits behind the camera at the default heading (D2). Moving it is the one-line change in the deferred list.
 4. Real phone confirmation is still owed: no Safari or iPhone frame exists, and OLED brightness changes how a pale sky reads. The skyline
    shader now has about 12 more ALU ops per skyline pixel and no new texture; the dome has the same five taps. Not timed on a device.
+
+## Repair round 2 (2026-10-02, after the second review of the S2 frames)
+
+Garo: "better, you're trending in the right direction. the sky and the background still are ruining the demo for me". Three reviewers (art,
+technical, the owner's eye) looked at the round 1 frames (`scratchpad/sky/after1`) and raised 14 problems. Each was checked on those frames
+first. Measured frames of this round: `scratchpad/sky/fix1` (production build of the final commit, 33 frames and 3 sheets on port 3531,
+0 missing, 0 camera mismatches, 0 page errors, desktop Chrome on Metal at phone-shaped viewports: emulation, not iPhone validation).
+
+### What was real and what was done
+
+| Problem | Verdict | Change |
+|---|---|---|
+| Landing sky is dark slate (raised three times, art, technical, owner) | Real, and still only a CSS change fixes it. Landing sky mean luma 79 (desktop), 108 (phone), 70 (landscape), against 163, 186, 165 in play at the same camera | Not changed: the UI is fenced off this round. A ready patch and its measured result are in the flags below. |
+| Sun halo is a dirty grey, the disc a flat sticker | Real: the old ramp went blue, grey (saturation .01 at luma 212), cream | The lift is now a wide warm white (`#f7f6ee`, rate 60, weight .85) that closes into cream (rate 420) and a two-tone disc (core `#fff3c4`, rim `#ffe39a`). The falloff constants live in `SUN_GLOW` with a TypeScript twin, `sunGlow()`. On screen the colour is neutral only at luma 225 (a white glare, 4.5 to 4.8 degrees out), luma falls monotonically outward, the sky 16 degrees out has saturation .36 to .38 |
+| Clouds read as crumpled paper (creases, stained interiors, razor edges, specks) | Real: lighting delta x6 at a fine mip, roughness added anywhere, edge ramp .03 | Light comes from a broad slope read at mip 2.8 (gain 4, a thick-core term), roughness only where the mass already is, the edge ramp is .075 near the horizon and .05 high up, fine detail weight .18, shade `#bccbdc`. Same five taps. Speck share (components under 40 px2, sky rows only): `ground-up-desktop` 48 percent to 29 percent and 145 components to 55; hero desktop 42 to 31 percent |
+| Cloud bank swallows the sun side (63 percent) | Real | The offset was picked again: see below. Toward-sun, same crude measure (it counts the white glow too): 63 to 52 percent portrait, 44 to 49 desktop, 42 to 45 landscape, with the sun in a clear gap |
+| HUD telemetry on a white cloud in landscape | Real: contrast of white on the brightest 5 percent behind it 1.11:1 | Two soft clear patches in the weather (below). Brightest 5 percent behind the telemetry is now 1.70:1 (landscape) and 1.74:1 (portrait). The median is 1.7 to 1.8 because the sky itself is pale there: white text on a pale sky needs a UI scrim, which is fenced off |
+| Skyline is pale, flat, intact foam core (3 reports) | Real | Tints cooler and darker (`#7f95a3`, `#7b97ab`, `#86a2b7` lit), faces lit on a smooth ramp (south, west, east: three tones), the tower fog is clearer with height (`pow(f, 1.6) * .8`, equal to the sea's at the waterline), floors read as bands where the windows fade, window panes darker and cooler. Towers in `high-horizon-desktop` row 420 went 186, 171, 200 to 162, 149, 184 against haze 219. 51 of 183 towers have a sheared roof (31 of them deeply, 10 to 20 m; round 1 stopped at 10 m), 6 lose their top floors (columns on a lowered roof) |
+| Towers stack like blocks, necks dark, crowns lime lids | Real | The recessed core is shallow (90 percent of the body) and its colour is the shade face's, the upper block is narrower (88 percent), crowns are `#46623f` tufts on 42 parts across 16 towers |
+| Towers pasted on the water, flat faces, khaki | Real (khaki: the old tan lit tint) | Wet concrete (darker, greener) up to 2.4 m, a foam line at the water, mist 70 percent at the foot and gone by 12 m, cool tints. The window grid already varies per tower (bay width and floor height come from the seed): kept |
+| Distant skyline reads as toy blocks: common base line, fog shelf, white column behind the canal | Partly. The base is the water plane at y .1, so a varied foot elevation is invisible, and the haze column through the canal gap is a gradient, not an edge (worst step 8 luma levels per 12 px, `ground-horizon-phone-portrait` x 300 and 370) | Foot, wet band and foam above, floor bands on the far layers. No mirrored smear below the base (there is no reflection pass) |
+| District-edge slabs read as flat camo walls | Mis-attributed. The dark marbled wall in `toward-sun`, `skyline-left` and `skyline-right` is the terrace's own 10 m parapet panel (raycast: x -8.9, 12 m away, the stone group, shaded side). The hills behind it are fine | A calm concrete group (index 5, one more draw call, same triangles): the same texture with its marbling mostly out, a soft normal map and a wet band, used by the four hills and the two parapet panels (cool grey, still not solid). The parapet is lighter and calmer; it is still a textured concrete wall 12 m away |
+
+### Cloud offset and the telemetry patches
+
+`CLOUD.gaps` are two clear patches in the weather: azimuth -9.5 degrees, elevation 15.5 (clear 6.5, fade 11) is where the portrait telemetry
+sits at frame 0; azimuth 39.5, elevation 17.5 (clear 9, fade 13) is the landscape one. Inside, the cloud threshold rises by `gapLift` .3;
+a dot product and a smoothstep each, no texture tap. The offset (`.95, .05`) comes from a CPU twin of the dome's density, `cloudAt()` in
+`cloudData.ts` (the same twin the tests walk), over 1,600 offsets and three viewports: the sun clear at frame 0, the canal vista clear, the
+telemetry patches clear, 23 to 31 percent cloud in the toward-sun view in the twin. Only 5 of 1,600 offsets met every limit once the patches
+were in; without them none did. The patches are world fixed and drift away with the clouds in play, which is when a HUD zone no longer
+matters as much. `tests/atmosphere.test.ts` walks the same rectangles on the baked data (under 3 percent cloud) and the sun and the vista.
+
+### Measurements (production build, `fix1`)
+
+- Renderer counters (spawn and 80 m): **20 draw calls, 584,726 triangles**, 19 geometries, 20 textures (round 1: 19, 584,518, 19, 20). The
+  one new call is the calm concrete group. The skyline is 4,998 triangles (was 4,790).
+- Landing first load: `node scripts/check-first-load.mjs` prints **635.6 KB** of 636 KB, unchanged. No dependency, no network asset, the
+  lockfile untouched, `grep -rn atmospherePalette src/game src/ui` returns nothing, every module under 200 lines (`atmospherePalette.ts` 120,
+  `cloudData.ts` 104, `skyShader.ts` 97).
+- Drone-eye detector: 0 pixels in all 33 frames.
+- Behaviour (top 140 rows of the 1440x900 hero view): default motion 68,017 px differ over 5 s (clouds drift, 28,639 of them in the sky rows
+  alone); paused, resized and restored 0 px differ; reduced motion over 4 s, in the sky rows (0 to 58) 610 px differ, 5 of them by more than
+  2 levels (sub-pixel camera jitter at cloud edges); the larger differences in the full strip are the animated foliage on the buildings.
+- Tests: `pnpm test` runs 176 files and 2,184 tests, all green. New: the sun glow walked from the disc to 25 degrees (monotone luma, a brief
+  white neutral zone, the sky still blue), the first-frame sky (telemetry patches, sun, vista, cloud overhead), the damage counts, the calm
+  group. Browser specs on the scratch production build on port 3531: `recovery.spec.ts`, `flow-recovery.spec.ts`, `accessibility.spec.ts`
+  and `composition.spec.ts` 26 of 26, `classic-blast.spec.ts` and `lab-switch.spec.ts` 21 of 21.
+
+### Owner flags that remain
+
+1. **The landing screen is still murk, and only the CSS fixes it.** This round again left `src/ui/Experience.module.css` alone. The patch
+   is `scratchpad/sky/fix1/landing-vignette.diff` (checked with `git apply --check -p1`, not applied): landing top stop `.67` to `.30`, ending
+   at 18 percent (was 25), the left rail `.40` to `.20`, the `.introVignette::after` ellipse `#10272fa6 / #10272f80` to `#10272f66 / #10272f40`
+   fading out at 70 percent, the phone rule's top stop `#102a32aa` to `#102a3266`, and in play the top band `#102a3266` over 12 percent to
+   `#102a3226` over 20. Measured on a scratch dev server (CSS only changed in the scratch copy): landing sky mean luma 79 to 135 (desktop),
+   108 to 154 (phone), 70 to 123 (landscape), against 163, 186 and 165 in play. The headline, copy and button are as legible as before
+   (`landing-head-*.png` and `landing-proposed-*.png` in `scratchpad/sky/fix1`). Needs Garo's yes. Without it the first screen reads as
+   overcast dusk whatever the sky does.
+2. The telemetry text itself needs a scrim to be readable over a pale sky (about 1.7:1 over clear sky at 15 degrees): a UI change.
+3. The sun still sits behind the camera at the default heading (D2).
+4. Real phone confirmation is still owed. The dome has the same five taps and gained two dot products; the skyline fragment shader gained
+   about ten ALU ops and no texture; the calm concrete adds a draw call. Nothing was timed on a device.
 
 ## Deferred (not in this pass)
 
