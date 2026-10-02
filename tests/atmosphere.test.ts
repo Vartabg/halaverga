@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { cloudCoverage, makeCloudData } from '@/world/cloudData';
+import { cloudAt, cloudCoverage, makeCloudData } from '@/world/cloudData';
 import { domeFragment, domeVertex, skyBaseGlsl } from '@/world/skyShader';
 import { waterFragment, waterVertex } from '@/world/waterShader';
-import { CLOUD, FOG, HAZE, HEMISPHERE, SKY, SUN_CORE, SUN_CREAM, SUN_DIRECTION, SUN_DISC, SUN_GLOW, SUN_PALE, SUN_POSITION, SUN_UV, SUN_XZ, directionFromUv, driftClouds, glslVec3, hexToLinear, skyBase, sunGlow, type Rgb } from '@/world/atmospherePalette';
+import { CLOUD, FOG, HAZE, HEMISPHERE, SKY, SUN_CORE, SUN_CREAM, SUN_DIRECTION, SUN_DISC, SUN_GLOW, SUN_PALE, SUN_POSITION, SUN_UV, SUN_XZ, directionFromUv, driftClouds, glslVec3, hexToLinear, skyBase, skyDirection, sunGlow, type Rgb } from '@/world/atmospherePalette';
 
 const enc = (x: number) => Math.round(255 * (x <= .0031308 ? 12.92 * x : 1.055 * x ** (1 / 2.4) - .055));
 const screen = (c: Rgb) => c.map(enc);
@@ -142,6 +142,26 @@ describe('cloud data', () => {
   it('covers about 40 percent of the sky at the shipped threshold', () => {
     const cover = cloudCoverage(data, CLOUD.coverage);
     expect(cover).toBeGreaterThan(.32); expect(cover).toBeLessThan(.48);
+  });
+});
+
+describe('the first frame sky', () => {
+  const data = makeCloudData(256, 2113), share = (az: [number, number], el: [number, number]) => { // the part of a patch of sky under cloud
+    let n = 0, cloud = 0;
+    for (let a = az[0]; a <= az[1]; a += 1) for (let e = el[0]; e <= el[1]; e += .5) { n++; if (cloudAt(data, skyDirection(a, e)) > .35) cloud++; }
+    return cloud / n;
+  };
+  it('keeps the telemetry corners clear of cloud, upright and on its side: white text never lands on a white cloud', () => {
+    expect(share([-15, -4], [13.5, 18])).toBeLessThan(.03); // portrait: MERIDIAN / ON FOOT, left of centre
+    expect(share([32, 47], [13, 22])).toBeLessThan(.03); // landscape: the same text, top right
+    expect(domeFragment).toContain('GAP_LIFT'); expect(domeFragment).toContain('dot(dir, GAP_0)');
+  });
+  it('keeps the sun in the clear and the sea end of the canal open, and still shows cloud overhead', () => {
+    expect(cloudAt(data, SUN_DIRECTION)).toBeLessThan(.1);
+    expect(share([-9, 9], [3, 12])).toBeLessThan(.1);
+    let sky = 0, cloud = 0; // 40 degrees up, all around: the sky is not empty
+    for (let a = 0; a < 360; a += 3) { sky++; if (cloudAt(data, skyDirection(a, 40)) > .35) cloud++; }
+    expect(cloud / sky).toBeGreaterThan(.2); expect(cloud / sky).toBeLessThan(.7);
   });
 });
 

@@ -1,6 +1,9 @@
-import { CLOUD, HAZE, SKY, SKY_STOPS_H, SUN_CORE, SUN_CREAM, SUN_DISC, SUN_GLOW, SUN_PALE, SUN_XZ, glslVec3 } from './atmospherePalette';
+import { CLOUD, HAZE, skyDirection, SKY, SKY_STOPS_H, SUN_CORE, SUN_CREAM, SUN_DISC, SUN_GLOW, SUN_PALE, SUN_XZ, glslVec3 } from './atmospherePalette';
 
 const num = (v: number) => v.toFixed(5);
+const cosDeg = (deg: number) => Math.cos(deg * Math.PI / 180);
+/** One cloud gap as GLSL: its centre direction and the cosines of its fade and clear radii. */
+const gapGlsl = (i: number) => { const g = CLOUD.gaps[i]; return `const vec3 GAP_${i} = vec3(${skyDirection(g.az, g.el).map(num).join(', ')});\nconst vec2 GAP_${i}_COS = vec2(${num(cosDeg(g.fade))}, ${num(cosDeg(g.clear))});`; };
 
 /** GLSL twin of skyBase() in atmospherePalette.ts: keep the two identical. Shared by the dome and the water reflection, so a mirror
  * of the sky is the sky. Linear display-referred colours; exactly SKY_HAZE at and below eye level at every azimuth. */
@@ -55,6 +58,9 @@ const float CLOUD_LIFT = ${num(CLOUD.lift)};
 const float WEATHER_SCALE = ${num(CLOUD.weatherScale)};
 const float WEATHER_SWING = ${num(CLOUD.weatherSwing)};
 const vec2 CLOUD_OFFSET = vec2(${num(CLOUD.offset[0])}, ${num(CLOUD.offset[1])});
+const float GAP_LIFT = ${num(CLOUD.gapLift)};
+${gapGlsl(0)}
+${gapGlsl(1)}
 ${skyBaseGlsl}
 /* Interleaved gradient noise: a cheap screen-space dither, one fract chain, no sin. */
 float dither(vec2 p) { return fract(52.9829189 * fract(dot(p, vec2(.06711056, .00583715)))); }
@@ -65,7 +71,8 @@ void main() {
   vec2 uv = dir.xz / (h + CLOUD_LIFT) * CLOUD_SCALE + CLOUD_OFFSET + uWind;
   vec4 t = texture2D(uClouds, uv);
   float n = t.r * .82 + t.g * .18;
-  float cover = CLOUD_COVER + (.5 - texture2D(uClouds, uv * WEATHER_SCALE).b) * WEATHER_SWING;
+  float gap = max(smoothstep(GAP_0_COS.x, GAP_0_COS.y, dot(dir, GAP_0)), smoothstep(GAP_1_COS.x, GAP_1_COS.y, dot(dir, GAP_1)));
+  float cover = CLOUD_COVER + (.5 - texture2D(uClouds, uv * WEATHER_SCALE).b) * WEATHER_SWING + gap * GAP_LIFT;
   float rough = (texture2D(uClouds, uv * 3.1 + .37).g - .5) * (.07 + .05 * smoothstep(.3, .9, h)) * smoothstep(cover - .04, cover + .12, n);
   float shape = n + rough;
   float ramp = clamp(fwidth(n) * 5., mix(.075, .05, smoothstep(.3, .6, h)), .12);

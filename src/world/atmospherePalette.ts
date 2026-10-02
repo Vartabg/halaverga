@@ -41,10 +41,18 @@ export const SKY_STOPS_H = { low: .17, mid: .5 };
 /** Clouds: lit and shaded colours, density threshold, texture repeats per unit of plane projection, drift in uv per second, start
  * offset, and the weather map (its scale in the plane, and how far it moves the threshold: banks where it is high, gaps where low).
  * `lift` is the plane's height in the projection dir.xz / (h + lift): a higher one keeps the clouds overhead as fine as the ones near
- * the horizon (a low one magnifies the top of a level phone frame about four times and smears it). */
+ * the horizon (a low one magnifies the top of a level phone frame about four times and smears it). `gaps` are two clear patches of
+ * sky (azimuth from north, elevation, clear and fade radius in degrees; `gapLift` raises the threshold inside) where the first
+ * frame's telemetry text sits on a phone held upright and on its side, so white text never lands on a white cloud. */
 export const CLOUD = {
-  lit: '#fbf8ee', shade: '#bccbdc', coverage: .45, scale: .84, lift: .55, wind: [.003, .001] as [number, number], offset: [.725, .525] as [number, number],
+  lit: '#fbf8ee', shade: '#bccbdc', coverage: .45, scale: .84, lift: .55, wind: [.003, .001] as [number, number], offset: [.95, .05] as [number, number],
   weatherScale: .55, weatherSwing: .3,
+  gaps: [{ az: -9.5, el: 15.5, clear: 6.5, fade: 11 }, { az: 39.5, el: 17.5, clear: 9, fade: 13 }], gapLift: .3,
+};
+/** Unit direction at an azimuth (degrees, clockwise from north, which is -z) and an elevation. */
+export const skyDirection = (az: number, el: number): Rgb => {
+  const a = az * Math.PI / 180, e = el * Math.PI / 180;
+  return [Math.sin(a) * Math.cos(e), Math.sin(e), -Math.cos(a) * Math.cos(e)];
 };
 /** Fog is three's linear smoothstep on view depth, applied after tone mapping, so the colour is exactly what appears on screen. The
  * far end stays under the camera far plane (650): the sea's far-plane clip always lands in full haze. */

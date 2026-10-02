@@ -1,3 +1,4 @@
+import { CLOUD, skyDirection, type Rgb } from './atmospherePalette';
 /** Baked cloud noise. Pure and deterministic (integer hash, no Math.random, no sin), tileable, Node-safe: the dome samples it with
  * three texture taps instead of hashing per pixel. RGBA8: R coarse billow, G finer detail, B a broad weather map (banks and clear gaps), A opaque. */
 const hash = (x: number, y: number, seed: number) => {
@@ -78,4 +79,26 @@ export function cloudCoverage(data: Uint8Array, threshold: number, ramp = .1) {
   const count = data.length / 4;
   for (let i = 0; i < count; i++) if (cloudDensityAt(data, i) > threshold + ramp / 2) n++;
   return n / count;
+}
+
+/** The cloud density the dome draws in a direction, 0 to 1, from the baked data alone: a CPU twin of the dome's shape, weather and gap
+ * terms (without the edge roughness and the screen derivative ramp, so an edge is a little softer). `wind` is the drift in uv. Tests
+ * and the offset search use it; nothing at run time does. */
+export function cloudAt(data: Uint8Array, dir: Rgb, wind: [number, number] = [0, 0], size = 256): number {
+  const h = Math.max(dir[1], 0);
+  if (h < .02) return 0;
+  const tap = (ch: number, u: number, v: number) => {
+    const x = u * size - .5, y = v * size - .5, x0 = Math.floor(x), y0 = Math.floor(y), fx = x - x0, fy = y - y0, w = (a: number) => ((a % size) + size) % size;
+    const at = (i: number, j: number) => data[(w(j) * size + w(i)) * 4 + ch] / 255;
+    return (at(x0, y0) * (1 - fx) + at(x0 + 1, y0) * fx) * (1 - fy) + (at(x0, y0 + 1) * (1 - fx) + at(x0 + 1, y0 + 1) * fx) * fy;
+  };
+  const smooth = (a: number, b: number, x: number) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+  const u = dir[0] / (h + CLOUD.lift) * CLOUD.scale + CLOUD.offset[0] + wind[0], v = dir[2] / (h + CLOUD.lift) * CLOUD.scale + CLOUD.offset[1] + wind[1];
+  let gap = 0;
+  for (const g of CLOUD.gaps) {
+    const c = skyDirection(g.az, g.el), cos = (deg: number) => Math.cos(deg * Math.PI / 180);
+    gap = Math.max(gap, smooth(cos(g.fade), cos(g.clear), dir[0] * c[0] + dir[1] * c[1] + dir[2] * c[2]));
+  }
+  const n = tap(0, u, v) * .82 + tap(1, u, v) * .18, cover = CLOUD.coverage + (.5 - tap(2, u * CLOUD.weatherScale, v * CLOUD.weatherScale)) * CLOUD.weatherSwing + gap * CLOUD.gapLift;
+  return smooth(cover, cover + .075, n) * smooth(.02, .2, h);
 }
