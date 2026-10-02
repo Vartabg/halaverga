@@ -79,7 +79,7 @@ void main() {
   float dens = smoothstep(cover, cover + ramp, shape) * smoothstep(.02, .2, h);
   float soft = texture2D(uClouds, uv, 2.8).r, softSun = texture2D(uClouds, uv + SUN_XZ * .03, 2.8).r;
   float core = smoothstep(cover + ramp, cover + .3, shape);
-  float lit = clamp(.8 + (soft - softSun) * 3.2 - core * .12, 0., 1.);
+  float lit = clamp(.74 + (soft - softSun) * 4. - core * .2, 0., 1.);
   vec3 cloud = mix(CLOUD_SHADE, CLOUD_LIT, lit);
   float s = max(dot(dir, uSun), 0.);
   float rim = dens * (1. - smoothstep(cover + ramp, cover + .2, shape));
