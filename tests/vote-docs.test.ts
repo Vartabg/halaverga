@@ -230,7 +230,9 @@ describe('V2 anonymous counts: the privacy text, the docs and the code say the s
       'rounded down to 5', 'The gap can be small or negative.']) inDocs(s);
     for (const s of ['not a count of them', 'Do Not Track or Global Privacy Control are stored but never in `vote_sent`', 'the gap can be small or negative']) expect(launch, s).toContain(s);
   });
-  it('launch-readiness.md carries the wiring note for begin and scene_ready, the plan facts and what only the owner can switch on', () => {
-    for (const s of ['`begin` and `scene_ready` are not wired yet', 'Web Analytics is not enabled', 'custom events', 'page-level only']) expect(launch, s).toContain(s);
+  it('launch-readiness.md says begin and scene_ready are wired (and where), the plan facts and what only the owner can switch on', () => {
+    for (const s of ['`begin` and `scene_ready` are wired by `src/ui/vote/gameSteps.ts`', 'Web Analytics is not enabled', 'custom events', 'page-level only']) expect(launch, s).toContain(s);
+    for (const [f, text] of [['docs/voting.md', voting], ['docs/launch-readiness.md', launch]] as const) expect(text, f).not.toMatch(/not wired|once wired/);
+    for (const s of ['`src/ui/vote/gameSteps.ts`', "the game store's `started` turns true", "the game store's `ready` turns true"]) inDocs(s);
   });
 });

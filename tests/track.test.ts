@@ -152,8 +152,8 @@ describe('the page CSP lets the vendor script and its beacon through, and the st
   });
 });
 
-describe('the call sites: only vote-owned files, one literal stage each, no payload', () => {
-  it('every track() call in src passes one literal stage from the list; the vote-owned files carry exactly their three', () => {
+describe('the call sites: only the vote layer\'s files, one literal stage each, no payload', () => {
+  it('every track() call in src passes one literal stage from the list; the vote layer\'s files carry exactly the five', () => {
     const calls: Record<string, string[]> = {};
     for (const f of listSources()) {
       if (VENDOR_SIDE.includes(f)) continue;
@@ -162,7 +162,9 @@ describe('the call sites: only vote-owned files, one literal stage each, no payl
     for (const [f, args] of Object.entries(calls)) for (const a of args) expect(a, f).toMatch(/^'(begin|scene_ready|second_way_20s|vote_card_shown|vote_sent)'$/);
     expect(calls['src/ui/vote/VoteCard.tsx']).toEqual(["'vote_card_shown'", "'vote_sent'"]);
     expect(calls['src/ui/vote/voteTracker.ts']).toEqual(["'second_way_20s'"]);
-    expect(Object.keys(calls).filter(f => /src\/ui\/vote\//.test(f)).sort()).toEqual(['src/ui/vote/VoteCard.tsx', 'src/ui/vote/voteTracker.ts']);
+    expect(calls['src/ui/vote/gameSteps.ts']).toEqual(["'scene_ready'", "'begin'"]); // read from the game store by the lazy vote layer, so no first-load cost
+    expect(Object.keys(calls).filter(f => /src\/ui\/vote\//.test(f)).sort()).toEqual(['src/ui/vote/VoteCard.tsx', 'src/ui/vote/gameSteps.ts', 'src/ui/vote/voteTracker.ts']);
+    expect(Object.keys(calls).filter(f => !/src\/ui\/vote\//.test(f))).toEqual([]); // and nowhere else: not Experience, not Player
   });
   it('the vendor queue is touched by track.ts and the boot script alone, and track.ts calls it only with the event command', () => {
     for (const f of listSources()) if (!VENDOR_SIDE.includes(f)) expect(read(f), f).not.toMatch(/\.va\(|\bva\(|\bvaq\b|['"]identify['"]|\bgroupId\b/);

@@ -199,11 +199,13 @@ Added in task `vote-and-deploy` (2026-10-02) so that a low vote count can be exp
 
 | Step | Counted when | Wired in |
 |---|---|---|
-| `begin` | Begin is tapped | the game UI (not wired by this task; see `docs/launch-readiness.md`) |
-| `scene_ready` | the scene has loaded and Begin is unlocked | the game UI (not wired by this task) |
+| `begin` | Begin is tapped (the game store's `started` turns true) | `src/ui/vote/gameSteps.ts` |
+| `scene_ready` | the scene has loaded: the suit, the city and the collision map (the game store's `ready` turns true; Begin unlocks once the touch controls have also loaded) | `src/ui/vote/gameSteps.ts` |
 | `second_way_20s` | the tick that makes a control family's second control reach 20 seconds of play (`tick` in `voteTracker.ts`); a returning visitor whose record already holds two tried ways does not send it | `src/ui/vote/voteTracker.ts` |
 | `vote_card_shown` | the ballot appears (not the "fly two ways first" card, not the thanks) | `src/ui/vote/VoteCard.tsx` |
 | `vote_sent` | **Send** is tapped with a pick, whether or not the server then accepts the vote (the vote store holds the accepted ones; the gap between the two is only a rough hint at refused and failed sends, see "What the counts cannot tell") | `src/ui/vote/VoteCard.tsx` |
+
+`begin` and `scene_ready` are not called from the game UI. `gameSteps.ts` is mounted by the vote layer (a lazy chunk the landing page never carries) and listens to the game store, so `Experience` and `Player` are unchanged and the landing first load did not grow. `tests/track-steps.test.ts` fails when a step the privacy text names has no `track()` call site, or when the two are in a different order.
 
 **What a count holds.** The step name and nothing else: no `data`, no options, no vote code, no pick, no control name, no identifier (`track.ts` calls the vendor queue only as `va('event', { name })`, and the tests fail on any other call, on `identify`, and on any step name outside the list). Vercel adds what its docs list for every data point (checked 2026-10-02 at vercel.com/docs/analytics/privacy-policy): time, page, referrer, country, region and city, browser and system, device type, and a visitor hash made from the request that Vercel says it discards after 24 hours. It uses no cookie. Vercel's script (read on 2026-10-02) writes to `localStorage` only inside its own `identify` and `group` commands, which nothing here calls, and it does **not** check Do Not Track or Global Privacy Control itself, which is why both checks are ours.
 

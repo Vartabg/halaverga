@@ -5,6 +5,7 @@ import { useGame } from '@/game/store';
 import { currentFamily, watchFamily } from '../controls/family';
 import { selectControl } from '../controls/selectControl';
 import { pause } from '../useInput';
+import { watchGameSteps } from './gameSteps';
 import { watchPlayInput } from './playInput';
 import { livePlan, pickFocus } from './restoreFocus';
 import { autoNeed, canVote, eligible, guardOn, GUARD_MAX_MS, GUARD_MS, livePlay, markSkipped, NUDGE_TRIED, readMark, savePlay, skipCounts, tick, triedIds } from './voteTracker';
@@ -68,6 +69,9 @@ export default function VoteLayer({ onResume }: { onResume: () => void }) {
     const a = window.setTimeout(recheck, GUARD_MS + 10), b = window.setTimeout(recheck, GUARD_MAX_MS + 10);
     return () => { clearTimeout(a); clearTimeout(b); };
   }, [guard, recheck]);
+
+  // The two anonymous funnel counts that come from the game (scene ready, Begin); nothing about the vote or the player (gameSteps.ts).
+  useEffect(() => watchGameSteps(), []);
 
   // A pause the player opened never opens the card, but when they are eligible the pause card leads with the vote (voteNudge):
   // a player who never lands (over water, or always in the air) still gets asked. Re-checked on each pause, off after a vote.
