@@ -50,7 +50,7 @@ describe('far skyline generator', () => {
   });
   it('varies the shapes: setbacks, broken tops, spires, leans and green crowns', () => {
     const kinds = (k: string) => sky.towers.filter(t => t.parts.some(p => p.kind === k)).length;
-    for (const k of ['setback', 'notch', 'slab', 'spire']) expect(kinds(k)).toBeGreaterThan(5);
+    for (const k of ['setback', 'notch', 'slab', 'spire', 'stub']) expect(kinds(k)).toBeGreaterThan(5);
     expect(sky.towers.filter(t => t.lean > 0).length).toBeGreaterThan(5);
     expect(kinds('crown')).toBeGreaterThan(3);
     expect(sky.towers.filter(t => t.layer > 0 && t.parts.some(p => p.kind === 'crown')).length).toBe(0);
@@ -72,7 +72,8 @@ describe('far skyline generator', () => {
     expect(near(0, 'core')).toBeGreaterThan(8); expect(near(1, 'core')).toBeGreaterThan(8); expect(near(2, 'core')).toBe(0); // only the near layers lose floors
     expect(near(0, 'upper')).toBe(near(0, 'core')); // a recessed core always carries a block above it
     expect(sky.towers.filter(t => t.parts.some(p => p.shear > 0)).length).toBeGreaterThan(25);
-    for (const t of sky.towers) for (const p of t.parts) expect(p.shear).toBeLessThan(10.1);
+    for (const t of sky.towers) for (const p of t.parts) expect(p.shear).toBeLessThan(20.1);
+    expect(sky.towers.filter(t => t.parts.some(p => p.shear > 10)).length).toBeGreaterThan(3); // a few deep collapses read at a glance
     expect(near(0, 'crown')).toBeGreaterThanOrEqual(12); // about a third of the nearest layer, was a fifth
     const crowns = sky.towers.flatMap(t => t.parts.filter(p => p.kind === 'crown'));
     expect(crowns.length).toBeGreaterThan(30);
@@ -100,9 +101,9 @@ describe('far skyline generator', () => {
     let last = -1; for (const x of [.01, .05, .18, .5, 1, 4]) { const v = acesFilmic(grey(x))[1]; expect(v).toBeGreaterThan(last); last = v; }
     expect(acesFilmic(grey(100))[0]).toBeGreaterThan(.97); expect(acesFilmic(grey(0))[0]).toBeLessThan(.001);
   });
-  it('draws the foot as sea, a thin contact shade, a varied window grid and a fog that never takes a tower all the way', () => {
+  it('draws the foot as wet concrete, sea mist and a foam line, a varied window grid and a fog that never takes a tower all the way', () => {
     const mesh = readFileSync('src/world/Skyline.tsx', 'utf8');
-    for (const part of ['FOOT_SEA', 'aSeed', 'smoothstep(fogNear, fogFar, vFogDepth) * .88', 'drip', 'dim += pane']) expect(mesh).toContain(part);
+    for (const part of ['FOOT_SEA', 'FOAM', 'aSeed', 'pow(f, 1.6) * .8', 'drip', 'dim += pane']) expect(mesh).toContain(part);
     expect(mesh).not.toMatch(/mix\(diffuseColor\.rgb, \$\{glslVec3\(HAZE\)\}/); // the foot no longer mists toward the sky haze
   });
   it('keeps the canal vista open and flanks it with landmark clusters', () => {

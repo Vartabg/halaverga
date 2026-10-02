@@ -61,9 +61,9 @@ export const FOG = { color: HAZE, near: 70, far: 590 };
  * tower face on the [north, east and west, south] sides. Tints are display hex before fog, as [lit, shaded]: the split is wide on
  * purpose because fog compresses it to about a fifth. Each layer is paler and cooler than the nearer one. `crown` is roof green. */
 export const SKYLINE = {
-  seed: 2033, crown: '#4f6f4a',
+  seed: 2033, crown: '#46623f', foam: '#e9f2f1',
   gaps: [[110, 120, 200], [170, 180, 260], [240, 250, 330]] as [number, number, number][],
-  tints: [['#a0a198', '#586a76'], ['#939fa2', '#64767f'], ['#93a5b0', '#778992']] as [string, string][],
+  tints: [['#7f95a3', '#566b79'], ['#7b97ab', '#566f81'], ['#86a2b7', '#607a8c']] as [string, string][],
 };
 /** Scene.tsx tones the city, hero and sea body with ACES at this exposure. */
 export const EXPOSURE = 1.2;
