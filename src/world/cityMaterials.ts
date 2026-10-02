@@ -13,7 +13,7 @@ export function useCityMaterials() {
       map.wrapS = map.wrapT = RepeatWrapping; map.anisotropy = 4;
       if (i === 0 || i === 3) map.colorSpace = SRGBColorSpace;
     });
-    /** The concrete texture, weathered in world space so adjoining modular pieces tie together. `calm` halves the photo's marbling and
+    /** The concrete texture, weathered in world space so adjoining modular pieces tie together. `calm` takes most of the photo's marbling and warm cast out and
      * adds a wet band at the water line (the district-edge hills and the terrace parapets: a big plain face reads as weathered concrete, not a slab of marble). */
     const concrete = (calm: boolean) => {
       const material = new MeshStandardMaterial({ vertexColors: true, map: maps[0], normalMap: maps[1],
@@ -25,7 +25,7 @@ export function useCityMaterials() {
         shader.fragmentShader = 'varying vec3 vWeather;\n' + shader.fragmentShader;
         shader.fragmentShader = shader.fragmentShader.replace('#include <color_fragment>', `
           #include <color_fragment>
-          ${calm ? 'diffuseColor.rgb = mix(vColor.rgb * .155, diffuseColor.rgb, .4);' : ''}
+          ${calm ? 'vec3 tex = diffuseColor.rgb / max(vColor.rgb, vec3(.001)); tex = mix(vec3(dot(tex, vec3(.2126, .7152, .0722))), tex, .3); diffuseColor.rgb = vColor.rgb * mix(vec3(.155), tex, .25);' : ''}
           float streak = pow(abs(sin(vWeather.x * 2.91 + vWeather.z * 4.73)), 16.);
           float weather = .84 + .16 * sin(vWeather.y * .22 + vWeather.x * .13 + vWeather.z * .17);
           diffuseColor.rgb *= weather * (1. - streak * .14);
