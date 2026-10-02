@@ -108,16 +108,23 @@ describe('V1 results that do not over-claim: the docs say what the code does', (
   it('voting.md documents the order check, its floor, the noise figure and the 20-second limit, and says what the vote cannot tell', () => {
     for (const s of [`at least **${LAST_FLOWN_MIN}** such counted picks`, '`LAST_FLOWN_MIN`', '340 / sqrt(N)', '34 at 100 votes, 24 at 200, 17 at 400, 12 at 800, 9 at 1,600', '`lastFlown` is `{n, last, first, even}`',
       '6. **Order and novelty: what the vote can and cannot tell.**', 'a challenger that beats a practiced default is the informative result', 'no score reads it', 'it cannot show which control is better over minutes of play',
-      'the audit simulations disagree on how fast a strong preference shows', '`/results` shows the count and nothing else', 'With about n votes, two controls can end up about x points apart by luck alone.']) inDocs(s);
+      'the audit simulations disagree on how fast a strong preference shows', '`/results` shows the count and nothing else', 'With about n votes, two controls can end up about x points apart by luck alone.',
+      'what each would get if every control tried were liked equally', 'That baseline is equal liking, not "order did nothing"', 'a gap from the baseline is order, liking or both and the vote cannot say which']) inDocs(s);
     expect([100, 200, 400, 800, 1600].map(noisePoints)).toEqual([34, 24, 17, 12, 9]); // the figures the paragraph quotes are the code's
     expect(voting).not.toMatch(/Twenty fresh blocks|about 26 comparisons|100 votes need 20 groups/);
   });
   it('the runbook describes the baseline check by its real thresholds, and its minv example raises the floor instead of lowering it', () => {
-    for (const s of ['**The last-flown check**', 'at least 30 picks', '3 standard errors', 'at least 10 points', '1 in k chance', 'order <family>: last-flown won X% of N picks (chance Y%)']) expect(runbookMd, s).toContain(s);
+    for (const s of ['**The last-flown check**', 'at least 30 picks', '3 standard errors', 'at least 10 points', '1 in k chance', 'order <family>: last-flown won X% of N picks (chance Y%)',
+      '"Chance" here is equal liking', 'It is not "order does nothing"', 'the suggested controls being simply better liked than the default (no order effect needed']) expect(runbookMd, s).toContain(s);
     expect(runbookMd).not.toMatch(/70% or more of 30\+ entries/);
     const minv = runbook('hv:production', '20260930', '2026093014', 'a3f').find((i) => i.id === 'minv')!;
     expect(Number(/ minv (\d+)$/.exec(minv.redis)![1])).toBeGreaterThan(MINV_DEFAULT);
     expect(runbookMd).toContain(`its default of ${MINV_DEFAULT}`);
+  });
+  it('no owner doc still calls the order check baseline "if order did not matter": it is equal liking, and order and liking cannot be told apart', () => {
+    for (const [name, text] of [['voting.md', voting], ['controls-demo.md', demo], ['vote-runbook.md', runbookMd]] as const) expect(text, name).not.toMatch(/order did not matter|even odds/i);
+    expect(demo).toContain('if every control tried were liked equally, with a plain note that order and liking cannot be told apart from those numbers');
+    expect(read('docs/launch-readiness.md')).toContain('If every control tried were liked equally, each would win about X%. Order and liking cannot be told apart here.');
   });
   it('controls-demo.md carries the limits and the floor the code has (it said 20 a day per block and 30 votes)', () => {
     for (const s of [`${UNIT_LIMIT} votes a day per network address`, `${BLOCK_LIMIT} a day per network block`, `${ROUND_LIMIT} per network over 30 days`, `${n(GLOBAL_LIMIT)} a day for the whole site`, `at least ${MINV_DEFAULT} counted votes from at least ${MIN_PUBLIC_TAGS} different networks`,
