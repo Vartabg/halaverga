@@ -235,15 +235,16 @@ describe('persistence', () => {
     expect(useGame.getState().controlsOpen).toBe(false);
   });
   it('never saves the runtime-only touch state', () => {
-    useGame.setState({ nearGround: true, leavePrompt: true, zoomNote: true });
+    const coach = { text: 'Drag to fly', track: 'drag', step: 0 };
+    useGame.setState({ nearGround: true, leavePrompt: true, zoomNote: true, coach });
     persistGame();
     const written = JSON.parse(saved[STORAGE]);
-    for (const key of ['nearGround', 'leavePrompt', 'zoomNote', 'descendBlocked', 'hintVisible', 'landing', 'voteOpen']) expect(written).not.toHaveProperty(key);
-    useGame.setState({ nearGround: false, leavePrompt: false, zoomNote: false });
-    saved[STORAGE] = JSON.stringify({ ...written, nearGround: true, leavePrompt: true, zoomNote: true });
+    for (const key of ['nearGround', 'leavePrompt', 'zoomNote', 'descendBlocked', 'coach', 'landing', 'voteOpen']) expect(written).not.toHaveProperty(key);
+    useGame.setState({ nearGround: false, leavePrompt: false, zoomNote: false, coach: null });
+    saved[STORAGE] = JSON.stringify({ ...written, nearGround: true, leavePrompt: true, zoomNote: true, coach });
     hydrateGame();
     const s = useGame.getState();
-    expect([s.nearGround, s.leavePrompt, s.zoomNote]).toEqual([false, false, false]);
+    expect([s.nearGround, s.leavePrompt, s.zoomNote, s.coach]).toEqual([false, false, false, null]);
   });
   it('Gesture Lab: controlLab is saved (standard by default, unknown values fall back), and ?controls is session-only', () => {
     for (const [raw, want] of [[undefined, 'standard'], ['draw', 'draw'], ['conduct', 'conduct'], ['brush', 'brush'], ['x', 'standard'], [3, 'standard']] as const) {

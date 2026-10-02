@@ -1,7 +1,7 @@
 'use client';
 import dynamic from 'next/dynamic';
 import { useCallback, useEffect, useRef, useState, type ComponentType, type ReactNode } from 'react';
-import { HINT_STEPS, hydrateGame, overrideShooter, persistGame, useGame } from '@/game/store';
+import { hydrateGame, overrideShooter, useGame } from '@/game/store';
 import { runtime } from '@/game/runtime';
 import { clearShooterFault, shooterFault } from '@/game/shooterFault';
 import { pause, resume, useInput } from './useInput';
@@ -13,10 +13,12 @@ import { touchMode } from '@/game/pointerMode';
 import { unlockBlasterAudio } from './audioUnlock';
 import { useAudio } from './useAudio';
 import { trackpadPill } from './trackpadPill';
+import { coarsePointer } from './hintQueue';
 import { labFault } from './labSwitch';
 import Boundary from './Boundary';
 import TapControls from './TapControls';
 import Telemetry from './Telemetry';
+import HintSlot, { useMessageClock } from './HintSlot';
 import FlowHud from './FlowHud';
 import FlowWelcome from './FlowWelcome';
 import SimpleTrackpadHud from './SimpleTrackpadHud';
@@ -33,8 +35,9 @@ const ShooterHud = dynamic(loadHud, { ssr: false, loading: Reticle });
 // there on the very frame Begin starts play and the first click or touch never lands on nothing. No static import of
 // './TouchControls' anywhere on the landing path.
 const loadTouch = () => import('./TouchControls');
-// Blaster off, twin touch: the flight lessons still run (ShooterHud mounts them when the blaster is on). Its own small chunk.
-const ControlsHint = dynamic(() => import('./ControlsHint'), { ssr: false, loading: () => null });
+// The controls lessons (one mount, standard controls only: they publish their line to the one hint slot). Its own small chunk, warmed after hydration.
+const loadHint = () => import('./ControlsHint');
+const ControlsHint = dynamic(loadHint, { ssr: false, loading: () => null });
 // Flight settings open only after Begin, so they are a chunk warmed then: settings copy never grows the landing first load.
 const loadPanel = () => import('./TestPanel');
 // The Gesture Lab (Draw, Conduct, Brush) replaces the standard controls only while chosen. Its surface is held in state like the
@@ -76,6 +79,7 @@ export default function Experience() {
   }, [hydrated]);
   // Warm the blaster HUD chunk after hydration so the first aim never waits on it; with the blaster off nothing is requested.
   useEffect(() => { if (hydrated && state.shooter) void loadHud().catch(() => {}); }, [hydrated, state.shooter]);
+  useEffect(() => { if (hydrated) void loadHint().catch(() => {}); }, [hydrated]);
   useEffect(() => { if (state.started) void loadPanel().catch(() => {}); }, [state.started]);
   useEffect(() => {
     if (hydrated && lab !== 'standard' && !LabControls) void loadLab().then(m => setLabControls(() => m.default)).catch(() => labFault(LAB_LOAD_FAILED));
@@ -117,13 +121,8 @@ export default function Experience() {
   const fallback = <div className={styles.recovery} role="alert"><h2>The world needs a moment.</h2><p>Your field guide remains available. Reload the scene to continue from your saved landing.</p>{guide.note && <p>{guide.note}</p>}<button className={styles.primary} onClick={retry}>Reload scene</button></div>;
   const standard = lab === 'standard', playing = state.started && !state.paused, twin = state.touchScheme === 'twin';
   const ready = state.ready && touchReady && (standard || !!LabControls);
-  const seriesOpen = twin && !state.tapControls && state.hintProgress.touch < HINT_STEPS.touch;
   const pill = standard && trackpadPill({ steering: state.trackpadSteering, shooter: state.shooter, cruising: state.trackpadFlying, flying: state.flying, canLand: state.canLand });
-  const flightHint = state.message || (state.flying && state.canLand ? 'SURFACE IN REACH · LAND' : state.limitCue && state.limitCue !== 'solid' ? state.limitHint : state.flying && state.descendBlocked ? 'NO LANDING BELOW · MOVE TO OPEN GROUND' : state.limitHint);
-  useEffect(() => {
-    if (!state.message) return;
-    const id = setTimeout(() => useGame.setState({ message: '' }), 4000); return () => clearTimeout(id);
-  }, [state.message]);
+  useMessageClock();
   return <>
     <a className="skip" href="#field-guide" onClick={() => { pause(); state.set({ journal: true }); }}>Skip to text field guide</a>
     <main id="expedition" ref={main} className={styles.experience} tabIndex={-1} aria-label="Halaverga expedition"
@@ -164,8 +163,9 @@ export default function Experience() {
         {playing && <>
           {state.tapControls && <TapControls key={state.inputEpoch} />}
           {state.shooter ? <Boundary fallback={<Reticle />} onError={() => shooterFault('hud', null)}><ShooterHud /></Boundary> : <Reticle />}
-          {!state.shooter && standard && twin && touchMode() && <Boundary fallback={null} onError={() => {}}><ControlsHint coarse /></Boundary>}
-          {flightHint && <p className={styles.flightHint} data-shooter={String(state.shooter)}>{flightHint}</p>}
+          {/* The controls lessons and the one hint slot under the top row: one line at a time (hintQueue.pickHint). */}
+          {standard && <Optional><ControlsHint coarse={coarsePointer()} /></Optional>}
+          <HintSlot />
           <Telemetry />
           {/* Twin touch: the cluster's Rise/Descend replace Lift/Land, so CSS hides this under html[data-input=touch]. */}
           {/* In a lab scheme Lift/Land is always shown (data-twin false): the lab has no Rise/Descend. */}
@@ -173,14 +173,10 @@ export default function Experience() {
             {/* A mouse click activates Lift/Land without focusing it, so the next Space still reaches flight (Tab + Space works). */}
             <button className={styles.action} onMouseDown={e => { if (!touchMode()) e.preventDefault(); }} onClick={() => { runtime.lift = true; }}><span aria-hidden="true">{state.flying ? '↓' : '↑'}</span>{state.landing ? 'Cancel landing' : state.flying ? 'Land' : 'Lift'}</button>
           </div>
-          {state.nearTerminal && <button className={styles.discovery} onClick={() => { pause(); state.set({ discovered: true, journal: true }); persistGame(); }}>◇ Municipal record <span>Read ↗</span></button>}
-          {/* One instruction at a time: the drag hint waits for any controls hint and for an unfinished twin touch series; blaster-on
-              tap players never get drag advice. */}
-          {standard && !state.flying && !state.hintVisible && !seriesOpen && !(state.shooter && state.tapControls) && <div className={styles.touchHint} aria-hidden="true">{twin ? 'LEFT THUMB MOVES · RIGHT THUMB LOOKS' : 'ONE THUMB TO FLY · TWO TO MOVE + LOOK'}</div>}
           {standard && state.desktopMode === 'trackpad' && state.trackpadSteering === 'flow' && <FlowHud />}
           {standard && state.desktopMode === 'trackpad' && state.trackpadSteering === 'simple' && <SimpleTrackpadHud />}
-          {/* One message at a time: a limit cue owns the pill while it shows. */}
-          {state.desktopMode === 'trackpad' && pill && !state.limitHint && <div className={styles.trackpadHint}>{pill}</div>}
+          {/* The desktop legend: a control caption, not advice, so it stays at the bottom and steps aside for a limit cue. */}
+          {state.desktopMode === 'trackpad' && pill && !state.limitHint && <div className={styles.legend} data-testid="legend">{pill}</div>}
         </>}
         {state.paused && !state.panel && !guide.Guide && !failed && !state.voteOpen && !state.controlsOpen && <PauseCard ready={ready} onEnter={enter} note={guide.note} />}
         {!failed && <Optional><VoteLayer onResume={enter} /></Optional>}

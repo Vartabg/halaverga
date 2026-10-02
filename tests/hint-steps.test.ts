@@ -26,17 +26,20 @@ describe('hintTrack', () => {
     expect(hintTrack(env({ steering: 'free', desktopMode: 'mouse' }))).toBe('mouse');
     expect(hintTrack(env({ steering: 'free', tapControls: true }))).toBe('tap');
   });
-  it('touch: twin sticks run the touch series with the blaster on or off; classic is one line, blaster on only', () => {
+  it('touch: twin sticks run the touch series with the blaster on or off; classic is one line, with the blaster off the plain drag line', () => {
     for (const shooter of [true, false]) {
       expect(hintTrack(env({ coarse: true, shooter, desktopMode: 'mouse', steering: 'free' }))).toBe('touch');
-      expect(hintTrack(env({ coarse: true, shooter, scheme: 'classic' }))).toBe(shooter ? 'classic' : 'none');
+      expect(hintTrack(env({ coarse: true, shooter, scheme: 'classic' }))).toBe(shooter ? 'classic' : 'drag');
     }
   });
-  it('tap controls win on touch with the blaster on, and leave main\'s hint alone with it off', () => {
+  it('tap controls win on touch with the blaster on; with it off a classic phone gets the drag line (the deleted caption\'s gap), twin gets none', () => {
     for (const scheme of ['twin', 'classic']) {
       expect(hintTrack(env({ coarse: true, tapControls: true, scheme }))).toBe('tap');
-      expect(hintTrack(env({ coarse: true, tapControls: true, scheme, shooter: false }))).toBe('none');
+      expect(hintTrack(env({ coarse: true, tapControls: true, scheme, shooter: false }))).toBe(scheme === 'classic' ? 'drag' : 'none');
     }
+    // A fine pointer never gets the drag line, with tap controls or without.
+    expect(hintTrack(env({ tapControls: true, shooter: false, scheme: 'classic' }))).toBe('none');
+    expect(hintTrack(env({ shooter: false, scheme: 'classic' }))).toBe('none');
   });
   it('ignores the touch scheme on a fine pointer', () => {
     expect(hintTrack(env({ scheme: 'classic' }))).toBe('simple');
@@ -47,7 +50,7 @@ describe('hintTrack', () => {
 describe('hintText', () => {
   it('teaches the twin sticks in four steps, the last one by blaster and auto-fire', () => {
     expect(HINT_STEPS.touch).toBe(4);
-    expect([0, 1, 2].map(k => hintText('touch', k, on))).toEqual(['Left thumb: move', 'Right thumb: look', 'Tap Lift off to fly']);
+    expect([0, 1, 2].map(k => hintText('touch', k, on))).toEqual(['Left thumb: move', 'Right thumb: look', 'Tap Rise to lift off']);
     expect(hintText('touch', 3, on)).toBe('Aim at drones · Fire to shoot');
     expect(hintText('touch', 3, { autoFire: true, captured: false, shooter: true })).toBe('Aim at drones · Fire to shoot');
     expect(hintText('touch', 3, { autoFire: false, captured: false, shooter: true })).toBe('Hold Fire to shoot');
@@ -61,6 +64,7 @@ describe('hintText', () => {
     expect(hintText('tap', 0, on)).toBe('Tap pad: Fire and Aim toggle');
     expect(hintText('line', 0, on)).toBe('Hold C to fire');
     expect(hintText('classic', 0, on)).toBe('Drag to fly · tap a drone');
+    expect(hintText('drag', 0, on)).toBe('Drag to fly'); expect(HINT_TEXT.drag).toBe('Drag to fly');
     expect(hintText('none', 0, on)).toBeNull();
   });
   it('shows nothing once a series is done', () => {
@@ -75,7 +79,7 @@ describe('hintText', () => {
   it('fits every line in 30 characters and never tells a tap-pad player to drag', () => {
     expect(HINT_TEXT.tap).not.toMatch(/drag/i);
     const all = [...HINT_TEXT.touch, HINT_TEXT.touchAuto, HINT_TEXT.touchButton, HINT_TEXT.touchLand, ...HINT_TEXT.simple,
-      ...HINT_TEXT.mouse, HINT_TEXT.tap, HINT_TEXT.line, HINT_TEXT.classic];
+      ...HINT_TEXT.mouse, HINT_TEXT.tap, HINT_TEXT.line, HINT_TEXT.classic, HINT_TEXT.drag];
     for (const t of all) expect(t.length, t).toBeLessThanOrEqual(30);
   });
   it('keeps the agreed constants', () => {

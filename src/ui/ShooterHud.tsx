@@ -8,7 +8,6 @@ import { cannonLink } from '@/world/cannonContract';
 import { useGame } from '@/game/store';
 import { touchMode } from '@/game/pointerMode';
 import { MARKER_T, chainLabel, crossScale, crosshairRadius, heatColor, markerState, pipAngle, ventState, type Marker, type MarkerKind } from './hudTimeline';
-import ControlsHint from './ControlsHint';
 import styles from './ShooterHud.module.css';
 // Per-frame values go straight from runtime.shooter to element styles through refs: no React state per frame and no render
 // invalidation. The only state is the kill announcement, in a live region kept outside the aria-hidden visual root.
@@ -18,13 +17,13 @@ const WINDOW_DASH = `0 ${VENT.windowStart01 * ARC} ${(VENT.windowEnd01 - VENT.wi
 const angle = (deg: number) => ({ '--a': deg + 'deg' }) as CSSProperties;
 const TICKS = [0, 90, 180, 270].map(angle), XTICKS = [45, 135, 225, 315].map(angle);
 const ios = () => /iPhone|iPad/.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Mac/.test(navigator.userAgent));
-// Once per page load: each sound nudge. It waits while a controls hint is on screen (one message at a time) and is retried on
+// Once per page load: each sound nudge. It waits while a controls lesson is pending (one message at a time) and is retried on
 // the next shot, so a newcomer sees it only after the hint series is done. The default desktop profile (classic free trackpad)
 // never nudges, as before the blaster: its players learn that sound starts off from the Field guide and Flight settings (both on the pause card).
 let mutedNudged = false, silentNudged = false;
 function nudge() {
-  const { muted, hintVisible, desktopMode, trackpadSteering } = useGame.getState();
-  if (hintVisible || (!touchMode() && desktopMode === 'trackpad' && trackpadSteering === 'free')) return;
+  const { muted, coach, desktopMode, trackpadSteering } = useGame.getState();
+  if (coach !== null || (!touchMode() && desktopMode === 'trackpad' && trackpadSteering === 'free')) return;
   if (muted && !mutedNudged) { mutedNudged = true; useGame.setState({ message: 'Blaster sound is off · Pause, then Flight settings' }); }
   else if (!muted && !silentNudged && ios() && !('audioSession' in navigator)) {
     silentNudged = true; useGame.setState({ message: 'No blaster sound? Check the silent switch.' });
@@ -36,8 +35,7 @@ export default function ShooterHud() {
   const root = useRef<HTMLDivElement>(null), cross = useRef<HTMLDivElement>(null), heat = useRef<SVGSVGElement>(null),
     fill = useRef<SVGCircleElement>(null), vent = useRef<SVGGElement>(null), sweep = useRef<SVGCircleElement>(null),
     marker = useRef<HTMLSpanElement>(null), chev = useRef<HTMLSpanElement>(null), chain = useRef<HTMLSpanElement>(null);
-  const [live, setLive] = useState(''), lab = useGame(st => st.controlLab);
-  const coarse = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
+  const [live, setLive] = useState('');
   useEffect(() => {
     const el = root.current!, crossEl = cross.current!, heatEl = heat.current!, fillEl = fill.current!, ventEl = vent.current!,
       sweepEl = sweep.current!, markEl = marker.current!, chevEl = chev.current!, chainEl = chain.current!;
@@ -135,8 +133,5 @@ export default function ShooterHud() {
       <span ref={chain} className={styles.chain} />
     </div>
     <div className="sr-only" aria-live="polite" data-testid="shooter-live">{live}</div>
-    {/* Outside the crosshair box. */}
-    {/* The standard controls' lessons; a Gesture Lab scheme has its own ghost guide. */}
-    {lab === 'standard' && <ControlsHint coarse={coarse} />}
   </>;
 }
