@@ -27,8 +27,12 @@ export const HAZE = '#d3e0e4';
 export const SKY = { low: '#a9cbe3', mid: '#7fb0dc', zenith: '#3f7fc4', warm: '#f2e6cc' };
 /** Dome elevation (dir.y) of the low and mid colour stops: about 10 and 30 degrees. */
 export const SKY_STOPS_H = { low: .17, mid: .5 };
-/** Clouds: lit and shaded colours, density threshold, texture repeats per unit of plane projection, drift in uv per second, start offset. */
-export const CLOUD = { lit: '#f4f4ee', shade: '#aebbc8', coverage: .56, scale: .35, wind: [.006, .002] as [number, number], offset: [.3, .1] as [number, number] };
+/** Clouds: lit and shaded colours, density threshold, texture repeats per unit of plane projection, drift in uv per second, start
+ * offset, and the weather map (its scale in the plane, and how far it moves the threshold: banks where it is high, gaps where low). */
+export const CLOUD = {
+  lit: '#f4f4ee', shade: '#aebbc8', coverage: .45, scale: .5, wind: [.003, .001] as [number, number], offset: [.18, .62] as [number, number],
+  weatherScale: .55, weatherSwing: .3,
+};
 export const FOG = { color: HAZE, near: 95, far: 330 };
 export const HEMISPHERE = { sky: '#c0dbed', ground: '#737657', intensity: 1.7 };
 
@@ -47,6 +51,14 @@ export function skyBase(dir: Rgb): Rgb {
   c = mix(c, lin.haze, Math.exp(-h * 18) * .8);
   const toSun = .5 + .5 * (dir[0] * SUN_XZ[0] + dir[2] * SUN_XZ[1]) / Math.max(Math.hypot(dir[0], dir[2]), 1e-4);
   return mix(c, lin.warm, toSun ** 3 * smooth(0, .08, h) * Math.exp(-h * 5) * .35);
+}
+
+/** Advances the cloud drift (uv) in place. A still sky (paused, or reduced motion) does not move; a long frame counts as .04 s. It
+ * never asks for a frame: play already renders every frame, and a paused resize shows the same clouds. */
+export function driftClouds(offset: { x: number; y: number }, dt: number, still: boolean) {
+  if (still) return;
+  const step = Math.min(dt, .04);
+  offset.x += CLOUD.wind[0] * step; offset.y += CLOUD.wind[1] * step;
 }
 
 /** The equirect inverse the environment map uses; (u, v) in 0..1, texel centres at (x + .5) / width. */

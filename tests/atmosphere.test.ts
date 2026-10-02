@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import { cloudCoverage, makeCloudData } from '@/world/cloudData';
 import { domeFragment, domeVertex, skyBaseGlsl } from '@/world/skyShader';
-import { FOG, HAZE, HEMISPHERE, SKY, SUN_DIRECTION, SUN_POSITION, SUN_UV, SUN_XZ, directionFromUv, glslVec3, hexToLinear, skyBase, type Rgb } from '@/world/atmospherePalette';
+import { CLOUD, FOG, HAZE, HEMISPHERE, SKY, SUN_DIRECTION, SUN_POSITION, SUN_UV, SUN_XZ, directionFromUv, driftClouds, glslVec3, hexToLinear, skyBase, type Rgb } from '@/world/atmospherePalette';
 
 const enc = (x: number) => Math.round(255 * (x <= .0031308 ? 12.92 * x : 1.055 * x ** (1 / 2.4) - .055));
 const screen = (c: Rgb) => c.map(enc);
@@ -69,5 +70,43 @@ describe('sky shader strings', () => {
     expect(domeFragment).not.toContain('tonemapping_fragment');
     expect(domeFragment).toContain('normalize(vWorld - cameraPosition)');
     expect(domeVertex).toContain('gl_Position.z = gl_Position.w');
+  });
+});
+
+describe('cloud data', () => {
+  const data = makeCloudData(256, 2113);
+  const diff = (a: (i: number) => number, b: (i: number) => number, n: number) => { let s = 0; for (let i = 0; i < n; i++) s += Math.abs(a(i) - b(i)); return s / n; };
+  it('is deterministic and opaque', () => {
+    expect(Buffer.from(makeCloudData(256, 2113)).equals(Buffer.from(data))).toBe(true);
+    expect(Buffer.from(makeCloudData(256, 7)).equals(Buffer.from(data))).toBe(false);
+    expect(data.length).toBe(256 * 256 * 4);
+    for (let i = 3; i < data.length; i += 4) if (data[i] !== 255) throw new Error('alpha must be opaque');
+  });
+  it('tiles: the seam is no rougher than the interior', () => {
+    for (let ch = 0; ch < 3; ch++) {
+      const px = (x: number, y: number) => data[(y * 256 + x) * 4 + ch];
+      const interior = diff(i => px(100, i), i => px(101, i), 256), seam = diff(i => px(0, i), i => px(255, i), 256);
+      const interiorRows = diff(i => px(i, 100), i => px(i, 101), 256), seamRows = diff(i => px(i, 0), i => px(i, 255), 256);
+      expect(seam).toBeLessThanOrEqual(interior * 1.5 + 1); expect(seamRows).toBeLessThanOrEqual(interiorRows * 1.5 + 1);
+    }
+  });
+  it('covers about 40 percent of the sky at the shipped threshold', () => {
+    const cover = cloudCoverage(data, CLOUD.coverage);
+    expect(cover).toBeGreaterThan(.32); expect(cover).toBeLessThan(.48);
+  });
+});
+
+describe('cloud drift', () => {
+  it('moves while playing, by at most .04 s of wind per frame', () => {
+    const o = { x: 0, y: 0 };
+    driftClouds(o, .016, false);
+    expect(o.x).toBeCloseTo(CLOUD.wind[0] * .016, 12); expect(o.y).toBeCloseTo(CLOUD.wind[1] * .016, 12);
+    driftClouds(o, 5, false);
+    expect(o.x).toBeCloseTo(CLOUD.wind[0] * (.016 + .04), 12);
+  });
+  it('holds still when paused or under reduced motion', () => {
+    const o = { x: .3, y: .1 };
+    driftClouds(o, .016, true); driftClouds(o, 2, true);
+    expect(o).toEqual({ x: .3, y: .1 });
   });
 });
