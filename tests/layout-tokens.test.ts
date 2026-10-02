@@ -61,6 +61,10 @@ describe('the readout', () => {
     expect(css).toContain('@media(max-width:400px){.telemetry small{display:none}}');
     expect(css).toMatch(/\.telemetry \.alt\{font-size:20px;font-weight:700/);
   });
+  it('pads 6 px a side at 400 px wide and narrower, so the 38 px number fits the 56 px box it gets at 320 wide and is not cut to an ellipsis', () => {
+    expect(telemetry).toMatch(/max-width:calc\(100% - 2 \* var\(--gx\) - 232px\)/); // 320 - 2 x 16 - 232 = 56 px, less 12 px of padding = 44 for the number
+    expect(css).toContain('@media(max-width:400px){.telemetry{padding:2px 6px}}');
+  });
   it('has one rule: no per-orientation touch overrides', () => {
     expect(css).not.toMatch(/data-input=touch\]\) \.telemetry/);
   });

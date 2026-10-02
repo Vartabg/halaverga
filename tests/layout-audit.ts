@@ -92,6 +92,12 @@ export async function audit(page: Page, v: View, mode: Mode = {}): Promise<strin
       const pe = await tel.evaluate(e => getComputedStyle(e).pointerEvents), tb = (await tel.boundingBox())!;
       if (pe !== 'none') problems.push(`readout takes touches (pointer-events ${pe})`);
       for (const i of items) if (overlap(tb, i)) problems.push(`readout overlaps ${at(i)}`);
+      // The readout's own lines are never cut: a line whose text is wider than its box shows an ellipsis ('0...' for the altitude).
+      const cut = await tel.evaluate(e => [...e.children].flatMap(c => {
+        const el = c as HTMLElement;
+        return getComputedStyle(el).display !== 'none' && el.clientWidth > 0 && el.scrollWidth > el.clientWidth + 1 ? [`"${(el.textContent ?? '').trim()}" ${el.scrollWidth} > ${el.clientWidth}`] : [];
+      }));
+      for (const c of cut) problems.push(`readout line is cut off: ${c}`);
     }
     // 5 The flight surface gets the gestures: a 16 px grid, every hit is the surface or a control of 96 x 96 or less. On desktop the
     // header cluster is the one other hit (its box stays hit-testable for the trackpad's hover freeze) and it is at most 340 x 44.

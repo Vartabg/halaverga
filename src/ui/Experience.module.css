@@ -43,6 +43,8 @@
 .telemetry>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.telemetry i{font-style:normal;margin:0 5px;color:var(--lime)}.telemetry .alt{font-size:20px;font-weight:700;line-height:1.2;letter-spacing:0}.telemetry small{font-size:11px;font-weight:600;letter-spacing:.06em}
 @media(max-width:600px){.telemetry .place{display:none}}
 @media(max-width:400px){.telemetry small{display:none}}
+/* At 320 wide the readout box is 56 px (the row minus the 232 px button budget): 10 px of padding left 36 px for a 38 px number, so it was cut to `0...`. */
+@media(max-width:400px){.telemetry{padding:2px 6px}}
 .touchHint{position:absolute;bottom:23%;left:50%;transform:translateX(-50%);white-space:nowrap;font:8px 'Courier New',monospace;letter-spacing:.14em;color:#edf9e4;pointer-events:none;text-shadow:0 1px 5px #000}
 .discovery{position:absolute;left:50%;bottom:19%;transform:translateX(-50%);background:#163438e8;border:1px solid #c0d6be;padding:14px 20px;min-height:48px;color:#f6f3df;font-size:13px;z-index:5;border-radius:3px;white-space:nowrap}.discovery span{margin-left:25px;color:var(--lime)}
 .pauseCard{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:min(400px,90%);padding:28px;background:#142c32ed;border:1px solid #738c85;border-radius:5px;z-index:9;backdrop-filter:blur(12px)}.pauseCard h2{font-family:Georgia,serif;font-size:37px;font-weight:400;letter-spacing:-.04em;margin:0 0 5px}.pauseCard p{color:#d1ded4}.pauseCard .primary{width:100%;min-height:56px;margin:14px 0 10px}.secondary{background:transparent;border:1px solid #829b92;min-height:44px;padding:12px 15px;font-size:12px;color:var(--ink);border-radius:3px}.secondary:hover{background:#2b4747}.pauseCard .secondary{width:100%}
