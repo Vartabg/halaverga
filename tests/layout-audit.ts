@@ -5,6 +5,8 @@ import { settingsFootProblems } from './settings-footer';
 // The overlap and target-size checker behind tests/layout-fit.spec.ts: what a player can touch, where it is, whether it fits, and whether
 // the strip between the buttons is still the flight surface. System Chrome emulation: it checks the layout, never how a thumb feels on a
 // real iPhone (docs/screen-cleanup: the physical checks are Garo's).
+/** FEEL: on touch the header box passes touches through, so the 8 px gaps and the strip beside the readout are flight surface. Undoing that change by hand: set this to false (the audit then lets the header block count as a hit on touch too). */
+export const TOP_STRIP_FLIES = true;
 export type View = { name: string; width: number; height: number; touch: boolean };
 export const VIEWS: View[] = [
   { name: '393x852 touch', width: 393, height: 852, touch: true },
@@ -105,13 +107,14 @@ export async function audit(page: Page, v: View, mode: Mode = {}): Promise<strin
       for (const c of cut) problems.push(`readout line is cut off: ${c}`);
     }
     // 5 The flight surface gets the gestures: a 16 px grid, every hit is the surface or a control of 96 x 96 or less. On desktop the
-    // header cluster is the one other hit (its box stays hit-testable for the trackpad's hover freeze) and it is at most 340 x 44.
-    const bad = await page.evaluate(({ desktop, cap, scale }) => {
+    // header is the one other hit: its box is the whole 44 px row, hit-testable for the trackpad's hover freeze (the old header was, and a cursor on the way to Pause
+    // must not steer), which is asserted below. On touch there is no such exception.
+    const bad = await page.evaluate(({ desktop, cap, scale, header }) => {
       const out: string[] = [];
       for (let y = 8; y < innerHeight; y += 16) for (let x = 8; x < innerWidth; x += 16) {
         const el = document.elementFromPoint(x, y);
         if (!el || el.closest('[data-play-surface]')) continue;
-        if (desktop && el.closest('header')) continue;
+        if (header && el.closest('header')) continue;
         // A control, or the small box a control sits in (Lift/Land's wrapper, [data-ghost-avoid]).
         const c = el.closest('button, a[href], input, select, summary, label, [role=radio], [data-hold-control], [data-ghost-avoid]');
         // The top row's buttons are 44 px high, and so is the hint slot's Read button (the record line); Controls is 108 wide at normal text (the word, the gap and the dots' slot) and grows with the word, 46 px for a doubling:
@@ -120,11 +123,11 @@ export async function audit(page: Page, v: View, mode: Mode = {}): Promise<strin
         out.push(`(${x},${y}) ${el.tagName.toLowerCase()}.${String(el.className).slice(0, 30)}${el.getAttribute('data-testid') ? '#' + el.getAttribute('data-testid') : ''}`);
       }
       return out;
-    }, { desktop: !v.touch, cap: 96 * (mode.scale ?? 1), scale: mode.scale ?? 1 });
+    }, { desktop: !v.touch, header: !v.touch || !TOP_STRIP_FLIES, cap: 96 * (mode.scale ?? 1), scale: mode.scale ?? 1 });
     if (bad.length) problems.push(`${bad.length} grid points do not reach the flight surface, first: ${bad.slice(0, 4).join('; ')}`);
     if (!v.touch) {
-      const h = await page.locator('header').boundingBox();
-      if (h && (h.width > 340 || h.height > 44.5)) problems.push(`desktop header box is ${Math.round(h.width)}x${Math.round(h.height)}, more than 340x44`);
+      const h = await page.locator('header').boundingBox(), gx = Math.max(16, v.width * .045);
+      if (h && (h.height > 44.5 || Math.abs(h.width - (v.width - 2 * gx)) > 1.5 || Math.abs(h.x - gx) > 1.5)) problems.push(`desktop header box is ${Math.round(h.width)}x${Math.round(h.height)} at ${Math.round(h.x)}, the whole 44 px row (${Math.round(v.width - 2 * gx)} wide at ${Math.round(gx)}) expected`);
     }
   }
   // 8 The vote's one rule (layout-vote.ts).

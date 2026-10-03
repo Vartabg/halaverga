@@ -25,16 +25,29 @@ describe('layout tokens on .experience', () => {
   });
 });
 
+// FEEL: the two lines of CSS that decide how the top row feels in flight, each pinned here and nowhere else, so undoing one is mechanical: delete its describe
+// block and its rule (docs/screen-cleanup.md, "Undoing a FEEL change by hand"). The touch one is also `TOP_STRIP_FLIES` in tests/layout-audit.ts and the FEEL
+// tests of tests/screen-touch-sheet.spec.ts; the desktop one is the strip test in tests/trackpad.spec.ts.
+describe('FEEL: on touch the top strip passes touches through to the flight surface', () => {
+  it('the header box takes no touches, only its buttons do', () => {
+    expect(css).toContain(':global(html[data-input=touch]) .header[data-play]{pointer-events:none}');
+    expect(css).toContain(':global(html[data-input=touch]) .header[data-play] button{pointer-events:auto}');
+  });
+});
+describe('FEEL: with a mouse the header box is the whole row, as it was before the cleanup (the trackpad hover freeze keys on it)', () => {
+  it('wider than 600 px, a mouse gets the full-width box back', () => {
+    expect(css).toContain('@media(min-width:601px){:global(html[data-input=mouse]) .header[data-play]{left:max(var(--gx),env(safe-area-inset-left));width:auto;max-width:none}}');
+  });
+});
+
 describe('the one-row header', () => {
   it('is one row at --top, 44 px tall, with 8 px between its buttons', () => {
     const header = rule('.header');
     expect(header).toContain('top:var(--top)'); expect(header).toContain('min-height:var(--row)'); expect(header).toContain('gap:8px');
     expect(css).not.toMatch(/\.headerActions\{[^}]*gap:5px/);
   });
-  it('in play is only as wide as its buttons, and on touch passes touches through to the surface but its buttons', () => {
+  it('in play its own box is only as wide as its buttons (the two FEEL blocks below say who gets a different box)', () => {
     expect(rule('.header[data-play]')).toMatch(/left:auto;width:max-content/);
-    expect(css).toContain(':global(html[data-input=touch]) .header[data-play]{pointer-events:none}');
-    expect(css).toContain(':global(html[data-input=touch]) .header[data-play] button{pointer-events:auto}');
   });
   it('the row buttons use the child combinator, so the picker pills keep their own styles', () => {
     expect(css).toContain('.headerActions>button{'); expect(css).not.toMatch(/\.headerActions button/);

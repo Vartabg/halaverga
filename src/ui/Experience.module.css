@@ -22,6 +22,11 @@
    (not inside this box) and set pointer-events:auto themselves. */
 :global(html[data-input=touch]) .header[data-play]{pointer-events:none}
 :global(html[data-input=touch]) .header[data-play] button{pointer-events:auto}
+/* FEEL (restores the desktop's old feel, so the touch pass-through above is the only change to how flight feels): with a mouse the header box is the whole row again, as it
+   was before the cleanup. The trackpad's hover freeze keys on `header` (trackpadWindow.ts), so a cursor travelling to Pause along the strip beside the readout holds the
+   view still instead of steering and pitching it; the cluster-only box above would have let it steer. Wider than 600 px only: at 600 and narrower the row's width is capped
+   for the Vote pill's wrap (ControlsPicker.module.css), and a mouse in a window that narrow keeps the cluster-only box. */
+@media(min-width:601px){:global(html[data-input=mouse]) .header[data-play]{left:max(var(--gx),env(safe-area-inset-left));width:auto;max-width:none}}
 .brand{display:flex;align-items:center;gap:11px;font-size:17px;font-weight:800;letter-spacing:.16em;text-shadow:0 1px 7px #152f34}.brand svg{width:35px;height:35px}.brand small{display:block;font-size:11px;letter-spacing:.2em;font-weight:500;margin-top:5px}
 .headerActions{display:flex;align-items:flex-start;gap:8px}.headerActions>button{border:1px solid #97aaa688;background:#142d34e6;min-width:44px;min-height:44px;padding:0 17px;border-radius:3px;font-size:13px;letter-spacing:.04em;backdrop-filter:blur(8px)}.headerActions>button:hover{background:#305058}
 .headerActions>.pause{flex:none;width:44px;padding:0;display:grid;place-items:center;border-radius:50%}.pause svg{width:20px;height:20px;display:block}
@@ -60,15 +65,15 @@
    against the scroller's content box, not its padding box, so `bottom:0` would float --pad above the dialog's bottom edge with live
    controls showing in the strip under it; -1 x --pad puts the footer flush with the edge at any scroll position. */
 .modalFoot{position:sticky;bottom:calc(-1 * var(--pad));margin:20px calc(-1 * var(--pad)) calc(-1 * var(--pad));padding:12px var(--pad);background:#132a30;border-top:1px solid var(--line)}.modalFoot .primary{width:100%;min-width:0;min-height:48px;justify-content:center;margin:0}
+/* The footer is laid over the bottom of the scrolling dialog, so a setting focused by the keyboard (Tab) could be scrolled to the very edge, wholly behind Resume
+   (WCAG 2.2 2.4.11). scroll-padding tells the browser's focus scroll that the bottom 73 px (12 + 48 + 12 + the 1 px rule) is taken, with 16 px to spare for the
+   focus ring and for a footer that grows with larger text. Only the dialog that has the footer: the Field guide scrolls to its real edge. */
+.modal:has(.modalFoot){scroll-padding-bottom:89px}
 .recovery{position:absolute;inset:20%;background:#142d33;padding:35px;z-index:var(--z-card);overflow:auto}.recovery h2{font-size:28px}
 .legend{display:none;position:absolute;bottom:38px;left:50%;transform:translateX(-50%);max-width:55%;padding:8px 12px;margin:0;background:#142c32e8;color:#e8f6d6;font:10px/1.6 'Courier New',monospace;text-align:center;pointer-events:none;z-index:var(--z-hud);text-wrap:balance}
 @media(pointer:fine){.legend{display:block}}
 /* Narrow panes: at most two centred lines, inside the 16 px gutters. */
 @media(max-width:600px){.legend{bottom:23%;max-width:min(85%,calc(100% - 32px));width:max-content}}
-/* The footer is laid over the bottom of the scrolling dialog, so a setting focused by the keyboard (Tab) could be scrolled to the very edge, wholly behind Resume
-   (WCAG 2.2 2.4.11). scroll-padding tells the browser's focus scroll that the bottom 73 px (12 + 48 + 12 + the 1 px rule) is taken, with 16 px to spare for the
-   focus ring and for a footer that grows with larger text. Only the dialog that has the footer: the Field guide scrolls to its real edge. */
-.modal:has(.modalFoot){scroll-padding-bottom:89px}
 @media(max-width:600px){.brand{font-size:13px;gap:8px}.brand svg{width:27px;height:27px}.brand small{font-size:11px;letter-spacing:.14em}.headerActions>button{padding:0 11px;font-size:13px}.hero{left:7%;right:7%;bottom:16%;align-items:stretch}.heroTitle{font-size:clamp(56px,min(20vw,13svh),110px)}.intro{margin-left:1vw;max-width:none}.introCopy{font-size:14px;margin:17px 0 22px}.eyebrow{letter-spacing:.1em}.introHint{font-size:14px}.introFooter{left:8%;right:8%;bottom:max(27px,env(safe-area-inset-bottom));flex-direction:column;gap:12px;font-size:11px}.actions{right:7%;bottom:max(66px,calc(env(safe-area-inset-bottom) + 40px));gap:10px}.action{width:61px;min-height:61px}.modal{--pad:20px}.modal p,.modal li{font-size:14px}.recovery{inset:18% 5%}.pauseCard{padding:27px}.vignette{background:linear-gradient(180deg,#102a32aa,transparent 25%,#0a242a33 40%,#0a222bd9 85%)}}
 /* A short narrow phone (an SE, or any phone with the Safari toolbars up): the same column, tighter, and the decorative right footer line steps out of the way, so the
    title, the card with the first-visit note and the footer still stack with room between them. */
