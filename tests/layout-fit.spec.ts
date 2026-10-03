@@ -5,6 +5,7 @@ import { VOTE_ROUND } from '../src/lib/vote/ballot';
 import { NARROW, VIEWS, audit, openLanding, scaleText, type View } from './layout-audit';
 import { PLAYED, rowFormProblems } from './layout-vote';
 import { expectSlot } from './layout-hint';
+import { landingProblems } from './layout-landing';
 // The screen cleanup's layout checker (spec section 10.1): at six viewports, in each state, no two controls overlap, every target is
 // 44 x 44 or more, everything is inside the screen, the readout is passive, and the flight surface still gets the gestures (on touch the
 // gaps between the top-row buttons too). The two narrow phones (360, 320) and a 200 percent text size cover the top row's squeeze.
@@ -124,6 +125,21 @@ for (const v of [...VIEWS, ...NARROW]) {
     expect(all, `${v.name}\n${all.join('\n')}`).toEqual([]);
   });
 }
+
+// The start screen's words (not only its controls): no two of the title, eyebrow, copy, Begin, hint, first-visit demo note, brand, Field guide and footer
+// lines touch (12 px of air), nothing is under 11 px, and the sentences a player acts on are 13 px at least. First visit (the demo note shows, the card is
+// at its tallest) and return visit, at the six test viewports, the two narrow phones and the sizes a Safari tab gives a current iPhone and an SE
+// (393x659 and 390x664 with the toolbars up, 375x553 an SE). The title and the card are one bottom-anchored column, so this holds by construction.
+const TABS: View[] = [{ name: '393x659 touch', width: 393, height: 659, touch: true }, { name: '390x664 touch', width: 390, height: 664, touch: true },
+  { name: '375x553 touch', width: 375, height: 553, touch: true }, { name: '360x640 touch', width: 360, height: 640, touch: true },
+  { name: '393x734 touch', width: 393, height: 734, touch: true }, { name: '430x740 touch', width: 430, height: 740, touch: true }];
+for (const v of [...VIEWS, ...NARROW, ...TABS]) for (const visit of ['first', 'return'] as const) test(`${v.name}: landing text, ${visit} visit, never overprints and is never set small`, async ({ browser }) => {
+  const t = await openLanding(browser, v, visit === 'return' ? { storage: { 'halaverga.controls.demo.v1': '1' } } : {}), { page } = t;
+  expect(await page.getByTestId('demo-note').count(), visit === 'first' ? 'the demo note shows on a first visit' : 'no demo note on a return visit').toBe(visit === 'first' ? 1 : 0); // mounted on a first visit (a landscape phone under 430 px high hides it by CSS)
+  const problems = await landingProblems(page, v);
+  expect(problems, problems.join('\n')).toEqual([]);
+  expect(t.errors).toEqual([]); await t.context.close();
+});
 
 // B3: the 44 px row moves no flight band. The invisible [data-band] marker keeps the pre-cleanup header height, so the twin cluster, the
 // look pad and the Gesture Lab zones sit where they did: the bands start under the old header (top + 96 px on a phone in portrait or a

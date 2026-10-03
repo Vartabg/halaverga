@@ -147,7 +147,7 @@ export default function Experience() {
           of its own); data-band is the invisible marker touchInsets.headerBand measures (the pre-cleanup band, see --band). */}
       {bar && <><span id="field-guide" className="sr-only" tabIndex={-1} /><Boundary fallback={<SheetLost />} onError={skip}><ControlsEntry part="sheet" /></Boundary></>}
       {state.started && <div className={styles.bandProbe} data-band="" aria-hidden="true" />}
-      <h1 className={state.started || failed ? 'sr-only' : styles.heroTitle}>Earth,<br /><em>after us.</em></h1>
+      <div className={state.started || failed ? styles.heroOff : styles.hero}><h1 className={state.started || failed ? 'sr-only' : styles.heroTitle}>Earth,<br /><em>after us.</em></h1>
       {failed && fallback}
       {!state.started && !failed && <section className={styles.intro} aria-label="Begin expedition">
         <p className={styles.eyebrow}><span className={styles.statusDot} /> EXPEDITION 001 <span>/</span> MERIDIAN</p>
@@ -155,7 +155,7 @@ export default function Experience() {
         <button className={styles.primary} disabled={!ready} onClick={enter}>{ready ? 'Begin expedition' : 'Preparing your suit…'}<span aria-hidden="true">↗</span></button>
         <p className={styles.introHint} role="status">{guide.note || (state.zoomNote ? 'Pinch out to normal size, then tap Begin.' : ready ? 'Explore freely. Leave whenever you like.' : 'Building the district and collision map.')}</p>
         <Optional><ControlsEntry part="note" /></Optional>
-      </section>}
+      </section>}</div>
       {!state.started && <footer className={styles.introFooter}><span>2033 <small>CATASTROPHE</small><b>—</b> 2113 <small>ARRIVAL</small></span><span>INTERACTIVE FLIGHT STUDY <i>01</i></span></footer>}
       {state.started && <>
         {/* A fresh mount per pause state, as on main: the desktop trackpad hooks keep per-session refs (capture, strokes) that

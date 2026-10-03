@@ -121,7 +121,9 @@
 
 /* The first-visit note in the start card: passive text, nothing to tap. Landscape phones hide it: the trigger it names only exists after Begin. */
 .demo{max-width:38ch;margin:12px 0 0;padding:8px 10px;border:1px solid #58e1ff66;border-radius:4px;background:#142d34e6;color:var(--ink);pointer-events:none}
-.demo p{margin:0;font-size:12px;line-height:1.45}
+.demo p{margin:0;font-size:13px;line-height:1.45}
+@media(max-width:600px){.demo p{font-size:14px}}
+@media(max-width:600px) and (max-height:620px){.demo{margin-top:8px;padding:6px 10px}}
 @media(max-height:430px) and (orientation:landscape){.demo{display:none}}
 
 @media (prefers-reduced-motion:no-preference){.trigger,.row,.action{transition:background-color .15s ease,color .15s ease}}
