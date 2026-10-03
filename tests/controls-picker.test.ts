@@ -298,15 +298,17 @@ describe('ControlsPicker.module.css contract', () => {
   it('has no leftovers of the deleted list copies (the family switch, the section wrapper, the folded details)', () => {
     for (const gone of ['.switch', '.section', '.details']) expect(css, gone).not.toContain(gone);
   });
-  it('the sheet is a popover under the row by default (right edge on the row, 420 wide, one column) and scrolls; the footer is sticky', () => {
+  it('the sheet is a popover under the row by default (right edge on the row, 420 wide, one column) and its list is the one scroller between the title and the footer, which is a row of the sheet, not a sticky box over the list (WCAG 2.4.11)', () => {
     expect(css).not.toContain('--lab-row'); expect(css).not.toMatch(/--top:calc/); // one token: the row's --hdr, from the experience
     expect(css).toMatch(/\.sheet\{[^}]*top:var\(--hdr\);right:max\(var\(--gx\),env\(safe-area-inset-right\)\)/);
     expect(css).toMatch(/\.sheet\{[^}]*width:min\(420px,calc\(100vw - 2 \* var\(--side\)\)\)/);
     expect(css).toMatch(/\.sheet\{[^}]*max-height:min\(calc\(100dvh - var\(--hdr\) - 16px\),640px\)/);
-    expect(css).toMatch(/\.sheet\{[^}]*overflow-y:auto;overscroll-behavior:contain/);
-    expect(css).toMatch(/\.sheet\{[^}]*touch-action:pan-y/);
+    expect(css).toMatch(/\.sheet\{[^}]*display:flex;flex-direction:column;overflow:hidden/);
+    expect(css).toMatch(/\.sheetBody\{flex:1 1 auto;min-height:0;[^}]*overflow-y:auto;overscroll-behavior:contain/);
+    expect(css).toMatch(/\.sheetBody\{[^}]*touch-action:pan-y/);
     expect(css).toMatch(/\.sheet\{--side:max\(16px,env\(safe-area-inset-left\),env\(safe-area-inset-right\)\)/);
-    expect(css).toMatch(/\.foot\{position:sticky;bottom:0;[^}]*background:#132a30/);
+    expect(css).toMatch(/\.foot\{flex:none;[^}]*background:#132a30/); expect(css).not.toMatch(/\.foot\{[^}]*position:sticky/);
+    expect(css).toMatch(/\.title\{flex:none/);
     expect(css).not.toContain('min-width:721'); // no two-column desktop sheet any more: it covered the crosshair
     expect(css).not.toMatch(/data-family=desktop\] \.sheetBody/);
   });

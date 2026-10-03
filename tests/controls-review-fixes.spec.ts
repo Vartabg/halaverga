@@ -21,15 +21,16 @@ for (const viewport of [LANDSCAPE, SHORT]) {
     await expect(playing(page)).toHaveCount(1);
     const box = (await sheet(page).boundingBox())!;
     expect(box.y + box.height, 'the sheet ends inside the viewport').toBeLessThanOrEqual(viewport.height + .5);
-    const scroller = await sheet(page).evaluate(e => ({ over: e.scrollHeight - e.clientHeight }));
+    const list = sheet(page).locator('[data-scroll-ok]'), scroller = await list.evaluate(e => ({ over: e.scrollHeight - e.clientHeight })); // the list is the one scroller between the title and the footer
     await watchMoves(page);
     test.info().annotations.push({ type: 'overflow', description: String(scroller.over) });
     if (scroller.over > 0) {
       // Swipe up from the middle of the list: the finger must move the sheet, and the guard must not cancel it.
-      await finger.down({ x: box.x + box.width / 2, y: box.y + box.height * .6 });
-      await finger.drag({ x: box.x + box.width / 2, y: box.y + 20 }, 12);
+      const lb = (await list.boundingBox())!;
+      await finger.down({ x: lb.x + lb.width / 2, y: lb.y + lb.height * .6 });
+      await finger.drag({ x: lb.x + lb.width / 2, y: lb.y + 20 }, 12);
       await finger.up();
-      await expect.poll(() => scrollTop(page, 'controls-sheet')).toBeGreaterThan(0);
+      await expect.poll(() => list.evaluate(e => e.scrollTop)).toBeGreaterThan(0);
       expect((await moves(page)).every(m => !m.cancelled)).toBe(true);
     }
     // Whether it fit or scrolled, the last touch control ends up inside the visible sheet.

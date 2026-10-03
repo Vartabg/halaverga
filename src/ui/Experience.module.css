@@ -65,6 +65,10 @@
 @media(pointer:fine){.legend{display:block}}
 /* Narrow panes: at most two centred lines, inside the 16 px gutters. */
 @media(max-width:600px){.legend{bottom:23%;max-width:min(85%,calc(100% - 32px));width:max-content}}
+/* The footer is laid over the bottom of the scrolling dialog, so a setting focused by the keyboard (Tab) could be scrolled to the very edge, wholly behind Resume
+   (WCAG 2.2 2.4.11). scroll-padding tells the browser's focus scroll that the bottom 73 px (12 + 48 + 12 + the 1 px rule) is taken, with 16 px to spare for the
+   focus ring and for a footer that grows with larger text. Only the dialog that has the footer: the Field guide scrolls to its real edge. */
+.modal:has(.modalFoot){scroll-padding-bottom:89px}
 @media(max-width:600px){.brand{font-size:13px;gap:8px}.brand svg{width:27px;height:27px}.brand small{font-size:11px;letter-spacing:.14em}.headerActions>button{padding:0 11px;font-size:13px}.hero{left:7%;right:7%;bottom:16%;align-items:stretch}.heroTitle{font-size:clamp(56px,min(20vw,13svh),110px)}.intro{margin-left:1vw;max-width:none}.introCopy{font-size:14px;margin:17px 0 22px}.eyebrow{letter-spacing:.1em}.introHint{font-size:14px}.introFooter{left:8%;right:8%;bottom:max(27px,env(safe-area-inset-bottom));flex-direction:column;gap:12px;font-size:11px}.actions{right:7%;bottom:max(66px,calc(env(safe-area-inset-bottom) + 40px));gap:10px}.action{width:61px;min-height:61px}.modal{--pad:20px}.modal p,.modal li{font-size:14px}.recovery{inset:18% 5%}.pauseCard{padding:27px}.vignette{background:linear-gradient(180deg,#102a32aa,transparent 25%,#0a242a33 40%,#0a222bd9 85%)}}
 /* A short narrow phone (an SE, or any phone with the Safari toolbars up): the same column, tighter, and the decorative right footer line steps out of the way, so the
    title, the card with the first-visit note and the footer still stack with room between them. */

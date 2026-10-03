@@ -6,7 +6,7 @@ import { box, controlId, paused, sheet } from './controls-browser';
 // passes touches through; only its buttons take them), and the sheet, its backdrop and its radios stay fully touchable even though they
 // sit next to a pass-through header. System Chrome emulation, not an iPhone: Garo checks the real thumb (screen cleanup spec 10.4).
 const PHONES = [{ width: 375, height: 667 }, { width: 852, height: 393 }] as const;
-const SHORT = { width: 667, height: 320 } as const; // the sheet's list overflows here, so it has to scroll by touch
+const SHORT = [{ width: 667, height: 320 }, { width: 320, height: 568 }] as const; // the sheet's list overflows here (a short landscape phone, and the smallest portrait one), so it has to scroll by touch
 type Page = Awaited<ReturnType<typeof labPage>>;
 const phone = (browser: Browser, viewport: { width: number; height: number }) =>
   labPage(browser, 'standard', { touch: true, viewport, saved: { flowIntroSeen: true } });
@@ -93,17 +93,20 @@ for (const viewport of PHONES) {
   });
 }
 
-test(`${SHORT.width}x${SHORT.height}: the sheet's list scrolls under a real touch drag, and nothing reaches the flight surface`, async ({ browser }) => {
-  const t = await phone(browser, SHORT), { page } = t;
+for (const short of SHORT) test(`${short.width}x${short.height}: the sheet's list scrolls under a real touch drag, and nothing reaches the flight surface`, async ({ browser }) => {
+  const t = await phone(browser, short), { page } = t;
   await openSheet(t);
-  const s = sheet(page), overflow = await s.evaluate(e => e.scrollHeight - e.clientHeight);
+  const list = sheet(page).locator('[data-scroll-ok]'), overflow = await list.evaluate(e => e.scrollHeight - e.clientHeight); // the list is the one scroller; the footer is not part of it
   expect(overflow, 'the list overflows at this height').toBeGreaterThan(8);
-  const b = await box(s), heading = (await tel(page)).heading, from = { x: b.x + b.width / 2, y: b.y + b.height * .4 }; // inside the list, above the sticky footer
+  const b = await box(list), heading = (await tel(page)).heading, from = { x: b.x + b.width / 2, y: b.y + b.height * .6 };
   await t.finger.down(from); await t.finger.drag({ x: from.x, y: from.y - Math.min(overflow + 40, 160) }, 10, 16); await t.finger.up();
-  await expect.poll(() => s.evaluate(e => e.scrollTop), { timeout: 3000 }).toBeGreaterThan(4);
-  await expect(s).toBeVisible();
+  await expect.poll(() => list.evaluate(e => e.scrollTop), { timeout: 3000 }).toBeGreaterThan(4);
+  await expect(sheet(page)).toBeVisible();
   expect((await tel(page)).flying).toBe(false); expect((await tel(page)).heading).toBeCloseTo(heading, 3);
-  await tapAt(t, centre(await box(page.getByTestId('controls-done'))));
-  await expect(s).toHaveCount(0);
+  // The last row (Brush) can now be touched: it sits above the footer, whole.
+  const last = await box(sheet(page).getByRole('radio').last().locator('xpath=ancestor::label')), foot = await box(page.getByTestId('controls-done'));
+  expect(last.y + last.height, 'the last row ends above Done').toBeLessThanOrEqual(foot.y + .5);
+  await tapAt(t, centre(foot));
+  await expect(sheet(page)).toHaveCount(0);
   expect(t.errors).toEqual([]); await t.context.close();
 });

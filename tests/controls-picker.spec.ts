@@ -150,7 +150,7 @@ for (const v of [PHONE_LANDSCAPE, PHONE_PORTRAIT]) {
       expect(inside(b, v), what).toBe(true); expect(b.height, what).toBeGreaterThanOrEqual(44);
     }
     expect((await box(vote)).x, 'Vote comes first').toBeLessThan((await box(done)).x);
-    const fits = await sheet(page).evaluate(e => e.scrollHeight <= e.clientHeight + 1);
+    const fits = await sheet(page).locator('[data-scroll-ok]').evaluate(e => e.scrollHeight <= e.clientHeight + 1); // the list is the sheet's one scroller
     if (v.height < 500) expect(fits, 'the two-column landscape sheet still fits with the Vote button').toBe(true);
     expect(t.errors).toEqual([]); await t.context.close();
   });
@@ -199,7 +199,7 @@ for (const v of [PHONE_LANDSCAPE, PHONE_PORTRAIT]) {
     for (const id of TOUCH_IDS) expect((await box(row(page, id))).height, id).toBeGreaterThanOrEqual(44);
     // A landscape phone lists the five rows in two columns, so they fit at 852 x 393 without scrolling (750 x 340 scrolls by touch:
     // controls-review-fixes.spec.ts). Done stays in view either way (Vote joins it once two ways are flown: the next test).
-    const fits = await sheet(page).evaluate(e => e.scrollHeight <= e.clientHeight + 1);
+    const fits = await sheet(page).locator('[data-scroll-ok]').evaluate(e => e.scrollHeight <= e.clientHeight + 1); // the list is the sheet's one scroller
     expect(fits, 'five rows fit the sheet').toBe(true);
     if (v.height < 500) expect((await box(row(page, 'twin-stick'))).x, 'two columns').toBeGreaterThan((await box(row(page, 'one-finger'))).x + 100);
     await expect(sheet(page).getByTestId('controls-vote')).toHaveCount(0); // fewer than two ways flown: the line above, no Vote button

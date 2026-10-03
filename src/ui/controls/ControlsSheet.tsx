@@ -55,10 +55,11 @@ function SettingsLink() {
  */
 export default function ControlsSheet({ family, onClose }: { family: ControlFamily; onClose: () => void }) {
   const id = useId(), ref = useRef<HTMLDivElement>(null);
-  useEffect(() => { ref.current?.querySelector<HTMLInputElement>('input:checked')?.focus({ preventScroll: true }); }, []);
-  return <div ref={ref} role="dialog" aria-modal="false" aria-labelledby={`${id}h`} className={styles.sheet} data-testid="controls-sheet" data-family={family} data-scroll-ok="">
+  // Focus lands on the checked radio and the list scrolls it into view (a checked row below the fold is not left hidden).
+  useEffect(() => { ref.current?.querySelector<HTMLInputElement>('input:checked')?.focus(); }, []);
+  return <div ref={ref} role="dialog" aria-modal="false" aria-labelledby={`${id}h`} className={styles.sheet} data-testid="controls-sheet" data-family={family}>
     <h2 id={`${id}h`} className={styles.title}>Controls</h2>
-    <div className={styles.sheetBody}>
+    <div className={styles.sheetBody} data-scroll-ok="">
       <ControlList family={family} name="controls-sheet" onPicked={(_, how) => { if (how.touch) onClose(); }} />
     </div>
     <div className={styles.foot}>
