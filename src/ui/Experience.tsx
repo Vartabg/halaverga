@@ -15,6 +15,7 @@ import { useAudio } from './useAudio';
 import { trackpadPill } from './trackpadPill';
 import { coarsePointer } from './hintQueue';
 import { labFault } from './labSwitch';
+import { secondFingerTap } from './secondFingerTap';
 import Boundary from './Boundary';
 import TapControls from './TapControls';
 import Telemetry from './Telemetry';
@@ -139,7 +140,7 @@ export default function Experience() {
         <div className={styles.headerActions}>
           {bar ? <>
             <Optional><ControlsEntry part="trigger" /></Optional>
-            {playing && <button className={styles.pause} onClick={pause} aria-label="Pause expedition"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4h4v16H7zM13 4h4v16h-4z" fill="currentColor" /></svg></button>}
+            {playing && <button className={styles.pause} onClick={pause} onPointerUp={secondFingerTap(pause)} aria-label="Pause expedition"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4h4v16H7zM13 4h4v16h-4z" fill="currentColor" /></svg></button>}
           </> : <button id="field-guide" onClick={() => { pause(); state.set({ journal: true }); }}>Field guide</button>}
         </div>
       </header>

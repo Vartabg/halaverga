@@ -1,4 +1,4 @@
-import { expect, test, type Browser } from '@playwright/test';
+import { expect, test, type Browser, type Locator } from '@playwright/test';
 import { labPage, tel, type Pt } from './lab-browser';
 import { box, controlId, paused, sheet } from './controls-browser';
 // Real touches (Chrome's DevTools touch pipeline, not synthesized clicks) on the phone's top row and the Controls sheet. Two things must
@@ -71,24 +71,43 @@ for (const viewport of PHONES) {
     expect(t.errors).toEqual([]); await t.context.close();
   });
 
-  // A second finger on Pause while the first one flies. Chrome's emulation never synthesizes a click for a second touch (with or without
-  // the pass-through), so this checks what it can: the second finger reaches the Pause button (pointer events land on it), and the first
-  // finger's flight is not disturbed. Whether the click fires on an iPhone is Garo's check.
-  test(`${at}: a second finger lands on Pause while the first keeps flying`, async ({ browser }) => {
-    const t = await phone(browser, viewport), { page } = t;
-    const first: Pt = { x: Math.round(viewport.width * .25), y: Math.round(viewport.height * .7) }, pb = centre(await box(pauseButton(t)));
+  // A second finger on Pause (and on Controls) while the first one flies (addendum B2). Chrome's emulation sends no click for a second touch (with or
+  // without the pass-through), and iOS Safari is believed to follow the same one-touch-one-click rule, so the buttons act on the second finger's
+  // pointerup (secondFingerTap). The pointer events are logged too, so the test says what reached the button. Whether the real iPhone sends
+  // the same events is Garo's check: this is the emulation, not a phone.
+  async function secondFinger(t: Page, viewport: { width: number; height: number }, target: (t: Page) => Locator) {
+    const { page } = t, first: Pt = { x: Math.round(viewport.width * .25), y: Math.round(viewport.height * .7) }, pb = centre(await box(target(t)));
     await page.evaluate(() => {
-      const w = window as unknown as { __pause: string[] }; w.__pause = [];
-      const b = document.querySelector('button[aria-label="Pause expedition"]')!;
-      for (const type of ['pointerdown', 'pointerup']) b.addEventListener(type, e => w.__pause.push(`${type}:${(e as PointerEvent).pointerType}`), true);
+      const w = window as unknown as { __second: string[] }; w.__second = [];
+      for (const b of document.querySelectorAll('header button')) for (const type of ['pointerdown', 'pointerup', 'click']) b.addEventListener(type, e => w.__second.push(`${(b.getAttribute('aria-label') ?? '').split(':')[0]}:${type}:${(e as PointerEvent).pointerType ?? ''}`), true);
     });
     await t.finger.down(first); await page.waitForTimeout(1100);
-    expect((await tel(page)).flying).toBe(true);
+    expect((await tel(page)).flying, 'the first finger flies').toBe(true);
     await t.send('touchStart', [{ id: 1, ...first }, { id: 2, ...pb }]); await page.waitForTimeout(80);
-    await t.send('touchEnd', [{ id: 2, ...pb }]); await page.waitForTimeout(200); // the second finger lifts: a tap on Pause
-    expect(await page.evaluate(() => (window as unknown as { __pause: string[] }).__pause), 'the second finger reaches Pause').toEqual(['pointerdown:touch', 'pointerup:touch']);
-    expect((await tel(page)).flying, 'the first finger is still flying').toBe(true);
+    await t.send('touchEnd', [{ id: 2, ...pb }]); await page.waitForTimeout(250); // the second finger lifts: a tap
+    return { first, events: () => page.evaluate(() => (window as unknown as { __second: string[] }).__second) };
+  }
+  test(`${at}: a second finger tapping Pause while the first flies pauses (no click needed)`, async ({ browser }) => {
+    const t = await phone(browser, viewport), { page } = t;
+    const two = await secondFinger(t, viewport, pauseButton);
+    expect(await two.events(), 'the second finger reaches Pause as touch pointer events, and Chrome sends no click for it').toEqual(['Pause expedition:pointerdown:touch', 'Pause expedition:pointerup:touch']);
+    await expect(paused(page), 'the second finger paused the game').toBeVisible();
+    await t.finger.up(); // the first finger lifts after the pause: nothing throws, the card stays
+    await expect(paused(page).getByTestId('controls-row')).toBeVisible(); // the card's Controls row is a lazy chunk: the card re-centres when it lands, so measure Resume after
+    await tapAt(t, centre(await box(paused(page).getByRole('button', { name: 'Resume flight' })))); // and Resume plays on, with no hold left over from the first finger
+    await expect(paused(page)).toHaveCount(0);
+    expect(t.errors).toEqual([]); await t.context.close();
+  });
+  test(`${at}: a second finger tapping Controls while the first flies opens the sheet once`, async ({ browser }) => {
+    const t = await phone(browser, viewport), { page } = t;
+    const two = await secondFinger(t, viewport, trigger);
+    expect((await two.events()).filter(e => e.startsWith('Controls')), 'the second finger reaches Controls as touch pointer events').toEqual(['Controls:pointerdown:touch', 'Controls:pointerup:touch']);
+    await expect(sheet(page), 'the second finger opened the sheet').toBeVisible();
+    await page.waitForTimeout(900); // a browser that also sent a click would have shut it again by now
+    await expect(sheet(page)).toBeVisible();
     await t.finger.up();
+    await tapAt(t, centre(await box(page.getByTestId('controls-done'))));
+    await expect(sheet(page)).toHaveCount(0);
     expect(t.errors).toEqual([]); await t.context.close();
   });
 }

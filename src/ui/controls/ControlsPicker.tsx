@@ -1,5 +1,5 @@
 'use client';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { controlById, type ControlFamily } from '@/game/controlTypes';
 import { clearInput } from '@/game/runtime';
 import { useGame } from '@/game/store';
@@ -9,6 +9,7 @@ import { closeControls, closeOnEscape } from './closeControls';
 import { takeHeldName } from './selectControl';
 import { useControlFamily } from './useControlFamily';
 import { useRowExtra } from './useRowExtra';
+import { secondFingerTap } from '../secondFingerTap';
 import { lockedTail, useOneWayToast, useReadyToast, useVoteState } from './useVoteState';
 import styles from './ControlsPicker.module.css';
 // The top row's Vote pill and Controls button (a lazy chunk, mounted after Begin and shown only while playing). The sheet itself is
@@ -25,6 +26,7 @@ export default function ControlsPicker({ family: forced }: { family?: ControlFam
   const vote = useVoteState(family), locked = vote.state === 'locked';
   useReadyToast(vote.state); useOneWayToast(vote);
   useRowExtra();
+  const second = useRef(-1e4); // when a second finger last opened or closed the sheet: the click some browsers still send for it is skipped
   // Warm the lab chunk so the first switch to Draw, Conduct or Brush mounts without a network wait.
   useEffect(() => { import('../gesture/LabControls').catch(() => { /* the switch still works; the chunk loads on demand */ }); }, []);
   useEffect(() => {
@@ -45,10 +47,12 @@ export default function ControlsPicker({ family: forced }: { family?: ControlFam
   if (!started || paused) return null;
 
   const toggle = () => { if (open) closeControls(family); else { clearInput(); useGame.setState({ controlsOpen: true }); } };
+  const click = () => { if (performance.now() - second.current > 700) toggle(); };
   return <div className={styles.root} onKeyDown={closeOnEscape(family)}>
     {vote.state === 'ready' && <VoteChip />}
     <button type="button" className={styles.trigger} data-testid="controls-trigger" aria-haspopup="dialog" aria-expanded={open}
-      aria-label={`Controls: ${controlById(current).label}${locked ? lockedTail(vote.tried) : ''}`} onMouseDown={e => e.preventDefault()} onClick={toggle}>
+      aria-label={`Controls: ${controlById(current).label}${locked ? lockedTail(vote.tried) : ''}`} onMouseDown={e => e.preventDefault()} onClick={click}
+      onPointerUp={secondFingerTap(() => { second.current = performance.now(); toggle(); })}>
       Controls
       <span className={styles.dots} data-testid="vote-dots" aria-hidden="true">{locked && [0, 1].map(i => <i key={i} data-on={vote.tried > i ? '' : undefined} />)}</span>
     </button>
