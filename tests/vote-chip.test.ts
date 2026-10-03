@@ -51,10 +51,11 @@ describe('the picker CSS contract: the pill, the dots and the constant width', (
     expect(css).toMatch(/\.chip:focus-visible\{outline:3px solid/);
     expect(css).not.toMatch(/\.chip\[data-ready\]|chipText|chipSecs|chipMore|chipDot/);
   });
-  it('D4-style forced colors: the pill is Highlight, the dots follow CanvasText (counted: Highlight), and an open Controls button flips them to HighlightText', () => {
+  it('D4-style forced colors: the pill is Highlight, the dots follow CanvasText (counted: Highlight), and an open Controls button keeps them (it is Canvas with a Highlight edge, not a Highlight fill)', () => {
     expect(forced).toMatch(/\.chip\{[^}]*Highlight[^}]*forced-color-adjust:none\}/);
     expect(forced).toContain('.dots i{border-color:CanvasText}'); expect(forced).toContain('.dots i[data-on]{background:Highlight;border-color:Highlight}');
-    expect(forced).toContain('.trigger[aria-expanded=true] .dots i{border-color:HighlightText}');
+    expect(forced).toContain('.trigger[aria-expanded=true]{border-color:Highlight;outline:2px solid Highlight;outline-offset:-3px}');
+    expect(forced).not.toMatch(/\.trigger\[aria-expanded=true\][^{]*\{[^}]*(background:Highlight|HighlightText)/); // no Highlight fill: the open button reads as an edge, the pill alone is the fill
   });
   it('the primary button is lime; nothing styles the last button in the footer any more', () => {
     expect(css).toMatch(/\.action\.primary\{background:var\(--lime\)/); expect(css).not.toContain('.buttons .action:last-child');

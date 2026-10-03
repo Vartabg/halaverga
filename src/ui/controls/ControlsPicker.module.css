@@ -14,16 +14,15 @@
   font:13px/1 system-ui,-apple-system,'Segoe UI',Arial,sans-serif;letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
   cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 .trigger:hover{background:#305058}
-.trigger[aria-expanded=true]{background:var(--lime);color:#1a3029}
+/* Open: a lighter slate fill and a 2 px cream edge (the 1 px border plus a 1 px inset ring, so the button keeps its width), never lime. Lime says "press me": the Vote
+   pill, Begin, Resume and checked rows, and with the sheet open the Vote pill sits right beside this button. Ink on the slate is about 6.5:1. */
+.trigger[aria-expanded=true]{background:#3b5a62;border-color:#f5f0dc;box-shadow:inset 0 0 0 1px #f5f0dc}
 .trigger:focus-visible{outline:2px solid var(--lime);outline-offset:2px}
-.trigger[aria-expanded=true]:focus-visible{outline-color:#f5f0dc;box-shadow:0 0 0 4px #1a3029}
 /* The locked vote's two dots: 8 px circles, 4 px apart, in a 20 px slot that is always there. Counted = filled in the text colour; never lime
    (lime is for what can be pressed). Their text twin is the end of the button's accessible name and the sheet's tried line. */
 .dots{display:inline-flex;align-items:center;gap:4px;flex:none;width:20px;height:8px}
 .dots i{display:block;box-sizing:border-box;width:8px;height:8px;border:1px solid #f5f0dcb3;border-radius:50%}
 .dots i[data-on]{background:var(--ink);border-color:var(--ink)}
-.trigger[aria-expanded=true] .dots i{border-color:#1a3029}
-.trigger[aria-expanded=true] .dots i[data-on]{background:#1a3029}
 /* The Vote pill: only in the row while the vote works, so it is always the lime call to vote (44 px, a 64 px minimum so the row's budget holds). */
 .chip{position:relative;display:inline-flex;align-items:center;justify-content:center;flex:none;min-height:44px;min-width:64px;
   padding:0 14px;margin:0;border:1px solid var(--lime);border-radius:24px;background:var(--lime);color:#1a3029;
@@ -130,12 +129,11 @@
 
 @media (forced-colors:active){
   .trigger{border-color:CanvasText;background:Canvas;color:ButtonText;forced-color-adjust:none}
-  .trigger[aria-expanded=true]{background:Highlight;color:HighlightText}
+  .trigger[aria-expanded=true]{border-color:Highlight;outline:2px solid Highlight;outline-offset:-3px}
   .trigger:focus-visible{outline:2px solid Highlight;box-shadow:none}
   .chip{border-color:Highlight;background:Highlight;color:HighlightText;forced-color-adjust:none}
   .chip:focus-visible{outline:3px solid CanvasText;box-shadow:none}
   .dots i{border-color:CanvasText}.dots i[data-on]{background:Highlight;border-color:Highlight}
-  .trigger[aria-expanded=true] .dots i{border-color:HighlightText}.trigger[aria-expanded=true] .dots i[data-on]{background:HighlightText}
   .sheet,.demo{border-color:CanvasText;background:Canvas;color:CanvasText}
   .foot{background:Canvas;border-top-color:CanvasText}
   .row:has(.radio:checked){border-color:Highlight;background:Canvas}

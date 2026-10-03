@@ -64,9 +64,14 @@ for (const v of [...VIEWS, ...NARROW]) {
     await expect(page.getByTestId('vote-chip')).toBeVisible();
     await check('vote-ready', { play: true, vote: 'ready' });
     if (AXE_AT.includes(v.name)) await wcag(page);
+    const closedWidth = (await page.getByTestId('controls-trigger').boundingBox())!.width;
     await t.press(page.getByTestId('controls-trigger'));
     await expect(page.getByTestId('controls-sheet')).toBeVisible();
     await check('vote-ready-sheet', { sheet: true, vote: 'ready' });
+    // Lime means Vote: with the sheet open the Controls button is not lime (it was, right beside the lime pill), and it keeps its width.
+    const [open, chip] = await page.evaluate(() => ['controls-trigger', 'vote-chip'].map(id => getComputedStyle(document.querySelector(`[data-testid=${id}]`)!).backgroundColor));
+    expect(open, 'the open Controls button is not the Vote pill\'s lime').not.toBe(chip);
+    expect((await page.getByTestId('controls-trigger').boundingBox())!.width, 'the Controls button is as wide open as closed').toBeCloseTo(closedWidth, 1);
     await t.press(page.getByTestId('controls-done'));
     await expect(page.getByTestId('controls-sheet')).toHaveCount(0);
     await t.press(page.getByRole('button', { name: 'Pause expedition' }));

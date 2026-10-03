@@ -325,8 +325,11 @@ describe('ControlsPicker.module.css contract', () => {
     expect(css).toMatch(/\.footLine\{display:flex;[^}]*justify-content:space-between/);
     expect(css).toMatch(/\.rowButton\{[^}]*width:100%/); // its height is the shared .secondary 44 px
   });
-  it('checked rows and buttons are dark on lime; the trigger is ink on the dark pill; focus is visible', () => {
-    expect(css).toMatch(/\.trigger\[aria-expanded=true\]\{background:var\(--lime\);color:#1a3029/);
+  it('checked rows and buttons are dark on lime; the trigger is ink on the dark pill, and open it is a lighter slate with a cream edge, never lime; focus is visible', () => {
+    const open = css.match(/\.trigger\[aria-expanded=true\]\{([^}]*)\}/)![1];
+    expect(open).toContain('background:#3b5a62'); expect(open).toContain('border-color:#f5f0dc'); expect(open).toContain('inset 0 0 0 1px #f5f0dc'); expect(open).not.toMatch(/lime/);
+    expect(open).not.toMatch(/border-width|padding|min-width/); // the same box open or closed (one width in every state)
+    expect(css).not.toMatch(/\.trigger\[aria-expanded=true\][^{]*\{[^}]*(var\(--lime\)|#d4f197)/);
     expect(css).toMatch(/\.trigger\{[^}]*background:#142d34e6/); // 90 percent: AA over a bright sky
     expect(css).toMatch(/\.badge\[data-badge=tried\]\{background:var\(--lime\)[^}]*color:#1a3029/);
     expect(css).toMatch(/\.trigger:focus-visible\{outline:2px solid var\(--lime\)/);
