@@ -4,6 +4,7 @@ import { Canvas, useThree } from '@react-three/fiber';
 import { Physics } from '@react-three/rapier';
 import { ACESFilmicToneMapping } from 'three';
 import City from './City';
+import RuinField from './RuinField';
 import DistrictBoundary from './DistrictBoundary';
 import { Sky, Water } from './Atmosphere';
 import Skyline from './Skyline';
@@ -79,7 +80,7 @@ export default function Scene({ onLoss }: { onLoss: () => void }) {
     <EnvironmentLight /><Sky /><Water /><Skyline /><Ash />
     <Suspense fallback={null}>
       <Physics paused={paused} timeStep={1 / 60} updatePriority={-50} gravity={[0, -22, 0]}>
-        <City /><DistrictBoundary /><Player /><FlightPresentation /><Suit /><CameraRig />
+        <City /><RuinField /><DistrictBoundary /><Player /><FlightPresentation /><Suit /><CameraRig />
         <ShooterLayer /><LabLayer />
       </Physics>
     </Suspense>

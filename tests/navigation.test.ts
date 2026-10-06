@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import RAPIER from '@dimforge/rapier3d-compat';
 import { Euler, Quaternion } from 'three';
 import { makeCity } from '../src/world/cityData';
+import { makeField } from '../src/world/fieldData';
 import { FlightSafety } from '../src/game/FlightSafety';
 import { advanceVelocity, FOOT, START, WORLD, type Vec } from '../src/game/motion';
 import { BUILDING_ROUTE, CLEARANCE, removeInward, softenBounds } from '../src/game/navigation';
@@ -13,7 +14,8 @@ const worlds: RAPIER.World[] = [];
 const routeResults: { from: string; to: string; clear: boolean }[] = [];
 let stressSteps = 0, stressApproaches = 0;
 const identity = { x: 0, y: 0, z: 0, w: 1 };
-beforeAll(async () => { await RAPIER.init(); const city = makeCity(); solids = city.solids; city.geometry.dispose(); });
+// The district plus the flyable ruins around it (fieldData.ts, 2026-10-06): the stress approaches sample the whole box.
+beforeAll(async () => { await RAPIER.init(); const city = makeCity(), field = makeField(); solids = [...city.solids, ...field.solids]; city.geometry.dispose(); field.geometries.forEach(g => g.dispose()); });
 afterEach(() => { worlds.splice(0).forEach(w => w.free()); });
 function setup(position: Vec) {
   const world = new RAPIER.World({ x: 0, y: 0, z: 0 }); worlds.push(world);
@@ -94,8 +96,8 @@ describe('authored city navigation', () => {
   it('keeps seeded high-speed approaches outside the authored solids', () => {
     const f = setup(START); let seed = 7331;
     const random = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
-    for (let attempt = 0; attempt < 160; attempt++) {
-      const p = { x: -190 + random() * 380, y: 3.2 + random() * 88, z: -178 + random() * 270 };
+    for (let attempt = 0; attempt < 260; attempt++) { // the whole box since 2026-10-06: the district and the ruins around it
+      const p = { x: WORLD.minX + 15 + random() * (WORLD.maxX - WORLD.minX - 30), y: 3.2 + random() * (WORLD.ceiling - 17), z: WORLD.minZ + 10 + random() * (WORLD.maxZ - WORLD.minZ - 20) };
       if (f.world.intersectionWithShape(p, identity, new RAPIER.Ball(1.5), undefined, undefined, f.capsule)) continue;
       f.body.setTranslation(p, true); f.body.setNextKinematicTranslation(p); f.world.step();
       const yaw = random() * Math.PI * 2, pitch = (random() - .5) * 1.8;

@@ -10,13 +10,16 @@ test('an old checkpoint inside a building restores to the arrival terrace', asyn
   expect(JSON.parse((await telemetry.getAttribute('data-position'))!)[2]).toBeLessThan(63);
 });
 test('the district edge eases the suit to a stop, names the fix, and a hands-off suit turns away instead of staying pinned', async ({ page }) => {
+  test.setTimeout(90000); // the 2026-10-06 box: a 500 m surge before the edge
   const errors: string[] = []; page.on('pageerror', e => errors.push(e.message));
   await page.goto('/?shooter=0'); await page.getByRole('button', { name: 'Begin expedition' }).click();
   await page.keyboard.press('Space'); await page.waitForTimeout(500);
   await page.keyboard.down('KeyW'); await page.keyboard.press('Shift');
   const telemetry = page.getByTestId('flight-telemetry');
-  let minZ = Infinity, sawCue = false, sawTip = false, pinned = 0;
-  for (let i = 0; i < 120 && !(sawCue && i > 60); i++) {
+  // Since 2026-10-06 the north edge is about 500 m out (it was 250): keep surging until the suit has reached it, then watch 3 s more.
+  let minZ = Infinity, sawCue = false, sawTip = false, pinned = 0, after = 0;
+  for (let i = 0; i < 260 && after < 20; i++) {
+    if (sawCue && minZ < WORLD.minZ + 6) after++;
     await page.waitForTimeout(150);
     const z = JSON.parse((await telemetry.getAttribute('data-position'))!)[2]; minZ = Math.min(minZ, z);
     if (await page.getByText(/^EDGE AHEAD/).count()) {

@@ -24,3 +24,16 @@ slicks and scum. Plants are dead. Same timeline (catastrophe 2033, visit 2113).
 1. **Ruins and aftermath light** on today's map: ash sky and light, poisoned water, falling ash, the skyline rebuilt as ruins, the
    near city cut down to ruins with matching colliders, dead plants.
 2. **Open the map**: the ruin field becomes flyable (colliders, a bigger box, limits and drones moved with it) inside a new far ring.
+
+## Step 2 as built
+
+- The flyable box is now x -420..420, z -430..300, ceiling 150 (about five times the district box). The district, the boulevard
+  and the arrival terrace are unchanged; the ridges east and west now look out over the drowned city instead of a wall.
+- `src/world/fieldData.ts` lays out 112 ruins on a 52 m grid of blocks with 20 m canals (flight lanes), keeping the district, the
+  north canal avenue (the start view) and a 45 m strip inside the box edges clear. Ruins come from `ruinShapes.ts` in exact mode (no
+  slanted tops), so every collider matches its box. `RuinField.tsx` draws them in four quadrant meshes (lit, the city's concrete
+  texture, empty burned windows) and creates the 877 colliders straight in Rapier; bare steel is in `FRAME_GROUPS` (the camera boom
+  looks through it). The far ruin ring moved out with the box.
+- Tests: the flight fuzz and stress approaches now sample the whole box; recorded limit pins against the old box faces move with
+  their face; brake tolerance .1 m/s2 for 32-bit position noise at 420 m; one recorded pin in the tightest pocket of the district
+  (#105) has a documented 0.6 s allowance; the edge browser test surges the longer distance.
