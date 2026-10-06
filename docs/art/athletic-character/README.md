@@ -1,5 +1,24 @@
 # Athletic anatomy in the playable character
 
+## Meridian Envoy outfit (2026-10-06)
+
+Garo found the bare mannequin "basic cookie cutter" and picked concept C, **Meridian Envoy**, from three AI concept sketches:
+bone-white ceramic plates over a dark graphite undersuit, glowing teal seams, an open-face helmet, a slim back flight module with
+two short fins, sealed boots with a teal sole line and a glove on the left hand. The right forearm and hand stay bare for the arm
+cannon.
+
+![Envoy outfit, front, three-quarter and back, with the arm cannon at the bind pose](envoy.png)
+
+- Built by `scripts/athletic_character/outfit.py` and `outfit_shapes.py` inside `build.py`, from code only: every plate is cut
+  from the approved undersuit or anatomy surface in the source pose, lifted off it and given a rim (the rim carries the glow), so
+  it fits by construction; the boots are the convex hull of each foot and ankle; the helmet is the head shell, smoothed, with the
+  face left open (a blank helmet hid which way the hero faced). `rig.bind` weights the outfit exactly like the body.
+- One extra skinned surface, `Explorer armour`, with two materials: `plate` (vertex colours: bone white, graphite for boots,
+  glove and module pods) and `glow` (teal, emissive strength 3.5). No textures, no texcoords. The undersuit turned dark graphite.
+- Budget revised again: **54,400 triangles** (+13,200), five batches (+2), **2.08 MB** GLB (+0.63 MB; test cap 2.2 MB).
+- The undersuit, anatomy, eyes, rig and the arm cannon contract are unchanged (all cannon and blaster-skin tests pass as before).
+- `build.py` no longer re-saves the 23 MB `character.blend` on every build (the outfit is code); `SAVE_BLEND=1` still does.
+
 The anatomy approved in the preceding review now replaces `public/models/suit.glb`.
 The developed shoulders, tapered waist, torso depth, and anatomical limbs are present
 in the actual third-person flight character. This stage retains the approved graphite

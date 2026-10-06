@@ -1,4 +1,4 @@
-"""Export the approved anatomy as the actual playable character, with no source edits."""
+"""Export the approved anatomy as the actual playable character, with no source edits, wearing the Meridian Envoy outfit (outfit.py)."""
 import bpy
 import hashlib
 import json
@@ -6,6 +6,8 @@ import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 from rig import bind, NAMES, POINTS, rest
+import outfit
+import os
 
 ROOT = Path(__file__).resolve().parents[2]
 ART = ROOT/'art/athletic-character'
@@ -29,7 +31,7 @@ for collection in [bpy.data.meshes, bpy.data.materials]:
     for data in list(collection):
         if data.users == 0:
             collection.remove(data)
-objects = []
+objects, sources = [], {}
 for name, (label, finish, target) in names.items():
     original = bpy.data.objects[name]
     original.hide_set(False)
@@ -43,9 +45,15 @@ for name, (label, finish, target) in names.items():
     mesh.transform(original.matrix_world)
     obj = bpy.data.objects.new(label, mesh)
     bpy.context.scene.collection.objects.link(obj)
+    # The outfit is cut from the full-resolution surfaces in the source pose, before the runtime budget decimates them.
+    if finish in ('textile', 'skin'):
+        sources[finish] = mesh.copy()
     material = original.data.materials[0].copy()
     material.name = finish
     material.diffuse_color[3] = 1
+    if finish == 'textile':
+        # Concept C: a dark graphite undersuit under bone-white plates (was a lighter slate blue).
+        material.node_tree.nodes['Principled BSDF'].inputs['Base Color'].default_value = (.028, .031, .037, 1)
     mesh.materials.clear()
     mesh.materials.append(material)
     bpy.ops.object.select_all(action='DESELECT')
@@ -79,12 +87,15 @@ eyes.data.materials.clear()
 eyes.data.materials.append(bpy.data.materials['eyes'])
 for p in eyes.data.polygons:
     p.material_index = 0
-objects = objects[:2]+[eyes]
+armour = outfit.make(sources['textile'], sources['skin'])
+objects = objects[:2]+[eyes, armour]
 rig = bind(objects)
 bpy.context.scene['source_anatomy_sha256'] = approved_sha
 bpy.context.scene['scope'] = 'Approved athletic anatomy integrated with neutral undersuit and flight rig; face/hair/detail pending'
 bpy.context.preferences.filepaths.save_version = 0
-bpy.ops.wm.save_as_mainfile(filepath=str(ART/'character.blend'), compress=True)
+# The outfit is code, so the 23 MB source file only needs saving when its approved surfaces change (SAVE_BLEND=1).
+if os.environ.get('SAVE_BLEND') == '1':
+    bpy.ops.wm.save_as_mainfile(filepath=str(ART/'character.blend'), compress=True)
 bpy.ops.object.select_all(action='DESELECT')
 for obj in objects+[rig]:
     obj.select_set(True)
