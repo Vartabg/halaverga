@@ -29,7 +29,8 @@ export default function IvyCards({ plants }: { plants: Plant[] }) {
         position.fromArray(plant.position); position.z += layer * .18;
         q.setFromEuler(new Euler(0, plant.yaw + (plant.tilt ? layer * .13 : layer * 1.2), plant.tilt || 0));
         matrix.compose(position, q, scale.fromArray(plant.scale)); mesh.setMatrixAt(i * 2 + layer, matrix);
-        mesh.setColorAt(i * 2 + layer, new Color().setRGB(.82 + i % 3 * .06, .91 + i % 2 * .07, .78));
+        // Dead scrub: the ivy atlas tinted to dry brown-grey.
+        mesh.setColorAt(i * 2 + layer, new Color().setRGB(.6 + i % 3 * .05, .48 + i % 2 * .04, .36));
       }
     });
     mesh.instanceMatrix.needsUpdate = true; mesh.computeBoundingSphere();

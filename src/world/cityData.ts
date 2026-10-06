@@ -1,9 +1,16 @@
-import { createKit, building, car, colors, CALM_GROUP } from './kit';
+import { createKit, car, colors, CALM_GROUP } from './kit';
+import { ruinBuilding, type RuinKind } from './ruinBuilding';
 import { trees } from './reclamationData';
 import { heroRuins } from './heroRuins';
-/** The district-edge hills: grey-green concrete walls and mossy tops on the stone texture (the moss texture is yellow, so any tint on
- * it came out lime). Neither hex is in kit.ts's surface() lists, so both fall in the stone group. */
-export const HILL = { wall: '#98a498', top: '#8d9f74', outerWall: '#8e9d92', outerTop: '#869870', lift: [3, 1.5] as [number, number] };
+/** The district-edge hills: ash-grey concrete walls and dead, ash-covered tops on the stone texture. Neither hex is in kit.ts's
+ * surface() lists, so both fall in the stone group. */
+export const HILL = { wall: '#7b786f', top: '#69655a', outerWall: '#75726a', outerTop: '#625e54', lift: [2.2, 1.4] as [number, number] };
+/** What is left of each building (ruinBuilding.ts): the ruin kind and how many floors of its core still stand. Building 5 is the
+ * marked tower roof on the route, so it keeps its full height as a burned shell. */
+const RUINS: [RuinKind, number][] = [
+  ['stump', 3], ['frame', 3], ['pile', 4], ['stump', 4], ['shell', 7], ['shell', 10], ['frame', 4], ['stump', 3],
+  ['pile', 3], ['shell', 5], ['stump', 5], ['frame', 4], ['shell', 6], ['frame', 5], ['stump', 5], ['shell', 6],
+];
 export function makeCity() {
   const k = createKit();
   // A hillside on either side of the submerged transport corridor.
@@ -23,12 +30,12 @@ export function makeCity() {
     [-40, 2, -146, 22, 20, 10, '#939893'], [43, 2, -160, 26, 20, 13, '#a39388'],
     [-109, 7, -11, 22, 27, 12, '#af9482'], [115, 8, -5, 23, 22, 13, '#b1a298'],
   ];
-  entries.forEach((e, i) => building(k, ...e, i));
+  entries.forEach((e, i) => ruinBuilding(k, ...e, i, ...RUINS[i], i === 5));
   for (const side of [-1, 1]) {
     k.hill(side * 140, 3, -15, 52, 25, 205, HILL.wall, HILL.top, HILL.lift);
     k.hill(side * 179, 12, -36, 40, 43, 200, HILL.outerWall, HILL.outerTop, HILL.lift);
-    building(k, side * 140, 15.5, -70, 21, 23, 9, '#c49a7c', 23);
-    building(k, side * 173, 33.5, -125, 19, 18, 7, '#a8a58e', 24);
+    ruinBuilding(k, side * 140, 15.5, -70, 21, 23, 9, '#c49a7c', 23, 'stump', 3);
+    ruinBuilding(k, side * 173, 33.5, -125, 19, 18, 7, '#a8a58e', 24, 'pile', 2);
   }
   // The distant skyline is its own static mesh (Skyline.tsx, skylineData.ts): it is not part of the city, and has no collider.
   // Arrival terrace is the sole fully prepared landing surface.
@@ -38,10 +45,10 @@ export function makeCity() {
   for (const x of [-9, 9]) {
     k.box(x, 21.2, 69, .14, 2.2, 10, '#a9b4b4', false, 0, 0, 2, CALM_GROUP);
     k.box(x, 22.25, 69, .2, .13, 10, colors.white);
-    k.box(x, 20.12, 65, .28, .12, 9, '#ddaa76');
+    k.box(x, 20.12, 65, .28, .12, 9, '#6f5d4b');
   }
   k.box(-7, 21, 58, 1.6, 2, 1.2, colors.steel, true);
-  k.box(-7, 21.7, 58.65, 1.1, .6, .08, '#b8e8b0');
+  k.box(-7, 21.7, 58.65, 1.1, .6, .08, '#b8e8b0'); // the terminal's screen still glows
   k.box(6, 20.25, 55.3, 5, .45, 2, colors.concrete, true, .23, -.14);
   // Ruptured elevated road: a navigable opening, visible reinforcing steel.
   for (const side of [-1, 1]) {
@@ -56,14 +63,14 @@ export function makeCity() {
   k.box(30, 61.39, -38, 8, .05, 8, '#b5bb94', true);
   k.box(30, 61.43, -38, .25, .02, 4, colors.white);
   k.box(30, 61.43, -38, 4, .02, .25, colors.white);
-  car(k, -24, 2.1, 45, '#b77755', .1);
-  car(k, 26, 2.1, -17, '#a5aa9f', -.12);
-  car(k, -26, 2.1, -76, '#809999', .18);
-  k.box(-22, 3.5, -48, 2.7, 2.5, 9, '#a29069', true);
-  k.box(-22, 3.8, -43.45, 2.3, 1.5, .08, colors.glass);
+  car(k, -24, 2.1, 45, '#5e4130', .1);
+  car(k, 26, 2.1, -17, '#4a4540', -.12);
+  car(k, -26, 2.1, -76, '#553a2b', .18);
+  k.box(-22, 3.5, -48, 2.7, 2.5, 9, '#5a4a38', true);
+  k.box(-22, 3.8, -43.45, 2.3, 1.5, .08, '#1d1b19');
   for (let i = 0; i < 40; i++) {
     const side = i % 2 ? -1 : 1, z = 54 - i * 5.5, x = side * (29 + i * 7 % 70);
-    k.box(x, 2.55, z, 1.4 + i % 3, .8, 1.8, '#a99b88', false, i * .6, i % 3 * .09);
+    k.box(x, 2.55, z, 1.4 + i % 3, .8, 1.8, i % 4 ? '#7d7466' : '#3b302a', false, i * .6, i % 3 * .09);
   }
   for (const tree of trees) if (tree.position[1] < 3) {
     const [x, y, z] = tree.position, s = tree.scale[1];

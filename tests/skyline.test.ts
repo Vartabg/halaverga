@@ -22,14 +22,14 @@ const outside = (t: Tower) => {
 const overlap = (a: { min: number[]; max: number[] }, b: { min: number[]; max: number[] }) => [0, 1, 2].every(i => a.min[i] <= b.max[i] && b.min[i] <= a.max[i]);
 const north = (t: Tower, layer: number) => t.layer === layer && t.z < WORLD.minZ && Math.abs(t.x) <= 100;
 
-describe('far skyline generator', () => {
+describe('far ruins generator', () => {
   it('is deterministic: the same seed gives the same bytes, another seed does not', () => {
     expect(hash(makeSkyline())).toBe(hash(sky));
     expect(hash(makeSkyline(7))).not.toBe(hash(sky));
   });
   it('stays inside its budget with sane colours', () => {
-    expect(sky.triangles).toBeLessThanOrEqual(6000);
-    expect(sky.triangles).toBeGreaterThanOrEqual(2500);
+    expect(sky.triangles).toBeLessThanOrEqual(30000);
+    expect(sky.triangles).toBeGreaterThanOrEqual(8000);
     expect(sky.geometry.index!.count).toBe(sky.triangles * 3);
     for (const name of ['position', 'color']) for (const v of sky.geometry.attributes[name].array) expect(Number.isFinite(v)).toBe(true);
     for (const v of sky.geometry.attributes.color.array) { expect(v).toBeGreaterThanOrEqual(0); expect(v).toBeLessThanOrEqual(1); }
@@ -48,12 +48,15 @@ describe('far skyline generator', () => {
       t.parts.forEach((part, i) => { if (i) expect(t.parts.slice(0, i).some(host => overlap(part, host))).toBe(true); });
     }
   });
-  it('varies the shapes: setbacks, broken tops, spires, leans and green crowns', () => {
-    const kinds = (k: string) => sky.towers.filter(t => t.parts.some(p => p.kind === k)).length;
-    for (const k of ['setback', 'notch', 'slab', 'spire', 'stub']) expect(kinds(k)).toBeGreaterThan(5);
-    expect(sky.towers.filter(t => t.lean > 0).length).toBeGreaterThan(5);
-    expect(kinds('crown')).toBeGreaterThan(3);
-    expect(sky.towers.filter(t => t.layer > 0 && t.parts.some(p => p.kind === 'crown')).length).toBe(0);
+  it('is ruins, not buildings: stumps, bare skeletons, burned shells, fallen sections and rubble heaps (Garo, 2026-10-06)', () => {
+    const ruins = (r: string) => sky.towers.filter(t => t.ruin === r).length, parts = (k: string) => sky.towers.filter(t => t.parts.some(p => p.kind === k)).length;
+    for (const r of ['stump', 'skeleton', 'shell', 'fallen', 'mound']) expect(ruins(r)).toBeGreaterThan(15);
+    for (const k of ['stub', 'rebar', 'rubble', 'column', 'floor', 'beam', 'wall', 'fallen', 'slab']) expect(parts(k)).toBeGreaterThanOrEqual(10);
+    const tops = sky.towers.map(t => t.top).sort((a, b) => a - b);
+    expect(tops[tops.length >> 1]).toBeLessThan(40); // most of the city is knee-high to what it was
+    for (const t of sky.towers) if (t.top > 70) expect(['skeleton', 'shell']).toContain(t.ruin); // only gutted shapes still rise
+    for (const t of sky.towers.filter(t => t.ruin === 'fallen')) expect(Math.min(...t.parts.filter(p => p.kind === 'fallen').map(p => p.min[1]))).toBeLessThan(.1); // sunk in the water
+    expect(sky.towers.filter(t => t.lean > 0).length).toBeGreaterThan(15);
     expect(new Set(sky.towers.map(t => Math.round(t.top))).size).toBeGreaterThan(40);
   });
   it('keeps every footprint 100 to 400 m outside the flyable box', () => {
@@ -67,18 +70,11 @@ describe('far skyline generator', () => {
     expect(near.length).toBeGreaterThan(2);
     for (const t of near) expect(Math.hypot(t.x, t.z - 72)).toBeGreaterThanOrEqual(340), expect(Math.hypot(t.x, t.z - 72)).toBeLessThanOrEqual(410);
   });
-  it('weathers the towers: lost floors, sheared roofs, leaning panels and clusters of green crowns, all attached', () => {
-    const near = (layer: number, k: string) => sky.towers.filter(t => t.layer === layer && t.parts.some(p => p.kind === k)).length;
-    expect(near(0, 'core')).toBeGreaterThan(8); expect(near(1, 'core')).toBeGreaterThan(8); expect(near(2, 'core')).toBe(0); // only the near layers lose floors
-    expect(near(0, 'upper')).toBe(near(0, 'core')); // a recessed core always carries a block above it
-    expect(sky.towers.filter(t => t.parts.some(p => p.shear > 0)).length).toBeGreaterThan(25);
-    for (const t of sky.towers) for (const p of t.parts) expect(p.shear).toBeLessThan(20.1);
-    expect(sky.towers.filter(t => t.parts.some(p => p.shear > 10)).length).toBeGreaterThan(3); // a few deep collapses read at a glance
-    expect(near(0, 'crown')).toBeGreaterThanOrEqual(12); // about a third of the nearest layer, was a fifth
-    const crowns = sky.towers.flatMap(t => t.parts.filter(p => p.kind === 'crown'));
-    expect(crowns.length).toBeGreaterThan(30);
-    for (const c of crowns) { expect(c.max[1] - c.min[1]).toBeLessThan(7); } // tufts, not towers
-    expect(sky.triangles).toBeLessThanOrEqual(6000);
+  it('marks the wall faces for the window holes and soot, and leaves steel, plates and rubble bare', () => {
+    const wall = sky.geometry.attributes.aWall;
+    expect(wall.count).toBe(sky.geometry.attributes.position.count);
+    let walls = 0; for (let i = 0; i < wall.count; i++) { expect([0, 1]).toContain(wall.getX(i)); walls += wall.getX(i); }
+    expect(walls / wall.count).toBeGreaterThan(.25); expect(walls / wall.count).toBeLessThan(.7);
   });
   it('gives every tower a seed (its layer plus a fraction) and its own mood, so no two read as twins', () => {
     const seed = sky.geometry.attributes.aSeed;
@@ -91,42 +87,42 @@ describe('far skyline generator', () => {
     expect(moods.size).toBeGreaterThanOrEqual(5);
   });
   it('keeps the layout of the skyline: damage comes from each tower\'s own stream, not the layout\'s', () => {
-    expect([0, 1, 2].map(layer => sky.towers.filter(t => t.layer === layer).length)).toEqual([46, 65, 72]);
+    expect([0, 1, 2].map(layer => sky.towers.filter(t => t.layer === layer).length)).toEqual([48, 59, 76]);
   });
   it('knows the sea\'s colour on screen: the tower feet mist toward it, and ACES twins three\'s curve', () => {
     const enc = (x: number) => Math.round(255 * (x <= .0031308 ? 12.92 * x : 1.055 * x ** (1 / 2.4) - .055));
-    const [r, g, b] = SEA_BODY.map(enc); // measured on a downward frame: #06817d (the sea at near-normal incidence)
-    expect(Math.abs(r - 6)).toBeLessThanOrEqual(8); expect(Math.abs(g - 129)).toBeLessThanOrEqual(8); expect(Math.abs(b - 125)).toBeLessThanOrEqual(8);
+    const [r, g, b] = SEA_BODY.map(enc); // the poisoned sea at near-normal incidence: #1e2318, an oily dark olive
+    expect(Math.abs(r - 30)).toBeLessThanOrEqual(3); expect(Math.abs(g - 35)).toBeLessThanOrEqual(3); expect(Math.abs(b - 24)).toBeLessThanOrEqual(3);
     const grey = (x: number): Rgb => [x, x, x];
     let last = -1; for (const x of [.01, .05, .18, .5, 1, 4]) { const v = acesFilmic(grey(x))[1]; expect(v).toBeGreaterThan(last); last = v; }
     expect(acesFilmic(grey(100))[0]).toBeGreaterThan(.97); expect(acesFilmic(grey(0))[0]).toBeLessThan(.001);
   });
-  it('draws the foot as wet concrete, sea mist and a foam line, a varied window grid and a fog that never takes a tower all the way', () => {
+  it('draws the foot as wet concrete, poisoned-sea mist and scum, empty burned windows, and lets the ash haze take every ruin', () => {
     const mesh = readFileSync('src/world/Skyline.tsx', 'utf8');
-    for (const part of ['FOOT_SEA', 'FOAM', 'aSeed', 'pow(f, 1.6) * .8', 'drip', 'dim += pane']) expect(mesh).toContain(part);
+    for (const part of ['FOOT_SEA', 'SCUM', 'aSeed', 'aWall', 'SOOT', 'RUST', 'hole', 'plume', 'bleed', 'pow(f, 1.3)']) expect(mesh).toContain(part);
     expect(mesh).not.toMatch(/mix\(diffuseColor\.rgb, \$\{glslVec3\(HAZE\)\}/); // the foot no longer mists toward the sky haze
   });
-  it('keeps the canal vista open and flanks it with landmark clusters', () => {
+  it('keeps the canal vista open and flanks it with clusters of tall skeletons and shells', () => {
     for (const t of sky.towers) if (t.layer < 2 && t.z < WORLD.minZ) expect(Math.abs(t.x)).toBeGreaterThanOrEqual(VISTA);
-    const tall = (from: number, to: number) => sky.towers.filter(t => t.layer < 2 && t.z < WORLD.minZ && t.x > from && t.x < to && t.top >= 85);
+    const tall = (from: number, to: number) => sky.towers.filter(t => t.layer < 2 && t.z < WORLD.minZ && t.x > from && t.x < to && t.top >= 45);
     expect(tall(-130, -60).length).toBeGreaterThanOrEqual(2);
     expect(tall(60, 110).length).toBeGreaterThanOrEqual(1);
   });
-  it('leaves the colliders alone and keeps the old skyline boxes out of the city mesh', () => {
+  it('builds the district as ruins with matching colliders, and keeps the skyline out of the city mesh (2026-10-06)', () => {
     const city = makeCity();
-    expect(city.solids.length).toBe(101);
-    expect(createHash('sha256').update(JSON.stringify(city.solids)).digest('hex').slice(0, 16)).toBe('ef8cefd9ae2bbdc6');
-    expect(city.geometry.index!.count / 3).toBe(86784); // 85,928 before, minus the old 20 towers and caps (480), plus the 4 cut-up hills (1,336)
+    expect(city.solids.length).toBe(202); // was 101: open debris pits get rim walls, bare steel collides on its own
+    expect(city.solids.filter(s => s.kind === 'frame').length).toBe(59);
+    expect(city.solids.filter(s => s.kind === 'building').length).toBe(85);
+    expect(createHash('sha256').update(JSON.stringify(city.solids)).digest('hex').slice(0, 16)).toBe('1da4d50ae27476b1');
+    expect(city.geometry.index!.count / 3).toBe(44228); // 86,784 before: gutted cores, no glass curtain walls
     city.geometry.dispose();
   });
-  it('draws the district-edge hills on the stone texture in grey-green: the moss texture is yellow, and any tint on it came out lime', () => {
-    const hue = (hex: string) => {
-      const [r, g, b] = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16) / 255), hi = Math.max(r, g, b), lo = Math.min(r, g, b), d = hi - lo;
-      return { h: d ? 60 * (hi === g ? 2 + (b - r) / d : hi === r ? ((g - b) / d + 6) % 6 : 4 + (r - g) / d) : 0, s: hi ? d / hi : 0 };
-    };
+  it('draws the district-edge hills on the stone texture in ash grey: no light for eighty years, nothing green grows', () => {
+    const sat = (hex: string) => { const c = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16)); return (Math.max(...c) - Math.min(...c)) / Math.max(...c); };
     for (const hex of [HILL.wall, HILL.top, HILL.outerWall, HILL.outerTop]) {
       expect(surface(hex)).toBe(0); // stone, not the ground (moss) group
-      expect(hue(hex).h).toBeGreaterThanOrEqual(85); expect(hue(hex).s).toBeLessThanOrEqual(.32); // sage and grey, never yellow-green or saturated
+      expect(sat(hex)).toBeLessThanOrEqual(.15);
+      const [r, g] = [1, 3].map(i => parseInt(hex.slice(i, i + 2), 16)); expect(g).toBeLessThanOrEqual(r); // never greener than red
     }
   });
   it('cuts each hill into cells with their own tone, so a 200 m top is not one flat colour', () => {
@@ -142,7 +138,7 @@ describe('far skyline generator', () => {
     const city = makeCity();
     expect(city.geometry.groups.map(g => g.materialIndex)).toEqual([0, 1, 2, 3, 4, 5]); // one more draw call, nothing else changes
     expect(city.geometry.groups[5].count / 3).toBe(1408); // the four cut-up hills and the two parapet panels
-    expect(city.geometry.index!.count / 3).toBe(86784); // the same triangles as before: only the group changed
+    expect(city.geometry.index!.count / 3).toBe(44228);
     const mats = readFileSync('src/world/cityMaterials.ts', 'utf8');
     expect(mats).toContain('concrete(true)'); expect(mats).toContain('return [stone, glass, metal, ground, paint, calm]');
     city.geometry.dispose();

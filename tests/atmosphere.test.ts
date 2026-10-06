@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { cloudAt, cloudCoverage, makeCloudData } from '@/world/cloudData';
 import { domeFragment, domeVertex, skyBaseGlsl } from '@/world/skyShader';
 import { waterFragment, waterVertex } from '@/world/waterShader';
-import { CLOUD, FOG, HAZE, HEMISPHERE, SKY, SUN_CORE, SUN_CREAM, SUN_DIRECTION, SUN_DISC, SUN_GLOW, SUN_PALE, SUN_POSITION, SUN_UV, SUN_XZ, directionFromUv, driftClouds, glslVec3, hexToLinear, skyBase, skyDirection, sunGlow, type Rgb } from '@/world/atmospherePalette';
+import { CLOUD, FOG, HAZE, HEMISPHERE, SKY, SUN_DIRECTION, SUN_GLOW, SUN_POSITION, SUN_UV, SUN_XZ, directionFromUv, driftClouds, glslVec3, hexToLinear, skyBase, skyDirection, sunGlow, type Rgb } from '@/world/atmospherePalette';
 
 const enc = (x: number) => Math.round(255 * (x <= .0031308 ? 12.92 * x : 1.055 * x ** (1 / 2.4) - .055));
 const screen = (c: Rgb) => c.map(enc);
@@ -38,13 +38,15 @@ describe('sky palette', () => {
     const stops: [number, string][] = [[0, HAZE], [10, SKY.low], [30, SKY.mid], [90, SKY.zenith]];
     for (const [deg, hex] of stops) expect(near(screen(skyBase(elevation(deg))), hexRgb(hex), 3)).toBe(true);
   });
-  it('turns bluer with height and is clearly blue where a phone looks', () => {
-    let last = -Infinity;
-    for (let deg = 0; deg <= 60; deg += 5) {
-      const [r, , b] = screen(skyBase(elevation(deg)));
-      expect(b - r).toBeGreaterThan(last); last = b - r;
+  it('is an ash overcast: darker with height and never blue (Garo, 2026-10-06: no sunlight)', () => {
+    let last = Infinity;
+    for (let deg = 0; deg <= 90; deg += 5) {
+      const c = screen(skyBase(elevation(deg)));
+      expect(luma(c)).toBeLessThanOrEqual(last); last = luma(c);
+      expect(c[2] - c[0]).toBeLessThanOrEqual(0); // no blue anywhere
+      expect(saturation(c)).toBeLessThan(.18);
     }
-    expect(saturation(screen(skyBase(elevation(25))))).toBeGreaterThanOrEqual(.3);
+    expect(luma(screen(skyBase(elevation(90))))).toBeLessThan(60); // a dark ceiling overhead
   });
   it('lifts the low sky toward the sun only', () => {
     const toward: Rgb = [SUN_XZ[0] * .985, .17, SUN_XZ[1] * .985], away: Rgb = [-toward[0], .17, -toward[2]];
@@ -54,16 +56,14 @@ describe('sky palette', () => {
     expect(FOG.color).toBe(HAZE);
     expect(FOG.near).toBeLessThan(FOG.far);
     expect(FOG.far).toBeLessThan(650);
-    expect(HEMISPHERE.intensity).toBe(1.7);
+    expect(HEMISPHERE.intensity).toBe(2.5);
   });
-  it('fogs gently near and fully by 590 m, inside the camera far plane', () => {
+  it('fogs thick with ash, fully by 470 m, inside the camera far plane', () => {
     const factor = (depth: number) => { const t = Math.min(1, Math.max(0, (depth - FOG.near) / (FOG.far - FOG.near))); return t * t * (3 - 2 * t); };
-    expect(FOG.near).toBe(70); expect(FOG.far).toBe(590);
-    expect(factor(70)).toBe(0); expect(factor(100)).toBeLessThan(.02);
-    for (const depth of [590, 620, 650]) expect(factor(depth)).toBe(1);
-    // aerial perspective: a smooth rise through the skyline distances (the spawn sees the three layers at about 380, 440 and 500 m)
-    expect(factor(380)).toBeGreaterThan(.6); expect(factor(380)).toBeLessThan(.7);
-    expect(factor(440)).toBeGreaterThan(.78); expect(factor(500)).toBeGreaterThan(.9); expect(factor(500)).toBeLessThan(1);
+    expect(FOG.near).toBe(30); expect(FOG.far).toBe(470);
+    expect(factor(30)).toBe(0);
+    for (const depth of [470, 560, 650]) expect(factor(depth)).toBe(1);
+    expect(factor(150)).toBeGreaterThan(.15); expect(factor(260)).toBeGreaterThan(.5); expect(factor(380)).toBeGreaterThan(.85);
   });
   it('writes colours as linear GLSL literals', () => {
     expect(glslVec3('#ffffff')).toBe('vec3(1.000000, 1.000000, 1.000000)');
@@ -82,35 +82,22 @@ describe('sky shader strings', () => {
     expect(domeFragment).toContain('normalize(vWorld - cameraPosition)');
     expect(domeVertex).toContain('gl_Position.z = gl_Position.w');
   });
-  it('draws a warm gold sun disc, never white and never orange', () => {
-    expect(domeFragment).toContain(glslVec3(SUN_DISC));
-    const [r, g, b] = hexRgb(SUN_DISC);
-    expect(r).toBe(255); expect(g).toBeGreaterThan(215); expect(g).toBeLessThan(250);
-    expect(b).toBeGreaterThan(120); expect(b).toBeLessThan(200);
-    expect(r > 190 && g < 110 && b < 100).toBe(false);
+  it('draws no sun disc: there is no sunlight, only a dull smear in the cloud', () => {
+    expect(domeFragment).not.toMatch(/disc|SUN_GOLD|SUN_CORE/);
+    expect(domeFragment).toContain(glslVec3(SUN_GLOW.color));
+    const glow = hexRgb(SUN_GLOW.color);
+    expect(luma(glow)).toBeLessThan(170); expect(saturation(glow)).toBeLessThan(.3);
   });
 });
 
 describe('sun glow and cloud scale', () => {
-  it('mixes the glow gold, cream, pale, sky: an add would push the blue sky through white', () => {
-    for (const hex of [SUN_DISC, SUN_CORE, SUN_CREAM, SUN_PALE]) expect(domeFragment).toContain(glslVec3(hex));
-    expect(domeFragment).not.toMatch(/col \+= [^;]*pow\(s, 160/);
-    const [r, g, b] = hexRgb(SUN_CREAM);
-    expect(r).toBe(255); expect(g).toBeGreaterThan(220); expect(b).toBeGreaterThan(160); expect(b).toBeLessThan(215); // cream: warmer than the pale lift, never white
-  });
-  it('lifts the sky toward the sun through white, so the blue never crosses a dirty grey', () => {
-    // The clear sky around the sun, from the disc out to 25 degrees, as it appears on screen.
+  it('smears the light toward the hidden sun: brighter toward it, never a ring, never white', () => {
     const base = skyBase(SUN_DIRECTION), at = (deg: number) => screen(sunGlow(base, 1 - Math.cos(deg * Math.PI / 180)));
     let last = Infinity;
-    for (let deg = 1.7; deg <= 25; deg += .1) { const l = luma(at(deg)); expect(l).toBeLessThanOrEqual(last + .5); last = l; } // brighter toward the disc, never a ring
-    let neutral = 0; // where the colour is neutral (saturation under .08) it is a near white (a glare), never a mid grey, and brief
-    for (let deg = 1.7; deg <= 14; deg += .1) { const c = at(deg); if (saturation(c) < .08) { neutral += .1; expect(luma(c)).toBeGreaterThanOrEqual(215); } }
-    expect(neutral).toBeLessThanOrEqual(3);
-    expect(saturation(at(25))).toBeGreaterThanOrEqual(.25); // the sky 25 degrees out is still blue
-    const [r, g, b] = at(0); expect(r).toBe(255); expect(g).toBeGreaterThan(220); expect(b).toBeLessThan(215); // a warm core: gold, never white
-    expect(r > 190 && g < 110 && b < 100).toBe(false);
-    const pale = hexRgb(SUN_PALE); expect(Math.min(...pale)).toBeGreaterThanOrEqual(235); // the wide lift is a white
-    expect(SUN_GLOW.pale.rate).toBeLessThan(SUN_GLOW.cream.rate); // and it reaches further out than the cream
+    for (let deg = 0; deg <= 45; deg += .5) { const l = luma(at(deg)); expect(l).toBeLessThanOrEqual(last + .5); last = l; }
+    expect(luma(at(0))).toBeLessThan(150); // dim even at its centre
+    expect(luma(at(25)) - luma(screen(base))).toBeGreaterThan(2); // and wide: still lifting the sky 25 degrees out
+    expect(domeFragment).not.toMatch(/col \+= /); // mixed, not added
   });
   it('keeps the cloud plane high, so the top of a level phone frame is not magnified far beyond the horizon', () => {
     const sin = (deg: number) => Math.sin(deg * Math.PI / 180), a = CLOUD.lift;
@@ -139,29 +126,19 @@ describe('cloud data', () => {
       expect(seam).toBeLessThanOrEqual(interior * 1.5 + 1); expect(seamRows).toBeLessThanOrEqual(interiorRows * 1.5 + 1);
     }
   });
-  it('covers about 40 percent of the sky at the shipped threshold', () => {
-    const cover = cloudCoverage(data, CLOUD.coverage);
-    expect(cover).toBeGreaterThan(.32); expect(cover).toBeLessThan(.48);
+  it('covers almost the whole sky at the shipped threshold: the ash never clears', () => {
+    expect(cloudCoverage(data, CLOUD.coverage)).toBeGreaterThan(.88);
   });
 });
 
 describe('the first frame sky', () => {
-  const data = makeCloudData(256, 2113), share = (az: [number, number], el: [number, number]) => { // the part of a patch of sky under cloud
-    let n = 0, cloud = 0;
-    for (let a = az[0]; a <= az[1]; a += 1) for (let e = el[0]; e <= el[1]; e += .5) { n++; if (cloudAt(data, skyDirection(a, e)) > .35) cloud++; }
-    return cloud / n;
-  };
-  it('keeps the telemetry corners clear of cloud, upright and on its side: white text never lands on a white cloud', () => {
-    expect(share([-15, -4], [13.5, 18])).toBeLessThan(.03); // portrait: MERIDIAN / ON FOOT, left of centre
-    expect(share([32, 47], [13, 22])).toBeLessThan(.03); // landscape: the same text, top right
-    expect(domeFragment).toContain('GAP_LIFT'); expect(domeFragment).toContain('dot(dir, GAP_0)');
-  });
-  it('keeps the sun in the clear and the sea end of the canal open, and still shows cloud overhead', () => {
-    expect(cloudAt(data, SUN_DIRECTION)).toBeLessThan(.1);
-    expect(share([-9, 9], [3, 12])).toBeLessThan(.1);
-    let sky = 0, cloud = 0; // 40 degrees up, all around: the sky is not empty
-    for (let a = 0; a < 360; a += 3) { sky++; if (cloudAt(data, skyDirection(a, 40)) > .35) cloud++; }
-    expect(cloud / sky).toBeGreaterThan(.2); expect(cloud / sky).toBeLessThan(.7);
+  const data = makeCloudData(256, 2113);
+  it('hides the sun and keeps the ceiling closed all around', () => {
+    expect(cloudAt(data, SUN_DIRECTION)).toBeGreaterThan(.35);
+    let sky = 0, cloud = 0;
+    for (let a = 0; a < 360; a += 3) for (const e of [15, 30, 45, 60]) { sky++; if (cloudAt(data, skyDirection(a, e)) > .35) cloud++; }
+    expect(cloud / sky).toBeGreaterThan(.88);
+    expect(CLOUD.gaps).toHaveLength(0); expect(CLOUD.gapLift).toBe(0); // white text reads on a dark ceiling
   });
 });
 
@@ -191,5 +168,10 @@ describe('water shader', () => {
   it('fades every ripple octave once it is finer than a pixel, and keeps the sky reflection display-referred', () => {
     for (const phase of ['a', 'b', 'c']) expect(waterFragment).toContain(`fwidth(${phase})`);
     expect(waterFragment).toContain('skyBase(reflected)');
+  });
+  it('is poisoned: oily slicks, scum and chemical patches, and no sun glint', () => {
+    for (const part of ['slick', 'scum', 'sick', 'rust', 'irid']) expect(waterFragment).toContain(part);
+    expect(waterFragment).not.toMatch(/glint|pow\(max\(dot\(reflected, uSun\)/);
+    expect(waterFragment).not.toMatch(/\bsin\(p\.[xy] \* \d+\.\d+ \+ \d/); // the noise hash is sine free
   });
 });

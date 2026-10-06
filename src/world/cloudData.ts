@@ -74,7 +74,7 @@ export function makeCloudData(size = 256, seed = 2113): Uint8Array {
 /** The density the dome shows at a texel (matches the shader mix of R and G), 0..1. */
 export const cloudDensityAt = (data: Uint8Array, i: number) => (data[i * 4] * .82 + data[i * 4 + 1] * .18) / 255;
 /** Share of texels above the half-density point of the dome's ramp (threshold + ramp / 2). */
-export function cloudCoverage(data: Uint8Array, threshold: number, ramp = .1) {
+export function cloudCoverage(data: Uint8Array, threshold: number, ramp = .02) {
   let n = 0;
   const count = data.length / 4;
   for (let i = 0; i < count; i++) if (cloudDensityAt(data, i) > threshold + ramp / 2) n++;
@@ -100,5 +100,5 @@ export function cloudAt(data: Uint8Array, dir: Rgb, wind: [number, number] = [0,
     gap = Math.max(gap, smooth(cos(g.fade), cos(g.clear), dir[0] * c[0] + dir[1] * c[1] + dir[2] * c[2]));
   }
   const n = tap(0, u, v) * .82 + tap(1, u, v) * .18, cover = CLOUD.coverage + (.5 - tap(2, u * CLOUD.weatherScale, v * CLOUD.weatherScale)) * CLOUD.weatherSwing + gap * CLOUD.gapLift;
-  return smooth(cover, cover + .075, n) * smooth(.02, .2, h);
+  return smooth(cover - .08, cover + .1, n) * smooth(0, .14, h);
 }

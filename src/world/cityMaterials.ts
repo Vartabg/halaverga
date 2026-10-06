@@ -39,6 +39,11 @@ export function useCityMaterials() {
     const metal = new MeshStandardMaterial({ vertexColors: true, roughness: .76, metalness: .3 });
     const ground = new MeshStandardMaterial({ vertexColors: true, map: maps[3], normalMap: maps[4],
       roughness: 1, normalScale: new Vector2(.8, .8) });
+    // The moss photo is green; with no light for eighty years nothing grows, so it is drained to ash and dead soil.
+    ground.onBeforeCompile = shader => {
+      shader.fragmentShader = shader.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
+        diffuseColor.rgb = mix(vec3(dot(diffuseColor.rgb, vec3(.2126, .7152, .0722))), diffuseColor.rgb, .18) * vec3(1.05, 1., .92);`);
+    };
     const paint = new MeshStandardMaterial({ vertexColors: true, roughness: .85 });
     return [stone, glass, metal, ground, paint, calm];
   }, [maps]);

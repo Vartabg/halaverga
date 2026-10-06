@@ -35,9 +35,11 @@ function move(fixture: ReturnType<typeof setup>, velocity: Vec) {
   return corrected;
 }
 describe('authored city navigation', () => {
+  // Since the 2026-10-06 ruins, building 1 (x -62) is a bare steel skeleton above its third floor; the burned shell of building 4
+  // (x -38, its upper block centred on x -41, z -28, faces at z -17.2 and -38.8, solid from 27.9 to 40.3 m) is the sealed upper storey.
   it('seals the broken upper stories, while keeping both principal landings valid', () => {
     const f = setup(START);
-    expect(f.safety.isClear({ x: -62, y: 33.3, z: 16 })).toBe(false);
+    expect(f.safety.isClear({ x: -41, y: 33.3, z: -28 })).toBe(false);
     expect(f.safety.isClear({ x: 36, y: 54, z: -38 })).toBe(false);
     expect(f.safety.canLand({ x: 0, y: 20, z: 65 })).toBe(true);
     expect(f.safety.canLand({ x: 30, y: 61.415, z: -38 })).toBe(true);
@@ -53,9 +55,9 @@ describe('authored city navigation', () => {
     }
   });
   it('stops a full-speed facade approach early and immediately allows departure', () => {
-    const f = setup({ x: -62, y: 33.3, z: 42 });
+    const f = setup({ x: -41, y: 33.3, z: -2 });
     for (let i = 0; i < 180; i++) move(f, { x: 0, y: 0, z: -34 });
-    expect(f.body.translation().z).toBeGreaterThan(27.3);
+    expect(f.body.translation().z).toBeGreaterThan(-16.2);
     const stopped = f.body.translation().z;
     for (let i = 0; i < 30; i++) move(f, { x: 0, y: 0, z: 13 });
     expect(f.body.translation().z).toBeGreaterThan(stopped + 5);
@@ -68,11 +70,11 @@ describe('authored city navigation', () => {
   });
   it('rejects trapped, unsupported and narrow-edge checkpoints', () => {
     const f = setup(START);
-    expect(f.safety.checkpoint({ x: -62, y: 33.3, z: 16 })).toEqual(START);
+    expect(f.safety.checkpoint({ x: -41, y: 33.3, z: -28 })).toEqual(START);
     expect(f.safety.checkpoint({ x: 0, y: 50, z: 45 })).toEqual(START);
     expect(f.safety.canLand({ x: 11.9, y: 20, z: 65 })).toBe(false);
     expect(f.safety.checkpoint(START)).toEqual(START);
-    expect(f.safety.pathClear({ x: -62, y: 33.3, z: 42 }, { x: -62, y: 33.3, z: 0 })).toBe(false);
+    expect(f.safety.pathClear({ x: -41, y: 33.3, z: -2 }, { x: -41, y: 33.3, z: -44 })).toBe(false);
   });
   it('brakes at all district limits while allowing a turn back', () => {
     const cases = [

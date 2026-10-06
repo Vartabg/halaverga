@@ -1,7 +1,8 @@
 import { BoxGeometry, Color, Float32BufferAttribute, Matrix4, Quaternion, Euler, Vector3, BufferGeometry } from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 export type Triple = [number, number, number];
-export type Solid = { position: Triple; size: Triple; rotation: Triple; kind?: 'building' };
+/** `building` marks a core's exterior volume; `frame` is bare ruin steel, which the chase camera's boom looks through (City.tsx). */
+export type Solid = { position: Triple; size: Triple; rotation: Triple; kind?: 'building' | 'frame' };
 export type Kit = ReturnType<typeof createKit>;
 export const surfaces = ['stone', 'glass', 'metal', 'ground', 'paint', 'calm'] as const;
 /** The calm group (index into `surfaces`): the stone texture with its marbling halved, for big plain concrete faces, so the district-edge
@@ -11,7 +12,7 @@ export function surface(color: string) {
   if (color === colors.glass || color === '#2d3742') return 1;
   if ([colors.steel, colors.edge, '#44434d', '#272e37'].includes(color)) return 2;
   if ([colors.road, '#6c7a6b'].includes(color)) return 3;
-  if ([colors.white, '#ddaa76', '#b8e8b0'].includes(color)) return 4;
+  if ([colors.white, '#6f5d4b', '#b8e8b0'].includes(color)) return 4;
   return 0;
 }
 export function createKit() {
@@ -77,48 +78,12 @@ export function createKit() {
   }
   return { box, hill, block, slab, add, finish, solids };
 }
-export const colors = { concrete: '#c8c8b6', edge: '#3b4141', glass: '#709698', warm: '#c3836b',
-  light: '#e0c1a0', moss: '#426456', road: '#70746d', white: '#d3ccae', steel: '#494a42' };
-export function building(k: Kit, x: number, base: number, z: number, w: number, d: number, floors: number, tint: string, seed: number) {
-  const h = floors * 3.7;
-  // Exterior-only traversal: solid lower shell and a stepped cap matching the broken roof.
-  // Empty stories remain visible, but are not traversable interiors in this milestone.
-  const shoulder = (floors - 3) * 3.7 + .14;
-  k.block(x, base + shoulder / 2, z, w + .6, shoulder, d + .6);
-  k.block(x - w * .15, base + (shoulder + h + .14) / 2, z, w * .7, h + .14 - shoulder, d + .6);
-  if (seed % 3 === 0) {
-    k.box(x - w * .125, base + h * .34, z, w * .75, h * .68, d, tint);
-    k.box(x + w * .375, base + h * .34, z - d * .25, w * .25, h * .68, d * .5, tint);
-    k.box(x + w * .32, base + 4, z + d * .5 + 1, w * .4, .6, 8, colors.concrete, true, .18, -.5);
-  } else k.box(x, base + h * .34, z, w, h * .68, d, tint);
-  // Broken upper floors expose slabs, structural columns and empty interiors.
-  for (let f = 0; f <= floors; f++) {
-    const broken = f > floors - 3 || (seed % 3 === 0 && f > 2 && f % 4 === 1);
-    const floorW = broken ? w * .7 : w + .6;
-    if (broken) k.slab(x - w * .15, base + f * 3.7, z, floorW, d + .6, seed + f);
-    else k.box(x, base + f * 3.7, z, floorW, .28, d + .6, colors.concrete);
-    if (f === floors) continue;
-    for (let c = 0; c < Math.floor(w / 3); c++) {
-      const xx = x - w / 2 + 1.5 + c * 3;
-      if (broken && c > w / 3 - 2) continue;
-      const missing = (f * 13 + c * 7 + seed) % 9 < (broken ? 7 : 3);
-      for (const side of [-1, 1]) {
-        if (!missing) k.box(xx, base + f * 3.7 + 1.9, z + side * (d / 2 + .03), 2.6, broken ? 1.3 : 2.8, .16, colors.glass);
-        k.box(xx - 1.5, base + f * 3.7 + 1.8, z + side * d / 2, .19, 3.7, .28, colors.edge);
-        if (missing && !broken) k.box(xx, base + f * 3.7 + 1.8, z + side * (d / 2 + .05), 2.6, 2.8, .18, '#2d3742');
-      }
-    }
-    if (!broken) for (const side of [-1, 1]) k.box(x + side * (w / 2 + .04), base + f * 3.7 + 1.7, z, .16, 2.7, d * .74, colors.glass);
-  }
-  // Rebar, fractured parapets, rooftop cooling equipment and a remaining antenna.
-  for (let a = 0; a < 4; a++) k.box(x + w * .2, base + h - 3 + a * .4, z - d / 2 + a * 1.8, .08, 4, .08, colors.steel, false, 0, .15);
-  k.box(x - w * .28, base + h + .6, z - d * .2, 3, 1, 2, '#777c76');
-  k.box(x - w * .28, base + h + 1.13, z - d * .2, 2.4, .1, 1.4, colors.edge);
-  k.box(x - w * .4, base + h + 2, z + d * .28, .12, 4, .12, colors.edge);
-  k.box(x + w * .43, base + 1.5, z + d * .5 + 2, 4.7, .7, 3, tint, true, .2, -.18);
-}
+/** Ash-dulled concrete, faded markings, dirty glass and rusted steel (the 2026-10-06 ruins). */
+export const colors = { concrete: '#a8a598', edge: '#33302c', glass: '#3c4542', warm: '#8f6a58',
+  light: '#a99a86', moss: '#4f4b40', road: '#85857c', white: '#a39d88', steel: '#4a4038' };
+/** A burned-out car: a rusted body, the cabin a black hollow, sitting on its rims. */
 export function car(k: Kit, x: number, y: number, z: number, color: string, ry = 0) {
-  k.box(x, y + .55, z, 1.9, .6, 4.3, color, true, ry);
-  k.box(x, y + 1.03, z - .2, 1.65, .45, 2, colors.glass, false, ry);
-  for (const dx of [-1, 1]) for (const dz of [-1.35, 1.35]) k.box(x + dx * .86, y + .27, z + dz, .32, .55, .68, '#272e37');
+  k.box(x, y + .45, z, 1.9, .6, 4.3, color, true, ry);
+  k.box(x, y + .93, z - .2, 1.65, .45, 2, '#1d1b19', false, ry);
+  for (const dx of [-1, 1]) for (const dz of [-1.35, 1.35]) k.box(x + dx * .86, y + .2, z + dz, .2, .4, .5, '#2b2723');
 }
