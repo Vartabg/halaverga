@@ -53,7 +53,7 @@ for name, (label, finish, target) in names.items():
     material.diffuse_color[3] = 1
     if finish == 'textile':
         # Concept C: a dark graphite undersuit under bone-white plates (was a lighter slate blue).
-        material.node_tree.nodes['Principled BSDF'].inputs['Base Color'].default_value = (.028, .031, .037, 1)
+        material.node_tree.nodes['Principled BSDF'].inputs['Base Color'].default_value = (.045, .049, .056, 1)
     mesh.materials.clear()
     mesh.materials.append(material)
     bpy.ops.object.select_all(action='DESELECT')

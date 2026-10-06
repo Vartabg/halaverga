@@ -8,7 +8,7 @@ import { BONE_COUNT, BONE_NAMES, BONE_PARENTS, boneIndex } from '../src/world/su
 test('human suit preserves weighted articulation, fitted proportions and the browser budget', async () => {
   const bytes = readFileSync(new URL('../public/models/suit.glb', import.meta.url));
   // Approved anatomy spends its budget on the silhouette: 41.2k triangles, three surfaces. The Meridian Envoy outfit (Garo
-  // 2026-10-06) adds one more surface with two materials: 13.2k triangles and 0.63 MB, so the budget moved from 1.6 to 2.2 MB.
+  // 2026-10-06) adds one more surface with two materials: 13.8k triangles and 0.68 MB, so the budget moved from 1.6 to 2.2 MB.
   expect(bytes.length).toBeLessThan(2_200_000);
   const json = JSON.parse(bytes.toString('utf8', 20, 20 + bytes.readUInt32LE(12)));
   expect(json.images ?? []).toHaveLength(0);

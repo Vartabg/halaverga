@@ -14,8 +14,8 @@ cannon.
   it fits by construction; the boots are the convex hull of each foot and ankle; the helmet is the head shell, smoothed, with the
   face left open (a blank helmet hid which way the hero faced). `rig.bind` weights the outfit exactly like the body.
 - One extra skinned surface, `Explorer armour`, with two materials: `plate` (vertex colours: bone white, graphite for boots,
-  glove and module pods) and `glow` (teal, emissive strength 3.5). No textures, no texcoords. The undersuit turned dark graphite.
-- Budget revised again: **54,400 triangles** (+13,200), five batches (+2), **2.08 MB** GLB (+0.63 MB; test cap 2.2 MB).
+  glove and module pods) and `glow` (teal, emissive strength 1.7: stronger reads white under the game's tone mapping). No textures, no texcoords. The undersuit turned dark graphite.
+- Budget revised again: **55,000 triangles** (+13,800), five batches (+2), **2.14 MB** GLB (+0.68 MB; test cap 2.2 MB).
 - The undersuit, anatomy, eyes, rig and the arm cannon contract are unchanged (all cannon and blaster-skin tests pass as before).
 - `build.py` no longer re-saves the 23 MB `character.blend` on every build (the outfit is code); `SAVE_BLEND=1` still does.
 

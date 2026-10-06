@@ -141,6 +141,26 @@ def boot(suit, skin, s):
     return obj
 
 
+def ear(s):
+    """A graphite disc over each ear of the helmet, its face lit by a teal ring."""
+    bm = bmesh.new()
+    disc = bmesh.ops.create_cone(bm, cap_ends=True, segments=16, radius1=.036, radius2=.033, depth=.02)['verts']
+    bmesh.ops.transform(bm, matrix=Matrix.Translation(Vector((s*.106, -.035, 1.705))) @ Matrix.Rotation(radians(90*s), 4, 'Y'), verts=disc)
+    ring = bmesh.ops.create_circle(bm, cap_ends=True, segments=16, radius=.02)['verts']
+    bmesh.ops.transform(bm, matrix=Matrix.Translation(Vector((s*.1171, -.035, 1.705))) @ Matrix.Rotation(radians(90*s), 4, 'Y'), verts=ring)
+    tone = bm.faces.layers.int.new('tone')
+    ring_faces = {f for v in ring for f in v.link_faces}
+    for f in bm.faces:
+        f[tone], f.material_index = 0, (1 if f in ring_faces else 0)
+    mesh = bpy.data.meshes.new(f'ear {s}')
+    bm.to_mesh(mesh)
+    bm.free()
+    obj = bpy.data.objects.new(f'ear {s}', mesh)
+    bpy.context.scene.collection.objects.link(obj)
+    obj['thick'], obj['rim'], obj['colour'] = 0, False, GRAPHITE
+    return obj
+
+
 def relax(obj, iterations, factor=.5):
     """Smooths a whole piece (the helmet: no ears, nose or lips pressed into the shell)."""
     bm = bmesh.new()

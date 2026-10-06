@@ -1,8 +1,8 @@
 {
   "source": "Approved source surfaces retained in art/athletic-character/character.blend",
   "source_sha256": "611b091264ebcedd83d12c672aec57ebf837bd7f3e8f9c0a2871c5770125b17b",
-  "asset_sha256": "ef35066cd32d827c857b371a0bd7443dbc011c68d63094e5846e94c893f63a42",
-  "bytes": 2094132,
+  "asset_sha256": "ba6872aeb18a68cf1e89ed4df8859cd300e82e5158baa6ef215405454e623882",
+  "bytes": 2135616,
   "bind": "21 original names/parents; identity rotations; anatomy-fitted joint positions",
   "changes": "Uniform 1.98/1.85 scale; arms lowered 14 degrees; leg splay closed 6 degrees; body volume retained; outer cloth surface only",
   "meshes": [
@@ -23,8 +23,8 @@
     },
     {
       "name": "Explorer armour",
-      "vertices": 7725,
-      "triangles": 13183
+      "vertices": 8183,
+      "triangles": 13839
     }
   ]
 }

@@ -29,7 +29,7 @@ describe('Meridian Envoy outfit', () => {
     expect(Math.max(...tones)).toBeGreaterThanOrEqual(7); expect(Math.min(...tones)).toBeLessThanOrEqual(1); // bone and graphite
     const light = glow[0].material as MeshStandardMaterial;
     expect(light.emissive.g).toBeGreaterThan(.8); expect(light.emissive.b).toBeGreaterThan(.6); expect(light.emissive.r).toBeLessThan(.3);
-    expect(light.emissiveIntensity).toBeGreaterThan(2);
+    expect(light.emissiveIntensity).toBeGreaterThan(1.2); expect(light.emissiveIntensity).toBeLessThan(2.5); // teal, not tone-mapped white
     expect(plate[0].geometry.getAttribute('uv')).toBeUndefined(); // untextured: no texcoords spent
   });
   it('leaves the right hand to the arm cannon: no outfit vertex follows hand_r, none rides the right forearm', async () => {

@@ -7,7 +7,7 @@ along its normals and thickened, so it fits by construction; the plate rims carr
 rig.weights as the body. Pure procedure: a rebuild gives the same outfit."""
 from math import atan2, radians
 import bpy
-from outfit_shapes import ARM, BONE, GRAPHITE, LEG, TEAL, axis_param, boot, cut, module, relax
+from outfit_shapes import ARM, BONE, GRAPHITE, LEG, TEAL, axis_param, boot, cut, ear, module, relax
 
 
 def materials():
@@ -25,7 +25,7 @@ def materials():
     g = glow.node_tree.nodes['Principled BSDF']
     g.inputs['Base Color'].default_value = (.01, .05, .05, 1)
     g.inputs['Emission Color'].default_value = (*TEAL, 1)
-    g.inputs['Emission Strength'].default_value = 3.5
+    g.inputs['Emission Strength'].default_value = 1.7  # stronger blows out to white under the game's ACES tone mapping
     g.inputs['Roughness'].default_value = .3
     return plate, glow
 
@@ -84,6 +84,13 @@ def pieces(suit, skin):
     helmet = cut(skin, 'helmet', lambda p: p.z > 1.6-.04*max(0, p.y) and not face(p), .016, BONE, thick=.007, smooth=8)
     relax(helmet, 12)
     out.append((helmet, 900))
+    # Seen from the chase camera a plain white helmet reads as a bald head: a line of light over the crown, ear discs that break the
+    # silhouette, and a graphite guard over the nape make it a helmet from behind.
+    crest = lambda p: abs(p.x) < .012 and p.z > 1.64 and p.y > -.13 and (p.z > 1.79 or p.y > -.06) and not face(p)  # stops above the brow
+    out.append((cut(skin, 'helmet crest', crest, .023, None, thick=0, smooth=2, every=True), 120))
+    out.append((cut(suit, 'neck guard', lambda p: p.y > .0 and 1.5 < p.z < 1.575, .011, GRAPHITE, thick=.006, smooth=4), 160))
+    for s in (-1, 1):
+        out.append((ear(s), 0))
     out.append((module('flight module'), 0))
     return out
 
