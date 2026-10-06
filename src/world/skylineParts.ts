@@ -10,7 +10,9 @@ export type Spec = { kind: PartKind; at: Rgb; size: Rgb; tilt?: number; shear?: 
 export type Part = { kind: PartKind; min: Rgb; max: Rgb; shear: number };
 export type Rng = () => number;
 /** Where a ruin stands: foot centre (x, z) at FOOT_Y, its yaw, its lean about the foot, and which layer it belongs to. */
-export type Stand = { x: number; z: number; yaw: number; lean: number; leanAxis: number; layer: number; bright: number; mood: Mood; seed: number };
+export type Stand = { x: number; z: number; yaw: number; lean: number; leanAxis: number; layer: number; bright: number; mood: Mood; seed: number;
+  /** For a lit material (the flyable ruins): no baked sun shading (the scene's lights do it) and no brighter tops. */
+  flat?: boolean };
 /** The foot sits this far below the water (y .1), so no waterline is ever bare. */
 export const FOOT_Y = -3;
 /** Faces of these kinds carry the shader's empty window grid and soot (wall surfaces); steel, plates and rubble do not. */
@@ -33,7 +35,9 @@ function paint(kind: PartKind, layer: number): [Rgb, Rgb] {
 
 /** The mesh buffers a skyline is built into. `seed` is per vertex: the layer plus a random fraction, read by the fragment shader to
  * vary each ruin's windows; `wall` is 1 on wall surfaces (window grid and soot), 0 on steel, plates and rubble. */
-export type Buffers = { position: number[]; color: number[]; index: number[]; seed: number[]; wall: number[] };
+export type Buffers = { position: number[]; color: number[]; index: number[]; seed: number[]; wall: number[];
+  /** Filled only when present: face normals and metre-based uvs (4 m per repeat, like the city kit) for a lit, textured material. */
+  normal?: number[]; uv?: number[] };
 
 /** Bakes one ruin into the buffers and returns its parts' world bounds, the foot's lowest and highest corner, and the lean. Faces
  * are lit or shaded by their normal against the hidden sun (a smooth step, so a turned ruin has no hard seam); tops are a little
@@ -58,10 +62,12 @@ export function bakeTower(out: Buffers, stand: Stand, specs: Spec[]) {
       if (spec.kind === 'body' && f === 3) { const ys = [12, 13, 14, 15].map(i => pos.getY(i)); foot = [Math.min(...ys), Math.max(...ys)]; }
       if (f === 3 && STANDING.includes(spec.kind)) continue;
       n.fromBufferAttribute(nor, f * 4);
-      const k = smooth(-.1, .75, n.dot(sun)), top = n.y > .5 ? 1.08 : 1, base = out.position.length / 3;
+      const k = stand.flat ? 1 : smooth(-.1, .75, n.dot(sun)), top = n.y > .5 && !stand.flat ? 1.08 : 1, base = out.position.length / 3;
       for (let v = 0; v < 4; v++) {
-        const y = pos.getY(f * 4 + v), low = 1 - smooth(0, .5, (y - FOOT_Y) / total);
-        out.position.push(pos.getX(f * 4 + v), y, pos.getZ(f * 4 + v));
+        const x = pos.getX(f * 4 + v), y = pos.getY(f * 4 + v), z = pos.getZ(f * 4 + v), low = 1 - smooth(0, .5, (y - FOOT_Y) / total);
+        out.position.push(x, y, z);
+        out.normal?.push(n.x, n.y, n.z);
+        out.uv?.push(...(Math.abs(n.y) > .5 ? [x / 4, z / 4] : Math.abs(n.x) > .5 ? [z / 4, y / 4] : [x / 4, y / 4]));
         const c = [0, 1, 2].map(i => own[i] + (lite[i] - own[i]) * k) as Rgb, lc = luma(c);
         const a = !steel && mood.amount > 0 ? Math.min(.75, mood.amount * (1 + mood.low * 1.6 * low)) : 0;
         const value = stand.bright * (steel ? 1 : mood.value) * (1 - .18 * low) * top;

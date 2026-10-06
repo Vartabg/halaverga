@@ -7,7 +7,7 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { readFileSync, writeFileSync } from 'node:fs';
 import RAPIER from '@dimforge/rapier3d-compat';
-import { init, Sim, DT, type Model } from './lim/harness';
+import { init, Sim, DT, WORLD, type Model } from './lim/harness';
 import { WALLS, boxDist, fly, keysFwd, report, thumb, wallEntry } from './lim/drive';
 beforeAll(init);
 const FILE = new URL('./fixtures/limit-baseline.json', import.meta.url), RECORD = !!process.env.LIMITS_RECORD;
@@ -75,7 +75,8 @@ describe('fuzz: 250 hands-off flights', () => {
     const probe = new Sim({ x: 0, y: 70, z: 0 }), ball = new RAPIER.Ball(2.2), out: { id: string; tele: number; stall: number }[] = [];
     for (let n = 0; n < N; n++) {
       let p: { x: number; y: number; z: number }, tries = 0;
-      do { p = { x: -202 + rnd() * 404, y: 4 + rnd() * 98, z: -185 + rnd() * 290 }; tries++; }
+      // The whole box since 2026-10-06 (the district and the flyable ruins around it), 3 m in from each face.
+      do { p = { x: WORLD.minX + 3 + rnd() * (WORLD.maxX - WORLD.minX - 6), y: 4 + rnd() * (WORLD.ceiling - 7), z: WORLD.minZ + 3 + rnd() * (WORLD.maxZ - WORLD.minZ - 6) }; tries++; }
       while (probe.world.intersectionWithShape(p, { x: 0, y: 0, z: 0, w: 1 }, ball, undefined, undefined, probe.col) && tries < 200);
       const v = rnd() < .5 ? 13 : 34, s = new Sim(p); s.yaw = rnd() * Math.PI * 2; s.pitch = Math.max(-1.3, Math.min(1.25, (rnd() - .5) * 2.4));
       const f = fly(s, thumb(v), { metric: q => boxDist(q.p), contact: -1, clear: 1e9, cap: SECONDS, maxTotal: SECONDS });

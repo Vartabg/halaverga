@@ -97,9 +97,9 @@ describe('respawn fly-in', () => {
   });
   it('clamps inside the world with a 6 m margin and under 95 m', () => {
     const out = { x: 0, y: 0, z: 0 };
-    flyInStart({ x: 190, y: 90, z: 100 }, { x: 150, y: 90, z: 60 }, 0, out);
+    flyInStart({ x: WORLD.maxX - 15, y: 90, z: WORLD.maxZ - 8 }, { x: WORLD.maxX - 55, y: 90, z: WORLD.maxZ - 48 }, 0, out);
     expect(out).toEqual({ x: WORLD.maxX - 6, y: 95, z: WORLD.maxZ - 6 });
-    flyInStart({ x: -190, y: 10, z: -170 }, { x: -150, y: 10, z: -150 }, 0, out);
+    flyInStart({ x: WORLD.minX + 15, y: 10, z: WORLD.minZ + 18 }, { x: WORLD.minX + 55, y: 10, z: WORLD.minZ + 38 }, 0, out);
     expect(out.x).toBe(WORLD.minX + 6); expect(out.z).toBe(WORLD.minZ + 6);
   });
 });

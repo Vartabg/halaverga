@@ -16,9 +16,9 @@ export function pickRuin(look: Rng, landmark: boolean): Ruin {
 }
 
 /** A broken-off tower: a solid trunk cut low, a jagged rim of wall stubs, a cracked floor plate, rebar and a rubble skirt. */
-function stump(look: Rng, w: number, d: number, height: number, layer: number): Spec[] {
+function stump(look: Rng, w: number, d: number, height: number, layer: number, exact = false): Spec[] {
   const hs = Math.max(11, height * (.15 + look() * .3)), body = box('body', 0, hs / 2, 0, w, hs, d);
-  if (look() < .6) body.shear = Math.min(hs * .5, 3 + look() * 9); // torn off on a slant
+  if (look() < .6 && !exact) body.shear = Math.min(hs * .5, 3 + look() * 9); // torn off on a slant
   const specs = [body, ...rim(look, w, d, hs - (body.shear ?? 0) * .5, layer)];
   if (look() < .55) specs.push(box('slab', (look() - .5) * w * .3, hs + .3, (look() - .5) * d * .3, w * .72, .6, d * .62, (look() - .5) * .45));
   return [...specs, ...skirt(look, w, d, layer === 2 ? 1 : 2 + Math.floor(look() * 3))];
@@ -79,7 +79,7 @@ function skeleton(look: Rng, w: number, d: number, height: number, layer: number
 
 /** A burned-out shell: four walls of empty windows standing to ragged heights around nothing, one side mostly fallen, a couple of
  * floor plates left inside. */
-function shell(look: Rng, w: number, d: number, height: number, layer: number): Spec[] {
+function shell(look: Rng, w: number, d: number, height: number, layer: number, exact = false): Spec[] {
   const hs = Math.max(20, height * (.4 + look() * .4)), t = layer === 2 ? 1.6 : 1.2, base = 5.5, gone = Math.floor(look() * 4);
   const specs: Spec[] = [{ ...box('body', 0, base / 2, 0, w, base, d), burn: .6 }];
   let low = hs;
@@ -90,7 +90,7 @@ function shell(look: Rng, w: number, d: number, height: number, layer: number): 
       if (i > 0 && look() < .22) continue; // a whole bay blown out: you see through the shell
       if (sx) low = Math.min(low, sh);
       const part = sx ? box('wall', sx * (w - t) / 2, base - .5 + sh / 2, at, t, sh, seg + .02) : box('wall', at, base - .5 + sh / 2, sz * (d - t) / 2, seg + .02, sh, t);
-      if (look() < .7) { part.shear = Math.min(sh * .45, 2 + look() * 10); if (sx) part.shearZ = true; }
+      if (look() < .7 && !exact) { part.shear = Math.min(sh * .45, 2 + look() * 10); if (sx) part.shearZ = true; }
       specs.push({ ...part, burn: look() < .4 ? .55 : .15 });
     }
   });
@@ -123,5 +123,7 @@ function mound(look: Rng, w: number, d: number, _height: number, layer: number):
 }
 
 const BUILD = { stump, skeleton, shell, fallen, mound };
-/** The ruin of a tower of width w, depth d and original roof height `height` (local, from the foot). */
-export const ruinSpecs = (look: Rng, ruin: Ruin, w: number, d: number, height: number, layer: number) => BUILD[ruin](look, w, d, height, layer);
+/** The ruin of a tower of width w, depth d and original roof height `height` (local, from the foot). `exact` leaves out the slanted
+ * (sheared) tops, so every part is a plain box and its collider matches it exactly: the flyable ruins (fieldData.ts) use it. */
+export const ruinSpecs = (look: Rng, ruin: Ruin, w: number, d: number, height: number, layer: number, exact = false) =>
+  ruin === 'stump' ? stump(look, w, d, height, layer, exact) : ruin === 'shell' ? shell(look, w, d, height, layer, exact) : BUILD[ruin](look, w, d, height, layer);

@@ -50,7 +50,9 @@ describe('the cue arrives early enough to act', () => {
     // Limits review F14: 1.77 s live at cruise. Contact, not the stop: the peel and the soft limiter both stretch the stop.
     const bad: string[] = [];
     for (const pitch of [-.12, -.3, -.5, -.8]) for (const v of [8, 13, 34]) {
-      const s = new Sim({ x: 0, y: FLOOR + 60, z: 60 }, { city: false }), m = thumb(v); s.yaw = 0; s.pitch = pitch; s.setModel(m);
+      // From the south end of the box, so the shallowest glide meets the water before it meets the north wall (from z 60 in the
+      // 2026-10-06 box the two arrived together, and the wall cue, rightly, took the screen).
+      const s = new Sim({ x: 0, y: FLOOR + 60, z: WORLD.maxZ - 10 }, { city: false }), m = thumb(v); s.yaw = 0; s.pitch = pitch; s.setModel(m);
       let cueAt: number | null = null, contact: number | null = null;
       for (let i = 0; i < 40 / DT; i++) { s.step(m); if (cueAt === null && s.cueNow === 'floor') cueAt = s.t; if (s.p.y - FLOOR < .8) { contact = s.t; break; } }
       if (contact !== null && (cueAt === null || contact - cueAt < FLOOR_LEAD)) bad.push(`floor pitch ${pitch} ${v} m/s: cue ${cueAt === null ? 'never' : (contact - cueAt).toFixed(2) + ' s'} before contact (need ${FLOOR_LEAD})`);

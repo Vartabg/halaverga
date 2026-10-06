@@ -6,9 +6,10 @@ import { heroRuins } from './heroRuins';
  * surface() lists, so both fall in the stone group. */
 export const HILL = { wall: '#7b786f', top: '#69655a', outerWall: '#75726a', outerTop: '#625e54', lift: [2.2, 1.4] as [number, number] };
 /** What is left of each building (ruinBuilding.ts): the ruin kind and how many floors of its core still stand. Building 5 is the
- * marked tower roof on the route, so it keeps its full height as a burned shell. */
+ * marked tower roof on the route, so it keeps its full height as a burned shell. Building 2, right of the arrival terrace, keeps its
+ * upper block to the sixth floor (its face at x 27 frames the start view and is the wall the Draw lab's blocked-path test aims at). */
 const RUINS: [RuinKind, number][] = [
-  ['stump', 3], ['frame', 3], ['pile', 4], ['stump', 4], ['shell', 7], ['shell', 10], ['frame', 4], ['stump', 3],
+  ['stump', 3], ['frame', 3], ['shell', 3], ['stump', 4], ['shell', 7], ['shell', 10], ['frame', 4], ['stump', 3],
   ['pile', 3], ['shell', 5], ['stump', 5], ['frame', 4], ['shell', 6], ['frame', 5], ['stump', 5], ['shell', 6],
 ];
 export function makeCity() {

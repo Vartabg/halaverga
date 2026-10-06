@@ -1,6 +1,7 @@
 import RAPIER from '@dimforge/rapier3d-compat';
 import { Euler, Quaternion } from 'three';
 import { makeCity } from '../../src/world/cityData';
+import { makeField } from '../../src/world/fieldData';
 import { FlightSafety } from '../../src/game/FlightSafety';
 import { advanceVelocity, boundMovement, flightTarget, moving, START, WORLD, FOOT, type Vec } from '../../src/game/motion';
 import { boundaryDistance, CLEARANCE, removeInward } from '../../src/game/navigation';
@@ -28,7 +29,11 @@ export type Model = Look & (
 /** Slide-look on top of any model: a yaw and pitch rate (rad/s) written into the view every step, as look() does between steps. */
 export type Look = { look?: number; lookPitch?: number };
 let cityCache: ReturnType<typeof makeCity>['solids'] | null = null;
-export async function init() { await RAPIER.init(); if (!cityCache) { const c = makeCity(); cityCache = c.solids; c.geometry.dispose(); } }
+/** The district and, since 2026-10-06, the flyable ruins around it (fieldData.ts): the flight tests fly the whole world. */
+export async function init() {
+  await RAPIER.init();
+  if (!cityCache) { const c = makeCity(), f = makeField(); cityCache = [...c.solids, ...f.solids]; c.geometry.dispose(); f.geometries.forEach(g => g.dispose()); }
+}
 export function solids() { return cityCache!; }
 export class Sim {
   world: RAPIER.World; body: RAPIER.RigidBody; col: RAPIER.Collider; c: RAPIER.KinematicCharacterController; safe: FlightSafety;
@@ -44,8 +49,9 @@ export class Sim {
       const width = WORLD.maxX - WORLD.minX, depth = WORLD.maxZ - WORLD.minZ, cz = (WORLD.minZ + WORLD.maxZ) / 2;
       const add = (hx: number, hy: number, hz: number, x: number, y: number, z: number) =>
         world.createCollider(RAPIER.ColliderDesc.cuboid(hx, hy, hz).setTranslation(x, y, z).setCollisionGroups(BOUNDARY_GROUPS));
-      add(1, 75, depth / 2 + 4, WORLD.minX - 1.44, 35, cz); add(1, 75, depth / 2 + 4, WORLD.maxX + 1.44, 35, cz);
-      add(width / 2 + 4, 75, 1, 0, 35, WORLD.minZ - 1.44); add(width / 2 + 4, 75, 1, 0, 35, WORLD.maxZ + 1.44);
+      const wh = (WORLD.ceiling + 45) / 2, wy = (WORLD.ceiling - 35) / 2; // DistrictBoundary's WALL_HALF and WALL_Y
+      add(1, wh, depth / 2 + 4, WORLD.minX - 1.44, wy, cz); add(1, wh, depth / 2 + 4, WORLD.maxX + 1.44, wy, cz);
+      add(width / 2 + 4, wh, 1, 0, wy, WORLD.minZ - 1.44); add(width / 2 + 4, wh, 1, 0, wy, WORLD.maxZ + 1.44);
       add(width / 2 + 4, 1, depth / 2 + 4, 0, WORLD.ceiling + 2.04, cz); add(width / 2 + 4, 1, depth / 2 + 4, 0, -1.4, cz);
     }
     this.body = world.createRigidBody(RAPIER.RigidBodyDesc.kinematicPositionBased().setTranslation(pos.x, pos.y, pos.z));

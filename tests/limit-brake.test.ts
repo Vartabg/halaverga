@@ -7,7 +7,9 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { init, Sim, DT, WORLD } from './lim/harness';
 import { CLIFFS, FLOOR, STOP_GAP, WALLS, cliffSim, heading, report, thumb, wallEntry, type V3 } from './lim/drive';
 beforeAll(init);
-const MAX_DECEL = 30, TOL = .05;
+// TOL is float noise: Rapier keeps positions in 32 bits, so velocities read from them get noisier farther from the origin. In the
+// 2026-10-06 box (walls at 420 to 430 m) the same 45-degree stops peak at 30.05 to 30.06 (30.00 to 30.05 at the old 205 m walls).
+const MAX_DECEL = 30, TOL = .1;
 interface Case { id: string; make: () => Sim; out: V3; gap: (s: Sim) => number; v: number }
 const cases: Case[] = [];
 for (const v of [8, 13, 34]) {

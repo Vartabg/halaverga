@@ -28,7 +28,7 @@ describe('far ruins generator', () => {
     expect(hash(makeSkyline(7))).not.toBe(hash(sky));
   });
   it('stays inside its budget with sane colours', () => {
-    expect(sky.triangles).toBeLessThanOrEqual(30000);
+    expect(sky.triangles).toBeLessThanOrEqual(40000); // the ring round the 2026-10-06 box is twice as long
     expect(sky.triangles).toBeGreaterThanOrEqual(8000);
     expect(sky.geometry.index!.count).toBe(sky.triangles * 3);
     for (const name of ['position', 'color']) for (const v of sky.geometry.attributes[name].array) expect(Number.isFinite(v)).toBe(true);
@@ -65,10 +65,12 @@ describe('far ruins generator', () => {
     expect(gaps[0]).toBeGreaterThanOrEqual(100);
     for (let i = 1; i < 3; i++) expect(gaps[i]).toBeGreaterThan(gaps[i - 1]);
   });
-  it('puts the nearest north layer 340 to 410 m from the spawn camera', () => {
+  // Since 2026-10-06 the box holds the flyable ruins (fieldData.ts) and the backdrop moved out with its edges: from the start it is
+  // past the fog's far end (470 m) and the flyable ruins fill the view; it shows when you fly toward an edge.
+  it('puts the nearest north layer 600 to 660 m from the spawn camera, behind the flyable ruins and past the fog', () => {
     const near = sky.towers.filter(t => north(t, 0));
     expect(near.length).toBeGreaterThan(2);
-    for (const t of near) expect(Math.hypot(t.x, t.z - 72)).toBeGreaterThanOrEqual(340), expect(Math.hypot(t.x, t.z - 72)).toBeLessThanOrEqual(410);
+    for (const t of near) expect(Math.hypot(t.x, t.z - 72)).toBeGreaterThanOrEqual(600), expect(Math.hypot(t.x, t.z - 72)).toBeLessThanOrEqual(660);
   });
   it('marks the wall faces for the window holes and soot, and leaves steel, plates and rubble bare', () => {
     const wall = sky.geometry.attributes.aWall;
@@ -87,7 +89,7 @@ describe('far ruins generator', () => {
     expect(moods.size).toBeGreaterThanOrEqual(5);
   });
   it('keeps the layout of the skyline: damage comes from each tower\'s own stream, not the layout\'s', () => {
-    expect([0, 1, 2].map(layer => sky.towers.filter(t => t.layer === layer).length)).toEqual([48, 59, 76]);
+    expect([0, 1, 2].map(layer => sky.towers.filter(t => t.layer === layer).length)).toEqual([78, 96, 109]);
   });
   it('knows the sea\'s colour on screen: the tower feet mist toward it, and ACES twins three\'s curve', () => {
     const enc = (x: number) => Math.round(255 * (x <= .0031308 ? 12.92 * x : 1.055 * x ** (1 / 2.4) - .055));
@@ -110,11 +112,11 @@ describe('far ruins generator', () => {
   });
   it('builds the district as ruins with matching colliders, and keeps the skyline out of the city mesh (2026-10-06)', () => {
     const city = makeCity();
-    expect(city.solids.length).toBe(202); // was 101: open debris pits get rim walls, bare steel collides on its own
+    expect(city.solids.length).toBe(209); // was 101: open debris pits get rim walls, bare steel collides on its own
     expect(city.solids.filter(s => s.kind === 'frame').length).toBe(59);
-    expect(city.solids.filter(s => s.kind === 'building').length).toBe(85);
-    expect(createHash('sha256').update(JSON.stringify(city.solids)).digest('hex').slice(0, 16)).toBe('1da4d50ae27476b1');
-    expect(city.geometry.index!.count / 3).toBe(44228); // 86,784 before: gutted cores, no glass curtain walls
+    expect(city.solids.filter(s => s.kind === 'building').length).toBe(90);
+    expect(createHash('sha256').update(JSON.stringify(city.solids)).digest('hex').slice(0, 16)).toBe('051693dc50f33da8');
+    expect(city.geometry.index!.count / 3).toBe(46016); // 86,784 before: gutted cores, no glass curtain walls
     city.geometry.dispose();
   });
   it('draws the district-edge hills on the stone texture in ash grey: no light for eighty years, nothing green grows', () => {
@@ -138,7 +140,7 @@ describe('far ruins generator', () => {
     const city = makeCity();
     expect(city.geometry.groups.map(g => g.materialIndex)).toEqual([0, 1, 2, 3, 4, 5]); // one more draw call, nothing else changes
     expect(city.geometry.groups[5].count / 3).toBe(1408); // the four cut-up hills and the two parapet panels
-    expect(city.geometry.index!.count / 3).toBe(44228);
+    expect(city.geometry.index!.count / 3).toBe(46016);
     const mats = readFileSync('src/world/cityMaterials.ts', 'utf8');
     expect(mats).toContain('concrete(true)'); expect(mats).toContain('return [stone, glass, metal, ground, paint, calm]');
     city.geometry.dispose();
