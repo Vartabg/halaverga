@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { persistGame, useGame } from '@/game/store';
 import { runtime } from '@/game/runtime';
 import { touchMode } from '@/game/pointerMode';
@@ -16,11 +16,12 @@ function crampedNow(probe: HTMLElement | null): boolean {
   const prefs = { size: s.controlSize, flip: s.flipSides, fire: s.shooter, aim: s.shooter && s.aimButton && !s.tapControls, tapPad: s.tapControls };
   return computeLayout(box.w, box.h, insets, top, prefs).cramped;
 }
+const Chevron = () => <i aria-hidden="true">›</i>;
 /** The pause card, the "Leave the game?" card (a back swipe during touch play) and the notes that explain a refused Resume. */
 export default function PauseCard({ ready, onEnter, note = '' }: Props) {
   const leave = useGame(s => s.leavePrompt), zoomNote = useGame(s => s.zoomNote), shooter = useGame(s => s.shooter);
   const tipSeen = useGame(s => s.homeTipSeen);
-  const probe = useRef<HTMLDivElement>(null), card = useRef<HTMLElement>(null), go = useRef<HTMLButtonElement>(null);
+  const probe = useRef<HTMLDivElement>(null), card = useRef<HTMLElement>(null), go = useRef<HTMLButtonElement>(null), kicker = useId();
   const [cramped, setCramped] = useState(false), [tip, setTip] = useState(false);
   useEffect(() => {
     const update = () => { setCramped(crampedNow(probe.current)); setTip(touchMode() && !isStandalone()); };
@@ -45,20 +46,24 @@ export default function PauseCard({ ready, onEnter, note = '' }: Props) {
   // The Home Screen tip is one muted line, not a card with a button: it counts as seen when Resume is pressed with it on screen.
   const showTip = tip && !tipSeen;
   const resume = () => { if (showTip) { useGame.setState({ homeTipSeen: true }); persistGame(); } onEnter(); };
-  return <section ref={card} tabIndex={-1} className={styles.pauseCard} aria-label="Expedition paused">
+  // The kicker is the card's name made visible ("Expedition paused", the region's label since the cleanup): one line, read once.
+  return <section ref={card} tabIndex={-1} className={styles.pauseCard} aria-labelledby={kicker}>
     {probeNode}
+    <p id={kicker} className={styles.kicker}>Expedition paused</p>
     <h2>Take your time.</h2>
     {shooter && runtime.shooter.stats.kills > 0 && <p>Drones downed: {runtime.shooter.stats.kills}</p>}
     <p className={styles.note} role="status">{note || (zoomNote ? 'Pinch out to normal size, then tap Resume.' : cramped ? 'Screen too short for touch controls. Zoom out or turn the phone.' : '')}</p>
     <button ref={go} className={styles.primary} autoFocus disabled={!ready} onClick={resume}>{ready ? 'Resume flight' : 'Restoring your suit…'} <span aria-hidden="true">↗</span></button>
-    <LazyControls />
-    {/* The Controls row, its tried line and the vote door are inside the chunk above (V4: the vote door is right under Resume for players
-        who are asked, after the Controls row for everyone else, and its words cost the landing page nothing). The Controls sheet and the vote
-        card (VoteLayer) open over the paused game; this card hides while they show and returns when they close. */}
-    <div className={styles.pair}>
-      <button className={styles.secondary} onClick={() => useGame.setState({ journal: true })}>Field guide</button>
-      <button className={styles.secondary} aria-describedby="settings-hint" onClick={() => useGame.setState({ panel: true })}>Flight settings</button>
-      <p id="settings-hint" className={`${styles.pauseNote} ${styles.settingsHint}`}>Size, left-handed, look speed</p>
+    {/* The doors, one list of rows: the vote door (when it works), the Controls row and its tried line come from the chunk below (V4: the vote door is
+        right under Resume for players who are asked, after the Controls row for everyone else, and its words cost the landing page nothing). The
+        Controls sheet and the vote card (VoteLayer) open over the paused game; this card hides while they show and returns when they close. */}
+    <div className={styles.pauseRows}>
+      <LazyControls />
+      <div className={styles.pair}>
+        <button className={styles.secondary} onClick={() => useGame.setState({ journal: true })}>Field guide<Chevron /></button>
+        <button className={styles.secondary} aria-describedby="settings-hint" onClick={() => useGame.setState({ panel: true })}>Flight settings<Chevron /></button>
+        <p id="settings-hint" className={`${styles.pauseNote} ${styles.settingsHint}`}>Size, left-handed, look speed</p>
+      </div>
     </div>
     <p className={`${styles.pauseNote} ${styles.portraitLine}`}>Best played sideways.</p>
     {showTip && <p className={styles.pauseNote}>Tip: Share › Add to Home Screen for full screen.</p>}

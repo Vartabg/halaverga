@@ -23,6 +23,7 @@ import HintSlot, { useMessageClock } from './HintSlot';
 import FlowWelcome from './FlowWelcome';
 import PauseCard from './PauseCard';
 import SheetLost from './SheetLost';
+import Landing, { Brand } from './Landing';
 import styles from './Experience.module.css';
 const Scene = dynamic(() => import('@/world/Scene'), { ssr: false });
 // The blaster HUD is its own chunk: the landing page's first load carries no shooter UI. It is warmed once the setting is on.
@@ -121,7 +122,6 @@ export default function Experience() {
     useLoader.clear(GLTFLoader, SUIT_URL);
     setFailed(false); setSceneKey(v => v + 1); state.set({ ready: false, flying: false, landing: false });
   };
-  const fallback = <div className={styles.recovery} role="alert"><h2>The world needs a moment.</h2><p>Your field guide remains available. Reload the scene to continue from your saved landing.</p>{guide.note && <p>{guide.note}</p>}<button className={styles.primary} onClick={retry}>Reload scene</button></div>;
   const standard = lab === 'standard', playing = state.started && !state.paused, twin = state.touchScheme === 'twin';
   const ready = state.ready && touchReady && (standard || !!LabControls);
   const pill = standard && trackpadPill({ steering: state.trackpadSteering, shooter: state.shooter, cruising: state.trackpadFlying, flying: state.flying, canLand: state.canLand });
@@ -135,7 +135,7 @@ export default function Experience() {
       </div>
       <div className={`${styles.vignette} ${!state.started ? styles.introVignette : ''}`} aria-hidden="true" />
       <header className={styles.header} data-play={bar ? '' : undefined}>
-        {!bar && <div className={styles.brand}><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M5 26V6h5v8h12V6h5v20h-5v-8H10v8Z" fill="currentColor" /></svg><span>HALAVERGA<small>RETURN TO EARTH</small></span></div>}
+        {!bar && <Brand />}
         {/* The top row: while playing, Vote (when it shows), Controls, Pause; the Field guide and Flight settings are on the pause card. */}
         <div className={styles.headerActions}>
           {bar ? <>
@@ -148,16 +148,8 @@ export default function Experience() {
           of its own); data-band is the invisible marker touchInsets.headerBand measures (the pre-cleanup band, see --band). */}
       {bar && <><span id="field-guide" className="sr-only" tabIndex={-1} /><Boundary fallback={<SheetLost />} onError={skip}><ControlsEntry part="sheet" /></Boundary></>}
       {state.started && <div className={styles.bandProbe} data-band="" aria-hidden="true" />}
-      <div className={state.started || failed ? styles.heroOff : styles.hero}><h1 className={state.started || failed ? 'sr-only' : styles.heroTitle}>Earth,<br /><em>after us.</em></h1>
-      {failed && fallback}
-      {!state.started && !failed && <section className={styles.intro} aria-label="Begin expedition">
-        <p className={styles.eyebrow}><span className={styles.statusDot} /> EXPEDITION 001 <span>/</span> MERIDIAN</p>
-        <p className={styles.introCopy}>Eighty years of silence.<br />An entire world still waiting to be understood.</p>
-        <button className={styles.primary} disabled={!ready} onClick={enter}>{ready ? 'Begin expedition' : 'Preparing your suit…'}<span aria-hidden="true">↗</span></button>
-        <p className={styles.introHint} role="status">{guide.note || (state.zoomNote ? 'Pinch out to normal size, then tap Begin.' : ready ? 'Explore freely. Leave whenever you like.' : 'Building the district and collision map.')}</p>
-        <Optional><ControlsEntry part="note" /></Optional>
-      </section>}</div>
-      {!state.started && <footer className={styles.introFooter}><span>2033 <small>CATASTROPHE</small><b>—</b> 2113 <small>ARRIVAL</small></span><span>INTERACTIVE FLIGHT STUDY <i>01</i></span></footer>}
+      {/* The title, the start card (with the first-visit demo note) and the footer, or the failed world's card (Landing.tsx). */}
+      <Landing started={state.started} failed={failed} ready={ready} zoomNote={state.zoomNote} note={guide.note} onEnter={enter} onRetry={retry}><Optional><ControlsEntry part="note" /></Optional></Landing>
       {state.started && <>
         {/* A fresh mount per pause state, as on main: the desktop trackpad hooks keep per-session refs (capture, strokes) that
             must reset on resume. inputEpoch moves only in desktop mode; touch controls re-anchor themselves on rotation. */}
