@@ -10,10 +10,16 @@ const DNT = `Object.defineProperty(navigator, 'doNotTrack', { value: '1', config
 const init = (...parts: string[]) => new Function(`(${seedInit(TWO_DESK).toString()})(); ${parts.join('\n')}`) as () => void;
 const counts = (p: Page) => p.evaluate(() => (window as unknown as { __counts?: unknown[] }).__counts ?? null);
 const GAME = [['event', { name: 'scene_ready' }], ['event', { name: 'begin' }]]; // already sent by the time labPage has tapped Begin
-const open = (browser: Parameters<typeof labPage>[0], ...parts: string[]) => labPage(browser, 'standard', { viewport: DESK, init: init(...parts) });
+// Both endpoints are mocked before the page loads: since the screen cleanup the ballot check asks /api/results as soon as Begin mounts the
+// Controls chunk, so a mock installed after labPage returns lost that race to the real route (503 with no store) and the chip never came.
+const open = async (browser: Parameters<typeof labPage>[0], ...parts: string[]) => {
+  let bodies: Array<Record<string, unknown>> = [];
+  const t = await labPage(browser, 'standard', { viewport: DESK, init: init(...parts), routes: async p => { bodies = await mock(p, [200]); } });
+  return { ...t, bodies };
+};
 
 test('@vote @track the scene, Begin, the ballot and Send each send one bare count: a name and nothing else', async ({ browser }) => {
-  const t = await open(browser, SPY), { page } = t, bodies = await mock(page, [200]);
+  const t = await open(browser, SPY), { page, bodies } = t;
   await expect.poll(() => counts(page)).toEqual(GAME); // scene ready, then Begin; nothing about the player
   await openFromChip(page);
   await expect(card(page).getByTestId('vote-family')).toBeVisible();
@@ -27,7 +33,7 @@ test('@vote @track the scene, Begin, the ballot and Send each send one bare coun
 });
 
 test('@vote @track Do Not Track sends no count and the vote still goes through', async ({ browser }) => {
-  const t = await open(browser, DNT, SPY), { page } = t, bodies = await mock(page, [200]);
+  const t = await open(browser, DNT, SPY), { page, bodies } = t;
   await openFromChip(page);
   await pickAndSend(page);
   await expect(card(page).getByRole('status')).toHaveText('Thanks. Your vote is in.', { timeout: 10000 });
@@ -37,7 +43,7 @@ test('@vote @track Do Not Track sends no count and the vote still goes through',
 });
 
 test('@vote @track with no analytics on the page the card and Send work and nothing throws', async ({ browser }) => {
-  const t = await open(browser), { page } = t, bodies = await mock(page, [200]);
+  const t = await open(browser), { page, bodies } = t;
   await openFromChip(page);
   await pickAndSend(page);
   await expect(card(page).getByRole('status')).toHaveText('Thanks. Your vote is in.', { timeout: 10000 });
