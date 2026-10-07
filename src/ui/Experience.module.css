@@ -90,7 +90,7 @@
 .modal:has(.modalFoot){scroll-padding-bottom:89px}
 /* The failed world: the same plate as the pause card, centred, with Reload scene as its one action. */
 .recovery{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:min(440px,calc(100% - 2 * var(--gx)));max-height:calc(100dvh - 32px);overflow:auto;padding:24px;background:var(--panel);border:1px solid var(--line);border-radius:var(--r-lg);z-index:var(--z-card)}.recovery h2{font-size:24px;font-weight:600;letter-spacing:-.01em;margin:0 0 8px}.recovery p{margin:8px 0 0;font-size:14px;color:var(--muted)}.recovery .primary{width:100%;min-width:0;margin-top:16px}
-.legend{display:none;position:absolute;bottom:38px;left:50%;transform:translateX(-50%);max-width:55%;padding:8px 12px;margin:0;background:#1c2023e8;border:1px solid #8b939744;border-radius:var(--r-sm);color:var(--ink);font-size:11px;line-height:1.6;letter-spacing:.04em;text-align:center;pointer-events:none;z-index:var(--z-hud);text-wrap:balance}
+.legend{display:none;position:absolute;bottom:38px;left:50%;transform:translateX(-50%);max-width:55%;padding:8px 12px;margin:0;background:#1c2023e8;border-radius:var(--r-sm);color:var(--ink);font-size:10px;line-height:1.6;letter-spacing:.03em;text-align:center;pointer-events:none;z-index:var(--z-hud);text-wrap:balance}
 @media(pointer:fine){.legend{display:block}}
 /* Narrow panes: at most two centred lines, inside the 16 px gutters. */
 @media(max-width:600px){.legend{bottom:23%;max-width:min(85%,calc(100% - 32px));width:max-content}}
@@ -112,10 +112,11 @@
 .hint[data-kind=limit]{border-color:#f2b35e}
 .hint[data-kind=record]{padding:0;min-height:44px}
 .read{display:block;min-height:44px;padding:0 16px;border:0;border-radius:var(--r-md);background:transparent;color:inherit;font:inherit;white-space:nowrap;pointer-events:auto}.read:hover{background:var(--panel-2)}
-/* Quiet motion, only where motion is welcome: the start card settles in once, the pause card fades in, pressed surfaces ease. The hint slot has none. */
-@media(prefers-reduced-motion:no-preference){.heroTitle,.intro{animation:settle .6s cubic-bezier(.2,.7,.2,1) both}.intro{animation-delay:.08s}.pauseCard,.recovery{animation:fadeIn .18s ease-out both}.statusDot{animation:pulse 2.8s ease-in-out infinite}
+/* Quiet motion, only where motion is welcome: the start card settles in once, the status dot breathes, pressed surfaces ease. The pause card and the hint
+   slot have none: a card that fades in is sampled mid-fade by a contrast check, and a pause must be instant. */
+@media(prefers-reduced-motion:no-preference){.heroTitle,.intro{animation:settle .6s cubic-bezier(.2,.7,.2,1) both}.intro{animation-delay:.08s}.statusDot{animation:pulse 2.8s ease-in-out infinite}
   .primary,.secondary,.action,.headerActions>button,.read,.segment button,.modalTop button{transition:background-color .15s ease,border-color .15s ease,color .15s ease}}
-@keyframes settle{from{opacity:0;transform:translateY(8px)}}@keyframes fadeIn{from{opacity:0}}@keyframes pulse{50%{opacity:.4}}
+@keyframes settle{from{opacity:0;transform:translateY(8px)}}@keyframes pulse{50%{opacity:.4}}
 @media(forced-colors:active){.vignette{display:none}.header,.intro,.introFooter,.telemetry{background:Canvas;color:CanvasText}.hint{background:Canvas;color:CanvasText;border-color:CanvasText}.read:hover{background:Canvas}.primary,.action,.secondary,.headerActions>button{background:ButtonFace!important;color:ButtonText!important}.pause svg{fill:currentColor;forced-color-adjust:auto}.tapPad button[aria-pressed=true]{background:Highlight;color:HighlightText}.reticle{border-color:CanvasText}.statusDot{background:Highlight;box-shadow:none}.segment button[aria-pressed=true]{background:Highlight;color:HighlightText}}
 
 .districtMap{display:block;width:100%;height:auto;margin:16px 0;border:1px solid var(--line);border-radius:var(--r-md)}

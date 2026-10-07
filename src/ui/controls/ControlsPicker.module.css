@@ -88,11 +88,12 @@
 .footLine .tried{flex:1 1 auto;min-width:0}
 .link{flex:none;display:inline-flex;align-items:center;min-height:44px;margin:0;padding:0 2px;border:0;background:transparent;color:var(--ink);font-size:13px;font-weight:600;text-decoration:underline;text-underline-offset:3px;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 .link:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
-/* The Controls row on the pause card and in Flight settings: the word, the control now in use, a chevron. */
-.rowButton{display:flex;align-items:center;gap:10px;width:100%;margin-top:10px;text-align:left}
+/* The Controls row on the pause card and in Flight settings: the word, the control now in use, a chevron. The chevron is the same bordered shape as the
+   pause card's other rows (Experience.module.css): its <i> keeps the glyph for the markup but draws the shape and shows no text. */
+.rowButton{display:flex;align-items:center;gap:10px;width:100%;margin-top:0;text-align:left}
 .rowButton>b{flex:none;font-size:13px;font-weight:600}
 .rowButton>span{min-width:0;flex:1 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted);font-size:13px}
-.rowButton>i{flex:none;font-style:normal;font-size:18px;line-height:1}
+.rowButton>i{flex:none;width:7px;height:7px;margin-right:4px;border:solid var(--muted);border-width:0 1.5px 1.5px 0;transform:rotate(-45deg);font-size:0;line-height:0;color:transparent}
 .rowButton+.tried{margin-top:6px}
 
 /* The list: native radios in one fieldset (its legend is for screen readers; the sheet and section carry a visible title). */

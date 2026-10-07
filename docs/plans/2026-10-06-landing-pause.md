@@ -36,8 +36,9 @@ typeface on graphite plates with bone type and one teal accent on the thing to p
   chain counter use tabular figures of the one family instead of the monospace.
 - **Focus**: a 3 px accent ring 5 px out with a graphite halo in the gap (`box-shadow`), so the ring keeps 3:1 over the ash sky as
   well as over a panel (1.4.11). The pills in the row keep their own two-tone rings.
-- **Motion**, only under `prefers-reduced-motion: no-preference`: the title and start card settle in once (opacity, 8 px), the pause card
-  and the recovery card fade in (180 ms), the status dot breathes, pressed surfaces ease. The hint slot and the vote card hold no motion.
+- **Motion**, only under `prefers-reduced-motion: no-preference`: the title and start card settle in once (opacity, 8 px), the status dot
+  breathes, pressed surfaces ease. The pause card, the hint slot and the vote card hold no motion (a card that fades in is sampled mid-fade
+  by a contrast check, and a pause should be instant).
 - Over the scene, text is always bone (never muted) on the darkened scrim; muted is for panels only.
 
 ### The landing page
@@ -61,8 +62,9 @@ typeface on graphite plates with bone type and one teal accent on the thing to p
 
 - A kicker **"Expedition paused"** above "Take your time.": it is the card's existing accessible name made visible, and it is now the
   region's label through `aria-labelledby` (one line, read once). The only copy addition on either screen.
-- Resume is the one accent, full width. Under it one list of full-width rows with chevrons (the Field guide and Flight settings chevron is a
-  bordered shape, not generated text, because CSS content joins a button's accessible name): Vote when it works, Controls with its tried line,
+- Resume is the one accent, full width. Under it one list of full-width rows with one chevron (a 7 px bordered shape, muted, 4 px in from the
+  right edge, on the Controls row, Field guide and Flight settings alike; not generated text, because CSS content joins a button's accessible
+  name, and the Controls row's `<i>›</i>` keeps its markup but draws the same shape; the same row in Flight settings matches): Vote when it works, Controls with its tried line,
   Field guide, Flight settings with its "Size, left-handed, look speed" line; then "Best played sideways." (portrait touch) and the Home
   Screen tip. The DOM order (Resume, Vote, Controls, Field guide, Flight settings) and every keyboard and focus behaviour are unchanged.
 - Short landscape (550 px and under): the card is two columns, kicker, title and Resume left, the rows right, so nothing scrolls on an
@@ -90,7 +92,15 @@ The blaster's cyan (`#58e1ff`: muzzle, lab ink, heat ring, list glyph ink) is th
 - `pnpm typecheck` clean; `pnpm test` 2349 passed (186 files); `pnpm build` clean; `node scripts/check-first-load.mjs` 8 scripts,
   **628.2 KB** of the 629 KB budget (the base measured 627.6 KB in 8 scripts: the split and the new class names cost 0.6 KB; the font adds
   no script); `node scripts/check-vote-build.mjs` clean.
-- Browser specs: see the counts in the final report of the task (the targeted set, then the whole `pnpm test:browser`).
+- Browser specs (system Chrome, `PLAYTEST_URL` on an own production server): the targeted set for these screens (accessibility, layout-fit,
+  keyboard-row, focus-footer, hint-slot, field-guide-lazy, controls-one-place, screen-touch-sheet, composition, recovery, play-guard, safety,
+  vote, vote-doors, vote-low, controls-picker) passed; the whole `pnpm test:browser` ran twice, the counts are in the task's final report.
+  Three `tests/track.spec.ts` cases fail on this branch and on the merged base alike (the same three, "waiting for vote-chip"): they install
+  their `/api/results` mock after `labPage` returns, and the ballot probe fires at Begin from the Controls chunk the start card's demo note
+  already loaded, so the real route answers 503 (no store) and the pill never shows. Not touched here; `votePage` passes the mock as `routes`.
+- Fixes the full run asked for, all look-only: the skip link hides by its own height (a transform) instead of `top:-70px`, so a link that wraps at
+  200 percent text no longer slides into view over the row; the desktop legend keeps 10 px type without a border (two lines fit its 49 px budget);
+  the pause card has no fade-in (axe sampled it mid-fade); the Controls row's chevron is the same bordered shape as the other rows.
 - Tests changed because they pinned the old look, and only those: `tests/controls-picker.test.ts` (the slate `#3b5a62` fill, the cream
   `#f5f0dc` edge and the `#142d34e6` / `#132a30` plates become `#3a4247`, `#eceae4`, `#1c2023e6` / `#1c2023`; `var(--lime)` becomes
   `var(--accent)`; the Tried badge's `#1a3029` becomes `#0c1b1b`), `tests/vote-chip.test.ts`, `tests/vote-card-states.test.ts`,
