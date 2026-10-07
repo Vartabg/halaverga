@@ -49,12 +49,20 @@ typeface on graphite plates with bone type and one teal accent on the thing to p
 - The brand and the Field guide pill sit on the row at the gutter `--gx`; the hero column and the footer share that gutter. The footer is
   12 px of the one family, tracked, bone numbers and quieter labels; the "01" tag is an outlined chip.
 - Short landscape phones keep the two-column form (title left at the gutter, card right, the note hidden under 430 px tall).
+- Large text: the column is bounded by the top row and scrolls as a whole when it overflows (a reversed flex column, the title above the
+  card by `order`, DOM order unchanged). At 150 and 200 percent on a 320 or 390 px phone it starts scrolled to Begin with the title reachable
+  above, nothing climbs under the row; in short landscape the card scrolls inside itself. Checked by scaling every element's font size as
+  `tests/layout-audit.ts` does: the pause card is clean at both sizes on 320x568, 390x844 and 844x390 (rows 44 px or more, nothing overlapping,
+  the card scrolling inside when taller than the screen); the landing keeps Begin on screen and reachable, with two honest limits: at 200
+  percent on 320 wide Begin's top edge meets the Field guide pill by 2 px (the pill, above it in the stacking order, still takes its own tap),
+  and at 200 percent on 844x390 the title's second line runs under the card (the card paints over it; Begin is untouched).
 
 ### The pause menu
 
 - A kicker **"Expedition paused"** above "Take your time.": it is the card's existing accessible name made visible, and it is now the
   region's label through `aria-labelledby` (one line, read once). The only copy addition on either screen.
-- Resume is the one accent, full width. Under it one list of full-width rows with chevrons: Vote when it works, Controls with its tried line,
+- Resume is the one accent, full width. Under it one list of full-width rows with chevrons (the Field guide and Flight settings chevron is a
+  bordered shape, not generated text, because CSS content joins a button's accessible name): Vote when it works, Controls with its tried line,
   Field guide, Flight settings with its "Size, left-handed, look speed" line; then "Best played sideways." (portrait touch) and the Home
   Screen tip. The DOM order (Resume, Vote, Controls, Field guide, Flight settings) and every keyboard and focus behaviour are unchanged.
 - Short landscape (550 px and under): the card is two columns, kicker, title and Resume left, the rows right, so nothing scrolls on an
