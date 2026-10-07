@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { WORLD } from '../src/game/motion';
+import { legend } from './lab-browser';
 test('an old checkpoint inside a building restores to the arrival terrace', async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('halaverga-flight-v1', JSON.stringify({ checkpoint: { x: -62, y: 33.3, z: 16 }, shooter: false })));
   await page.goto('/'); await page.getByRole('button', { name: 'Begin expedition' }).click();
@@ -24,7 +25,7 @@ test('the district edge eases the suit to a stop, names the fix, and a hands-off
     const z = JSON.parse((await telemetry.getAttribute('data-position'))!)[2]; minZ = Math.min(minZ, z);
     if (await page.getByText(/^EDGE AHEAD/).count()) {
       sawCue = true; sawTip ||= await page.getByText('EDGE AHEAD · MOVE CURSOR TO SIDE').count() > 0;
-      expect(await page.locator('[class*="trackpadHint"]').count(), 'no controls pill stacked over an edge cue').toBe(0); // limits review F14
+      expect(await legend(page).count(), 'no controls pill stacked over an edge cue').toBe(0); // limits review F14
     }
     pinned = Number(await telemetry.getAttribute('data-speed')) < .3 && z < WORLD.minZ + 4 ? pinned + 1 : 0;
     expect(pinned, 'pinned at the wall with W held').toBeLessThan(5); // 0.75 s of a stall at the wall

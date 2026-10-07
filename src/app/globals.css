@@ -1,4 +1,13 @@
 :root{color-scheme:dark;--ink:#f5f0dc;--muted:#becdc7;--lime:#d4f197;--panel:#14282e;--line:#647c7b;font-family:Arial,Helvetica,sans-serif;background:#14282e;color:var(--ink)}
+/* The layers, back to front: every z-index in the app is one of these (tests/layout-tokens.test.ts). The order is the one the game had before
+   the screen cleanup; only the numbers changed. Native dialogs (Field guide, Flight settings, Flow welcome) sit in the browser's top layer above
+   all of it, and the skip link is a literal 100 in this file. See docs/screen-cleanup.md for what lives on each layer.
+   --z-world the 3D canvas · --z-veil the vignette · --z-surface the flight surface, the lab surface and the crosshair (it paints over them, in
+   DOM order, and under the lab ink) · --z-hud passive overlays (readout, legend, Flow and Simple panels, lab ink) · --z-play play controls (touch
+   layer, twin cluster, stick ring, Lift/Land, tap pad, the lab's hold and ghost guides)
+   · --z-sheet the Controls sheet and its backdrop (above play, under the top row so one tap on Pause still pauses) · --z-bar the top row and the
+   hint slot · --z-card the pause card, "Leave the game?" and the recovery card · --z-vote the vote scrim and card. */
+:root{--z-world:-3;--z-veil:-1;--z-surface:1;--z-hud:2;--z-play:3;--z-sheet:4;--z-bar:5;--z-card:6;--z-vote:7}
 *{box-sizing:border-box}body{margin:0}button,input,select{font:inherit}button,a,input,select{touch-action:manipulation}button{cursor:pointer}button:disabled{cursor:wait;opacity:.65}button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--lime);outline-offset:5px}a{color:var(--lime)}button{color:inherit}p{line-height:1.65}::selection{background:var(--lime);color:#14282e}
 .skip{position:fixed;left:16px;top:-70px;z-index:100;background:var(--panel);padding:16px}.skip:focus{top:12px}.sr-only{position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation:none!important;transition:none!important}}

@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { settingsCurrent, settingsPick } from './lab-browser';
+import { settingsCurrent, pickControl, resumeFromCard, openSettings, closeAndResume } from './lab-browser';
 import { readFile } from 'node:fs/promises';
 const surface = (p: Page) => p.getByTestId('flight-surface');
 const speed = async (p: Page) => Number(await p.getByTestId('flight-telemetry').getAttribute('data-speed'));
@@ -24,10 +24,10 @@ for (const camera of ['first', 'third']) test(`captured trackpad cruises, steers
   await expect(surface(page)).toHaveAttribute('data-trackpad-active', 'false');
   await expect.poll(() => speed(page)).toBeLessThan(.3);
   await expect(page.getByRole('button', { name: 'Resume flight' })).not.toBeVisible();
-  await page.getByRole('button', { name: 'Flight settings' }).click();
+  await openSettings(page);
   expect(await settingsCurrent(page)).toBe('captured');
-  await settingsPick(page, 'Cursor');
-  await page.getByRole('button', { name: 'Close dialog' }).click();
+  await pickControl(page, 'Cursor');
+  await resumeFromCard(page);
   await page.mouse.click(720, 500); await expect.poll(() => speed(page)).toBeGreaterThan(7);
   expect(await page.evaluate(() => document.pointerLockElement)).toBeNull();
   expect(errors).toEqual([]);
@@ -43,14 +43,14 @@ test('momentum is ignored and recent edge turns stop; classic and reverse settin
   await page.mouse.move(1430, 500, { steps: 10 }); await page.waitForTimeout(600);
   const heading = await page.getByTestId('flight-telemetry').getAttribute('data-heading');
   await page.waitForTimeout(700); expect(await page.getByTestId('flight-telemetry').getAttribute('data-heading')).toBe(heading);
-  await page.getByRole('button', { name: 'Flight settings' }).click();
+  await openSettings(page);
   await page.getByLabel('Expressive hero poses').uncheck(); await page.getByLabel('Reverse scroll direction').check();
   await page.getByLabel('Starting cruise speed (m/s)').fill('12');
-  await page.getByRole('button', { name: 'Close dialog' }).click();
+  await closeAndResume(page);
   await page.mouse.click(720, 500); await expect.poll(() => speed(page)).toBeGreaterThan(11);
   await page.mouse.wheel(0, -80); await expect.poll(() => speed(page)).toBeLessThan(10);
   await page.reload(); await page.getByRole('button', { name: 'Begin expedition' }).click();
-  await page.getByRole('button', { name: 'Flight settings' }).click();
+  await openSettings(page);
   await expect(page.getByLabel('Expressive hero poses')).not.toBeChecked();
   await expect(page.getByLabel('Reverse scroll direction')).toBeChecked();
   await expect(page.getByLabel('Starting cruise speed (m/s)')).toHaveValue('12');
@@ -60,8 +60,8 @@ test('capture rejection provides free steering and an unexpected capture loss pa
   await page.mouse.click(720, 500);
   await expect(page.getByText('Captured steering is unavailable.', { exact: false }).first()).toBeVisible();
   await page.mouse.click(720, 500); await expect.poll(() => speed(page)).toBeGreaterThan(7);
-  await page.getByRole('button', { name: 'Flight settings' }).click(); await settingsPick(page, 'Captured');
-  await page.getByRole('button', { name: 'Close dialog' }).click(); await page.mouse.click(720, 500);
+  await openSettings(page); await pickControl(page, 'Captured');
+  await resumeFromCard(page); await page.mouse.click(720, 500);
   await expect.poll(() => page.evaluate(() => !!document.pointerLockElement)).toBe(true);
   await page.evaluate(() => document.exitPointerLock());
   await expect(page.getByRole('button', { name: 'Resume flight' })).toBeVisible();
@@ -88,10 +88,10 @@ test('a delayed capture grant after pausing cannot restart flight', async ({ pag
   await expect(surface(page)).toHaveAttribute('data-trackpad-active', 'false');
 });
 test('local recording exports input and captured zoom releases without consuming browser zoom', async ({ page }) => {
-  await begin(page); await page.getByRole('button', { name: 'Flight settings' }).click();
+  await begin(page); await openSettings(page);
   await page.getByText('Local gesture recording', { exact: true }).click();
   await page.getByRole('button', { name: 'Start a new gesture recording' }).click();
-  await page.getByRole('button', { name: 'Close dialog' }).click();
+  await closeAndResume(page);
   await page.mouse.click(720, 500); await expect.poll(() => speed(page)).toBeGreaterThan(7);
   await page.mouse.wheel(0, -40); await expect.poll(() => speed(page)).toBeGreaterThan(8.5);
   const prevented = await surface(page).evaluate(el => {
@@ -101,7 +101,7 @@ test('local recording exports input and captured zoom releases without consuming
   expect(prevented).toBe(false);
   await expect.poll(() => page.evaluate(() => document.pointerLockElement)).toBeNull();
   await expect(surface(page)).toHaveAttribute('data-trackpad-active', 'false');
-  await page.getByRole('button', { name: 'Flight settings' }).click();
+  await openSettings(page);
   await page.getByText('Local gesture recording', { exact: true }).click();
   await page.getByRole('button', { name: 'Stop recording gestures' }).click();
   const pending = page.waitForEvent('download'); await page.getByRole('button', { name: 'Download gesture recording' }).click();

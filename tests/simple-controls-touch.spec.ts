@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { hintSlot, openSettings, pickControl } from './lab-browser';
 import AxeBuilder from '@axe-core/playwright';
 import { aiming, autoTouchPage, hud, shots, speed, telemetry } from './shooter-browser';
 // Simple-by-default phone controls on the classic one thumb (the default since 2026-09-26): one play button (Lift/Land), no Fire or
@@ -8,16 +9,15 @@ type Box = { x: number; y: number; width: number; height: number };
 const actions = (p: Page) => p.locator('[class*="actions"]');
 const lift = (p: Page) => p.getByRole('button', { name: 'Lift', exact: true });
 const aimButton = (p: Page) => p.getByRole('button', { name: 'Aim', exact: true });
-const touchHint = (p: Page) => p.getByText('ONE THUMB TO FLY');
+// The 8 px ONE THUMB TO FLY caption is gone (the one hint slot replaced it): its job is the `Drag to fly` lines, which stay up until the first takeoff.
+const caption = (p: Page) => p.getByText(/ONE THUMB TO FLY|LEFT THUMB MOVES/);
+const lesson = (p: Page) => p.getByTestId('controls-hint');
 const playControls = (p: Page) => p.locator('[class*="actions"] button, [data-shooter-controls] button, [data-testid="fire-button"], [data-testid="aim-button"]')
   .evaluateAll(els => els.filter(el => el.checkVisibility()).length);
 const clearOfEdges = (b: Box, v: typeof PORTRAIT) => {
   expect(b.x).toBeGreaterThanOrEqual(24); expect(b.y).toBeGreaterThanOrEqual(24);
   expect(v.width - b.x - b.width).toBeGreaterThanOrEqual(24); expect(v.height - b.y - b.height).toBeGreaterThanOrEqual(24);
 };
-async function openSettings(page: Page) {
-  await page.getByRole('button', { name: 'Flight settings' }).tap(); await expect(page.getByRole('dialog')).toBeVisible();
-}
 for (const viewport of [PORTRAIT, LANDSCAPE]) {
   const name = viewport === PORTRAIT ? 'portrait' : 'landscape';
   test.describe(`simple touch controls, ${name}`, () => {
@@ -28,16 +28,16 @@ for (const viewport of [PORTRAIT, LANDSCAPE]) {
       expect(await playControls(page)).toBe(1);
       await expect(t.surface).toHaveAttribute('data-scheme', 'classic');
       clearOfEdges((await lift(page).boundingBox())!, viewport);
-      await expect(touchHint(page)).toBeHidden();
+      await expect(caption(page)).toHaveCount(0);
       expect(t.errors).toEqual([]); await t.context.close();
     });
     test('the blaster section leads on touch with the one-thumb line; no Auto-fire or Aim-button setting on classic', async ({ browser }) => {
       const t = await autoTouchPage(browser, viewport, { aimButton: true }), { page } = t;
-      await openSettings(page);
+      await openSettings(page, true);
       await expect(page.getByLabel('Auto-fire assist on touch screens')).toHaveCount(0);
       // Touch: the blaster section leads, above the fold, with one line about touch only.
       const line = page.getByText('One thumb flies. Tap a drone to blast it.'); await expect(line).toBeVisible();
-      const af = (await line.boundingBox())!, desk = (await page.getByTestId('controls-section').boundingBox())!;
+      const af = (await line.boundingBox())!, desk = (await page.getByTestId('controls-row').boundingBox())!; // the one Controls row: the list itself lives in the sheet
       expect(af.y).toBeLessThan(desk.y); expect(af.y + af.height).toBeLessThanOrEqual(viewport.height);
       await expect(page.getByText(/left click fires once the mouse is captured/)).toHaveCount(0);
       // Nothing is away from its default here, so More controls is folded (progressive disclosure) and opens on a tap; on classic
@@ -50,11 +50,14 @@ for (const viewport of [PORTRAIT, LANDSCAPE]) {
       await expect(page.getByLabel('Shot magnet (shots bend toward drones)')).toBeVisible();
       const scan = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze();
       expect(scan.violations).toEqual([]);
-      // Two thumbs (opt-in) brings the Auto-fire assist and the Aim-button switch back.
-      const section = page.getByTestId('controls-section');
-      if (!(await section.locator('details').evaluate(d => (d as HTMLDetailsElement).open))) await section.locator('summary').tap();
-      await section.getByRole('radio', { name: 'Twin stick', exact: true }).tap();
+      // Two thumbs (opt-in, chosen in the Controls sheet that Flight settings' row opens) brings the Auto-fire assist and the Aim-button
+      // switch back: a touch pick closes the sheet, the pause card is back, and Flight settings shows them on the next open.
+      await expect(page.getByTestId('controls-list')).toHaveCount(0); // no second list in Flight settings
+      await pickControl(page, 'Twin stick', true);
+      await openSettings(page, true);
       await expect(page.getByLabel('Auto-fire assist on touch screens')).toBeChecked();
+      // The dialog is a fresh one, so More controls is folded again unless something in it is off its default.
+      if (!(await page.getByTestId('more-controls').evaluate(d => (d as HTMLDetailsElement).open))) await page.getByText('More controls', { exact: true }).tap();
       await expect(page.getByLabel('Show Aim button on touch screens')).toBeVisible();
       expect(t.errors).toEqual([]); await t.context.close();
     });
@@ -73,31 +76,47 @@ for (const viewport of [PORTRAIT, LANDSCAPE]) {
       await page.keyboard.up('KeyQ'); await expect.poll(() => aiming(page)).toBe('false');
       expect(t.errors).toEqual([]); await t.context.close();
     });
-    test('tap controls with the blaster on hide the drag hint; the blaster off keeps it', async ({ browser }) => {
+    test('tap controls with the blaster on teach the tap pad, never the drag line; the blaster off gets the plain Drag to fly', async ({ browser }) => {
       const t = await autoTouchPage(browser, viewport, { tapControls: true }), { page } = t;
       await expect(page.getByRole('group', { name: 'Tap flight controls' })).toBeVisible();
-      await expect(touchHint(page)).toBeHidden();
+      await expect(lesson(page)).toHaveText('Tap pad: Fire and Aim toggle');
+      await expect(page.getByText(/Drag to fly/)).toHaveCount(0);
       await page.goto('/?shooter=0'); await page.getByRole('button', { name: 'Begin expedition' }).tap();
       await expect(page.getByRole('group', { name: 'Tap flight controls' })).toBeVisible();
-      await expect(touchHint(page)).toBeVisible();
+      await expect(lesson(page)).toHaveText('Drag to fly'); await expect(lesson(page)).toHaveAttribute('data-track', 'drag');
       expect(t.errors).toEqual([]); await t.context.close();
     });
-    test('classic: the 6 s one-thumb line hands over to the drag hint on the ground', async ({ browser }) => {
+    test('classic: the one-thumb line is in the hint slot, stays past the old 6 s, and goes at the first takeoff', async ({ browser }) => {
       const t = await autoTouchPage(browser, viewport), { page } = t;
       await expect(telemetry(page)).toHaveAttribute('data-flying', 'false');
-      await expect(page.getByTestId('controls-hint')).toHaveText('Drag to fly · tap a drone');
-      await expect(touchHint(page)).toBeHidden();
-      await expect(touchHint(page)).toBeVisible({ timeout: 9000 });
+      await expect(lesson(page)).toHaveText('Drag to fly · tap a drone');
+      await expect(hintSlot(page)).toHaveAttribute('data-kind', 'coach');
+      await expect(lesson(page)).toHaveAttribute('data-track', 'classic');
+      await page.waitForTimeout(7500); // D5: not a 6 s line; it waits for the player to fly
+      await expect(lesson(page)).toHaveText('Drag to fly · tap a drone');
+      await page.keyboard.press('Space'); // a takeoff, not a touch on the flight surface
+      await expect(telemetry(page)).toHaveAttribute('data-flying', 'true');
+      await expect(lesson(page)).toHaveCount(0);
       expect(t.errors).toEqual([]); await t.context.close();
     });
-    test('blaster off (?shooter=0) is main: no Fire, no controls hint, the drag hint shows', async ({ browser }) => {
+    test('classic: the first touch on the flight surface ends the line for the page load, and a new page load shows it again', async ({ browser }) => {
+      const t = await autoTouchPage(browser, viewport), { page } = t;
+      await expect(lesson(page)).toHaveText('Drag to fly · tap a drone');
+      await page.touchscreen.tap(viewport.width / 2, viewport.height * .6);
+      await expect(lesson(page)).toHaveCount(0);
+      await page.waitForTimeout(1200);
+      await expect(lesson(page)).toHaveCount(0);
+      await page.reload(); await page.getByRole('button', { name: 'Begin expedition' }).tap();
+      await expect(lesson(page)).toHaveText('Drag to fly · tap a drone'); // it returns on the next visit until the first takeoff
+      expect(t.errors).toEqual([]); await t.context.close();
+    });
+    test('blaster off (?shooter=0) is main: no Fire, and the one hint line is the plain Drag to fly', async ({ browser }) => {
       const t = await autoTouchPage(browser, viewport, undefined, '/?shooter=0'), { page } = t;
       await expect(actions(page)).toHaveAttribute('data-shooter', 'false');
-      await expect(touchHint(page)).toBeVisible();
+      await expect(lesson(page)).toHaveText('Drag to fly'); await expect(hintSlot(page)).toHaveAttribute('data-kind', 'coach');
       await expect(page.getByTestId('fire-button')).toHaveCount(0);
-      await expect(page.getByTestId('controls-hint')).toHaveCount(0);
       // main's settings panel: the tap checkbox in its own place, no More controls disclosure.
-      await openSettings(page);
+      await openSettings(page, true);
       await expect(page.getByLabel('Show tap controls')).toBeVisible(); await expect(page.getByTestId('more-controls')).toHaveCount(0);
       expect(t.errors).toEqual([]); await t.context.close();
     });

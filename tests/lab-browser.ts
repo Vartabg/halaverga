@@ -1,5 +1,5 @@
-import { expect, type Browser, type Page } from '@playwright/test';
-import type { ControlId } from '../src/game/controlTypes';
+import { expect, type Browser, type Locator, type Page } from '@playwright/test';
+import { CONTROL_TYPES, type ControlId } from '../src/game/controlTypes';
 // Shared helpers for the Gesture Lab browser specs (lab-*.spec.ts). System Chrome emulation: these check the wiring and the
 // behaviour a player can see, never how Draw, Conduct or Brush feel on a real iPhone or Mac trackpad (docs/gesture-lab.md).
 export type Lab = 'standard' | 'draw' | 'conduct' | 'brush';
@@ -8,10 +8,73 @@ export type AnyControl = Lab | ControlId;
 const isLab = (id: string): id is Exclude<Lab, 'standard'> => id === 'draw' || id === 'conduct' || id === 'brush';
 export type Pt = { x: number; y: number };
 export type Tel = { pos: number[]; speed: number; flying: boolean; heading: number; pitch: number };
-/** Flight settings' Controls list (the same radios as the header sheet): the checked control's id, and picking one by its label. */
-export const settingsList = (page: Page) => page.locator('dialog[open]').getByTestId('controls-list');
-export const settingsCurrent = (page: Page) => settingsList(page).locator('input[type=radio]:checked').inputValue();
-export const settingsPick = (page: Page, label: string) => settingsList(page).getByRole('radio', { name: label, exact: true }).check();
+/** A mouse click, or a tap on a touch page (a mouse click on a touch page would flip the control family). */
+export const press = (l: Locator, touch = false) => touch ? l.tap() : l.click();
+export const pauseCard = (page: Page) => page.getByRole('region', { name: 'Expedition paused' });
+export const flightSettings = (page: Page) => page.getByRole('dialog', { name: 'Flight settings' });
+export const controlsSheet = (page: Page) => page.getByTestId('controls-sheet');
+/** The one hint slot under the top row (a message, the Municipal record, a landing or limit line, or the controls lesson). */
+export const hintSlot = (page: Page) => page.getByTestId('hint-slot');
+/** The desktop control legend at the bottom of the screen: a caption, not advice, so it is not in the hint slot. */
+export const legend = (page: Page) => page.getByTestId('legend');
+/**
+ * Flight settings. The gear left the top row: Pause, then the pause card's Flight settings row. The dialog is open on return and the game
+ * stays paused; closing it shows the pause card again (Resume is the player's own tap: shooter-browser's `resume`).
+ */
+export async function openSettings(page: Page, touch = false) {
+  if (!(await pauseCard(page).isVisible())) await press(page.getByRole('button', { name: 'Pause expedition' }), touch);
+  await press(pauseCard(page).getByRole('button', { name: 'Flight settings', exact: true }), touch);
+  await expect(page.getByRole('dialog', { name: 'Flight settings' })).toBeVisible();
+}
+/** The Field guide, the same way: Pause (unless the pause card is already up), then the pause card's Field guide row. */
+export async function openGuide(page: Page, touch = false) {
+  if (!(await pauseCard(page).isVisible())) await press(page.getByRole('button', { name: 'Pause expedition' }), touch);
+  await press(pauseCard(page).getByRole('button', { name: 'Field guide', exact: true }), touch);
+  await expect(page.getByRole('dialog').getByRole('heading', { name: 'Field guide' })).toBeVisible({ timeout: 15000 });
+}
+/**
+ * Flight settings' Controls row names the control in use (the list of every way to fly lives only in the Controls sheet): its id.
+ * Reads the open dialog's row; the row's accessible name is `Controls: <label>`, the same words as the top row's button.
+ */
+export async function settingsCurrent(page: Page): Promise<ControlId> {
+  const name = (await flightSettings(page).getByTestId('controls-row').getAttribute('aria-label'))!.replace(/^Controls: /, '');
+  return CONTROL_TYPES.find(c => c.label === name)!.id;
+}
+/**
+ * Opens the Controls sheet through whichever door the screen has: Flight settings' Controls row (the dialog closes as the sheet opens),
+ * the pause card's Controls row, or the top row's Controls button while playing. The game stays as it was (paused stays paused).
+ */
+export async function openControls(page: Page, touch = false) {
+  const door = (await flightSettings(page).isVisible()) ? flightSettings(page).getByTestId('controls-row')
+    : (await pauseCard(page).isVisible()) ? pauseCard(page).getByTestId('controls-row') : page.getByTestId('controls-trigger');
+  await press(door, touch);
+  await expect(controlsSheet(page)).toBeVisible();
+}
+/** Done closes the sheet (a touch pick has already closed it, a desktop pick keeps it open). */
+export async function closeControls(page: Page, touch = false) {
+  if (await controlsSheet(page).count()) await press(controlsSheet(page).getByTestId('controls-done'), touch);
+  await expect(controlsSheet(page)).toHaveCount(0);
+}
+/**
+ * Picks `label` in the Controls sheet, from any door (openControls), and closes the sheet again. Playing: back to play with the new
+ * control. Paused or from Flight settings: the pause card is back, still paused (Resume is the player's own tap: resumeFromCard).
+ */
+export async function pickControl(page: Page, label: string, touch = false) {
+  await openControls(page, touch);
+  await press(controlsSheet(page).getByRole('radio', { name: label, exact: true }), touch);
+  await closeControls(page, touch);
+}
+/** The pause card's Resume, and play is on: the Pause button is back. */
+export async function resumeFromCard(page: Page, touch = false) {
+  await press(pauseCard(page).getByRole('button', { name: 'Resume flight' }), touch);
+  await expect(page.getByRole('button', { name: 'Pause expedition' })).toBeVisible();
+}
+/** Closes the open dialog and plays on: the pause card is back after a close, and Resume is the player's own tap. */
+export async function closeAndResume(page: Page, touch = false) {
+  await press(page.getByRole('button', { name: 'Close dialog' }), touch);
+  await press(pauseCard(page).getByRole('button', { name: 'Resume flight' }), touch);
+  await expect(page.getByRole('button', { name: 'Pause expedition' })).toBeVisible();
+}
 export const PHONE = { width: 852, height: 393 } as const;
 export const DESKTOP = { width: 1440, height: 1000 } as const;
 
@@ -36,7 +99,9 @@ export const guideShown = (page: Page) => page.evaluate(() => {
  * emulation, isMobile) or a non-touch desktop. `saved` seeds the save once. Captures page errors and every aria-live text.
  */
 export async function labPage(browser: Browser, scheme: AnyControl, opts: { touch?: boolean; viewport?: { width: number; height: number };
-  saved?: Record<string, unknown>; url?: string; init?: () => void } = {}) {
+  saved?: Record<string, unknown>; url?: string; init?: () => void;
+  /** Runs on the new page before it navigates: routes that the page's first requests (the vote's ballot check) must already meet. */
+  routes?: (page: Page) => Promise<unknown> } = {}) {
   const touch = !!opts.touch, viewport = opts.viewport ?? (touch ? PHONE : DESKTOP);
   const context = await browser.newContext({ viewport, isMobile: touch, hasTouch: touch });
   const page = await context.newPage(), errors: string[] = [];
@@ -51,6 +116,7 @@ export async function labPage(browser: Browser, scheme: AnyControl, opts: { touc
   if (opts.saved) await page.addInitScript(s => {
     if (!sessionStorage.getItem('lab-seeded')) { sessionStorage.setItem('lab-seeded', '1'); localStorage.setItem('halaverga-flight-v1', JSON.stringify(s)); }
   }, opts.saved);
+  if (opts.routes) await opts.routes(page);
   await page.goto(opts.url ?? (scheme === 'standard' ? '/' : `/?controls=${scheme}`));
   const begin = page.getByRole('button', { name: 'Begin expedition' });
   await expect(begin).toBeEnabled({ timeout: 60000 });

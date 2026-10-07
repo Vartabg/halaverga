@@ -7,6 +7,13 @@ import { saveControlFields, useGame } from '@/game/store';
 /** The control the saved-or-session settings describe for this family. */
 export const currentControlId = (family: ControlFamily): ControlId => idFor(useGame.getState(), family);
 
+let held = '';
+/**
+ * The name of a control picked while paused (the pause card's or Flight settings' Controls row), held for the hint slot. Resume empties `message`
+ * and the slot is not on screen while paused, so the name waits here; the Controls button takes it once play is back (addendum D6).
+ */
+export const takeHeldName = (): string => { const name = held; held = ''; return name; };
+
 /**
  * Switches to `id`. Returns false and does nothing when it is already the current control or the vote card is open. Otherwise, in
  * order: drop all held input (position and velocity stay), free a locked pointer without pausing, one state change (settings,
@@ -19,6 +26,8 @@ export function selectControl(id: ControlId, { family }: { family: ControlFamily
   // useInput pauses on an unexpected pointer-lock exit; this one is expected.
   if (typeof document !== 'undefined' && document.pointerLockElement) exitOwnPointerLock();
   const patch = settingsFor(id);
-  saveControlFields(patch, { inputEpoch: state.inputEpoch + 1, message: `${controlById(id).label} controls` });
+  const message = `${controlById(id).label} controls`;
+  held = state.paused ? message : '';
+  saveControlFields(patch, { inputEpoch: state.inputEpoch + 1, message });
   return true;
 }

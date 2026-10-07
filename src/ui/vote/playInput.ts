@@ -1,10 +1,10 @@
 // Did the player actually play this second? The vote's "tried" time only grows while a key or pointer is held, or the last game
-// input (pointer move or press, key press, wheel) was under 2 s ago. Events aimed at dialogs or the header (the controls sheet,
-// the vote card) and the digit keys that switch controls are not game input, so opening the sheet or stepping through the
-// controls accrues nothing. Window capture listeners, passive, no state outside this closure. Local only.
+// input (pointer move or press, key press, wheel) was under 2 s ago. Events aimed at dialogs, the header or anything marked
+// data-apart (the controls sheet and its backdrop, the vote card) and the digit keys that switch controls are not game input, so
+// opening the sheet or stepping through the controls accrues nothing. Window capture listeners, passive, no state outside this closure. Local only.
 import { inputRecent } from './voteTracker';
 
-const APART = 'header, dialog, [role="dialog"]';
+const APART = 'header, dialog, [role="dialog"], [data-apart]';
 const DIGIT = /^(Digit|Numpad)\d$/;
 type Target = { closest?: (selector: string) => unknown } | null;
 const inGame = (t: EventTarget | null) => typeof (t as Target)?.closest === 'function' && !(t as Target)!.closest!(APART);

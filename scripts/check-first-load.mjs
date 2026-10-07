@@ -18,8 +18,15 @@ const LAB = ['Gesture-module', 'Lab-module', 'lab-surface', 'lab-picker', 'lab-b
 const CONTROLS = ['ControlsPicker-module', 'controls-picker', 'halaverga.controls', 'halaverga.vote.play', 'vote-chip'];
 // The in-game vote (tracker, card, client) is a chunk mounted after Begin: the landing page never carries it.
 const VOTE = ['VoteCard-module', 'vote-card', '/api/vote', 'halaverga.vote'];
-// Main measured 614.9 KB (PR #11); the blaster keeps only its input handlers and plain state on the landing page.
-const BUDGET_KB = 636;
+// The Field guide (copy, municipal record, build stamp, QR) is a chunk opened from the header, the skip link, the terminal or the E key
+// (useFieldGuide): its headings and button copy are unique to it, so the landing page can never pull it back in by a static import.
+const GUIDE = ['Explore through text', 'MERIDIAN · EARTH · 2113', 'Recover municipal record', 'Playtest this build'];
+// The Flow and Simple trackpad panels belong to non-default profiles: lazy chunks, fetched only when their profile is on (data-testids are unique to them).
+const TRACKPAD = ['flow-hud', 'simple-trackpad-hud'];
+// Main measured 614.9 KB (PR #11); the blaster keeps only its input handlers and plain state on the landing page. The screen cleanup moved the Field guide
+// and then the two trackpad panels to lazy chunks and measured 627.1 KB (it was 635.6 KB), so the budget is ceil(627.1) + 1. A ratchet: it is lowered when
+// a change measures lower, never raised.
+const BUDGET_KB = 629;
 const html = await readFile(root + '.next/server/app/index.html', 'utf8').catch(() => {
   throw new Error('No landing build found: run `next build` first.');
 });
@@ -31,9 +38,9 @@ let bytes = 0; const found = [];
 for (const src of sources) {
   const body = await readFile(root + '.next/' + src.slice('/_next/'.length).split('?')[0], 'utf8');
   bytes += Buffer.byteLength(body);
-  for (const marker of [...SCENE, ...SHOOTER, ...TOUCH, ...LAB, ...CONTROLS, ...VOTE]) if (body.includes(marker)) found.push(`${marker} in ${src}`);
+  for (const marker of [...SCENE, ...SHOOTER, ...TOUCH, ...LAB, ...CONTROLS, ...VOTE, ...GUIDE, ...TRACKPAD]) if (body.includes(marker)) found.push(`${marker} in ${src}`);
 }
 const kb = bytes / 1024;
 console.log(`Landing first load: ${sources.size} scripts, ${kb.toFixed(1)} KB (budget ${BUDGET_KB} KB).`);
-if (found.length) { console.error('Scene, blaster, touch-control, Gesture Lab, controls picker or vote code reached the landing first load:\n  ' + found.join('\n  ')); process.exit(1); }
+if (found.length) { console.error('Scene, blaster, touch-control, Gesture Lab, controls picker, vote, Field guide or trackpad panel code reached the landing first load:\n  ' + found.join('\n  ')); process.exit(1); }
 if (kb > BUDGET_KB) { console.error(`The landing first load grew past its ${BUDGET_KB} KB budget.`); process.exit(1); }

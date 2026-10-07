@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { settingsCurrent, settingsPick } from './lab-browser';
+import { settingsCurrent, pickControl, resumeFromCard, openSettings, closeAndResume } from './lab-browser';
 const scene = (page: Page) => page.getByTestId('flight-surface');
 const telemetry = (page: Page) => page.getByTestId('flight-telemetry');
 const speed = async (page: Page) => Number(await telemetry(page).getAttribute('data-speed'));
@@ -46,11 +46,30 @@ test('cursor-only takeoff, hover look and assisted landing', async ({ page }) =>
   await expect(telemetry(page)).toHaveAttribute('data-flying', 'false', { timeout: 10000 });
   expect(await page.evaluate(() => document.pointerLockElement)).toBeNull();
 });
+// The desktop top row is hit-testable across its whole width, as the header always was: the trackpad's hover freeze keys on `header`, so a cursor travelling
+// along the strip between the readout and the buttons holds the view still, not only a cursor over a button. (With the pass-through for touch, the header
+// box was first shrunk to its buttons for every input; a cursor on the way to Pause then steered and pitched the view. The mouse keeps the full row.)
+test('a cursor travelling along the top strip beside the readout holds the cruise heading still; the same move over the world steers', async ({ page }) => {
+  await begin(page); await page.mouse.click(720, 500);
+  await expect.poll(() => speed(page)).toBeGreaterThan(7);
+  const strip = await page.evaluate(() => { const h = document.querySelector('header')!.getBoundingClientRect(), t = document.querySelector('[data-testid=flight-telemetry]')!.getBoundingClientRect(); return { top: h.top, bottom: h.bottom, left: h.left, right: h.right, readoutRight: t.right }; });
+  expect(strip.right - strip.left, 'the header box is the whole row').toBeGreaterThan(1000);
+  expect(strip.bottom - strip.top, 'one 44 px row').toBeLessThanOrEqual(44.5);
+  const y = (strip.top + strip.bottom) / 2, x0 = strip.readoutRight + 120;
+  await page.mouse.move(x0, y, { steps: 8 }); await page.waitForTimeout(150);
+  const entered = await heading(page);
+  await page.mouse.move(x0 + 300, y, { steps: 15 }); await page.waitForTimeout(250);
+  expect(Math.abs(await heading(page) - entered), 'moving 300 px along the strip does not steer').toBeLessThan(.05);
+  await page.mouse.move(x0 + 300, 300, { steps: 8 }); await page.waitForTimeout(150); // back over the world: the look is live again
+  const world = await heading(page);
+  await page.mouse.move(x0, 300, { steps: 15 });
+  await expect.poll(async () => Math.abs(await heading(page) - world), { message: 'the same 300 px over the world does steer' }).toBeGreaterThan(.3);
+});
 test('HUD hover keeps the cruise; a click, resize, pause and zoom clear it without re-engaging it', async ({ page }) => {
   await begin(page); await page.mouse.click(720, 500);
   await expect.poll(() => speed(page)).toBeGreaterThan(7);
   // Turn-360 spec 1.5: the header no longer counts as leaving, so hovering its buttons keeps cruising (and steering).
-  await page.getByRole('button', { name: 'Flight settings' }).hover(); await page.waitForTimeout(400);
+  await page.getByRole('button', { name: 'Pause expedition' }).hover(); await page.waitForTimeout(400);
   await expect(scene(page)).toHaveAttribute('data-trackpad-active', 'true');
   // hover() jumps the cursor about 560 px right in one move, a roughly 100 deg steer: speed dips in that turn, then recovers.
   await expect.poll(() => speed(page)).toBeGreaterThan(7);
@@ -82,23 +101,23 @@ test('HUD hover keeps the cruise; a click, resize, pause and zoom clear it witho
 });
 test('optional mouse capture persists and failure offers trackpad recovery', async ({ page }) => {
   const errors: string[] = []; page.on('pageerror', e => errors.push(e.message));
-  await begin(page); await page.getByRole('button', { name: 'Flight settings' }).click();
-  await settingsPick(page, 'Mouse + keys');
-  await page.getByRole('button', { name: 'Close dialog' }).click();
+  await begin(page); await openSettings(page);
+  await pickControl(page, 'Mouse + keys'); // Flight settings' Controls row opens the sheet; the pick, Done, and the pause card is back
+  await resumeFromCard(page);
   await page.mouse.click(720, 500);
   await expect.poll(() => page.evaluate(() => document.pointerLockElement?.tagName)).toBe('CANVAS');
   await page.keyboard.press('Escape');
   await expect(page.getByRole('button', { name: 'Resume flight' })).toBeVisible();
   await page.reload(); await page.getByRole('button', { name: 'Begin expedition' }).click();
-  await page.getByRole('button', { name: 'Flight settings' }).click();
+  await openSettings(page);
   expect(await settingsCurrent(page)).toBe('mouse-keys');
-  await page.getByRole('button', { name: 'Close dialog' }).click();
+  await closeAndResume(page);
   await page.evaluate(() => { document.querySelector('canvas')!.requestPointerLock = () => Promise.reject(new Error('Capture unavailable')); });
   await page.mouse.click(720, 500);
   await expect(page.getByText('Mouse capture is unavailable.', { exact: false }).first()).toBeVisible();
-  await page.getByRole('button', { name: 'Flight settings' }).click();
-  await settingsPick(page, 'Cursor');
-  await page.getByRole('button', { name: 'Close dialog' }).click();
+  await openSettings(page);
+  await pickControl(page, 'Cursor');
+  await resumeFromCard(page);
   await page.mouse.click(720, 500); await expect.poll(() => speed(page)).toBeGreaterThan(7);
   expect(errors).toEqual([]);
 });

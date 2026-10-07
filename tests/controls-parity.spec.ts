@@ -1,13 +1,16 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
+import { controlName } from './controls-browser';
 import { controlsFor, settingsFor, type ControlFamily, type ControlId } from '../src/game/controlTypes';
 import { CONTROLS_VERSION } from '../src/game/store';
-import { labPage } from './lab-browser';
-import { controlId, openSheet, paused, rowIds, sheet, trigger } from './controls-browser';
+import { labPage, openSettings, openGuide, flightSettings, pauseCard, resumeFromCard, settingsCurrent as settingsRowName } from './lab-browser';
+import { controlId, openSheet, paused, row, rowIds, sheet, trigger } from './controls-browser';
 // Parity of the three ways to choose a control (controls picker, 2026-09-28): the header sheet, the old way of a ?controls= session
 // override, and a saved choice seeded in localStorage before load. For each of the ten ids on its family(ies) all three must mount
-// the identical layer, and Flight settings must show the same current radio. Then the lists in the sheet, Flight settings, the pause
-// card and the Field guide must be the same list. System Chrome emulation: desktop 1440x1000 without touch, phone 852x393 with touch
-// emulation. It checks wiring and semantics, never how a control feels on a real iPhone or Mac trackpad. /api/vote is not touched here.
+// the identical layer, and Flight settings (its Controls row and the sheet that row opens) must name and check the same control. Then
+// there is ONE list: the top row, the pause card and Flight settings all open the same Controls sheet with the same ids, and neither
+// Flight settings, the pause card nor the Field guide carries a list of its own. System Chrome emulation: desktop 1440x1000 without
+// touch, phone 852x393 with touch emulation. It checks wiring and semantics, never how a control feels on a real iPhone or Mac
+// trackpad. /api/vote is not touched here.
 const PHONE = { width: 852, height: 393 }, DESKTOP = { width: 1440, height: 1000 };
 const FAMILIES: Record<ControlFamily, { touch: boolean; viewport: { width: number; height: number } }> = {
   desktop: { touch: false, viewport: DESKTOP }, touch: { touch: true, viewport: PHONE },
@@ -19,35 +22,31 @@ const SEED = { flowIntroSeen: true, controlsVersion: CONTROLS_VERSION };
 /** The mounted layer, as the page shows it: the flight surface, the trackpad pill, the huds, the lab surface and the html data attributes. */
 const signature = (page: Page) => page.evaluate(() => {
   const q = (id: string) => document.querySelector<HTMLElement>(`[data-testid=${id}]`);
-  const surface = q('flight-surface'), pill = document.querySelector('[class*="trackpadHint"]'), html = document.documentElement.dataset;
+  const surface = q('flight-surface'), pill = document.querySelector('[data-testid=legend]'), html = document.documentElement.dataset;
   return {
     surface: surface ? { scheme: surface.dataset.scheme ?? null, layout: surface.dataset.layout ?? null } : null,
     pill: pill?.textContent ?? null, labSurface: !!q('lab-surface'), flowHud: !!q('flow-hud'), touchCluster: !!q('touch-stick'), controls: html.controls ?? null, controlId: html.controlId ?? null, touchBlast: html.touchBlast ?? null,
   };
 });
 const tapOrClick = (l: Locator, touch: boolean) => touch ? l.tap() : l.click();
-/** The radio values of the list inside `root`, opening its folded details first (short screens fold the shared section). */
-async function listIds(root: Locator, touch: boolean): Promise<string[]> {
-  const section = root.getByTestId('controls-section');
-  if (await section.count()) {
-    const open = await section.locator('details').evaluate(d => (d as HTMLDetailsElement).open);
-    if (!open) await tapOrClick(section.locator('summary'), touch); // a mouse click on a touch page would flip the family
-  }
-  const list = root.getByTestId('controls-list');
-  await expect(list).toBeVisible();
-  return list.locator('input[type=radio]').evaluateAll(els => els.map(e => (e as HTMLInputElement).value));
-}
 const checkedIn = (root: Locator) => root.getByTestId('controls-list').locator('input[type=radio]:checked').evaluateAll(els => els.map(e => (e as HTMLInputElement).value));
 
-/** Flight settings' list: the same current radio as the layer that is mounted. Closes the dialog again. */
+/**
+ * Flight settings' view of the current control, two ways that must agree: the Controls row's name, and the radio checked in the sheet
+ * that row opens (Done closes it with no pick). Ends back in play. The list itself exists only in the sheet.
+ */
 async function settingsCurrent(page: Page, touch: boolean): Promise<string[]> {
-  await tapOrClick(page.getByRole('button', { name: 'Flight settings' }), touch);
-  const dialog = page.locator('dialog[open]');
-  await expect(dialog).toHaveCount(1);
-  await listIds(dialog, touch);
-  const checked = await checkedIn(dialog);
-  await tapOrClick(page.getByRole('button', { name: 'Close dialog' }), touch);
-  await expect(page.getByRole('button', { name: 'Pause expedition' })).toBeVisible();
+  await openSettings(page, touch);
+  await expect(flightSettings(page)).toHaveCount(1);
+  await expect(flightSettings(page).getByTestId('controls-list')).toHaveCount(0);
+  const named = await settingsRowName(page);
+  await tapOrClick(flightSettings(page).getByTestId('controls-row'), touch);
+  await expect(sheet(page)).toBeVisible(); await expect(flightSettings(page)).toHaveCount(0);
+  const checked = await checkedIn(sheet(page));
+  await tapOrClick(sheet(page).getByTestId('controls-done'), touch);
+  await expect(sheet(page)).toHaveCount(0);
+  await resumeFromCard(page, touch);
+  expect(checked, 'the row and the checked radio name the same control').toEqual([named]);
   return checked;
 }
 /** Waits until the page shows `id` (the html dataset the trigger sets), then a moment for the remounted layers to settle. */
@@ -104,51 +103,65 @@ for (const family of ['desktop', 'touch'] as const) {
 
 for (const family of ['desktop', 'touch'] as const) {
   const { touch, viewport } = FAMILIES[family];
-  test(`${family}: Flight settings, the pause card and the Field guide list exactly what the sheet lists`, async ({ browser }) => {
+  test(`${family}: the top row, the pause card and Flight settings open the one sheet, and no other place carries a list`, async ({ browser }) => {
     test.setTimeout(180000);
     const t = await labPage(browser, 'standard', { touch, viewport, saved: SEED }), { page } = t;
+    // 1. The top row's Controls button. Done, so no control is picked and nothing else changes.
     await openSheet(page, touch);
     const inSheet = await rowIds(page);
     expect(inSheet).toEqual(ids(family));
-    // Close the sheet: Done, so no control is picked and nothing else changes.
+    await expect(page.getByTestId('controls-list')).toHaveCount(1); // one list on the page while it is open
     await tapOrClick(sheet(page).getByTestId('controls-done'), touch);
     await expect(sheet(page)).toHaveCount(0);
 
-    // Flight settings.
-    await tapOrClick(page.getByRole('button', { name: 'Flight settings' }), touch);
-    const dialog = page.locator('dialog[open]');
+    // 2. Flight settings: a Controls row and no list. The row opens the same sheet (the dialog closes, the game stays paused), the sheet
+    // lists the same ids, and Done brings the pause card back.
+    await openSettings(page, touch);
+    const dialog = flightSettings(page);
     await expect(dialog).toHaveCount(1);
-    expect(await listIds(dialog, touch), 'Flight settings').toEqual(inSheet);
-    await tapOrClick(page.getByRole('button', { name: 'Close dialog' }), touch);
-    await expect(page.getByRole('button', { name: 'Pause expedition' })).toBeVisible();
+    for (const gone of ['controls-list', 'controls-section']) await expect(dialog.getByTestId(gone), `Flight settings has no ${gone}`).toHaveCount(0);
+    await expect(dialog.getByTestId('controls-row')).toHaveCount(1);
+    await tapOrClick(dialog.getByTestId('controls-row'), touch);
+    await expect(sheet(page)).toBeVisible(); await expect(dialog).toHaveCount(0); await expect(pauseCard(page)).toHaveCount(0);
+    expect(await rowIds(page), 'sheet from Flight settings').toEqual(inSheet);
+    await tapOrClick(sheet(page).getByTestId('controls-done'), touch);
+    await expect(sheet(page)).toHaveCount(0); await expect(pauseCard(page)).toBeVisible();
 
-    // The Field guide (a text dialog with the same list under 'Try every control').
-    await tapOrClick(page.getByRole('button', { name: 'Field guide' }), touch);
+    // 3. The Field guide (a text dialog): one sentence that points at Controls (top row), no heading and no list of its own.
+    await openGuide(page, touch);
     const guide = page.locator('dialog[open]');
     await expect(guide).toHaveCount(1);
-    await expect(guide.getByRole('heading', { name: 'Try every control' })).toBeVisible();
-    expect(await listIds(guide, touch), 'Field guide').toEqual(inSheet);
+    await expect(guide.getByText('Every way of flying is under Controls (top row)', { exact: false })).toBeVisible();
+    for (const gone of ['controls-list', 'controls-section']) await expect(guide.getByTestId(gone), `Field guide has no ${gone}`).toHaveCount(0);
+    await expect(guide.getByRole('heading', { name: 'Try every control' })).toHaveCount(0);
     await tapOrClick(page.getByRole('button', { name: 'Close dialog' }), touch);
-    await expect(page.getByRole('button', { name: 'Pause expedition' })).toBeVisible();
+    await expect(pauseCard(page)).toBeVisible(); // closing returns to the pause card
 
-    // The pause card.
-    await tapOrClick(page.getByRole('button', { name: 'Pause expedition' }), touch);
+    // 4. The pause card: one Controls row and no list. The row opens the same sheet over the paused game, with the same ids.
+    await expect(pauseCard(page).getByTestId('controls-list')).toHaveCount(0);
+    await tapOrClick(pauseCard(page).getByTestId('controls-row'), touch);
+    await expect(sheet(page)).toBeVisible(); await expect(pauseCard(page)).toHaveCount(0);
+    expect(await rowIds(page), 'sheet from the pause card').toEqual(inSheet);
+    // Picking in it is the same pick as from the top row: the pause card's row names it, and it mounts on Resume.
+    const other = inSheet[1] as ControlId, label = controlsFor(family).find(c => c.id === other)!.label;
+    await tapOrClick(row(page, other), touch);
+    if (!touch) { // a desktop pick keeps the sheet open (checked now, Done closes it); a touch pick closes it by itself
+      await expect.poll(() => checkedIn(sheet(page))).toEqual([other]);
+      await tapOrClick(sheet(page).getByTestId('controls-done'), touch);
+    }
+    await expect(sheet(page)).toHaveCount(0);
     await expect(paused(page)).toBeVisible();
-    expect(await listIds(paused(page), touch), 'pause card').toEqual(inSheet);
-    // Picking in the pause card is the same pick as in the sheet: it mounts on Resume and the trigger names it.
-    const other = inSheet[1] as ControlId;
-    await tapOrClick(paused(page).getByTestId('controls-list').locator(`[data-control="${other}"]`), touch);
-    await expect(checkedIn(paused(page))).resolves.toEqual([other]);
+    await expect(paused(page).getByTestId('controls-row')).toHaveAccessibleName(`Controls: ${label}`);
     await tapOrClick(paused(page).getByRole('button', { name: 'Resume flight' }), touch);
     await settled(page, other);
-    await expect(trigger(page)).toContainText(other === 'twin-stick' ? 'Twin stick' : 'One finger + keys');
+    await expect(trigger(page)).toHaveAccessibleName(controlName(label));
     expect(t.errors).toEqual([]); await t.context.close();
   });
 }
 
 test('?controls=bogus is ignored and still lets Begin enable: the family default plays', async ({ browser }) => {
   const t = await labPage(browser, 'standard', { url: '/?controls=bogus', saved: SEED }), { page } = t;
-  await expect(trigger(page)).toHaveText('Controls: Cursor');
+  await expect(trigger(page)).toHaveAccessibleName(controlName('Cursor'));
   expect(await controlId(page)).toBe('cursor');
   expect((await signature(page)).labSurface).toBe(false);
   expect(t.errors).toEqual([]); await t.context.close();
@@ -161,6 +174,6 @@ test('?controls=<id> stays this session only: the saved choice is untouched, a p
   const after = await page.evaluate(() => JSON.parse(localStorage.getItem('halaverga-flight-v1') || '{}'));
   expect(after.trackpadSteering ?? 'free').toBe('free');
   await page.goto('/'); await page.getByRole('button', { name: 'Begin expedition' }).click();
-  await expect(trigger(page)).toHaveText('Controls: Cursor');
+  await expect(trigger(page)).toHaveAccessibleName(controlName('Cursor'));
   expect(t.errors).toEqual([]); await t.context.close();
 });
