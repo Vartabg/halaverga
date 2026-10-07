@@ -94,7 +94,8 @@ The blaster's cyan (`#58e1ff`: muzzle, lab ink, heat ring, list glyph ink) is th
   no script); `node scripts/check-vote-build.mjs` clean.
 - Browser specs (system Chrome, `PLAYTEST_URL` on an own production server): the targeted set for these screens (accessibility, layout-fit,
   keyboard-row, focus-footer, hint-slot, field-guide-lazy, controls-one-place, screen-touch-sheet, composition, recovery, play-guard, safety,
-  vote, vote-doors, vote-low, controls-picker) passed; the whole `pnpm test:browser` ran twice, the counts are in the task's final report.
+  vote, vote-doors, vote-low, controls-picker) passed; the whole `pnpm test:browser` on the final build: **500 passed, 3 failed, 1 skipped**
+  (42.7 min; the skip is the WebKit gesture case, as always here; the three failures are the `track` cases below).
   Three `tests/track.spec.ts` cases fail on this branch and on the merged base alike (the same three, "waiting for vote-chip"): they install
   their `/api/results` mock after `labPage` returns, and the ballot probe fires at Begin from the Controls chunk the start card's demo note
   already loaded, so the real route answers 503 (no store) and the pill never shows. Not touched here; `votePage` passes the mock as `routes`.
