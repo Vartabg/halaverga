@@ -78,7 +78,7 @@ test('@vote the pause card: with two tried it leads with the question above Vote
   expect(u.errors).toEqual([]); await u.context.close();
 });
 
-test('@vote the Controls sheet: Vote is the lime primary and Done the outline once two ways are flown (with one there is only the line); the button opens the card', async ({ browser }) => {
+test('@vote the Controls sheet: Vote is the accent primary and Done the outline once two ways are flown (with one there is only the line); the button opens the card', async ({ browser }) => {
   const u = await votePage(browser, ONE_DESK);
   await openSheet(u.page);
   await expect(u.page.getByTestId('controls-tried')).toHaveText('Tried 1 of 2 needed to vote');
@@ -92,7 +92,7 @@ test('@vote the Controls sheet: Vote is the lime primary and Done the outline on
   const vote = sheet(page).getByTestId('controls-vote'), done = sheet(page).getByTestId('controls-done');
   await expect(vote).toHaveText('Vote'); await expect(vote).toHaveAccessibleName(VOTE_NAME);
   const bg = (l: typeof vote) => l.evaluate(e => getComputedStyle(e).backgroundColor);
-  expect(await bg(vote)).toBe('rgb(212, 241, 151)'); expect(await bg(done)).toBe('rgba(0, 0, 0, 0)');
+  expect(await bg(vote)).toBe('rgb(94, 230, 208)'); expect(await bg(done)).toBe('rgba(0, 0, 0, 0)');
   expect((await vote.boundingBox())!.x).toBeLessThan((await done.boundingBox())!.x); // the vote comes first
   await vote.click();
   await expect(card(page)).toBeVisible(); await expect(sheet(page)).toHaveCount(0);

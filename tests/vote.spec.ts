@@ -18,7 +18,7 @@ test('@vote locked at 0 of 2: no Vote anywhere, two dots on Controls with a text
   await expect(page.getByTestId('vote-dots')).toHaveAttribute('aria-hidden', 'true');
   await expect(chip(page)).toHaveCount(0);
   const dot = await dots(page).first().evaluate(e => { const r = e.getBoundingClientRect(), s = getComputedStyle(e); return { w: r.width, h: r.height, bg: s.backgroundColor }; });
-  expect(dot.w).toBe(8); expect(dot.h).toBe(8); expect(dot.bg).not.toBe('rgb(212, 241, 151)'); // never lime: lime is for what can be pressed
+  expect(dot.w).toBe(8); expect(dot.h).toBe(8); expect(dot.bg).not.toBe('rgb(94, 230, 208)'); // never the accent: the accent is for what can be pressed
   await openSheet(page);
   await expect(page.getByTestId('controls-tried')).toHaveText('Tried 0 of 2 needed to vote');
   await expect(sheet(page).getByTestId('controls-vote')).toHaveCount(0);
@@ -58,7 +58,7 @@ test('@vote the flip: the Vote pill appears when the second way reaches 20 s, th
   const c = await box(chip(page));
   expect(c.x + c.width).toBeLessThan(before.x); expect(c.height).toBeGreaterThanOrEqual(44); expect(c.width).toBeGreaterThanOrEqual(44);
   expect((await chip(page).innerText()).trim()).toBe('Vote'); await expect(chip(page)).toHaveAccessibleName(VOTE_NAME);
-  expect(await chip(page).evaluate(e => getComputedStyle(e).backgroundColor)).toBe('rgb(212, 241, 151)');
+  expect(await chip(page).evaluate(e => getComputedStyle(e).backgroundColor)).toBe('rgb(94, 230, 208)');
   await expect.poll(() => said(page)).toContain(READY_TEXT); // C4: the toast carries the vote card's question
   await expect(page.locator('p', { hasText: READY_TEXT })).toBeVisible();
   await expect(page.locator('p', { hasText: READY_TEXT })).toHaveCount(0, { timeout: 8000 }); // a 4 s message
@@ -81,7 +81,7 @@ test('@vote two tried: the pill is lime and says Vote, its name carries the ques
   await mock(page, [200]);
   await expect(c).toBeVisible();
   expect((await c.innerText()).trim()).toBe('Vote'); await expect(c).toHaveAccessibleName(VOTE_NAME); // WCAG 2.5.3: the name starts with the visible word
-  expect(await c.evaluate(e => getComputedStyle(e).backgroundColor)).toBe('rgb(212, 241, 151)');
+  expect(await c.evaluate(e => getComputedStyle(e).backgroundColor)).toBe('rgb(94, 230, 208)');
   await expect(dots(page)).toHaveCount(0); await expect(trigger(page)).toHaveAccessibleName('Controls: Cursor'); // dots and the pill never appear together
   await openFromChip(page);
   await pickAndSend(page, 'Cursor');

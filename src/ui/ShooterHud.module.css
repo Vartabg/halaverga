@@ -27,7 +27,7 @@
 .marker[data-kind=weak] b{display:block!important}
 .chev{transform:rotate(var(--pip)) translateX(calc(var(--r) + 14px));filter:drop-shadow(0 0 1px var(--edge))}
 .chev i{width:7px;height:7px;margin:-3.5px 0 0 -5px;border-top:2px solid #ffffff;border-right:2px solid #ffffff;transform:rotate(45deg)}
-.chain{left:calc(max(var(--r) + 16px, 52px))!important;top:-20px!important;color:#ffb347;font:bold 12px 'Courier New',monospace;white-space:nowrap;text-shadow:0 0 2px var(--edge),0 0 1px var(--edge)}
+.chain{left:calc(max(var(--r) + 16px, 52px))!important;top:-20px!important;color:#ffb347;font-weight:700;font-size:12px;font-variant-numeric:tabular-nums;white-space:nowrap;text-shadow:0 0 2px var(--edge),0 0 1px var(--edge)}
 @media(forced-colors:active){
   .hud{forced-color-adjust:none}
   .cross,.cross[data-acquired=true],.marker,.marker[data-kind]{color:CanvasText;filter:none}

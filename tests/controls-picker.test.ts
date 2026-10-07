@@ -307,7 +307,7 @@ describe('ControlsPicker.module.css contract', () => {
     expect(css).toMatch(/\.sheetBody\{flex:1 1 auto;min-height:0;[^}]*overflow-y:auto;overscroll-behavior:contain/);
     expect(css).toMatch(/\.sheetBody\{[^}]*touch-action:pan-y/);
     expect(css).toMatch(/\.sheet\{--side:max\(16px,env\(safe-area-inset-left\),env\(safe-area-inset-right\)\)/);
-    expect(css).toMatch(/\.foot\{flex:none;[^}]*background:#132a30/); expect(css).not.toMatch(/\.foot\{[^}]*position:sticky/);
+    expect(css).toMatch(/\.foot\{flex:none;[^}]*background:#1c2023/); expect(css).not.toMatch(/\.foot\{[^}]*position:sticky/);
     expect(css).toMatch(/\.title\{flex:none/);
     expect(css).not.toContain('min-width:721'); // no two-column desktop sheet any more: it covered the crosshair
     expect(css).not.toMatch(/data-family=desktop\] \.sheetBody/);
@@ -327,15 +327,15 @@ describe('ControlsPicker.module.css contract', () => {
     expect(css).toMatch(/\.footLine\{display:flex;[^}]*justify-content:space-between/);
     expect(css).toMatch(/\.rowButton\{[^}]*width:100%/); // its height is the shared .secondary 44 px
   });
-  it('checked rows and buttons are dark on lime; the trigger is ink on the dark pill, and open it is a lighter slate with a cream edge, never lime; focus is visible', () => {
+  it('checked rows and buttons are dark on the accent; the trigger is ink on the graphite pill, and open it is a lighter graphite with a bone edge, never the accent; focus is visible', () => {
     const open = css.match(/\.trigger\[aria-expanded=true\]\{([^}]*)\}/)![1];
-    expect(open).toContain('background:#3b5a62'); expect(open).toContain('border-color:#f5f0dc'); expect(open).toContain('inset 0 0 0 1px #f5f0dc'); expect(open).not.toMatch(/lime/);
+    expect(open).toContain('background:#3a4247'); expect(open).toContain('border-color:#eceae4'); expect(open).toContain('inset 0 0 0 1px #eceae4'); expect(open).not.toMatch(/accent|lime/);
     expect(open).not.toMatch(/border-width|padding|min-width/); // the same box open or closed (one width in every state)
-    expect(css).not.toMatch(/\.trigger\[aria-expanded=true\][^{]*\{[^}]*(var\(--lime\)|#d4f197)/);
-    expect(css).toMatch(/\.trigger\{[^}]*background:#142d34e6/); // 90 percent: AA over a bright sky
-    expect(css).toMatch(/\.badge\[data-badge=tried\]\{background:var\(--lime\)[^}]*color:#1a3029/);
-    expect(css).toMatch(/\.trigger:focus-visible\{outline:2px solid var\(--lime\)/);
-    expect(css).toMatch(/\.row:has\(\.radio:focus-visible\)\{outline:3px solid var\(--lime\)/);
+    expect(css).not.toMatch(/\.trigger\[aria-expanded=true\][^{]*\{[^}]*(var\(--accent\)|#5ee6d0|var\(--lime\)|#d4f197)/);
+    expect(css).toMatch(/\.trigger\{[^}]*background:#1c2023e6/); // 90 percent: AA over a bright sky
+    expect(css).toMatch(/\.badge\[data-badge=tried\]\{background:var\(--accent\)[^}]*color:#0c1b1b/);
+    expect(css).toMatch(/\.trigger:focus-visible\{outline:2px solid var\(--accent\)/);
+    expect(css).toMatch(/\.row:has\(\.radio:focus-visible\)\{outline:3px solid var\(--accent\)/);
   });
   it('key hints only for a fine pointer driving the page on widths over 600 px', () => {
     expect(css).toMatch(/\.kbd\{display:none/);

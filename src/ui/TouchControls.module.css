@@ -1,6 +1,6 @@
 /* Twin-stick touch layer. Positions come from computeLayout (box-local px, written inline); this file only paints.
    Contrast: glyph #f5f0dc on #163738 fill is 11.9:1; the 1 px #b4c9b4 edge plus 2 px #0b1e22 ring keeps >= 3:1 on bright
-   and dark scenery alike; held #142c32 on #d4f197 is 11.6:1; cue chips #f5f0dc on #0b1e22 are 15.3:1. */
+   and dark scenery alike; held accent-ink #0c1b1b on the accent #5ee6d0 is 11.5:1; cue chips #f5f0dc on #0b1e22 are 15.3:1. */
 .layer{position:fixed;z-index:var(--z-play);pointer-events:none;--touch-opacity:.85;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
 .probe{position:fixed;inset:0;visibility:hidden;pointer-events:none;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
 
@@ -10,15 +10,15 @@
   background:#163738eb;box-shadow:0 0 0 1px #b4c9b4,0 0 0 3px #0b1e22,0 4px 14px #0b1e2255;transition:transform .08s ease-out,background-color .08s}
 .btn svg{position:relative;width:calc(var(--vis) * .5);height:calc(var(--vis) * .5);fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;pointer-events:none}
 .btn .solid{fill:currentColor;stroke:none}
-.btn[data-held]{opacity:1;color:#142c32}
-.btn[data-held]::before{background:#d4f197;transform:scale(1.08)}
-.btn[aria-pressed=true]{color:#142c32}
-.btn[aria-pressed=true]::before{background:#d4f197}
-.btn:focus-visible::before{outline:2px solid #d4f197;outline-offset:5px}
+.btn[data-held]{opacity:1;color:var(--accent-ink)}
+.btn[data-held]::before{background:var(--accent);transform:scale(1.08)}
+.btn[aria-pressed=true]{color:var(--accent-ink)}
+.btn[aria-pressed=true]::before{background:var(--accent)}
+.btn:focus-visible::before{outline:2px solid var(--accent);outline-offset:5px}
 .fire svg{width:calc(var(--vis) * .52);height:calc(var(--vis) * .52)}
 /* First-use label under each button (and a blocked Descend's "No landing"): #f5f0dc on #0b1e22 is 15.3:1; amber #f2b35e is 9.3:1. */
 .label{position:absolute;left:50%;top:calc(50% + var(--vis) / 2 + 3px);transform:translateX(-50%);padding:2px 5px;border-radius:3px;
-  background:#0b1e22;color:#f5f0dc;font:700 10px/1.2 system-ui,sans-serif;letter-spacing:.08em;text-transform:uppercase;white-space:nowrap;pointer-events:none}
+  background:#0b1e22;color:#f5f0dc;font-weight:700;font-size:10px;line-height:1.2;letter-spacing:.08em;text-transform:uppercase;white-space:nowrap;pointer-events:none}
 .descend[data-blocked] svg{opacity:.5}
 .descend[data-blocked] .label{color:#f2b35e}
 .fire[data-locked]{opacity:.55}
@@ -29,14 +29,14 @@
 
 .ring{position:absolute;border-radius:50%;border:2px solid #f5f0dcb3;background:#0b1e2240;box-shadow:0 0 0 1px #0b1e2299;pointer-events:none;transition:box-shadow .12s}
 .knob{position:absolute;left:50%;top:50%;border-radius:50%;background:#f5f0dce6;box-shadow:0 0 0 2px #0b1e22;pointer-events:none}
-.ring[data-boost=true]{box-shadow:0 0 0 1px #0b1e2299,0 0 0 6px #d4f19766,0 0 18px 6px #d4f19755}
+.ring[data-boost=true]{box-shadow:0 0 0 1px #0b1e2299,0 0 0 6px #5ee6d066,0 0 18px 6px #5ee6d055}
 .sprint{position:absolute;left:50%;width:30px;height:25px;transform:translate(-50%,-50%);fill:none;stroke:#f5f0dc;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;opacity:.9;pointer-events:none}
 .sprintEdge{stroke:#0b1e22;stroke-width:4.6}
-.ring[data-boost=true] .sprint{stroke:#d4f197;opacity:1}
+.ring[data-boost=true] .sprint{stroke:var(--accent);opacity:1}
 .ghost{position:absolute;border-radius:50%;border:2px solid #f5f0dc;pointer-events:none;opacity:calc(var(--touch-opacity) * .25)}
 .layer [hidden]{display:none!important}
 .cues{position:absolute;left:0;top:0;display:flex;gap:6px;transform:translate(-50%,-100%);pointer-events:none}
-.cue{padding:3px 7px;border-radius:3px;background:#0b1e22;color:#f5f0dc;font:700 11px/1.2 system-ui,sans-serif;letter-spacing:.08em}
+.cue{padding:3px 7px;border-radius:3px;background:#0b1e22;color:#f5f0dc;font-weight:700;font-size:11px;line-height:1.2;letter-spacing:.08em}
 
 @media (prefers-reduced-motion: reduce){.btn::before,.ring{transition:none}.btn[data-held]::before{transform:none}}
 .layer[data-reduced=true] .btn::before,.layer[data-reduced=true] .ring{transition:none}

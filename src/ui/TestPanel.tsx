@@ -58,7 +58,7 @@ function ScreenDiagnostics() {
   </details>;
 }
 
-/** Close returns to the pause card; Resume (lime, in the footer) closes this and plays on, so the round trip Pause, settings, adjust, Resume is one tap at the end. */
+/** Close returns to the pause card; Resume (the accent, in the footer) closes this and plays on, so the round trip Pause, settings, adjust, Resume is one tap at the end. */
 export default function TestPanel({ onClose, onResume, ready }: { onClose: () => void; onResume: () => void; ready: boolean }) {
   const state = useGame(), [stats, setStats] = useState<ReturnType<typeof measurements> | null>(null);
   // Touch screens: the blaster section (Auto-fire) leads, above the controls list and the touch and trackpad sections, so it is not

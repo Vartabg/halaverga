@@ -5,7 +5,7 @@ export default function manifest(): MetadataRoute.Manifest {
     name: 'Halaverga — Return to Earth', short_name: 'Halaverga',
     description: 'An expedition through the ruins of tomorrow. A playable browser flight study.',
     start_url: '/', display: 'standalone', orientation: 'any',
-    background_color: '#162b32', theme_color: '#162b32',
+    background_color: '#1c2023', theme_color: '#1c2023',
     icons: [{ src: '/icon.svg', sizes: 'any', type: 'image/svg+xml' }],
   };
 }

@@ -27,7 +27,7 @@ export function TriedLine({ family, voting = true }: { family: ControlFamily; vo
     {need ? `Tried ${n} of ${VOTE_MIN_TRIED} needed to vote` : `Tried ${n} of ${controlsFor(family).length}`}</p>;
 }
 /**
- * The sheet's footer Vote: the lime primary, there only while the vote works (two ways flown, not voted, ballot not known closed).
+ * The sheet's footer Vote: the accent primary, there only while the vote works (two ways flown, not voted, ballot not known closed).
  * Once this family's vote is sent (V7) it is the outlined `Vote sent: see results`, which still opens the card with the thanks and the
  * results link. While the vote is locked there is no button at all: the tried line says how far along it is.
  */

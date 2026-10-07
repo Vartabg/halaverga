@@ -28,7 +28,7 @@ test('@vote V5 focus goes back when the card closes: to the pause card door it w
   expect(t.errors).toEqual([]); await t.context.close();
 });
 
-test('@vote V7 after this family voted the Controls sheet has no lime Vote button: it says the vote is sent and is an outline', async ({ browser }) => {
+test('@vote V7 after this family voted the Controls sheet has no accent Vote button: it says the vote is sent and is an outline', async ({ browser }) => {
   const mark = JSON.stringify({ round: 'r3', desktop: { at: Date.now() } });
   const t = await votePage(browser, TWO_DESK, { extra: { 'halaverga.vote.v1': mark } }), { page } = t;
   await mock(page, [200]);
@@ -36,7 +36,7 @@ test('@vote V7 after this family voted the Controls sheet has no lime Vote butto
   await openSheet(page);
   const vote = sheet(page).getByTestId('controls-vote');
   await expect(vote).toHaveText('Vote sent: see results');
-  expect(await vote.evaluate(e => getComputedStyle(e).backgroundColor)).not.toBe('rgb(212, 241, 151)');
+  expect(await vote.evaluate(e => getComputedStyle(e).backgroundColor)).not.toBe('rgb(94, 230, 208)');
   await expect(page.getByTestId('controls-tried')).toHaveText('Tried 2 of 8');
   await vote.click();
   await expect(card(page)).toBeVisible(); await expect(card(page)).toHaveAttribute('data-phase', 'done'); // it still opens the thanks

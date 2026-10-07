@@ -159,6 +159,6 @@ describe('V1 V2 V3 the ballot foot and the forced-colors row', () => {
   it('V3 in forced colors a checked row keeps Highlight even under the pointer', () => {
     const forced = css.slice(css.indexOf('@media(forced-colors:active)'));
     expect(forced).toMatch(/\.row:has\(input:checked\):hover\{background:Highlight/);
-    expect(css).toMatch(/\.row:has\(input:checked\):hover\{background:#e3ffad\}/); // the ordinary hover rule the override has to beat
+    expect(css).toMatch(/\.row:has\(input:checked\):hover\{background:#84eedc\}/); // the ordinary hover rule the override has to beat
   });
 });

@@ -51,12 +51,12 @@ test('every way back to the pause card leaves focus on a control of the card, an
   expect(t.errors).toEqual([]); await t.context.close();
 });
 
-test('Flight settings has a lime Resume in its footer: Pause, settings, adjust, Resume is one trip; Close only returns to the card', async ({ browser }) => {
+test('Flight settings has an accent Resume in its footer: Pause, settings, adjust, Resume is one trip; Close only returns to the card', async ({ browser }) => {
   const t = await labPage(browser, 'standard'), { page } = t, dialog = page.getByRole('dialog', { name: 'Flight settings' });
   await openSettings(page);
   const resume = dialog.getByRole('button', { name: 'Resume flight' });
   await expect(resume).toHaveText('Resume'); await expect(resume).toBeEnabled();
-  expect(await resume.evaluate(e => getComputedStyle(e).backgroundColor), 'lime, the same as the card\'s Resume').toBe('rgb(212, 241, 151)');
+  expect(await resume.evaluate(e => getComputedStyle(e).backgroundColor), 'the accent, the same as the card\'s Resume').toBe('rgb(94, 230, 208)');
   const was = (await saved(page)).reduced; await page.getByLabel('Reduced camera motion').setChecked(!was);
   await resume.click();
   await expect(dialog).toHaveCount(0); await expect(pauseCard(page)).toHaveCount(0); await expect(pauseButton(page)).toBeVisible();

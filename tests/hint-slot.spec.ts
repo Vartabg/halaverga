@@ -148,13 +148,13 @@ test('@hint the Read button shows its keyboard focus ring: no ancestor clips it 
     return out;
   });
   expect(clipped).toEqual([]);
-  // And the pixels say so: the middle of the ring's left edge is the lime of the global focus outline.
+  // And the pixels say so: the middle of the ring's left edge is the accent of the global focus outline.
   const box = (await read.boundingBox())!, x = Math.floor(box.x - 6.5), y = Math.round(box.y + box.height / 2);
   const png = (await page.screenshot({ clip: { x, y, width: 1, height: 1 } })).toString('base64');
   const px = await page.evaluate(async b64 => {
     const img = new Image(); img.src = 'data:image/png;base64,' + b64; await img.decode();
     const c = document.createElement('canvas'); c.width = c.height = 1; const g = c.getContext('2d')!; g.drawImage(img, 0, 0); return Array.from(g.getImageData(0, 0, 1, 1).data);
   }, png);
-  expect(Math.abs(px[0] - 212) + Math.abs(px[1] - 241) + Math.abs(px[2] - 151), `the ring's pixel is ${px.slice(0, 3)}`).toBeLessThan(24);
+  expect(Math.abs(px[0] - 94) + Math.abs(px[1] - 230) + Math.abs(px[2] - 208), `the ring's pixel is ${px.slice(0, 3)}`).toBeLessThan(24);
   expect(t.errors).toEqual([]); await t.context.close();
 });

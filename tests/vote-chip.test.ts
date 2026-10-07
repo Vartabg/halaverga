@@ -39,15 +39,15 @@ describe('the picker CSS contract: the pill, the dots and the constant width', (
     expect(64 + 8 + 108 + 8 + 44).toBe(232); // Vote + gap + Controls + gap + Pause
     expect(css).not.toMatch(/\.trigger\{[^}]*min-width:88px/); expect(css).not.toMatch(/@media\(max-width:400px\)\{\.trigger/); // no width that changes with the viewport
   });
-  it('the dots are 8 px circles 4 px apart that fill in the text colour, never lime', () => {
+  it('the dots are 8 px circles 4 px apart that fill in the text colour, never the accent', () => {
     expect(rule('.dots')).toContain('gap:4px');
     const dot = rule('.dots i'), on = rule('.dots i[data-on]');
     expect(dot).toContain('width:8px'); expect(dot).toContain('height:8px'); expect(dot).toContain('border-radius:50%');
-    expect(on).toContain('background:var(--ink)'); expect(on).not.toContain('lime');
+    expect(on).toContain('background:var(--ink)'); expect(on).not.toMatch(/accent|lime/);
   });
-  it('the pill is 44 px, lime (it only exists while the vote works), has a 3 px focus ring and no animation', () => {
+  it('the pill is 44 px, the accent (it only exists while the vote works), has a 3 px focus ring and no animation', () => {
     const chip = rule('.chip');
-    expect(chip).toContain('min-height:44px'); expect(chip).toContain('background:var(--lime)'); expect(chip).not.toMatch(/animation|transition/);
+    expect(chip).toContain('min-height:44px'); expect(chip).toContain('background:var(--accent)'); expect(chip).not.toMatch(/animation|transition/);
     expect(css).toMatch(/\.chip:focus-visible\{outline:3px solid/);
     expect(css).not.toMatch(/\.chip\[data-ready\]|chipText|chipSecs|chipMore|chipDot/);
   });
@@ -57,7 +57,7 @@ describe('the picker CSS contract: the pill, the dots and the constant width', (
     expect(forced).toContain('.trigger[aria-expanded=true]{border-color:Highlight;outline:2px solid Highlight;outline-offset:-3px}');
     expect(forced).not.toMatch(/\.trigger\[aria-expanded=true\][^{]*\{[^}]*(background:Highlight|HighlightText)/); // no Highlight fill: the open button reads as an edge, the pill alone is the fill
   });
-  it('the primary button is lime; nothing styles the last button in the footer any more', () => {
-    expect(css).toMatch(/\.action\.primary\{background:var\(--lime\)/); expect(css).not.toContain('.buttons .action:last-child');
+  it('the primary button is the accent; nothing styles the last button in the footer any more', () => {
+    expect(css).toMatch(/\.action\.primary\{background:var\(--accent\)/); expect(css).not.toContain('.buttons .action:last-child');
   });
 });
