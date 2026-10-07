@@ -79,8 +79,8 @@ The blaster's cyan (`#58e1ff`: muzzle, lab ink, heat ring, list glyph ink) is th
 
 ### Verification (system Chrome emulation and node; not an iPhone)
 
-- `pnpm typecheck` clean; `pnpm test` 2349 passed (186 files); `pnpm build` clean; `node scripts/check-first-load.mjs` 9 scripts,
-  **628.4 KB** of the 629 KB budget (the base measured 627.6 KB in 8 scripts: the split and the new class names cost 0.8 KB; the font adds
+- `pnpm typecheck` clean; `pnpm test` 2349 passed (186 files); `pnpm build` clean; `node scripts/check-first-load.mjs` 8 scripts,
+  **628.2 KB** of the 629 KB budget (the base measured 627.6 KB in 8 scripts: the split and the new class names cost 0.6 KB; the font adds
   no script); `node scripts/check-vote-build.mjs` clean.
 - Browser specs: see the counts in the final report of the task (the targeted set, then the whole `pnpm test:browser`).
 - Tests changed because they pinned the old look, and only those: `tests/controls-picker.test.ts` (the slate `#3b5a62` fill, the cream

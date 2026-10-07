@@ -16,7 +16,6 @@ function crampedNow(probe: HTMLElement | null): boolean {
   const prefs = { size: s.controlSize, flip: s.flipSides, fire: s.shooter, aim: s.shooter && s.aimButton && !s.tapControls, tapPad: s.tapControls };
   return computeLayout(box.w, box.h, insets, top, prefs).cramped;
 }
-const Chevron = () => <i aria-hidden="true">›</i>;
 /** The pause card, the "Leave the game?" card (a back swipe during touch play) and the notes that explain a refused Resume. */
 export default function PauseCard({ ready, onEnter, note = '' }: Props) {
   const leave = useGame(s => s.leavePrompt), zoomNote = useGame(s => s.zoomNote), shooter = useGame(s => s.shooter);
@@ -60,8 +59,8 @@ export default function PauseCard({ ready, onEnter, note = '' }: Props) {
     <div className={styles.pauseRows}>
       <LazyControls />
       <div className={styles.pair}>
-        <button className={styles.secondary} onClick={() => useGame.setState({ journal: true })}>Field guide<Chevron /></button>
-        <button className={styles.secondary} aria-describedby="settings-hint" onClick={() => useGame.setState({ panel: true })}>Flight settings<Chevron /></button>
+        <button className={styles.secondary} onClick={() => useGame.setState({ journal: true })}>Field guide</button>
+        <button className={styles.secondary} aria-describedby="settings-hint" onClick={() => useGame.setState({ panel: true })}>Flight settings</button>
         <p id="settings-hint" className={`${styles.pauseNote} ${styles.settingsHint}`}>Size, left-handed, look speed</p>
       </div>
     </div>

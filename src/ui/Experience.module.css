@@ -130,8 +130,8 @@
 .pauseCard .voteOpen{margin-top:0}
 .pauseCard .voteOpen[data-nudge]{border-color:var(--accent);color:var(--accent)}
 .pauseCard .voteAsk{margin:0 0 8px;font-size:13px}
-/* Field guide and Flight settings: two rows in the list (48 px). Under Flight settings one muted line naming what is in there. */
-.pauseCard .pair{display:grid;gap:8px;margin-top:0}.pauseCard .pair .secondary{width:100%;min-height:48px}
+/* Field guide and Flight settings: two rows in the list (48 px), their chevron drawn by CSS so the buttons' text stays their words. Under Flight settings one muted line naming what is in there. */
+.pauseCard .pair{display:grid;gap:8px;margin-top:0}.pauseCard .pair .secondary{width:100%;min-height:48px}.pauseCard .pair .secondary::after{content:'›';flex:none;font-size:18px;line-height:1;color:var(--muted)}
 .pauseCard .pauseNote{margin:0;font-size:13px;line-height:1.5;color:var(--muted)}
 .pauseCard .pair .settingsHint{margin:-2px 0 0}
 .pauseCard>.pauseNote{margin-top:14px}
