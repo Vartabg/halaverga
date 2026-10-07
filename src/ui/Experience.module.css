@@ -35,13 +35,16 @@
 .headerActions>.pause{flex:none;width:44px;padding:0;display:grid;place-items:center;border-radius:50%}.pause svg{width:20px;height:20px;display:block}
 /* The landing's title and start card are one column anchored at the bottom, so they stack and cannot overprint: a taller card (the first-visit demo note)
    pushes the title up instead of climbing into it. The column itself is passive, only the card takes touches. Short landscape phones are two columns
-   instead (the media rule at the end of this block). Without the card (after Begin, or the failed world) the wrapper adds no box. */
-.hero{position:absolute;left:max(var(--gx),env(safe-area-inset-left));bottom:14%;display:flex;flex-direction:column;align-items:flex-start;gap:clamp(12px,2.5svh,24px);pointer-events:none}
+   instead (the media rule at the end of this block). Without the card (after Begin, or the failed world) the wrapper adds no box.
+   The column is bounded by the top row and scrolls as a whole when it overflows (200 percent text on a phone). It is a reversed column (the
+   card first, the title above it by `order`, DOM order unchanged), so it packs at the bottom, starts scrolled to Begin when it overflows and
+   the title is reachable above; nothing climbs under the row. */
+.hero{position:absolute;left:max(var(--gx),env(safe-area-inset-left));top:calc(var(--hdr) + 4px);bottom:14%;display:flex;flex-direction:column-reverse;justify-content:flex-start;align-items:flex-start;gap:clamp(12px,2.5svh,24px);overflow:auto;overscroll-behavior:contain;pointer-events:none}
 .heroOff{display:contents}
 /* One family: the first line bold, the second light, the same size. */
-.heroTitle{margin:0;font-size:clamp(64px,min(10vw,13svh),136px);font-weight:700;letter-spacing:-.045em;line-height:.92;color:var(--ink);text-shadow:0 2px 24px #0e101266;pointer-events:none}.heroTitle em{font-style:normal;font-weight:300;letter-spacing:-.03em}
+.heroTitle{flex:none;order:1;margin:0;font-size:clamp(64px,min(10vw,13svh),136px);font-weight:700;letter-spacing:-.045em;line-height:.92;color:var(--ink);text-shadow:0 2px 24px #0e101266;pointer-events:none}.heroTitle em{font-style:normal;font-weight:300;letter-spacing:-.03em}
 /* The start card: a graphite plate with the eyebrow, the two lines, Begin, the hint line and (first visits) the demo note, in that order. */
-.intro{margin:0;width:min(440px,100%);padding:20px 24px 22px;background:#1c2023eb;border:1px solid var(--line);border-radius:var(--r-lg);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);box-shadow:0 20px 60px #0e101266;pointer-events:auto}
+.intro{flex:none;margin:0;width:min(440px,100%);padding:20px 24px 22px;background:#1c2023eb;border:1px solid var(--line);border-radius:var(--r-lg);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);box-shadow:0 20px 60px #0e101266;pointer-events:auto}
 .eyebrow{margin:0;font-size:11px;font-weight:600;letter-spacing:.16em;line-height:1.5;display:flex;gap:10px;align-items:center;color:var(--muted)}.eyebrow>span:not(.statusDot){color:var(--line-strong)}
 .statusDot{flex:none;width:7px;height:7px;border-radius:50%;background:var(--accent);box-shadow:0 0 8px var(--accent)}
 .introCopy{font-size:15px;line-height:1.55;margin:14px 0 18px;color:var(--ink)}
@@ -91,11 +94,11 @@
 @media(pointer:fine){.legend{display:block}}
 /* Narrow panes: at most two centred lines, inside the 16 px gutters. */
 @media(max-width:600px){.legend{bottom:23%;max-width:min(85%,calc(100% - 32px));width:max-content}}
-@media(max-width:600px){.brand{font-size:13px;gap:8px}.brand svg{width:27px;height:27px}.brand small{font-size:11px;letter-spacing:.14em}.headerActions>button{padding:0 12px;font-size:13px}.hero{left:max(var(--gx),env(safe-area-inset-left));right:max(var(--gx),env(safe-area-inset-right));bottom:max(84px,calc(env(safe-area-inset-bottom) + 68px));align-items:stretch}.heroTitle{font-size:clamp(56px,min(20vw,13svh),110px)}.intro{width:auto;padding:18px 18px 18px}.introCopy{margin:12px 0 16px}.eyebrow{letter-spacing:.12em}.introHint{font-size:13px}.introFooter{bottom:max(24px,env(safe-area-inset-bottom));flex-direction:column;align-items:flex-start;gap:10px;font-size:11px}.actions{right:7%;bottom:max(66px,calc(env(safe-area-inset-bottom) + 40px));gap:10px}.action{width:61px;min-height:61px}.modal{--pad:18px}.modal p,.modal li{font-size:14px}.pauseCard{padding:20px}}
+@media(max-width:600px){.brand{font-size:13px;gap:8px}.brand svg{width:27px;height:27px}.brand small{font-size:11px;letter-spacing:.14em}.headerActions>button{padding:0 12px;font-size:13px}.hero{left:max(var(--gx),env(safe-area-inset-left));right:max(var(--gx),env(safe-area-inset-right));bottom:max(84px,calc(env(safe-area-inset-bottom) + 68px));align-items:stretch}.heroTitle{font-size:clamp(56px,min(20vw,13svh),110px)}.intro{width:auto;padding:18px 18px 18px}.introCopy{margin:14px 0 16px}.eyebrow{letter-spacing:.12em}.introHint{font-size:13px}.introFooter{bottom:max(24px,env(safe-area-inset-bottom));flex-direction:column;align-items:flex-start;gap:10px;font-size:11px}.actions{right:7%;bottom:max(66px,calc(env(safe-area-inset-bottom) + 40px));gap:10px}.action{width:61px;min-height:61px}.modal{--pad:18px}.modal p,.modal li{font-size:14px}.pauseCard{padding:20px}}
 /* A short narrow phone (an SE, or any phone with the Safari toolbars up): the same column, tighter, and the decorative right footer line steps out of the way, so the
    title, the card with the first-visit note and the footer still stack with room between them. */
 @media(max-width:600px) and (max-height:620px){.hero{bottom:max(64px,calc(env(safe-area-inset-bottom) + 50px));gap:10px}.heroTitle{font-size:clamp(48px,min(20vw,10.5svh),110px)}.intro{padding:14px 16px 14px}.introCopy{margin:10px 0 14px}.introHint{margin-top:12px}.introFooter>span:last-child{display:none}}
-@media(max-height:550px) and (orientation:landscape){.experience{min-height:320px}.hero{display:contents}.heroTitle{position:absolute;font-size:clamp(56px,10.5vw,80px);top:24%;left:max(var(--gx),env(safe-area-inset-left))}.intro{position:absolute;margin:0;left:auto;right:max(var(--gx),env(safe-area-inset-right));bottom:18%;width:min(360px,46%);padding:14px 16px}.introCopy{font-size:12px;margin:10px 0 12px}.introHint{margin-top:10px}.primary{min-height:44px;min-width:215px;padding:8px 16px}.introFooter{bottom:14px;flex-direction:row;font-size:11px}.actions{bottom:24px}.action{width:54px;min-height:54px}
+@media(max-height:550px) and (orientation:landscape){.experience{min-height:320px}.hero{display:contents}.heroTitle{position:absolute;font-size:clamp(56px,10.5vw,80px);top:24%;left:max(var(--gx),env(safe-area-inset-left))}.intro{position:absolute;margin:0;left:auto;right:max(var(--gx),env(safe-area-inset-right));bottom:18%;width:min(360px,46%);max-height:calc(82svh - var(--hdr) - 8px);overflow:auto;overscroll-behavior:contain;padding:14px 16px}.introCopy{font-size:12px;margin:13px 0 12px}.introHint{margin-top:10px}.primary{min-height:44px;min-width:215px;padding:8px 16px}.introFooter{bottom:14px;flex-direction:row;font-size:11px}.actions{bottom:24px}.action{width:54px;min-height:54px}
   .pauseCard{padding:18px 20px;width:min(640px,calc(100% - 2 * var(--gx)));display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-rows:repeat(5,auto) 1fr;column-gap:20px;align-items:start}.pauseCard h2{font-size:22px;margin:0 0 4px}.pauseCard p{margin:6px 0 0;font-size:13px}.pauseCard .primary{margin:12px 0 0;min-height:44px}.pauseRows{grid-column:2;grid-row:1 / span 6}.pauseCard .secondary{min-height:44px}.modal{max-height:min(90svh,calc(100dvh - 24px))}}
 /* Classic one thumb has no Fire button (tap a drone to blast): Lift/Land keeps main's large bottom-right thumb spot. */
 .tapPad button[aria-pressed=true]{background:var(--accent);color:var(--accent-ink)}
@@ -130,8 +133,8 @@
 .pauseCard .voteOpen{margin-top:0}
 .pauseCard .voteOpen[data-nudge]{border-color:var(--accent);color:var(--accent)}
 .pauseCard .voteAsk{margin:0 0 8px;font-size:13px}
-/* Field guide and Flight settings: two rows in the list (48 px), their chevron drawn by CSS so the buttons' text stays their words. Under Flight settings one muted line naming what is in there. */
-.pauseCard .pair{display:grid;gap:8px;margin-top:0}.pauseCard .pair .secondary{width:100%;min-height:48px}.pauseCard .pair .secondary::after{content:'›';flex:none;font-size:18px;line-height:1;color:var(--muted)}
+/* Field guide and Flight settings: two rows in the list (48 px), their chevron a bordered shape (no text: generated text would join the accessible name). Under Flight settings one muted line naming what is in there. */
+.pauseCard .pair{display:grid;gap:8px;margin-top:0}.pauseCard .pair .secondary{width:100%;min-height:48px}.pauseCard .pair .secondary::after{content:'';flex:none;width:7px;height:7px;margin-right:4px;border:solid var(--muted);border-width:0 1.5px 1.5px 0;transform:rotate(-45deg)}
 .pauseCard .pauseNote{margin:0;font-size:13px;line-height:1.5;color:var(--muted)}
 .pauseCard .pair .settingsHint{margin:-2px 0 0}
 .pauseCard>.pauseNote{margin-top:14px}
