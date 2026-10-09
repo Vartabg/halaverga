@@ -2,6 +2,8 @@
 
 Checked in the isolated `codex/blender-world-art` worktree against base `e60a0f6`, on October 9, 2026. The art pass has not been merged or deployed.
 
+This record covers the initial Blender pass, committed as `7b6dc91`. Its screenshots and performance measurement precede the storm atmosphere revision. See [the storm verification](../storm-front/README.md) for the current lighting and sky.
+
 - TypeScript check: passed.
 - Vitest: 232 tests passed across 30 files, including movement, route clearance, landings, suit animation, collision sweeps and actual Meshopt decoding of the shipped district asset.
 - Production build: passed (Next.js 16.3.5, Three.js 0.183.2).

@@ -9,12 +9,12 @@ export default function EnvironmentLight() {
     const width = 256, height = 128, data = new Uint16Array(width * height * 4);
     for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
       const h = y / height, upper = Math.max(0, (h - .5) * 2);
-      const glow = Math.exp(-((x / width - .665) ** 2 + (h - .66) ** 2) * 500);
-      const c = h < .5 ? [.07, .08, .085] : [.46 - upper * .31, .57 - upper * .34, .68 - upper * .29];
+      const glow = Math.exp(-((x / width - .665) ** 2 + (h - .66) ** 2) * 24);
+      const c = h < .5 ? [.035, .038, .045] : [.2 - upper * .15, .25 - upper * .18, .27 - upper * .18];
       const i = (y * width + x) * 4;
-      data[i] = DataUtils.toHalfFloat(c[0] + glow * 8);
-      data[i + 1] = DataUtils.toHalfFloat(c[1] + glow * 5);
-      data[i + 2] = DataUtils.toHalfFloat(c[2] + glow * 2.5);
+      data[i] = DataUtils.toHalfFloat(c[0] + glow * .55);
+      data[i + 1] = DataUtils.toHalfFloat(c[1] + glow * .62);
+      data[i + 2] = DataUtils.toHalfFloat(c[2] + glow * .65);
       data[i + 3] = DataUtils.toHalfFloat(1);
     }
     const source = new DataTexture(data, width, height, RGBAFormat, HalfFloatType);

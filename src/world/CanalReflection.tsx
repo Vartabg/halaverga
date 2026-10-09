@@ -1,9 +1,10 @@
 import { useEffect, useMemo } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
-import { Matrix4, PlaneGeometry, ShaderMaterial, Vector2 } from 'three';
+import { Color, Matrix4, PlaneGeometry, ShaderMaterial, Vector2 } from 'three';
 import { Reflector } from 'three/addons/objects/Reflector.js';
 import { useGame } from '@/game/store';
 import { runtime } from '@/game/runtime';
+import { STORM_HAZE } from './weather';
 
 /** One bounded reflection pass in high quality; low quality keeps the analytic water. */
 export default function CanalReflection() {
@@ -12,12 +13,12 @@ export default function CanalReflection() {
     const geometry = new PlaneGeometry(1100, 1100);
     const reflector = new Reflector(geometry, { textureWidth: 512, textureHeight: 512,
       multisample: 0, clipBias: .003, shader: {
-        name: 'MeridianWater', uniforms: { color: { value: null }, tDiffuse: { value: null },
+        name: 'MeridianWater', uniforms: { color: { value: null }, tDiffuse: { value: null }, haze: { value: new Color(STORM_HAZE) },
           textureMatrix: { value: new Matrix4() }, time: { value: 0 }, wake: { value: new Vector2() }, strength: { value: 0 } },
         vertexShader: `uniform mat4 textureMatrix; varying vec4 reflection; varying vec3 world;
           void main(){world=(modelMatrix*vec4(position,1.)).xyz;reflection=textureMatrix*vec4(position,1.);
           gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
-        fragmentShader: `uniform sampler2D tDiffuse; uniform float time; uniform vec2 wake; uniform float strength;
+        fragmentShader: `uniform sampler2D tDiffuse; uniform float time; uniform vec2 wake; uniform float strength; uniform vec3 haze;
           varying vec4 reflection; varying vec3 world;
           void main(){vec2 p=world.xz;
             float a=p.x*.47+p.y*.81+time*.48+sin(p.y*.2), b=p.x*1.3-p.y*.51-time*.61;
@@ -28,11 +29,9 @@ export default function CanalReflection() {
             vec3 view=normalize(cameraPosition-world);
             float fresnel=.06+.78*pow(1.-max(dot(n,view),0.),3.);
             vec3 color=mix(vec3(.012,.055,.058),mirror*.86,fresnel);
-            float sun=pow(max(dot(reflect(-view,n),normalize(vec3(-65.,70.,-110.))),0.),450.);
-            color+=sun*vec3(2.4,1.7,.8);
             float d=length(p-wake);
             color+=vec3(.12,.24,.21)*strength*exp(-d*.28)*pow(max(0.,sin(d*5.-time*7.)),6.);
-            color=mix(color,vec3(.26,.34,.4),smoothstep(180.,480.,distance(world,cameraPosition)));
+            color=mix(color,haze,smoothstep(70.,340.,distance(world,cameraPosition)));
             gl_FragColor=vec4(color,1.);
             #include <tonemapping_fragment>
             #include <colorspace_fragment>

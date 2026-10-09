@@ -7,7 +7,7 @@ The environment pass replaces the repeated procedural building envelopes and dis
 - Twenty damaged building envelopes: fractured concrete planes, recessed windows and interiors, torn panes, steel braces, uneven reinforcing rods, roof equipment and painted building identities.
 - Detailed quay walls, retaining fixtures, street lamps, viaduct aggregate and exposed reinforcement, plus small terrace debris and expansion seams.
 - A damaged skyline and split relay towers beyond the playable boundary, with distant hillside silhouettes.
-- Warm directional sunlight, cool fill, layered storm clouds and more atmospheric depth.
+- A heavy storm ceiling, cool diffuse light, distant rain haze and cold wet-surface reflections. The [sky follow-up](../storm-front/README.md) supersedes the initial warm daylight treatment.
 - Wet asphalt shading, with a 512 × 512 planar canal reflection in full detail. The lighter setting retains single-pass analytic water. Reduced motion freezes water motion and removes the wake.
 - The existing building collision envelopes and fallen slab colliders are retained. Runtime movement, camera control, landings and route dimensions are unchanged.
 - Reload scene clears a rejected district model request as well as the suit request. Switching graphics quality releases the reflection target and its owned geometry/material.
@@ -36,7 +36,7 @@ The authoring modules use game coordinates (Y up); the mesh helper converts them
 
 ## Review and limits
 
-The [before/after viewer](../../../../public/docs/art/blender-district/index.html) contains actual game captures, including the viaduct approach and a portrait viewport. A desktop phone viewport is not a physical iPhone validation.
+The [original before/after viewer](../../../../public/docs/art/blender-district/index.html) preserves the first geometry pass with its earlier daylight. The [storm viewer](../../../../public/docs/art/storm-front/index.html) compares that daylight with the current sky and atmosphere, including the viaduct approach and a portrait viewport. A desktop phone viewport is not a physical iPhone validation.
 
 Rendering guidance followed the reviewed [Research Vault guidance](/Users/vartny/Research-Vault/domains/04-product-3d-web/guidance/CURRENT_GUIDANCE.md): composition/material consistency first, bounded effects, shared resources and measured device claims. The trust audit passed.
 
