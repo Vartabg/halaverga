@@ -34,7 +34,8 @@ export function useInput() {
     const controls = ['KeyW','KeyA','KeyS','KeyD','KeyR','KeyF','ArrowLeft','ArrowRight','ArrowUp','ArrowDown'];
     const keydown = (e: KeyboardEvent) => {
       const state = useGame.getState();
-      if (e.code === 'Escape') { if (state.started && !state.panel && !state.journal) pause(); return; }
+      // Escape pauses; while paused the pause card owns it (PauseCard: Escape resumes, like a tap outside the card).
+      if (e.code === 'Escape') { if (state.started && !state.paused && !state.panel && !state.journal) pause(); return; }
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       if (state.paused || /INPUT|SELECT|TEXTAREA/.test((e.target as HTMLElement).tagName)) return;
       if (runtime.trackpad.held && state.trackpadSteering === 'flow') return;

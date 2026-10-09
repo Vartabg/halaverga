@@ -71,6 +71,9 @@
 @media(max-width:400px){.telemetry{padding:2px 6px}}
 /* The pause card: a graphite plate in the middle of the screen. The kicker names the state, the title stays, Resume is the one accent, and the
    doors (Controls, Field guide, Flight settings, and Vote when it works) are a list of full-width rows under it, each with its line beneath. */
+/* The scrim under the pause card: invisible, the card's own layer, before the card in DOM order so the card paints over it. A click or tap on it
+   resumes (PauseCard); it also keeps a paused tap off the flight surface and the play controls underneath. */
+.pauseScrim{position:absolute;inset:0;z-index:var(--z-card);background:transparent;cursor:default}
 .pauseCard{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:min(420px,calc(100% - 2 * var(--gx)));padding:24px;background:#1c2023f2;border:1px solid var(--line);border-radius:var(--r-lg);z-index:var(--z-card);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);box-shadow:0 24px 80px #0e101280}
 .pauseCard h2{font-size:26px;font-weight:600;letter-spacing:-.015em;line-height:1.15;margin:0 0 6px}.pauseCard p{margin:8px 0 0;font-size:14px;line-height:1.5;color:var(--muted)}
 .kicker{margin:0 0 6px;font-size:11px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}

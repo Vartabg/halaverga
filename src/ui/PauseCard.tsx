@@ -45,8 +45,16 @@ export default function PauseCard({ ready, onEnter, note = '' }: Props) {
   // The Home Screen tip is one muted line, not a card with a button: it counts as seen when Resume is pressed with it on screen.
   const showTip = tip && !tipSeen;
   const resume = () => { if (showTip) { useGame.setState({ homeTipSeen: true }); persistGame(); } onEnter(); };
+  // Escape and a click or tap outside the card resume too (Garo 2026-10-07: "why can't just clicking outside of the menu exit it?").
+  // Both go through onEnter, so the pinch-zoom refusal and the audio unlock hold; "Leave the game?" above keeps its two buttons only.
+  useEffect(() => {
+    const key = (e: KeyboardEvent) => { if (e.code === 'Escape') { e.preventDefault(); resume(); } };
+    window.addEventListener('keydown', key);
+    return () => window.removeEventListener('keydown', key);
+  });
   // The kicker is the card's name made visible ("Expedition paused", the region's label since the cleanup): one line, read once.
-  return <section ref={card} tabIndex={-1} className={styles.pauseCard} aria-labelledby={kicker}>
+  return <><div className={styles.pauseScrim} data-testid="pause-scrim" aria-hidden="true" onClick={resume} />
+  <section ref={card} tabIndex={-1} className={styles.pauseCard} aria-labelledby={kicker}>
     {probeNode}
     <p id={kicker} className={styles.kicker}>Expedition paused</p>
     <h2>Take your time.</h2>
@@ -66,5 +74,5 @@ export default function PauseCard({ ready, onEnter, note = '' }: Props) {
     </div>
     <p className={`${styles.pauseNote} ${styles.portraitLine}`}>Best played sideways.</p>
     {showTip && <p className={styles.pauseNote}>Tip: Share › Add to Home Screen for full screen.</p>}
-  </section>;
+  </section></>;
 }
