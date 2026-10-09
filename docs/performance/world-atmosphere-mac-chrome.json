@@ -1,0 +1,78 @@
+{
+  "seconds": 60,
+  "samples": 3622,
+  "p50Ms": 16.7,
+  "p95Ms": 17.5,
+  "stallsOver50Ms": 0,
+  "browser": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/153.0.0.0 Safari/537.36",
+  "viewport": [
+    1440,
+    1000
+  ],
+  "pixelRatio": 1,
+  "quality": "high",
+  "camera": "third",
+  "resources": {
+    "drawCalls": 15,
+    "triangles": 588290,
+    "geometries": 11,
+    "textures": 14
+  },
+  "peakResources": {
+    "drawCalls": 15,
+    "triangles": 588290,
+    "geometries": 11,
+    "textures": 14
+  },
+  "build": "2026-09-22 \u00b7 7945430",
+  "deployment": "https://halaverga-flight.vercel.app",
+  "scope": "Latest 18,000 active frames; first resume frame excluded. Resource peaks cover the session.",
+  "hardware": "Apple M2 Max",
+  "gpu": "ANGLE (Apple, ANGLE Metal Renderer: Apple M2 Max, Unspecified Version)",
+  "os": "darwin 25.6.0",
+  "browserMode": "Headless system Chrome; physical Mac, not iPhone",
+  "speedMode": "Cruise (13 m/s maximum)",
+  "workload": [
+    [
+      "KeyR",
+      3000
+    ],
+    [
+      "KeyW",
+      4000
+    ],
+    [
+      "ArrowRight",
+      1000
+    ],
+    [
+      "KeyW",
+      4000
+    ],
+    [
+      "KeyF",
+      2500
+    ],
+    [
+      "ArrowLeft",
+      1000
+    ]
+  ],
+  "route": "Repeat launch/canal/sideways/descent; reset to terrace each cycle to remain inside dense district.",
+  "errors": [],
+  "powerState": "Battery power, 99% charge before sampling",
+  "testedURL": "http://127.0.0.1:3368",
+  "sourceHashes": {
+    "src/world/Atmosphere.tsx": "da44376a4c3848f27d43652d774ac260e33d64c1e4c0859fef13b99f98dd0c7b",
+    "src/world/EnvironmentLight.tsx": "b85881994058f8004cdff4f68240843ead720193b097fe59bdcf80d6975baf9f",
+    "src/world/Scene.tsx": "ce90835f8ff2dfb8041fb596f7ccd94aabc80d4f498ff34271b365e55cfe8c7f",
+    "src/world/cityData.ts": "ffd5e43d98c8ee8ccacf35fe8eb002d5a5a31e96f5ad007afd0abcc47737c925",
+    "src/world/atmospherePalette.ts": "2bb7d615fd94a62e335de6fd0e0777ecc50feaa10b9ce3d2208e7624d65fa9d5",
+    "src/world/distantTerrain.ts": "a2a53a26d0e6a24bf22988fb9545f35509d7e1c30cd640f4aa081d2460357e5a",
+    "src/world/skyShader.ts": "58d4c16f2fafe2870668b38e63b09edec19f1d9c7db0bfc3f9b4daa31310229c",
+    "src/world/waterShader.ts": "bf411781c78c4c1b9e0d1787a391ed56bbfb85e851f2a0ee6b99a9169a138ab0",
+    "src/world/waterfrontDetails.ts": "2ca8f081d7878805991da214c622c504039ba8206b7b76e5d8610fc4e9d71983"
+  },
+  "revisionNote": "Local working-tree build based on 7945430; world files identified by sourceHashes. The deployment field is the app handoff URL, not the tested build.",
+  "settings": "High detail; DPR 1; 2048 shadow map; procedural sky/water; no post-processing"
+}
