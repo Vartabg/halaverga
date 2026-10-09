@@ -1,8 +1,11 @@
 // Player tracers and muzzle sprites: 2 draw calls, pooled, additive and untonemapped, on the pausing shooter clock.
 // Muzzle flash, two tiers: a small flash on every shot, sized in screen pixels so it stays under 90 x 90 px at any camera distance
-// (below the WCAG 2.3.1 small-area limit), and a larger world-size bloom that keeps the 3-per-second flash gate. Flash, glow and
-// bloom sit at the kicked cannon muzzle (cannonLink.fxMuzzle, published at -19), and a shot fired this frame starts its tracer
-// there too, so flash, tail and cannon kick share the shot frame. Every muzzle sprite keeps its edge 40 CSS px off screen centre.
+// (below the WCAG 2.3.1 small-area limit), and a larger world-size bloom that keeps the 3-per-second flash gate. The per-shot flash
+// is a core, a halo and a lance: a thin spike turned along the shot's screen direction with a shorter cross spike, seeded a few
+// degrees off each shot, so a burst shimmers instead of repeating one disc. Flash, glow and bloom sit at the kicked cannon muzzle
+// (cannonLink.fxMuzzle, published at -19), and a shot fired this frame starts its tracer there too, so flash, tail and cannon kick
+// share the shot frame. From a burst's 4th shot the flash shortens to two frames and the steady emitter glow takes over, so sustained
+// 9/s fire reads as a stream from a lit cannon rather than a strobe. Every muzzle sprite keeps its edge 40 CSS px off screen centre.
 import { useEffect, useMemo } from 'react';
 import { useFrame, type RootState } from '@react-three/fiber';
 import { Vector3, type PerspectiveCamera } from 'three';
@@ -12,18 +15,21 @@ import { guarded } from '@/game/shooterFault';
 import { runtime } from '@/game/runtime';
 import { useGame } from '@/game/store';
 import { cannonLink } from './cannonContract';
+import { ATTENUATE_FROM } from '@/game/burst';
 import { CLEAR_PX, claim, haloAlpha, haloClampPx, isShotKind, makePuffs, makeSteam, metresPerPx, pxSize, startSteam, stepSteam, tracerOrigin,
   tracerSpan, tracerWidth, type Ring, type TracerOrigin, type TracerSpan } from './fxPools';
-import { FX, commit, disposePool, drawPuffs, hideSprite, retainFx, setSprite, spritePool, tracerPool } from './fxMaterials';
-const TRACERS = 8, STEAM = 6, TR = 8, GLOW = 0, CORE = 1, HALO = 2, BLOOM = 3, GLINT = 4, PUFFS = 5, SPRITES = PUFFS + STEAM;
-/** Per-shot flash: 50 ms, core <= 36 px and .45 m, halo <= 80 px and .9 m. Gated bloom: .9 m for 33 ms. Miss glint: 80 ms, >= 6 px. */
-const FLASH_T = .05, BLOOM_T = .033, GLINT_T = .08, CORE_PX = 36, HALO_PX = 80, GLOW_PX = 40, GLINT_PX = 6;
+import { FX, commit, disposePool, drawPuffs, hideSprite, placeTurned, retainFx, setSprite, spritePool, tint, tracerPool } from './fxMaterials';
+const TRACERS = 8, STEAM = 6, TR = 8, GLOW = 0, CORE = 1, HALO = 2, BLOOM = 3, GLINT = 4, SPIKE = 5, CROSS = 6, PUFFS = 7, SPRITES = PUFFS + STEAM;
+/** Per-shot flash: 50 ms (33 ms from a burst's 4th shot), core <= 36 px and .45 m, halo <= 80 px and .9 m, lance 64 x 5 px along the
+ * shot (centred 16 px out, so with the halo the flash spans at most 88 px) and a 28 px cross. Gated bloom: .9 m for 33 ms. Miss glint: 80 ms, >= 6 px. Tracers: 4 px wide (5 px for touch and tap look). */
+const FLASH_T = .05, FLASH_LATE_T = .033, BLOOM_T = .033, GLINT_T = .08, CORE_PX = 36, HALO_PX = 80, GLOW_PX = 40, GLINT_PX = 6;
+const SPIKE_PX = 64, SPIKE_W = 5, CROSS_PX = 28, SPIKE_JITTER = .17, SPIKE_JITTER_LATE = .45, TRACER_PX = 4, TRACER_TOUCH_PX = 5;
 const copy = (o: Vec3, v: Vec3) => { o.x = v.x; o.y = v.y; o.z = v.z; return o; };
-const ndc = new Vector3();
+const ndc = new Vector3(), ndc2 = new Vector3();
 /** The kicked cannon muzzle, else the solved gameplay muzzle, else the fallback (the shot's own origin). */
 const muzzleOr = (fallback: Vec3): Vec3 => cannonLink.fxMuzzle.valid ? cannonLink.fxMuzzle : runtime.shooter.muzzle.valid ? runtime.shooter.muzzle : fallback;
 
-function createShotFx() {
+export function createShotFx() {
   const tracers = tracerPool(TRACERS), sprites = spritePool(SPRITES, true);
   const a = tracers.geometry.attributes, start = a.aStart.array as Float32Array, end = a.aEnd.array as Float32Array;
   const width = a.aWidth.array as Float32Array, alpha = a.aAlpha.array as Float32Array;
@@ -33,7 +39,8 @@ function createShotFx() {
   const cursor = { last: runtime.shooter.eventSerial }, span: TracerSpan = { head: 0, tail: 0, alive: false, fade: 1 };
   const lastFrom = { x: 0, y: 0, z: 0 }, flashPos = { x: 0, y: 0, z: 0 }, glowCol = { r: 0, g: 0, b: 0 };
   const glintPos = { x: 0, y: 0, z: 0 }, shown = new Uint8Array(PUFFS), org: TracerOrigin = { from: { x: 0, y: 0, z: 0 }, dir: { x: 0, y: 0, z: 0 }, dist: 0 };
-  let reduced = false, flashAt = -1e9, bloomAt = -1e9, glintAt = -1e9, spriteTop = 0, clock = 0, haloA = .45;
+  const shotDir = { x: 0, y: 0, z: -1 }, spikeAt = { x: 0, y: 0, z: 0 };
+  let reduced = false, flashAt = -1e9, bloomAt = -1e9, glintAt = -1e9, spriteTop = 0, clock = 0, haloA = .45, flashT = FLASH_T, late = false, jitter = 0, sign = 1;
   /** Marks a fixed sprite slot drawn (raising the draw count) or hides it once when it goes dark. */
   const show = (slot: number, on: boolean) => {
     if (on) { shown[slot] = 1; spriteTop = Math.max(spriteTop, slot + 1); } else if (shown[slot]) { hideSprite(sprites, slot); shown[slot] = 0; }
@@ -53,6 +60,10 @@ function createShotFx() {
     copy(lastFrom, e.from);
     if (reduced) return;
     flashAt = e.t; copy(flashPos, muzzleOr(e.from)); haloA = haloAlpha(eventBurstIndex(e.serial));
+    late = eventBurstIndex(e.serial) >= ATTENUATE_FROM; flashT = late ? FLASH_LATE_T : FLASH_T;
+    // The lance follows the shot's own line and turns a seeded few degrees off it, alternating sides deeper into a burst.
+    const dx = e.point.x - flashPos.x, dy = e.point.y - flashPos.y, dz = e.point.z - flashPos.z, dl = Math.hypot(dx, dy, dz) || 1;
+    shotDir.x = dx / dl; shotDir.y = dy / dl; shotDir.z = dz / dl; sign = -sign; jitter = sign * (late ? SPIKE_JITTER_LATE : SPIKE_JITTER) * (.4 + .6 * rng());
     if (flashGate(hist, 0, e.t)) bloomAt = e.t;
     if (e.kind === 'miss') { glintAt = e.t; copy(glintPos, e.point); }
     if (!tracerOrigin(e, clock, cannonLink.fxMuzzle, org)) return;
@@ -61,12 +72,13 @@ function createShotFx() {
     tr[o + 4] = d.x; tr[o + 5] = d.y; tr[o + 6] = d.z; tr[o + 7] = org.dist; live[i] = 2;
   };
   const hideTracer = (i: number) => { width[i] = 0; alpha[i] = 0; live[i] = 0; };
+  const alphaOf = (m: typeof sprites) => m.geometry.attributes.aAlpha.array as Float32Array;
   const frame = (st: RootState) => {
     const s = runtime.shooter, t = s.clock, el = st.gl.domElement;
     reduced = useGame.getState().reduced; clock = t;
     readEvents(s, cursor, onEvent);
     const cam = st.camera as PerspectiveCamera, fov = cam.fov || s.aim.fov, h = el.clientHeight || 1, w = el.clientWidth || 1, c = cam.position;
-    const floorPx = s.input.lookSource === 'touch' || s.input.lookSource === 'tap' ? 2 : 1.5;
+    const floorPx = s.input.lookSource === 'touch' || s.input.lookSource === 'tap' ? TRACER_TOUCH_PX : TRACER_PX;
     let top = 0;
     for (let i = 0; i < TRACERS; i++) {
       if (!live[i]) continue;
@@ -89,17 +101,31 @@ function createShotFx() {
     spriteTop = 0;
     // Metres per screen pixel at the muzzle: the per-shot flash and the glow are sized in pixels, then capped in metres.
     const mz = muzzleOr(lastFrom), px = metresPerPx(Math.hypot(mz.x - c.x, mz.y - c.y, mz.z - c.z), fov, h);
-    // A steady emitter glow is not a flash (WCAG 2.3.1): it warms from the fringe cyan to hot orange with heat.
+    // A steady emitter glow is not a flash (WCAG 2.3.1): it warms from the fringe cyan to hot orange with heat, and brightens and
+    // widens deeper into a burst, so a held trigger reads as a lit cannon between the shorter late flashes.
     if (show(GLOW, s.weapon.sinceShot < .3)) {
-      const heat = Math.min(1, Math.max(0, s.weapon.heat / HEAT.max)), g = pxSize(haloClampPx(clearOf(mz, cam, w, h), GLOW_PX, CORE_PX), .3, px);
+      const heat = Math.min(1, Math.max(0, s.weapon.heat / HEAT.max)), stream = late && s.weapon.sinceShot < .3 ? 1 : 0;
+      const g = pxSize(haloClampPx(clearOf(mz, cam, w, h), GLOW_PX * (1 + .3 * stream), CORE_PX), .3 + .1 * stream, px);
       glowCol.r = FX.fringe.r + (FX.hot.r - FX.fringe.r) * heat; glowCol.g = FX.fringe.g + (FX.hot.g - FX.fringe.g) * heat;
       glowCol.b = FX.fringe.b + (FX.hot.b - FX.fringe.b) * heat;
-      setSprite(sprites, GLOW, mz, g, g, glowCol, 1, .6 + .3 * heat);
+      setSprite(sprites, GLOW, mz, g, g, glowCol, 1, .6 + .3 * heat + .3 * stream);
     }
-    const fa = t - flashAt, f = muzzleOr(flashPos), flash = fa >= 0 && fa < FLASH_T, bloom = t - bloomAt >= 0 && t - bloomAt < BLOOM_T;
+    const fa = t - flashAt, f = muzzleOr(flashPos), flash = fa >= 0 && fa < flashT, bloom = t - bloomAt >= 0 && t - bloomAt < BLOOM_T;
     const room = flash || bloom ? clearOf(f, cam, w, h) : Infinity, halo = haloClampPx(room, HALO_PX, CORE_PX);
     if (show(CORE, flash)) { const k = pxSize(Math.min(CORE_PX, halo), .45, px); setSprite(sprites, CORE, f, k, k, FX.core, 2, 1); }
     if (show(HALO, flash)) { const k = pxSize(halo, .9, px); setSprite(sprites, HALO, f, k, k, FX.fringe, 1, haloA); }
+    if (show(SPIKE, flash)) {
+      // Screen angle of the shot line at the muzzle (y up), then the lance and its cross as turned sprites, each clamped like the halo.
+      ndc.set(f.x, f.y, f.z).project(cam); spikeAt.x = f.x + shotDir.x * .5; spikeAt.y = f.y + shotDir.y * .5; spikeAt.z = f.z + shotDir.z * .5;
+      ndc2.set(spikeAt.x, spikeAt.y, spikeAt.z).project(cam);
+      const angle = Math.atan2((ndc2.y - ndc.y) * h, (ndc2.x - ndc.x) * w) + jitter, len = haloClampPx(room, SPIKE_PX, CORE_PX), fade = 1 - fa / flashT;
+      // The lance's centre sits a quarter of its length out of the bore, so the barrel hides at most a quarter of it.
+      const lm = pxSize(len, .9, px), ahead = lm * .25;
+      spikeAt.x = f.x + shotDir.x * ahead; spikeAt.y = f.y + shotDir.y * ahead; spikeAt.z = f.z + shotDir.z * ahead;
+      placeTurned(sprites, SPIKE, spikeAt.x, spikeAt.y, spikeAt.z, lm, pxSize(SPIKE_W, .06, px), angle); tint(sprites, SPIKE, FX.core, 1.6); alphaOf(sprites)[SPIKE] = fade;
+      show(CROSS, true);
+      placeTurned(sprites, CROSS, f.x, f.y, f.z, pxSize(Math.min(CROSS_PX, len), .35, px), pxSize(SPIKE_W * .7, .04, px), angle + Math.PI / 2); tint(sprites, CROSS, FX.fringe, 1.2); alphaOf(sprites)[CROSS] = fade * .8;
+    } else show(CROSS, false);
     if (show(BLOOM, bloom)) { const k = pxSize(haloClampPx(room, .9 / Math.max(px, 1e-9), CORE_PX), .9, px); setSprite(sprites, BLOOM, f, k, k, FX.fringe, 1, .35); }
     const ga = t - glintAt;
     if (show(GLINT, !reduced && ga >= 0 && ga < GLINT_T)) {

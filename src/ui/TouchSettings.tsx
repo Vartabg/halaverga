@@ -5,7 +5,7 @@ const save = (patch: Patch) => { useGame.setState(patch); persistGame(); };
 // Touch controls (Flight settings, any coarse pointer, blaster on or off). One thumb (classic) is the default again (Garo
 // 2026-09-26): main's one-finger flight with tap-a-drone shooting; Two thumbs is the opt-in twin stick. The scheme itself is chosen in the shared Controls list above (selectControl is its only writer); this holds the settings that depend on it. Every control is a labelled native input with a 44 px target, saved at once. Range inputs get an inline
 // 44 px height because Experience.module.css styles only select and number inputs.
-const RANGE = { width: '100%', minHeight: 44, accentColor: 'var(--lime)' } as const;
+const RANGE = { width: '100%', minHeight: 44, accentColor: 'var(--accent)' } as const;
 function Range({ label, value, min, max, step, shown, onChange }: {
   label: string; value: number; min: number; max: number; step: number; shown: string; onChange: (v: number) => void;
 }) {

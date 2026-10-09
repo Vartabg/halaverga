@@ -4,7 +4,7 @@ import { START } from '../src/game/motion';
 import { runtime, unlockExpected } from '../src/game/runtime';
 import { hydrateGame, saveControlFields, useGame, type ControlFields } from '../src/game/store';
 import { applyControlsQuery } from '../src/ui/controls/controlsQuery';
-import { currentControlId, selectControl } from '../src/ui/controls/selectControl';
+import { currentControlId, selectControl, takeHeldName } from '../src/ui/controls/selectControl';
 
 const STORAGE = 'halaverga-flight-v1', saved: Record<string, string> = {};
 const FIELDS = ['controlLab', 'touchScheme', 'trackpadSteering', 'desktopMode'] as const;
@@ -118,6 +118,21 @@ describe('selectControl', () => {
     expect(runtime.keys.has('KeyA')).toBe(true); expect(notified).toBe(0);
     expect(saved[STORAGE]).toBeUndefined();
     off(); runtime.keys.clear();
+  });
+  it('holds the name of a control picked while paused, once, for the hint slot: Resume empties the message and the slot is not on screen', () => {
+    takeHeldName();
+    useGame.setState({ paused: true });
+    selectControl('flow', { family: 'desktop' }); selectControl('captured', { family: 'desktop' });
+    expect(useGame.getState().message).toBe('Captured controls');
+    useGame.setState({ paused: false, message: '' }); // what resume() does to the message
+    expect(takeHeldName()).toBe('Captured controls'); // the last pick, not the first
+    expect(takeHeldName()).toBe(''); // taken once
+    // A pick made while playing holds nothing, and clears a name nobody took.
+    useGame.setState({ paused: true });
+    selectControl('mouse-keys', { family: 'desktop' });
+    useGame.setState({ paused: false });
+    selectControl('cursor', { family: 'desktop' });
+    expect(takeHeldName()).toBe('');
   });
   it('opens the own-release window before exitPointerLock, and only when a lock is held', () => {
     const order: string[] = [];

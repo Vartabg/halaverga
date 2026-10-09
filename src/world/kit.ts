@@ -4,15 +4,16 @@ export type Triple = [number, number, number];
 /** `building` marks a core's exterior volume; `frame` is bare ruin steel, which the chase camera's boom looks through (City.tsx). */
 export type Solid = { position: Triple; size: Triple; rotation: Triple; kind?: 'building' | 'frame' };
 export type Kit = ReturnType<typeof createKit>;
-export const surfaces = ['stone', 'glass', 'metal', 'ground', 'paint', 'calm'] as const;
+export const surfaces = ['stone', 'glass', 'metal', 'ground', 'paint', 'calm', 'asphalt'] as const;
 /** The calm group (index into `surfaces`): the stone texture with its marbling halved, for big plain concrete faces, so the district-edge
  * hills and the terrace parapets read as weathered concrete and not as slabs of marble. */
 export const CALM_GROUP = 5;
 export function surface(color: string) {
+  if (color === colors.road) return 6;
   if (color === colors.glass || color === '#2d3742') return 1;
   if ([colors.steel, colors.edge, '#44434d', '#272e37'].includes(color)) return 2;
   if ([colors.road, '#6c7a6b'].includes(color)) return 3;
-  if ([colors.white, '#6f5d4b', '#b8e8b0'].includes(color)) return 4;
+  if ([colors.white, '#6f5d4b', '#ddaa76', '#b8e8b0'].includes(color)) return 4;
   return 0;
 }
 export function createKit() {
@@ -79,9 +80,18 @@ export function createKit() {
   return { box, hill, block, slab, add, finish, solids };
 }
 /** Ash-dulled concrete, faded markings, dirty glass and rusted steel (the 2026-10-06 ruins). */
-export const colors = { concrete: '#a8a598', edge: '#33302c', glass: '#3c4542', warm: '#8f6a58',
-  light: '#a99a86', moss: '#4f4b40', road: '#85857c', white: '#a39d88', steel: '#4a4038' };
-/** A burned-out car: a rusted body, the cabin a black hollow, sitting on its rims. */
+export const colors = { concrete: '#c8c8b6', edge: '#3b4141', glass: '#709698', warm: '#c3836b',
+  light: '#e0c1a0', moss: '#426456', road: '#626666', white: '#d3ccae', steel: '#494a42' };
+export function building(k: Kit, x: number, base: number, z: number, w: number, d: number, floors: number, _tint: string, _seed: number) {
+  const h = floors * 3.7;
+  // Exterior-only traversal: solid lower shell and a stepped cap matching the broken roof.
+  // Empty stories remain visible, but are not traversable interiors in this milestone.
+  const shoulder = (floors - 3) * 3.7 + .14;
+  k.block(x, base + shoulder / 2, z, w + .6, shoulder, d + .6);
+  k.block(x - w * .15, base + (shoulder + h + .14) / 2, z, w * .7, h + .14 - shoulder, d + .6);
+  // Blender owns the visible architecture and rubble. The obsolete procedural slab/debris boxes
+  // formed low-flight wedges against these envelopes, so they are not drawn or collided twice.
+}
 export function car(k: Kit, x: number, y: number, z: number, color: string, ry = 0) {
   k.box(x, y + .45, z, 1.9, .6, 4.3, color, true, ry);
   k.box(x, y + .93, z - .2, 1.65, .45, 2, '#1d1b19', false, ry);

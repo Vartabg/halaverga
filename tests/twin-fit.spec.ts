@@ -15,10 +15,10 @@ async function inside(page: Page, name: string, primary: string) {
 const SIZES = [{ width: 852, height: 350 }, { width: 844, height: 340 }, { width: 667, height: 320 }, { width: 568, height: 262 }, { width: 393, height: 659 }];
 for (const viewport of SIZES) for (const size of [1, 1.2]) test(`${viewport.width}x${viewport.height} at size ${size}: every control inside the bands`, async ({ browser }) => {
   const t = await twinTouchPage(browser, viewport, size === 1 ? undefined : { controlSize: size }), { page } = t;
-  const header = (await page.locator('main header').boundingBox())!, v = t.view;
+  const v = t.view; // every control starts under the touch band (the old header height: the 44 px row did not move the bands)
   expect(t.boxes.length).toBeGreaterThanOrEqual(3);
   for (const b of t.boxes) {
-    expect(b.y).toBeGreaterThanOrEqual(header.y + header.height);
+    expect(b.y).toBeGreaterThanOrEqual(t.bands.t - 8);
     expect(b.x).toBeGreaterThanOrEqual(t.bands.l - .5); expect(b.x + b.width).toBeLessThanOrEqual(t.bands.r + .5);
     expect(b.y + b.height).toBeLessThanOrEqual(t.bands.b + .5);
     expect(b.x + b.width).toBeLessThanOrEqual(v.w); expect(b.y + b.height).toBeLessThanOrEqual(v.h);
@@ -32,9 +32,15 @@ for (const viewport of [{ width: 667, height: 320 }, { width: 852, height: 340 }
   await page.getByRole('button', { name: 'Pause expedition' }).tap();
   await expect(page.getByText('Tip: Share › Add to Home Screen for full screen.')).toBeVisible();
   await inside(page, 'Expedition paused', 'Resume flight');
-  const got = page.getByRole('button', { name: 'Got it' }), gb = (await got.boundingBox())!;
-  expect(gb.height).toBeGreaterThanOrEqual(44);
+  // The tip is one muted line now (no Got it button): the two rows under Resume are the 44 px targets, side by side.
+  for (const name of ['Field guide', 'Flight settings']) expect((await page.getByRole('region', { name: 'Expedition paused' }).getByRole('button', { name, exact: true }).boundingBox())!.height).toBeGreaterThanOrEqual(44);
   await axe(page);
+  await page.getByRole('button', { name: 'Resume flight' }).tap();
+  await expect(page.getByRole('button', { name: 'Pause expedition' })).toBeVisible();
+  // Resume counted the tip as seen: the next pause does not show it again.
+  await page.getByRole('button', { name: 'Pause expedition' }).tap();
+  await expect(page.getByRole('heading', { name: 'Take your time.' })).toBeVisible();
+  await expect(page.getByText('Tip: Share › Add to Home Screen for full screen.')).toHaveCount(0);
   await page.getByRole('button', { name: 'Resume flight' }).tap();
   await expect(page.getByRole('button', { name: 'Pause expedition' })).toBeVisible();
   await page.evaluate(() => history.back());

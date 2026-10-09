@@ -3,9 +3,9 @@ import styles from './Flow.module.css';
 
 export default function SimpleTrackpadHud() {
   const engaged = useGame(s => s.trackpadFlying), flying = useGame(s => s.flying), blaster = useGame(s => s.shooter), simpleDone = useGame(s => s.hintProgress.simple >= HINT_STEPS.simple);
-  const hinting = useGame(s => s.hintVisible);
+  const hinting = useGame(s => s.coach !== null);
   // With the blaster on the progressive controls hint teaches the controls one at a time, alone on screen (this panel steps
-  // aside while a hint shows); once the series is done the panel adds only a reminder.
+  // aside while a lesson is pending); once the series is done the panel adds only a reminder.
   if (blaster && hinting) return null;
   if (blaster) return <div className={styles.hud} data-testid="simple-trackpad-hud">
     <div className={styles.readout}><span>ONE FINGER + KEYS</span></div>

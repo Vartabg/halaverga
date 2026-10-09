@@ -61,7 +61,7 @@ export function resultsBody(r: VoteResults | null, status: ResultsStatus): strin
 /** The whole document: charset, viewport, robots, one inline stylesheet, the body. */
 export function resultsDocument(r: VoteResults | null, status: ResultsStatus): string {
   return '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">'
-    + '<meta name="robots" content="noindex, nofollow"><meta name="theme-color" content="#162b32"><title>Halaverga vote results</title>'
+    + '<meta name="robots" content="noindex, nofollow"><meta name="theme-color" content="#1c2023"><title>Halaverga vote results</title>'
     + '<link rel="icon" href="/icon.svg" type="image/svg+xml">'
     + `<style>${BASE_CSS}${RESULTS_CSS}</style></head><body>${resultsBody(r, status)}</body></html>`;
 }

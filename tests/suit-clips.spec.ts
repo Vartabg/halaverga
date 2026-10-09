@@ -1,11 +1,12 @@
 import { expect, test, type Page } from '@playwright/test';
+import { openSettings } from './lab-browser';
 // The authored flight clip on show, read from the telemetry label that samples the suit every 350 ms. Braking is not asserted here:
 // its label lasts about .3 s, shorter than the sample; unit tests and the review strips cover it.
 // Each settings change also returns to the arrival terrace and takes off again, so every segment starts from the same place
 // instead of flying on into the city, where collision handling would steer (bank) or stop (brake) the explorer.
 const settings = async (page: Page, change: () => Promise<void>) => {
   const telemetry = page.getByTestId('flight-telemetry');
-  await page.getByRole('button', { name: 'Flight settings' }).click(); await change();
+  await openSettings(page); await change();
   await page.getByRole('button', { name: 'Return to arrival terrace' }).click();
   // Closing the panel resumes only once the scene is ready; otherwise the pause screen offers Resume flight. Keys are ignored while paused.
   const playing = page.getByRole('button', { name: 'Pause expedition' }), resume = page.getByRole('button', { name: 'Resume flight' });
@@ -49,8 +50,9 @@ test('the suit plays its authored flight clips and hands back to the ground', as
   await settings(page, () => page.getByLabel('Reduced camera motion').check());
   await clip('cruise'); await level('ArrowLeft'); await level('ArrowRight');
   await page.keyboard.press('Shift'); await clip('power'); await page.keyboard.up('KeyW');
-  await page.getByRole('button', { name: 'Flight settings' }).click();
+  await openSettings(page);
   await page.getByRole('button', { name: 'Return to arrival terrace' }).click();
+  await page.getByRole('button', { name: 'Resume flight' }).click(); // the dialog closes onto the pause card; the reset lands on the first step after Resume
   await expect(telemetry).toHaveAttribute('data-flying', 'false'); await clip('ground');
   expect(errors).toEqual([]);
 });

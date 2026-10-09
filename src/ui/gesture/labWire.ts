@@ -69,4 +69,3 @@ export function countLabOut(id: LabScheme, o: Readonly<ArbiterOut>) {
   if (o.type === 'reject') count(labStats(), id, o.drone === REJECT_BOTTOM ? 'bottomRejects' : 'edgeRejects');
   else if (o.type === 'cancel') count(labStats(), id, 'pointerCancels');
 }
-

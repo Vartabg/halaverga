@@ -117,13 +117,13 @@ describe('the card sources', () => {
     expect(css).toMatch(/\.row\{[^}]*min-height:56px/);
     expect(css).toMatch(/\.link\{[^}]*min-height:44px/);
     expect(css).toMatch(/\.send\{[^}]*min-height:48px/);
-    expect(css).toMatch(/outline:3px solid var\(--lime\)/);
+    expect(css).toMatch(/outline:3px solid var\(--accent\)/);
     expect(css).toMatch(/prefers-reduced-motion:reduce/);
     expect(css).toMatch(/forced-colors:active/);
     expect(css).toMatch(/env\(safe-area-inset-bottom\)/);
     expect(css).toMatch(/\.foot\[data-ballot\]\{position:sticky;bottom:calc\(-1\*max\(12px,env\(safe-area-inset-bottom\)\)\)/); // V1, V2: Send, Not yet and the status line stay pinned in every orientation
     expect(css).not.toMatch(/@media\(max-height:500px\)[^@]*\.buttons\{position:sticky/); // and not only in short landscape
-    expect(css).toMatch(/forced-colors:active[^@]*\.row:has\(input:checked\):hover\{background:Highlight/); // V3: the hover lime never beats Highlight
+    expect(css).toMatch(/forced-colors:active[^@]*\.row:has\(input:checked\):hover\{background:Highlight/); // V3: the hover accent never beats Highlight
     expect(css).toMatch(/\.row svg \*\{animation:none!important\}/);
     expect(css).toMatch(/\.send\[aria-disabled=true\]/);
     expect(css).not.toMatch(/@keyframes|transition:(?!none)|noteBox|\.rating|\.scale|\.step/);

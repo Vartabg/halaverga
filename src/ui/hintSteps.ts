@@ -3,19 +3,21 @@
 // finished step never repeats. Imported only by ControlsHint and tests: never by the landing first load. Times are seconds.
 import { HINT_STEPS, type HintSeries } from '@/game/store';
 
-export type HintTrack = HintSeries | 'tap' | 'line' | 'classic' | 'none';
+export type HintTrack = HintSeries | 'tap' | 'line' | 'classic' | 'drag' | 'none';
 /** scheme: the touch scheme ('twin' or 'classic'); it only matters on a coarse pointer. */
 export type HintEnv = { shooter: boolean; coarse: boolean; tapControls: boolean; desktopMode: string; steering: string; scheme: string };
 /**
- * 'tap', 'line' and 'classic' are single 6 s lines once per page load; the series tracks are progressive and persisted.
+ * 'tap' and 'line' are single 6 s lines; 'classic' and 'drag' are the one-thumb line, which stays until the first takeoff (or the first
+ * touch on the flight surface) of the page load; the series tracks are progressive and persisted.
  * Touch twin sticks teach flight too, so the touch series also runs with the blaster off; desktop keeps its order and shows
- * nothing with the blaster off. Classic one thumb (the phone default) with the blaster off, and tap controls with it off, are main's own hints.
+ * nothing with the blaster off. Classic one thumb (the phone default) with the blaster off, or tap controls with it off, gets 'drag':
+ * the plain `Drag to fly` that the deleted 8 px bottom caption used to cover.
  * The free cursor (the desktop default again, Garo 2026-09-24) gets no hint: its trackpad pill states the whole mapping.
  * Captured and flow keep the 'Hold C to fire' line.
  */
 export function hintTrack(env: HintEnv): HintTrack {
-  if (env.tapControls) return env.shooter ? 'tap' : 'none';
-  if (env.coarse) return env.scheme === 'classic' ? env.shooter ? 'classic' : 'none' : 'touch';
+  if (env.tapControls) return env.shooter ? 'tap' : env.coarse && env.scheme === 'classic' ? 'drag' : 'none';
+  if (env.coarse) return env.scheme === 'classic' ? env.shooter ? 'classic' : 'drag' : 'touch';
   if (!env.shooter) return 'none';
   if (env.desktopMode === 'mouse') return 'mouse';
   if (env.steering === 'free') return 'none';
@@ -24,6 +26,7 @@ export function hintTrack(env: HintEnv): HintTrack {
 
 /** Every string is 30 characters or fewer, so each hint fits one line at 320 px. */
 export const HINT_TEXT = {
+  // Step 3 names the cluster's Rise button as it reads on the ground ("Lift off", TouchCluster); twin hides the Lift/Land button, not this one.
   touch: ['Left thumb: move', 'Right thumb: look', 'Tap Lift off to fly'] as [string, string, string],
   /** Touch step 3: blaster on with auto-fire, blaster on without it, blaster off. */
   touchAuto: 'Aim at drones · Fire to shoot',
@@ -34,6 +37,8 @@ export const HINT_TEXT = {
   tap: 'Tap pad: Fire and Aim toggle',
   line: 'Hold C to fire',
   classic: 'Drag to fly · tap a drone',
+  /** Classic one thumb with the blaster off, or tap controls: no drone to tap, so just the drag. */
+  drag: 'Drag to fly',
 };
 
 export type HintTextOptions = { autoFire: boolean; captured: boolean; shooter?: boolean };
@@ -44,7 +49,7 @@ export type HintTextOptions = { autoFire: boolean; captured: boolean; shooter?: 
  */
 export function hintText(track: HintTrack, step: number, o: HintTextOptions): string | null {
   if (track === 'none') return null;
-  if (track === 'tap' || track === 'line' || track === 'classic') return HINT_TEXT[track];
+  if (track === 'tap' || track === 'line' || track === 'classic' || track === 'drag') return HINT_TEXT[track];
   if (step >= HINT_STEPS[track]) return null;
   if (track === 'touch') {
     if (step < 3) return HINT_TEXT.touch[step];

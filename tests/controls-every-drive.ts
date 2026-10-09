@@ -181,7 +181,9 @@ async function desktopBrush({ page }: Drive) {
   await lift(page);
   const y0 = (await tel(page)).pos[1], o = await clearOfDrones(page, [{ x: 600, y: 600 }, { x: 800, y: 600 }, { x: 500, y: 650 }]);
   await page.mouse.move(o.x, o.y); await page.mouse.click(o.x, o.y);
-  for (let i = 1; i <= 12; i++) { await page.mouse.move(o.x, o.y - 25 * i); await page.waitForTimeout(16); }
+  // A swipe is over by 400 ms (SWIPE_MAX_MS); each CDP move waits for a frame (about 17 ms), so a 16 ms pause on top of it made the sweep take
+  // about 400 ms and a slow frame turned it into a 30% nudge (4.1 m instead of 9.5 m, about 1 run in 20, also on the build before the cleanup).
+  for (let i = 1; i <= 12; i++) await page.mouse.move(o.x, o.y - 25 * i);
   let peak = -Infinity; const end = Date.now() + 2500;
   while (Date.now() < end) { peak = Math.max(peak, (await tel(page)).pos[1] - y0); await page.waitForTimeout(100); }
   expect(peak).toBeGreaterThanOrEqual(5);

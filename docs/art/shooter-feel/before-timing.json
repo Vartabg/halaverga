@@ -1,0 +1,34 @@
+{
+  "1440x1000": {
+    "acquired": true,
+    "shotMs": 32.200000047683716,
+    "hitsAtDamaged": 4,
+    "hpAtDamaged": null,
+    "killsAtDamaged": 0,
+    "damagedMs": 351.30000001192093,
+    "killed": true,
+    "burstMs": 174.70000004768372,
+    "afterMs": 696.2000000476837,
+    "impactMs": 150.39999997615814,
+    "peak": {
+      "calls": 51,
+      "tris": 387884
+    }
+  },
+  "844x390": {
+    "acquired": true,
+    "shotMs": 31.700000047683716,
+    "hitsAtDamaged": 4,
+    "hpAtDamaged": null,
+    "killsAtDamaged": 0,
+    "damagedMs": 350.5,
+    "killed": true,
+    "burstMs": 174.39999997615814,
+    "afterMs": 694.8999999761581,
+    "impactMs": 150.80000001192093,
+    "peak": {
+      "calls": 50,
+      "tris": 387886
+    }
+  }
+}

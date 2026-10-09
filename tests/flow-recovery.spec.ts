@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { openSettings } from './lab-browser';
 import AxeBuilder from '@axe-core/playwright';
 import { beginFlow, hud, selected, speed, wheel } from './flow-browser';
 for (const interruption of ['Escape', 'blur', 'zoom', 'gesturestart', 'resize', 'lockloss']) test(`Flow neutralizes ${interruption} and never recaptures automatically`, async ({ page }) => {
@@ -101,7 +102,7 @@ test('Flow introduction calibrates, persists sensitivity, starts guided practice
   await expect(hud(page)).toContainText('That’s Flow');
   await page.keyboard.press('Escape'); await page.reload(); await page.getByRole('button', { name: 'Begin expedition' }).click();
   await expect(page.getByRole('dialog')).not.toBeVisible();
-  await page.getByRole('button', { name: 'Flight settings' }).click();
+  await openSettings(page);
   await expect(page.getByRole('slider', { name: 'Looking sensitivity', exact: false })).toHaveValue('1.4');
   await expect(page.getByLabel('Reverse scroll direction')).toBeChecked();
 });

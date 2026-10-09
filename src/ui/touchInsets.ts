@@ -17,10 +17,14 @@ export function readInsets(probe: HTMLElement | null): Insets {
   const s = getComputedStyle(probe);
   return { top: px(s.paddingTop), right: px(s.paddingRight), bottom: px(s.paddingBottom), left: px(s.paddingLeft) };
 }
-/** Where touches may start below the header: its bottom edge in box coordinates plus 8 px; a safe fallback without it. */
+/**
+ * Where touches may start under the top of the screen: the band's bottom edge in box coordinates plus 8 px; a safe fallback without it.
+ * The band is the invisible [data-band] element (Experience), which holds the pre-cleanup header height (--band in Experience.module.css),
+ * so the cleanup's shorter top row moves no twin or Gesture Lab band.
+ */
 export function headerBand(box: { y: number }, insetTop: number): number {
-  const header = typeof document === 'undefined' ? null : document.querySelector('main header');
-  const r = header?.getBoundingClientRect();
+  const band = typeof document === 'undefined' ? null : document.querySelector('main [data-band]');
+  const r = band?.getBoundingClientRect();
   if (r && r.height > 0) return Math.max(0, r.bottom - box.y) + 8;
   return Math.max(44, insetTop + 44) + 8;
 }

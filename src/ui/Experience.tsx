@@ -1,26 +1,29 @@
 'use client';
 import dynamic from 'next/dynamic';
 import { useCallback, useEffect, useRef, useState, type ComponentType, type ReactNode } from 'react';
-import { HINT_STEPS, hydrateGame, overrideShooter, persistGame, useGame } from '@/game/store';
+import { hydrateGame, overrideShooter, useGame } from '@/game/store';
 import { runtime } from '@/game/runtime';
 import { clearShooterFault, shooterFault } from '@/game/shooterFault';
 import { pause, resume, useInput } from './useInput';
 import { useShooterInput } from './useShooterInput';
 import { usePlayGuard } from './usePlayGuard';
 import { onPlayGesture } from './playSession';
+import { useFieldGuide } from './useFieldGuide';
 import { touchMode } from '@/game/pointerMode';
 import { unlockBlasterAudio } from './audioUnlock';
 import { useAudio } from './useAudio';
 import { trackpadPill } from './trackpadPill';
+import { coarsePointer } from './hintQueue';
 import { labFault } from './labSwitch';
+import { secondFingerTap } from './secondFingerTap';
 import Boundary from './Boundary';
 import TapControls from './TapControls';
-import FieldGuide from './FieldGuide';
 import Telemetry from './Telemetry';
-import FlowHud from './FlowHud';
+import HintSlot, { useMessageClock } from './HintSlot';
 import FlowWelcome from './FlowWelcome';
-import SimpleTrackpadHud from './SimpleTrackpadHud';
 import PauseCard from './PauseCard';
+import SheetLost from './SheetLost';
+import Landing, { Brand } from './Landing';
 import styles from './Experience.module.css';
 const Scene = dynamic(() => import('@/world/Scene'), { ssr: false });
 // The blaster HUD is its own chunk: the landing page's first load carries no shooter UI. It is warmed once the setting is on.
@@ -32,8 +35,13 @@ const ShooterHud = dynamic(loadHud, { ssr: false, loading: Reticle });
 // there on the very frame Begin starts play and the first click or touch never lands on nothing. No static import of
 // './TouchControls' anywhere on the landing path.
 const loadTouch = () => import('./TouchControls');
-// Blaster off, twin touch: the flight lessons still run (ShooterHud mounts them when the blaster is on). Its own small chunk.
-const ControlsHint = dynamic(() => import('./ControlsHint'), { ssr: false, loading: () => null });
+// The controls lessons (one mount, standard controls only: they publish their line to the one hint slot). Its own small chunk, warmed after hydration.
+const loadHint = () => import('./ControlsHint');
+const ControlsHint = dynamic(loadHint, { ssr: false, loading: () => null });
+// The Flow and Simple trackpad panels are passive and belong to non-default profiles (the free cursor is the desktop default): their own
+// chunks, fetched only when that profile is on after Begin. A chunk that fails to load leaves the panel out; the controls themselves are not in it.
+const FlowHud = dynamic(() => import('./FlowHud'), { ssr: false, loading: () => null });
+const SimpleTrackpadHud = dynamic(() => import('./SimpleTrackpadHud'), { ssr: false, loading: () => null });
 // Flight settings open only after Begin, so they are a chunk warmed then: settings copy never grows the landing first load.
 const loadPanel = () => import('./TestPanel');
 // The Gesture Lab (Draw, Conduct, Brush) replaces the standard controls only while chosen. Its surface is held in state like the
@@ -56,7 +64,7 @@ export default function Experience() {
   const [TouchControls, setTouchControls] = useState<ComponentType | null>(null);
   const [LabControls, setLabControls] = useState<ComponentType<LabProps> | null>(null);
   const lab = state.controlLab;
-  const main = useRef<HTMLElement>(null);
+  const main = useRef<HTMLElement>(null), guide = useFieldGuide(hydrated);
   useEffect(() => {
     let cancelled = false;
     hydrateGame();
@@ -75,6 +83,7 @@ export default function Experience() {
   }, [hydrated]);
   // Warm the blaster HUD chunk after hydration so the first aim never waits on it; with the blaster off nothing is requested.
   useEffect(() => { if (hydrated && state.shooter) void loadHud().catch(() => {}); }, [hydrated, state.shooter]);
+  useEffect(() => { if (hydrated) void loadHint().catch(() => {}); }, [hydrated]);
   useEffect(() => { if (state.started) void loadPanel().catch(() => {}); }, [state.started]);
   useEffect(() => {
     if (hydrated && lab !== 'standard' && !LabControls) void loadLab().then(m => setLabControls(() => m.default)).catch(() => labFault(LAB_LOAD_FAILED));
@@ -93,13 +102,7 @@ export default function Experience() {
     if (touchBlast) html.dataset.touchBlast = ''; else delete html.dataset.touchBlast;
     return () => { delete html.dataset.touchBlast; };
   }, [touchBlast]);
-  // html dataset.labBar: while the header bar shows, the bands under the header move down by --lab-row (Experience.module.css).
   const bar = state.started && !failed;
-  useEffect(() => {
-    const html = document.documentElement;
-    if (bar) html.dataset.labBar = ''; else delete html.dataset.labBar;
-    return () => { delete html.dataset.labBar; };
-  }, [bar]);
   useInput(); useAudio(); useShooterInput({ unlock: unlockBlasterAudio }); usePlayGuard();
   const failure = useCallback(() => { setFailed(true); pause(); }, []);
   // Begin/Resume is an activation gesture: it unlocks blaster audio (a no-op while the blaster is off or muted), and it refuses to
@@ -108,28 +111,21 @@ export default function Experience() {
     if (!onPlayGesture()) { useGame.setState({ zoomNote: true }); return; }
     useGame.setState({ zoomNote: false }); unlockBlasterAudio(); resume(); main.current?.focus();
   };
-  const closePanel = () => { state.set({ panel: false }); if (state.started && state.ready && !failed) enter(); };
-  const closeGuide = () => { state.set({ journal: false }); if (state.started && state.ready && !failed) enter(); };
+  // Closing Flight settings or the Field guide returns to the pause card: Resume is always the player's own tap.
+  const closePanel = () => state.set({ panel: false }), closeGuide = () => state.set({ journal: false });
   // A rejected suit-asset load stays cached under its URL, so a bare remount would rethrow the same failure. The
   // clear is imported here rather than at module scope to keep three.js out of the landing page's first load.
   const retry = async () => {
     pause();
-    const [{ useLoader }, { GLTFLoader }, { SUIT_URL }] = await Promise.all([
-      import('@react-three/fiber'), import('three/addons/loaders/GLTFLoader.js'), import('@/world/Suit')]);
-    useLoader.clear(GLTFLoader, SUIT_URL);
+    const [{ useLoader }, { GLTFLoader }, { SUIT_URL }, { DISTRICT_URL }] = await Promise.all([
+      import('@react-three/fiber'), import('three/addons/loaders/GLTFLoader.js'), import('@/world/Suit'), import('@/world/districtAsset')]);
+    useLoader.clear(GLTFLoader, SUIT_URL); useLoader.clear(GLTFLoader, DISTRICT_URL);
     setFailed(false); setSceneKey(v => v + 1); state.set({ ready: false, flying: false, landing: false });
   };
-  const fallback = <div className={styles.recovery} role="alert"><h2>The world needs a moment.</h2><p>Your field guide remains available. Reload the scene to continue from your saved landing.</p><button className={styles.primary} onClick={retry}>Reload scene</button></div>;
   const standard = lab === 'standard', playing = state.started && !state.paused, twin = state.touchScheme === 'twin';
   const ready = state.ready && touchReady && (standard || !!LabControls);
-  const seriesOpen = twin && !state.tapControls && state.hintProgress.touch < HINT_STEPS.touch;
-  const reticle = <Reticle />;
   const pill = standard && trackpadPill({ steering: state.trackpadSteering, shooter: state.shooter, cruising: state.trackpadFlying, flying: state.flying, canLand: state.canLand });
-  const flightHint = state.message || (state.flying && state.canLand ? 'SURFACE IN REACH · LAND' : state.limitCue && state.limitCue !== 'solid' ? state.limitHint : state.flying && state.descendBlocked ? 'NO LANDING BELOW · MOVE TO OPEN GROUND' : state.limitHint);
-  useEffect(() => {
-    if (!state.message) return;
-    const id = setTimeout(() => useGame.setState({ message: '' }), 4000); return () => clearTimeout(id);
-  }, [state.message]);
+  useMessageClock();
   return <>
     <a className="skip" href="#field-guide" onClick={() => { pause(); state.set({ journal: true }); }}>Skip to text field guide</a>
     <main id="expedition" ref={main} className={styles.experience} tabIndex={-1} aria-label="Halaverga expedition"
@@ -138,25 +134,22 @@ export default function Experience() {
         {hydrated && !failed && <Boundary key={sceneKey} fallback={null} onError={failure}><Scene onLoss={failure} /></Boundary>}
       </div>
       <div className={`${styles.vignette} ${!state.started ? styles.introVignette : ''}`} aria-hidden="true" />
-      <header className={styles.header} data-bar={bar ? '' : undefined}>
-        <div className={styles.brand}><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M5 26V6h5v8h12V6h5v20h-5v-8H10v8Z" fill="currentColor" /></svg><span>HALAVERGA<small>RETURN TO EARTH</small></span></div>
-        {bar && <div className={styles.barSlot}><Optional><ControlsEntry part="trigger" /></Optional></div>}
+      <header className={styles.header} data-play={bar ? '' : undefined}>
+        {!bar && <Brand />}
+        {/* The top row: while playing, Vote (when it shows), Controls, Pause; the Field guide and Flight settings are on the pause card. */}
         <div className={styles.headerActions}>
-          <button id="field-guide" onClick={() => { pause(); state.set({ journal: true }); }}>Field guide</button>
-          {state.started && <button onClick={() => { pause(); state.set({ panel: true }); }} aria-label="Flight settings">⚙</button>}
-          {playing && <button onClick={pause} aria-label="Pause expedition">Ⅱ</button>}
+          {bar ? <>
+            <Optional><ControlsEntry part="trigger" /></Optional>
+            {playing && <button className={styles.pause} onClick={pause} onPointerUp={secondFingerTap(pause)} aria-label="Pause expedition"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4h4v16H7zM13 4h4v16h-4z" fill="currentColor" /></svg></button>}
+          </> : <button id="field-guide" onClick={() => { pause(); state.set({ journal: true }); }}>Field guide</button>}
         </div>
       </header>
-      <h1 className={state.started || failed ? 'sr-only' : styles.heroTitle}>Earth,<br /><em>after us.</em></h1>
-      {failed && fallback}
-      {!state.started && !failed && <section className={styles.intro} aria-label="Begin expedition">
-        <p className={styles.eyebrow}><span className={styles.statusDot} /> EXPEDITION 001 <span>/</span> MERIDIAN</p>
-        <p className={styles.introCopy}>Eighty years of silence.<br />An entire world still waiting to be understood.</p>
-        <button className={styles.primary} disabled={!ready} onClick={enter}>{ready ? 'Begin expedition' : 'Preparing your suit…'}<span aria-hidden="true">↗</span></button>
-        <p className={styles.introHint} role="status">{state.zoomNote ? 'Pinch out to normal size, then tap Begin.' : ready ? 'Explore freely. Leave whenever you like.' : 'Building the district and collision map.'}</p>
-        <Optional><ControlsEntry part="note" /></Optional>
-      </section>}
-      {!state.started && <footer className={styles.introFooter}><span>2033 <small>CATASTROPHE</small><b>—</b> 2113 <small>ARRIVAL</small></span><span>INTERACTIVE FLIGHT STUDY <i>01</i></span></footer>}
+      {/* The skip link's target while the row has no Field guide button; the Controls sheet is the header's sibling (it needs no pass-through
+          of its own); data-band is the invisible marker touchInsets.headerBand measures (the pre-cleanup band, see --band). */}
+      {bar && <><span id="field-guide" className="sr-only" tabIndex={-1} /><Boundary fallback={<SheetLost />} onError={skip}><ControlsEntry part="sheet" /></Boundary></>}
+      {state.started && <div className={styles.bandProbe} data-band="" aria-hidden="true" />}
+      {/* The title, the start card (with the first-visit demo note) and the footer, or the failed world's card (Landing.tsx). */}
+      <Landing started={state.started} failed={failed} ready={ready} zoomNote={state.zoomNote} note={guide.note} onEnter={enter} onRetry={retry}><Optional><ControlsEntry part="note" /></Optional></Landing>
       {state.started && <>
         {/* A fresh mount per pause state, as on main: the desktop trackpad hooks keep per-session refs (capture, strokes) that
             must reset on resume. inputEpoch moves only in desktop mode; touch controls re-anchor themselves on rotation. */}
@@ -164,9 +157,10 @@ export default function Experience() {
           : playing && LabControls && <LabControls key={`${lab}-${state.inputEpoch}`} scheme={lab as LabProps['scheme']} onError={() => labFault(LAB_FAILED)} />}
         {playing && <>
           {state.tapControls && <TapControls key={state.inputEpoch} />}
-          {state.shooter ? <Boundary fallback={reticle} onError={() => shooterFault('hud', null)}><ShooterHud /></Boundary> : reticle}
-          {!state.shooter && standard && twin && touchMode() && <Boundary fallback={null} onError={() => {}}><ControlsHint coarse /></Boundary>}
-          {flightHint && <p className={styles.flightHint} data-shooter={String(state.shooter)}>{flightHint}</p>}
+          {state.shooter ? <Boundary fallback={<Reticle />} onError={() => shooterFault('hud', null)}><ShooterHud /></Boundary> : <Reticle />}
+          {/* The controls lessons and the one hint slot under the top row: one line at a time (hintQueue.pickHint). */}
+          {standard && <Optional><ControlsHint coarse={coarsePointer()} /></Optional>}
+          <HintSlot />
           <Telemetry />
           {/* Twin touch: the cluster's Rise/Descend replace Lift/Land, so CSS hides this under html[data-input=touch]. */}
           {/* In a lab scheme Lift/Land is always shown (data-twin false): the lab has no Rise/Descend. */}
@@ -174,21 +168,17 @@ export default function Experience() {
             {/* A mouse click activates Lift/Land without focusing it, so the next Space still reaches flight (Tab + Space works). */}
             <button className={styles.action} onMouseDown={e => { if (!touchMode()) e.preventDefault(); }} onClick={() => { runtime.lift = true; }}><span aria-hidden="true">{state.flying ? '↓' : '↑'}</span>{state.landing ? 'Cancel landing' : state.flying ? 'Land' : 'Lift'}</button>
           </div>
-          {state.nearTerminal && <button className={styles.discovery} onClick={() => { pause(); state.set({ discovered: true, journal: true }); persistGame(); }}>◇ Municipal record <span>Read ↗</span></button>}
-          {/* One instruction at a time: the drag hint waits for any controls hint and for an unfinished twin touch series; blaster-on
-              tap players never get drag advice. */}
-          {standard && !state.flying && !state.hintVisible && !seriesOpen && !(state.shooter && state.tapControls) && <div className={styles.touchHint} aria-hidden="true">{twin ? 'LEFT THUMB MOVES · RIGHT THUMB LOOKS' : 'ONE THUMB TO FLY · TWO TO MOVE + LOOK'}</div>}
-          {standard && state.desktopMode === 'trackpad' && state.trackpadSteering === 'flow' && <FlowHud />}
-          {standard && state.desktopMode === 'trackpad' && state.trackpadSteering === 'simple' && <SimpleTrackpadHud />}
-          {/* One message at a time: a limit cue owns the pill while it shows. */}
-          {state.desktopMode === 'trackpad' && pill && !state.limitHint && <div className={styles.trackpadHint}>{pill}</div>}
+          {standard && state.desktopMode === 'trackpad' && state.trackpadSteering === 'flow' && <Optional><FlowHud /></Optional>}
+          {standard && state.desktopMode === 'trackpad' && state.trackpadSteering === 'simple' && <Optional><SimpleTrackpadHud /></Optional>}
+          {/* The desktop legend: a control caption, not advice, so it stays at the bottom and steps aside for a limit cue. */}
+          {state.desktopMode === 'trackpad' && pill && !state.limitHint && <div className={styles.legend} data-testid="legend">{pill}</div>}
         </>}
-        {state.paused && !state.panel && !state.journal && !failed && !state.voteOpen && <PauseCard ready={ready} onEnter={enter} />}
+        {state.paused && !state.panel && !guide.Guide && !failed && !state.voteOpen && !state.controlsOpen && <PauseCard ready={ready} onEnter={enter} note={guide.note} />}
         {!failed && <Optional><VoteLayer onResume={enter} /></Optional>}
       </>}
       <div className="sr-only" aria-live="polite">{state.message}</div>
-      {state.journal && <FieldGuide onClose={closeGuide} />}
-      {state.panel && <TestPanel onClose={closePanel} />}
+      {guide.Guide && <Boundary fallback={null} onError={guide.fail}><guide.Guide onClose={closeGuide} /></Boundary>}
+      {state.panel && <TestPanel onClose={closePanel} onResume={() => { closePanel(); enter(); }} ready={ready} />}
       {state.started && !failed && standard && state.desktopMode === 'trackpad' && state.trackpadSteering === 'flow' && !state.flowIntroSeen && !state.panel && !state.journal && <FlowWelcome />}
     </main>
   </>;

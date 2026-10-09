@@ -1,13 +1,14 @@
 // Shot resolution against Rapier (scene chunk only). One reusable Ray; results use module scratch vectors.
 import type RAPIER from '@dimforge/rapier3d-compat';
-import { ONLY_FIXED, SHOT_GROUPS, SHOT_RANGE, type DroneTarget, type Vec3 } from './combat';
+import { FRAME_GROUPS, ONLY_FIXED, SHOT_GROUPS, SHOT_RANGE, SURFACE, type DroneTarget, type Vec3 } from './combat';
 import { hitDrones, projectedStart, rayWater, type DroneHit } from './shotMath';
-export type WorldHit = { t: number; normal: Vec3 };
+/** surface: SURFACE.steel when the collider is bare ruin steel (its groups are FRAME_GROUPS), else concrete. */
+export type WorldHit = { t: number; normal: Vec3; surface: number };
 export type ShooterWorld = {
   castShot(o: Vec3, d: Vec3, maxT: number, out: WorldHit): boolean;
   lineClear(a: Vec3, b: Vec3): boolean;
 };
-export type ShotHit = { kind: 'miss' | 'world' | 'water' | 'hit' | 'weak' | 'blocked'; t: number; drone: number; point: Vec3; normal: Vec3 };
+export type ShotHit = { kind: 'miss' | 'world' | 'water' | 'hit' | 'weak' | 'blocked'; t: number; drone: number; point: Vec3; normal: Vec3; surface: number };
 
 /** Shots and line-of-sight rays see fixed colliders in group 0 only: the player capsule and district boundary are skipped. */
 export function createShooterWorld(world: RAPIER.World, rapier: typeof RAPIER): ShooterWorld {
@@ -21,6 +22,7 @@ export function createShooterWorld(world: RAPIER.World, rapier: typeof RAPIER): 
       const hit = world.castRayAndGetNormal(ray, maxT, true, ONLY_FIXED, SHOT_GROUPS);
       if (!hit) return false;
       out.t = hit.timeOfImpact; out.normal.x = hit.normal.x; out.normal.y = hit.normal.y; out.normal.z = hit.normal.z;
+      out.surface = hit.collider.collisionGroups() === FRAME_GROUPS ? SURFACE.steel : SURFACE.concrete;
       return true;
     },
     lineClear(a, b) {
@@ -33,7 +35,7 @@ export function createShooterWorld(world: RAPIER.World, rapier: typeof RAPIER): 
 }
 
 const start: Vec3 = { x: 0, y: 0, z: 0 }, dir: Vec3 = { x: 0, y: 0, z: 0 };
-const env: WorldHit = { t: 0, normal: { x: 0, y: 1, z: 0 } }, muzzleHit: WorldHit = { t: 0, normal: { x: 0, y: 1, z: 0 } };
+const env: WorldHit = { t: 0, normal: { x: 0, y: 1, z: 0 }, surface: 0 }, muzzleHit: WorldHit = { t: 0, normal: { x: 0, y: 1, z: 0 }, surface: 0 };
 const drone: DroneHit = { index: -1, t: 0, weak: false };
 const set = (v: Vec3, x: number, y: number, z: number) => { v.x = x; v.y = y; v.z = z; };
 const along = (out: Vec3, o: Vec3, d: Vec3, t: number) => set(out, o.x + d.x * t, o.y + d.y * t, o.z + d.z * t);
@@ -48,7 +50,7 @@ export function resolveShot(w: ShooterWorld, o: Vec3, d: Vec3, head: Vec3, muzzl
   const s = projectedStart(o, d, head, start);
   const worldT = w.castShot(s, d, SHOT_RANGE, env) ? env.t : Infinity, waterT = rayWater(s, d);
   const envT = Math.min(worldT, waterT, SHOT_RANGE);
-  out.drone = -1;
+  out.drone = -1; out.surface = SURFACE.concrete;
   if (hitDrones(s, d, targets, count, envT, drone)) {
     const c = targets[drone.index].c;
     out.kind = drone.weak ? 'weak' : 'hit'; out.t = drone.t; out.drone = drone.index; along(out.point, s, d, drone.t);
@@ -60,7 +62,7 @@ export function resolveShot(w: ShooterWorld, o: Vec3, d: Vec3, head: Vec3, muzzl
     out.kind = 'hit'; out.t = Math.max(0, l - g.r); out.drone = magnet;
     set(out.normal, -x / l, -y / l, -z / l); along(out.point, g.c, out.normal, g.r);
   } else if (worldT <= waterT && worldT < Infinity) {
-    out.kind = 'world'; out.t = worldT; along(out.point, s, d, worldT); set(out.normal, env.normal.x, env.normal.y, env.normal.z);
+    out.kind = 'world'; out.t = worldT; along(out.point, s, d, worldT); set(out.normal, env.normal.x, env.normal.y, env.normal.z); out.surface = env.surface;
   } else if (waterT <= SHOT_RANGE) {
     out.kind = 'water'; out.t = waterT; along(out.point, s, d, waterT); set(out.normal, 0, 1, 0);
   } else {
@@ -71,7 +73,7 @@ export function resolveShot(w: ShooterWorld, o: Vec3, d: Vec3, head: Vec3, muzzl
   if (!(l > .15)) return out;
   set(dir, x / l, y / l, z / l);
   if (w.castShot(muzzle, dir, l, muzzleHit) && muzzleHit.t < l - .15) {
-    out.kind = 'blocked'; out.t = muzzleHit.t; out.drone = -1; along(out.point, muzzle, dir, muzzleHit.t);
+    out.kind = 'blocked'; out.t = muzzleHit.t; out.drone = -1; along(out.point, muzzle, dir, muzzleHit.t); out.surface = muzzleHit.surface;
     set(out.normal, muzzleHit.normal.x, muzzleHit.normal.y, muzzleHit.normal.z);
   }
   return out;

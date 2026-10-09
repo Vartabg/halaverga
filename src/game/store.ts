@@ -20,6 +20,8 @@ export type ControlLab = 'standard' | 'draw' | 'conduct' | 'brush';
 export const CONTROL_LABS: readonly ControlLab[] = ['standard', 'draw', 'conduct', 'brush'];
 export const isControlLab = (v: unknown): v is ControlLab => typeof v === 'string' && (CONTROL_LABS as readonly string[]).includes(v);
 export type HintProgress = Record<HintSeries, number>;
+/** A controls lesson for the hint slot: its text, the track that teaches it and the step it is on (data-track and data-step in the slot). */
+export interface Coach { text: string; track: string; step: number }
 /** Steps per progressive hint series; progress === HINT_STEPS[series] means done. */
 export const HINT_STEPS: Readonly<HintProgress> = { touch: 4, simple: 4, mouse: 4 };
 /** Each field: finite → floored and clamped to [0, HINT_STEPS[k]]; otherwise 0. A non-object → all 0. */
@@ -46,11 +48,14 @@ type GameState = {
   /** Runtime only: a landable surface is within reach below (Descend reads Land), the Leave card, the pinch-zoom note, and a held
    *  Descend that the clearance assist stopped with no landable spot near (Descend reads "No landing"). */
   nearGround: boolean; leavePrompt: boolean; zoomNote: boolean; descendBlocked: boolean;
-  /** Runtime only (never saved): a controls hint is on screen, so other notices wait (one message at a time). */
-  hintVisible: boolean;
+  /** Runtime only (never saved): the controls lesson ControlsHint has published for the one hint slot, or null. A sound notice and the
+   *  one-finger panel wait while one is pending (one message at a time); the slot decides whether it is on screen (src/ui/hintQueue.ts). */
+  coach: Coach | null;
   /** Runtime only (never saved): the vote card is open (the lab keys and auto-open wait); voteNudge: eligible to vote, so the
    *  pause card leads with the vote (VoteLayer sets it; players who never land never see the auto-open). */
   voteOpen: boolean; voteNudge: boolean;
+  /** Runtime only (never saved): the Controls sheet is open. */
+  controlsOpen: boolean;
   flying: boolean; landing: boolean; canLand: boolean; nearTerminal: boolean; limitCue: LimitCue; limitHint: string; clearanceActive: boolean; inputEpoch: number;
   checkpoint: Vec; discovered: boolean; message: string;
   set: (patch: Partial<Omit<GameState, 'set'>>) => void;
@@ -62,10 +67,10 @@ export const useGame = create<GameState>((set) => ({
   trackpadSteering: 'free', sustainedEdges: true, reverseScroll: false, cruiseSpeed: 8, heroPoses: true,
   lookSensitivity: 1, flowIntroSeen: false,
   shooter: true, aimToggle: false, aimAssist: 1, controlsVersion: CONTROLS_VERSION,
-  autoFire: true, aimButton: true, hintProgress: { touch: 0, simple: 0, mouse: 0 }, hintVisible: false,
+  autoFire: true, aimButton: true, hintProgress: { touch: 0, simple: 0, mouse: 0 }, coach: null,
   touchScheme: 'classic', touchLook: 1, touchAim: 1, lookAccel: true, edgeRest: true, invertY: false, flipSides: false,
   controlSize: 1, controlOpacity: .85, flyWhereILook: false, homeTipSeen: false, controlLab: 'standard',
-  nearGround: false, leavePrompt: false, zoomNote: false, descendBlocked: false, voteOpen: false, voteNudge: false,
+  nearGround: false, leavePrompt: false, zoomNote: false, descendBlocked: false, voteOpen: false, voteNudge: false, controlsOpen: false,
   flying: false, landing: false, canLand: false, nearTerminal: false, limitCue: '', limitHint: '', clearanceActive: false, inputEpoch: 0,
   checkpoint: START, discovered: false, message: '', set,
 }));

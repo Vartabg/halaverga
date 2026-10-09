@@ -32,7 +32,7 @@ const rng = mulberry32(9);
 /** Rewritten in place every frame (exported so tests can check it is never replaced). */
 export const droneContext = createDroneContext();
 const start: Vec3 = { x: 0, y: 0, z: 0 }, toPoint: Vec3 = { x: 0, y: 0, z: 0 };
-const env: WorldHit = { t: 0, normal: { x: 0, y: 1, z: 0 } }, block: WorldHit = { t: 0, normal: { x: 0, y: 1, z: 0 } };
+const env: WorldHit = { t: 0, normal: { x: 0, y: 1, z: 0 }, surface: 0 }, block: WorldHit = { t: 0, normal: { x: 0, y: 1, z: 0 }, surface: 0 };
 const aimDrone: DroneHit = { index: -1, t: 0, weak: false };
 /** Alternates the HUD-only blocked check between frames. */
 let blockTick = 0;
@@ -43,10 +43,11 @@ const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v
 const cursor = { last: 0 };
 let voiceSink: AudioSink | null = null, voiceState: ShooterState | null = null;
 function voice(e: ShotEvent) {
-  if (!voiceSink || !voiceState || (e.kind !== 'telegraph' && e.kind !== 'arrive' && e.kind !== 'break' && e.kind !== 'burst')) return;
+  if (!voiceSink || !voiceState || (e.kind !== 'telegraph' && e.kind !== 'arrive' && e.kind !== 'break' && e.kind !== 'fail' && e.kind !== 'burst')) return;
   const a = voiceState.aim, x = e.from.x - a.origin.x, y = e.from.y - a.origin.y, z = e.from.z - a.origin.z, d = Math.hypot(x, y, z);
   const pan = d > 1e-6 ? clamp((x * a.right.x + y * a.right.y + z * a.right.z) / d, -1, 1) : 0;
-  voiceSink(e.kind, pan, clamp(1 - d / 120, .15, 1), 0);
+  // The burst carries the kill chain (a semitone per chain kill), so the explosion rises with the kill tick that preceded it.
+  voiceSink(e.kind, pan, clamp(1 - d / 120, .15, 1), e.kind === 'burst' ? voiceState.stats.chain : 0);
 }
 
 /** Crosshair point for the suit IK and the HUD: the world, water or a drone along the camera ray (the Gesture Lab's aimed ray while

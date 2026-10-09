@@ -99,7 +99,7 @@ describe('drawPath: release end and sweep', () => {
     const hitPoint = v(p.endO.x + p.endD.x * 30, p.endO.y + p.endD.y * 30, p.endO.z + p.endD.z * 30);
     const segs: [Vec, Vec][] = [];
     const cast = (a: Vec, b: Vec) => { segs.push([{ ...a }, { ...b }]); return 1; };
-    const hit = { t: 0, normal: v(0, 1, 0) }, end = { point: v(0, 0, 0), normal: v(0, 1, 0) };
+    const hit = { t: 0, normal: v(0, 1, 0), surface: 0 }, end = { point: v(0, 0, 0), normal: v(0, 1, 0) };
     probeDrawPath(p, (o, d, max, out) => { out.t = 30; out.normal.x = 0; out.normal.y = 1; out.normal.z = 0; return max > 30; }, cast, hit, end);
     expect(p.wantsLand).toBe(true);
     expect(p.land.x).toBeCloseTo(hitPoint.x, 6); expect(p.land.y).toBeCloseTo(hitPoint.y, 6);

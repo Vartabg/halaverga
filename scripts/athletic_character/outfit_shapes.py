@@ -170,5 +170,3 @@ def relax(obj, iterations, factor=.5):
         bmesh.ops.smooth_vert(bm, verts=inner, factor=factor, use_axis_x=True, use_axis_y=True, use_axis_z=True)
     bm.to_mesh(obj.data)
     bm.free()
-
-

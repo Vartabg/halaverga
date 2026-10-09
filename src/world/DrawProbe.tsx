@@ -43,7 +43,7 @@ export default function DrawProbe() {
   const { world, rapier } = useRapier();
   const frame = useMemo(() => {
     const shots = createShooterWorld(world, rapier), sweep = ballSweep(world, new rapier.Ball(SWEEP_RADIUS));
-    const hit: WorldHit = { t: 0, normal: { x: 0, y: 1, z: 0 } };
+    const hit: WorldHit = { t: 0, normal: { x: 0, y: 1, z: 0 }, surface: 0 };
     const end: DrawHit = { point: { x: 0, y: 0, z: 0 }, normal: { x: 0, y: 1, z: 0 } };
     let failed = false;   // a probe fault stops probing (the path is then unswept, and anticipate still brakes) but never the frame loop
     return () => {

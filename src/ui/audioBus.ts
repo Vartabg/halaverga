@@ -5,12 +5,12 @@ import { blasterContext, releaseBlasterAudio, unlockBlasterAudio } from './audio
 // The blaster voice graph (scene chunk only). The context itself belongs to audioUnlock.ts, which the landing page imports to
 // unlock inside a gesture; the compressor, master gain and seeded noise buffer are built here on first use of each context.
 
-export type Voice = 'fire' | 'hit' | 'weak' | 'kill' | 'blocked' | 'overheat' | 'vent' | 'telegraph' | 'arrive' | 'break' | 'burst';
+export type Voice = 'fire' | 'hit' | 'weak' | 'kill' | 'blocked' | 'world' | 'steel' | 'water' | 'overheat' | 'vent' | 'telegraph' | 'arrive' | 'break' | 'fail' | 'burst';
 export type PlayOptions = { pan?: number /* -1..1 */; gain?: number /* 0..1 distance attenuation */; chain?: number /* kill chain count */ };
 type Live = { out: GainNode; panner: StereoPannerNode | null; sources: AudioScheduledSourceNode[]; end: number; fading: boolean };
 
 export const VOICE_CAP = 8, EVICT_FADE = .015, NOISE_SEED = 0x5eed1, VOICE_SEED = 0xb1a57;
-const POSITIONAL = new Set<Voice>(['telegraph', 'arrive', 'burst']);
+const POSITIONAL = new Set<Voice>(['telegraph', 'arrive', 'break', 'fail', 'burst']);
 const NONE: PlayOptions = {};
 let graph: AudioContext | null = null, master: GainNode | null = null, noise: AudioBuffer | null = null, rng = mulberry32(VOICE_SEED);
 const active: Live[] = [];

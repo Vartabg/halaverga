@@ -1,6 +1,6 @@
 // One hitscan shot for the shooter orchestrator (pure, landing-safe): spread, magnetism, resolution, damage, stats, event,
 // camera kick and audio. No FOV punch on shots or kills (measured moderate-juice band: at most 4 visible channels per shot). Module scratch only: nothing allocates per shot. Called only from stepShooter (resolveShot is not re-entrant).
-import { droneAlive, pushEvent, type EventKind, type ShooterState, type Vec3 } from './combat';
+import { SURFACE, droneAlive, pushEvent, type EventKind, type ShooterState, type Vec3 } from './combat';
 import type { Voice } from '@/ui/audioBus';
 import { addTrauma, kick } from './cameraFx';
 import { SHOT_GAIN_LATE, attenuated, burst, markShotEvent } from './burst';
@@ -23,7 +23,7 @@ export type StepContext = {
 export type AudioSink = (kind: Voice, pan: number, gain: number, chain: number) => void;
 
 const dir: Vec3 = { x: 0, y: 0, z: 0 }, virtual: Vec3 = { x: 0, y: 0, z: 0 };
-export const shotHit: ShotHit = { kind: 'miss', t: 0, drone: -1, point: { x: 0, y: 0, z: 0 }, normal: { x: 0, y: 1, z: 0 } };
+export const shotHit: ShotHit = { kind: 'miss', t: 0, drone: -1, point: { x: 0, y: 0, z: 0 }, normal: { x: 0, y: 1, z: 0 }, surface: 0 };
 /** Closest approach (m) at which a passing shot unsettles a live drone. */
 export const NEAR_MISS = 1.5;
 
@@ -87,10 +87,13 @@ export function fireShot(s: ShooterState, sim: DroneSim, world: ShooterWorld, ct
   } else nearMisses(s, count, a.origin, dir, hit.point);
   stats.shots++;
   const index = burst.index++;
-  pushEvent(s, kind, from, hit.point, hit.normal, drone); markShotEvent(s.eventSerial, index);
+  pushEvent(s, kind, from, hit.point, hit.normal, drone, hit.surface); markShotEvent(s.eventSerial, index);
   if (!ctx.reduced) { const A = src === 'mouse' ? .35 : .2; kick(fx, A, (rng() * 2 - 1) * .4 * A); }
   audio('fire', 0, attenuated(index) ? SHOT_GAIN_LATE : 1, 0);
+  // Every arrival answers in sound: the drone ticks, the world thuds (concrete) or pings (steel), the water plops. Distance fades
+  // the surface voices (full to 30 m, .2 at 150 m); a miss into the sky is silent.
   if (kind === 'hit' || kind === 'weak' || kind === 'blocked') audio(kind, 0, 1, 0);
   else if (kind === 'kill') audio('kill', 0, 1, stats.chain);
+  else if (kind === 'world' || kind === 'water') audio(kind === 'water' ? 'water' : hit.surface === SURFACE.steel ? 'steel' : 'world', 0, Math.max(.2, Math.min(1, 1.25 - hit.t / 120)), 0);
   return hit;
 }

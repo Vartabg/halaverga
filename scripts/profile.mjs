@@ -19,6 +19,11 @@ await page.goto(process.env.PROFILE_SHOOTER ? new URL(`/?shooter=${shooter ? 1 :
 await page.getByRole('button', { name: 'Begin expedition' }).click();
 await page.keyboard.press('Space');
 if (surge) await page.keyboard.press('Shift');
+const openSettings = async () => {
+  await page.getByRole('button', { name: 'Pause expedition' }).click();
+  await page.getByRole('region', { name: 'Expedition paused' }).getByRole('button', { name: 'Flight settings', exact: true }).click();
+  await page.getByRole('dialog', { name: 'Flight settings' }).waitFor({ state: 'visible' });
+};
 const started = Date.now();
 const commands = [['KeyR', 3000], ['KeyW', 4000], ['ArrowRight', 1000], ['KeyW', 4000], ['KeyF', 2500], ['ArrowLeft', 1000]];
 let i = 0;
@@ -31,8 +36,9 @@ while (Date.now() - started < duration * 1000) {
     await page.keyboard.up('KeyQ'); await page.waitForTimeout(300);
   }
   if (i % commands.length === 0) {
-    await page.getByRole('button', { name: 'Flight settings' }).click();
-    await page.getByRole('button', { name: 'Return to arrival terrace' }).click();
+    // Since the 2026-10-06 pause redesign Flight settings sits on the pause card: Pause, Flight settings, Return, then Resume.
+    await openSettings(); await page.getByRole('button', { name: 'Return to arrival terrace' }).click();
+    await page.getByRole('button', { name: 'Resume flight' }).click();
     await page.waitForTimeout(300); await page.locator('main').focus(); await page.keyboard.press('Space');
     if (surge) await page.keyboard.press('Shift');
   }
@@ -44,7 +50,7 @@ const gpu = await page.evaluate(() => {
   const debug = gl.getExtension('WEBGL_debug_renderer_info');
   return debug ? gl.getParameter(debug.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER);
 });
-await page.getByRole('button', { name: 'Flight settings' }).click();
+await openSettings();
 await page.getByText('Playtest measurements', { exact: true }).click();
 const pending = page.waitForEvent('download'); await page.getByRole('button', { name: 'Download measurements' }).click();
 const download = await pending, measurement = JSON.parse(await readFile(await download.path(), 'utf8'));

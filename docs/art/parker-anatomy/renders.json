@@ -1,0 +1,121 @@
+{
+  "blend_sha256": "611b091264ebcedd83d12c672aec57ebf837bd7f3e8f9c0a2871c5770125b17b",
+  "views": {
+    "front": {
+      "camera": [
+        0,
+        -8,
+        0.95
+      ],
+      "target": [
+        0,
+        0,
+        0.95
+      ],
+      "ortho_scale": 2.12,
+      "size": [
+        760,
+        1120
+      ],
+      "image_sha256": "edf2dab0e61d9835f21f6f8a2e5e58c9c93565ffb551248bc47510c130a62d8d",
+      "geometry_sha256": "807ad932d7c475a44f6052edded619df4e5611cdc29af8738d6f3a88c6b80116"
+    },
+    "side": {
+      "camera": [
+        8,
+        0,
+        0.95
+      ],
+      "target": [
+        0,
+        0,
+        0.95
+      ],
+      "ortho_scale": 2.12,
+      "size": [
+        760,
+        1120
+      ],
+      "image_sha256": "5b6474d11fc1e1ece7caf4293ee1cc1cace34f72e18902bc0b3dd656cfba9e4e",
+      "geometry_sha256": "807ad932d7c475a44f6052edded619df4e5611cdc29af8738d6f3a88c6b80116"
+    },
+    "back": {
+      "camera": [
+        0,
+        8,
+        0.95
+      ],
+      "target": [
+        0,
+        0,
+        0.95
+      ],
+      "ortho_scale": 2.12,
+      "size": [
+        760,
+        1120
+      ],
+      "image_sha256": "6144f22097e091b3e2d49d6f1daf8fe6f3209497bedff4c7c5b5d7acaa92790f",
+      "geometry_sha256": "807ad932d7c475a44f6052edded619df4e5611cdc29af8738d6f3a88c6b80116"
+    },
+    "three-quarter": {
+      "camera": [
+        3.5,
+        -7,
+        0.95
+      ],
+      "target": [
+        0,
+        0,
+        0.95
+      ],
+      "ortho_scale": 2.12,
+      "size": [
+        760,
+        1120
+      ],
+      "image_sha256": "c87e016e9793c1f10c2499dc8696116d4200aaa01471896479fc1b32791744b2",
+      "geometry_sha256": "807ad932d7c475a44f6052edded619df4e5611cdc29af8738d6f3a88c6b80116"
+    },
+    "torso": {
+      "camera": [
+        2,
+        -7,
+        1.3
+      ],
+      "target": [
+        0,
+        0,
+        1.3
+      ],
+      "ortho_scale": 1.12,
+      "size": [
+        1000,
+        1000
+      ],
+      "image_sha256": "f98904bfe92a6fc3d390a3c20ffe649c0fd40d61250e3ae29c25b529c6f8600f",
+      "geometry_sha256": "807ad932d7c475a44f6052edded619df4e5611cdc29af8738d6f3a88c6b80116"
+    },
+    "gameplay-scale": {
+      "camera": [
+        0,
+        8,
+        1.0
+      ],
+      "target": [
+        0,
+        0,
+        1.0
+      ],
+      "ortho_scale": 9.072,
+      "size": [
+        1440,
+        1000
+      ],
+      "image_sha256": "fee378d506fc6570ebc66dc13147104e7b8eb5b634f2f7741be755a47b323284",
+      "geometry_sha256": "807ad932d7c475a44f6052edded619df4e5611cdc29af8738d6f3a88c6b80116"
+    }
+  },
+  "engine": "Cycles",
+  "samples": 64
+}

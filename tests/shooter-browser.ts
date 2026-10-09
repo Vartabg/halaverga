@@ -106,8 +106,9 @@ export async function twinGeometry(page: Page) {
     document.body.append(probe); const s = getComputedStyle(probe);
     const insets = { top: parseFloat(s.paddingTop), right: parseFloat(s.paddingRight), bottom: parseFloat(s.paddingBottom), left: parseFloat(s.paddingLeft) };
     probe.remove();
-    const vv = visualViewport!, header = document.querySelector('main header')!.getBoundingClientRect();
-    return { w: vv.width, h: vv.height, insets, headerBottom: header.bottom };
+    // The touch bands start under the invisible [data-band] marker (the pre-cleanup header height), not under the shorter 44 px row.
+    const vv = visualViewport!, band = document.querySelector('main [data-band]')!.getBoundingClientRect();
+    return { w: vv.width, h: vv.height, insets, headerBottom: band.bottom };
   });
   const layout = await page.getByTestId('flight-surface').getAttribute('data-layout');
   const boxes: Box[] = [];

@@ -95,7 +95,7 @@ export function holdHide(m: HoldModel) {
   m.active = false; m.ring = 0; m.alpha.fill(0); touched(m);
 }
 
-const SVG_STYLE = { position: 'fixed', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', overflow: 'visible', zIndex: 3 } as const;
+const SVG_STYLE = { position: 'fixed', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', overflow: 'visible', zIndex: 'var(--z-play)' } as const;
 const LABEL_STYLE = { font: '600 13px system-ui, sans-serif', paintOrder: 'stroke' } as const;
 
 export default function HoldGuide({ model, scheme }: { model: HoldModel; scheme: LabScheme }) {

@@ -1,6 +1,8 @@
 import AxeBuilder from '@axe-core/playwright';
+import { controlName } from './controls-browser';
+import { legend } from './lab-browser';
 import { expect, test, type Page } from '@playwright/test';
-import { DESKTOP, DESKTOP_IDS, PHONE_LANDSCAPE, PHONE_PORTRAIT, SIZES, TOUCH_IDS, blockStorage, box, controlId, controlsPage, inside, lift, mockVote,
+import { DESKTOP, DESKTOP_IDS, PHONE_LANDSCAPE, PHONE_PORTRAIT, SIZES, TOUCH_IDS, blockStorage, box, controlId, controlsPage, inside, lift, mockResults, mockVote,
   openSheet, overlaps, paused, playInit, row, rowIds, saved, shots, sheet, tel, trigger } from './controls-browser';
 // The controls picker: header trigger, sheet, digit keys, the demo note (spec sections 3 and 4). System Chrome emulation (touch
 // emulation for the phone rows): it checks wiring, layout and semantics, never how any control feels on a real iPhone or Mac
@@ -9,11 +11,11 @@ import { DESKTOP, DESKTOP_IDS, PHONE_LANDSCAPE, PHONE_PORTRAIT, SIZES, TOUCH_IDS
 const heading = async (p: Page) => (await tel(p)).heading;
 const turned = (a: number, b: number) => Math.abs(Math.atan2(Math.sin(b - a), Math.cos(b - a)));
 const LABELS = ['Cursor', 'One finger + keys', 'Flow', 'Captured', 'Mouse + keys', 'Draw', 'Conduct', 'Brush'];
-const hint = (p: Page) => p.locator('[class*="trackpadHint"]');
+const hint = legend;
 
 // What each desktop id mounts and saves: the settings patch of the registry, the layer that answers to it.
 type Layer = (p: Page) => Promise<void>;
-const none = (p: Page) => expect(p.locator('[class*="trackpadHint"], [data-testid=simple-trackpad-hud], [data-testid=flow-hud]')).toHaveCount(0);
+const none = (p: Page) => expect(p.locator('[data-testid=legend], [data-testid=simple-trackpad-hud], [data-testid=flow-hud]')).toHaveCount(0);
 const LAYERS: Record<string, { save: Record<string, unknown>; layer: Layer }> = {
   cursor: { save: { controlLab: 'standard', desktopMode: 'trackpad', trackpadSteering: 'free' }, layer: async p => { await expect(p.getByTestId('flight-surface')).toHaveAttribute('data-scheme', 'classic'); await expect(hint(p)).toContainText('SPACE TO FLY'); } },
   'one-finger-keys': { save: { controlLab: 'standard', desktopMode: 'trackpad', trackpadSteering: 'simple' }, layer: p => expect(p.getByTestId('simple-trackpad-hud').or(p.getByTestId('controls-hint')).first()).toBeVisible() }, // the hud steps aside while the blaster's controls hint teaches (SimpleTrackpadHud)
@@ -27,13 +29,13 @@ const LAYERS: Record<string, { save: Record<string, unknown>; layer: Layer }> = 
 
 test('desktop keys 1-8 each mount the right layer, are saved, and never pause', async ({ browser }) => {
   const t = await controlsPage(browser, 'standard', { viewport: DESKTOP }), { page } = t;
-  await expect(trigger(page)).toHaveText('Controls: Cursor');
+  await expect(trigger(page)).toHaveAccessibleName(controlName('Cursor'));
   // 2..8 then 1: pressing the current control's digit is a no-op, so each press below is a real switch.
   for (const n of [2, 3, 4, 5, 6, 7, 8, 1]) {
     const id = DESKTOP_IDS[n - 1], want = LAYERS[id];
     await page.keyboard.press(`Digit${n}`);
     await expect.poll(() => controlId(page)).toBe(id);
-    await expect(trigger(page)).toHaveText(`Controls: ${LABELS[n - 1]}`);
+    await expect(trigger(page)).toHaveAccessibleName(controlName(LABELS[n - 1]));
     await want.layer(page);
     if (['draw', 'conduct', 'brush'].includes(id)) expect(await page.evaluate(() => document.documentElement.dataset.controls)).toBe(id);
     else await expect(page.getByTestId('lab-surface')).toHaveCount(0);
@@ -123,19 +125,36 @@ test('a click outside the sheet closes it without a shot and without pausing; Do
   await openSheet(page); await row(page, 'draw').click();
   await expect.poll(() => controlId(page)).toBe('draw');
   await expect(sheet(page)).toBeVisible();
-  await expect(trigger(page)).toHaveText('Controls: Draw');
+  await expect(trigger(page)).toHaveAccessibleName(controlName('Draw'));
   expect(t.errors).toEqual([]); await t.context.close();
 });
 
-test('the sheet Vote button closes the sheet and opens the vote card (mocked)', async ({ browser }) => {
-  const t = await controlsPage(browser, 'standard', { viewport: DESKTOP }), { page } = t;
+test('the sheet Vote button (there once two ways are flown) closes the sheet and opens the vote card (mocked)', async ({ browser }) => {
+  const t = await controlsPage(browser, 'standard', { viewport: DESKTOP, init: playInit({ 'desktop:cursor': 25, 'desktop:draw': 25 }), routes: p => mockResults(p) }), { page } = t;
   await mockVote(page);
   await openSheet(page);
-  await sheet(page).getByRole('button', { name: 'Vote: which felt best?' }).click();
+  await sheet(page).getByTestId('controls-vote').click();
   await expect(page.getByTestId('vote-card')).toBeVisible();
   await expect(sheet(page)).toHaveCount(0);
   expect(t.errors).toEqual([]); await t.context.close();
 });
+
+for (const v of [PHONE_LANDSCAPE, PHONE_PORTRAIT]) {
+  test(`phone ${v.width}x${v.height}: with two ways flown the sheet footer holds Vote beside Done, both on screen, 44 px tall`, async ({ browser }) => {
+    const t = await controlsPage(browser, 'standard', { touch: true, viewport: v, init: playInit({ 'touch:one-finger': 25, 'touch:draw': 25 }), routes: p => mockResults(p) }), { page } = t;
+    await expect(page.getByTestId('vote-chip')).toBeVisible();
+    await openSheet(page, true);
+    const vote = sheet(page).getByTestId('controls-vote'), done = sheet(page).getByTestId('controls-done');
+    for (const [what, l] of [['Vote', vote], ['Done', done]] as const) {
+      const b = await box(l);
+      expect(inside(b, v), what).toBe(true); expect(b.height, what).toBeGreaterThanOrEqual(44);
+    }
+    expect((await box(vote)).x, 'Vote comes first').toBeLessThan((await box(done)).x);
+    const fits = await sheet(page).locator('[data-scroll-ok]').evaluate(e => e.scrollHeight <= e.clientHeight + 1); // the list is the sheet's one scroller
+    if (v.height < 500) expect(fits, 'the two-column landscape sheet still fits with the Vote button').toBe(true);
+    expect(t.errors).toEqual([]); await t.context.close();
+  });
+}
 
 test('Tried X of N counts controls with 20 s of seeded play, and marks their rows', async ({ browser }) => {
   const t = await controlsPage(browser, 'standard', { viewport: DESKTOP, init: playInit({ 'desktop:cursor': 30, 'desktop:draw': 20, 'desktop:flow': 19 }) }), { page } = t;
@@ -165,7 +184,7 @@ test('the desktop sheet lists the eight desktop controls with digits 1-8', async
 for (const v of [PHONE_LANDSCAPE, PHONE_PORTRAIT]) {
   test(`phone ${v.width}x${v.height}: five touch controls, sheet inside the screen, footer reachable, 44 px rows, a touch pick closes it and flight works`, async ({ browser }) => {
     const t = await controlsPage(browser, 'twin-stick', { touch: true, viewport: v }), { page, finger } = t;
-    await expect(trigger(page)).toHaveText('Controls: Twin stick');
+    await expect(trigger(page)).toHaveAccessibleName(controlName('Twin stick'));
     await openSheet(page, true);
     expect(await rowIds(page)).toEqual(TOUCH_IDS);
     for (const label of ['Cursor', 'Flow', 'Captured', 'Mouse + keys', 'One finger + keys']) await expect(sheet(page).getByText(label, { exact: true })).toHaveCount(0);
@@ -179,11 +198,12 @@ for (const v of [PHONE_LANDSCAPE, PHONE_PORTRAIT]) {
     expect(s.y, 'sheet under the header').toBeGreaterThanOrEqual(head.y + head.height - 1);
     for (const id of TOUCH_IDS) expect((await box(row(page, id))).height, id).toBeGreaterThanOrEqual(44);
     // A landscape phone lists the five rows in two columns, so they fit at 852 x 393 without scrolling (750 x 340 scrolls by touch:
-    // controls-review-fixes.spec.ts). Done and Vote stay in view either way.
-    const fits = await sheet(page).evaluate(e => e.scrollHeight <= e.clientHeight + 1);
+    // controls-review-fixes.spec.ts). Done stays in view either way (Vote joins it once two ways are flown: the next test).
+    const fits = await sheet(page).locator('[data-scroll-ok]').evaluate(e => e.scrollHeight <= e.clientHeight + 1); // the list is the sheet's one scroller
     expect(fits, 'five rows fit the sheet').toBe(true);
     if (v.height < 500) expect((await box(row(page, 'twin-stick'))).x, 'two columns').toBeGreaterThan((await box(row(page, 'one-finger'))).x + 100);
-    for (const name of ['Done', 'Vote: which felt best?']) expect(inside(await box(sheet(page).getByRole('button', { name })), v), name).toBe(true);
+    await expect(sheet(page).getByTestId('controls-vote')).toHaveCount(0); // fewer than two ways flown: the line above, no Vote button
+    expect(inside(await box(sheet(page).getByTestId('controls-done')), v), 'Done').toBe(true);
     // A touch pick closes the sheet at once, the store changes, and the one-finger hold flies with no further tap.
     await row(page, 'one-finger').tap();
     await expect(sheet(page)).toHaveCount(0);
@@ -209,13 +229,16 @@ test('phone: tapping the current row closes the sheet; the backdrop closes it; r
   await row(page, 'one-finger').tap();
   await expect(sheet(page)).toHaveCount(0);
   await openSheet(page, true);
-  await page.touchscreen.tap(20, 700);
+  await page.touchscreen.tap(20, 200); // the backdrop: above the bottom sheet, which starts about y 300 at this size
   await expect(sheet(page)).toHaveCount(0);
   await expect(paused(page)).toHaveCount(0);
   expect(t.errors).toEqual([]); await t.context.close();
 });
 
-test('the demo note shows on the first visit only, and never overlaps Begin, the hero title or the header', async ({ browser }) => {
+// The demo note is passive text now (no Got it): it counts as seen when Begin removes the start card, and only if it was on screen then (addendum C2).
+const DEMO_KEY = 'halaverga.controls.demo.v1';
+const demoStored = (p: Page) => p.evaluate(k => localStorage.getItem(k), DEMO_KEY);
+test('the demo note is passive text that shows until the first Begin that showed it, and never overlaps Begin, the hero title or the header', async ({ browser }) => {
   for (const v of [PHONE_PORTRAIT, PHONE_LANDSCAPE, DESKTOP]) {
     const touch = v.width < 900, context = await browser.newContext({ viewport: v, isMobile: touch, hasTouch: touch }), page = await context.newPage();
     await page.goto('/');
@@ -228,6 +251,12 @@ test('the demo note shows on the first visit only, and never overlaps Begin, the
     for (const o of others) if (await o.count()) expect(overlaps(b, await box(o)), 'Begin over the header or title').toBe(false);
     if (v.height <= 430) {
       await expect(note).toBeHidden(); // short landscape phones hide the note by CSS
+      // C2: it is mounted but nobody could read it, so Begin does not count it as seen: it is stored nowhere and shows again on a taller screen.
+      await expect(begin).toBeEnabled({ timeout: 60000 });
+      await begin.tap(); await expect(page.getByRole('button', { name: 'Pause expedition' })).toBeVisible();
+      expect(await demoStored(page), 'a hidden note is not marked seen').toBeNull();
+      await page.setViewportSize(PHONE_PORTRAIT); await page.reload();
+      await expect(page.getByTestId('demo-note')).toBeVisible();
     } else {
       await expect(note).toBeVisible();
       await expect(note).toContainText('A demo of new ways to fly. After you begin, try each in the Controls menu, then vote.');
@@ -235,10 +264,19 @@ test('the demo note shows on the first visit only, and never overlaps Begin, the
       expect(inside(n, v), `note inside ${v.width}x${v.height}`).toBe(true);
       expect(overlaps(n, b), 'note over Begin').toBe(false);
       for (const o of others) if (await o.count()) expect(overlaps(n, await box(o)), 'note over the header or title').toBe(false);
-      const got = note.getByRole('button', { name: 'Got it' });
-      expect((await box(got)).height).toBeGreaterThanOrEqual(44);
-      await got.click();
-      await expect(note).toHaveCount(0);
+      // Passive: no button, no Got it, and it takes no touches.
+      expect(await note.getByRole('button').count()).toBe(0); await expect(page.getByRole('button', { name: 'Got it' })).toHaveCount(0);
+      expect(await note.evaluate(e => getComputedStyle(e).pointerEvents)).toBe('none');
+      // Nothing dismisses it before Begin: a reload still shows it, and nothing is stored yet.
+      await page.reload();
+      await expect(page.getByTestId('demo-note')).toBeVisible();
+      expect(await demoStored(page)).toBeNull();
+      // Begin removes the start card and marks it seen (it was visible); the next visit does not show it.
+      await expect(page.getByRole('button', { name: 'Begin expedition' })).toBeEnabled({ timeout: 60000 });
+      if (touch) await page.getByRole('button', { name: 'Begin expedition' }).tap(); else await page.getByRole('button', { name: 'Begin expedition' }).click();
+      await expect(page.getByRole('button', { name: 'Pause expedition' })).toBeVisible();
+      await expect(page.getByTestId('demo-note')).toHaveCount(0);
+      expect(await demoStored(page)).toBe('1');
       await page.reload();
       await expect(page.getByRole('button', { name: 'Begin expedition' })).toBeVisible();
       await expect(page.getByTestId('demo-note')).toHaveCount(0);
@@ -247,17 +285,16 @@ test('the demo note shows on the first visit only, and never overlaps Begin, the
   }
 });
 
-test('the trigger appears after Begin and the header does not overlap at the three sizes', async ({ browser }) => {
+test('the trigger appears after Begin and the top row does not overlap at the three sizes', async ({ browser }) => {
   for (const v of SIZES) {
     const t = await controlsPage(browser, 'standard', { touch: v.touch, viewport: { width: v.width, height: v.height } }), { page } = t;
     await expect(trigger(page)).toBeVisible();
     const b = await box(trigger(page));
     expect(inside(b, v), `trigger inside ${v.width}x${v.height}`).toBe(true);
     expect(b.height).toBeGreaterThanOrEqual(44);
-    for (const sel of ['[class*="brand"]', '[class*="headerActions"]']) {
-      const o = page.locator(sel).first();
-      if (await o.isVisible()) expect(overlaps(b, await box(o)), `${sel} at ${v.width}x${v.height}`).toBe(false);
-    }
+    // One row while playing: the readout on the left, Controls and Pause on the right; the brand stays on the landing (the full checker is layout-fit.spec.ts).
+    await expect(page.locator('[class*="brand"]')).toHaveCount(0);
+    for (const o of [page.getByTestId('flight-telemetry'), page.getByRole('button', { name: 'Pause expedition' })]) expect(overlaps(b, await box(o)), `row item at ${v.width}x${v.height}`).toBe(false);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     expect(t.errors).toEqual([]); await t.context.close();
   }
@@ -289,16 +326,20 @@ test('glyphs hold still under reduced motion (system preference or the setting) 
   await s.context.close();
 });
 
-test('blocked localStorage still works: the demo note dismisses for the page and the digits still switch', async ({ browser }) => {
-  const context = await browser.newContext({ viewport: DESKTOP }), first = await context.newPage();
+test('blocked localStorage still works: the passive demo note shows and Begin starts without an error, and the digits still switch', async ({ browser }) => {
+  const context = await browser.newContext({ viewport: DESKTOP }), first = await context.newPage(), errors: string[] = [];
+  first.on('pageerror', e => errors.push(e.message));
   await first.addInitScript(blockStorage);
   await first.goto('/');
   await expect(first.getByTestId('demo-note')).toBeVisible();
-  await first.getByTestId('demo-note').getByRole('button', { name: 'Got it' }).click();
+  await expect(first.getByRole('button', { name: 'Begin expedition' })).toBeEnabled({ timeout: 60000 });
+  await first.getByRole('button', { name: 'Begin expedition' }).click();
+  await expect(first.getByRole('button', { name: 'Pause expedition' })).toBeVisible();
   await expect(first.getByTestId('demo-note')).toHaveCount(0);
+  expect(errors).toEqual([]);
   await context.close();
   const t = await controlsPage(browser, 'standard', { viewport: DESKTOP, init: blockStorage, saved: null }), { page } = t;
-  await expect(trigger(page)).toHaveText('Controls: Cursor');
+  await expect(trigger(page)).toHaveAccessibleName(controlName('Cursor'));
   await page.keyboard.press('Digit2');
   await expect.poll(() => controlId(page)).toBe('one-finger-keys');
   await openSheet(page);

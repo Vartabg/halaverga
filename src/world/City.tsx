@@ -4,6 +4,7 @@ import { FRAME_GROUPS } from '@/game/combat';
 import { makeCity } from './cityData';
 import { useCityMaterials } from './cityMaterials';
 import Reclamation from './Reclamation';
+import BlenderDistrict from './BlenderDistrict';
 export default function City() {
   const city = useMemo(makeCity, []);
   const materials = useCityMaterials();
@@ -11,7 +12,7 @@ export default function City() {
   return <>
     <RigidBody type="fixed" colliders={false}>
       <mesh geometry={city.geometry} material={materials} receiveShadow castShadow dispose={null} />
-      <Reclamation />
+      <BlenderDistrict /><Reclamation />
       {city.solids.map((s, i) => s.kind === 'frame' ? null : <CuboidCollider key={i} args={s.size} position={s.position} rotation={s.rotation} />)}
     </RigidBody>
     {/* Bare ruin steel: solid to flight and shots, see-through to the camera boom (combat.FRAME_GROUPS). */}

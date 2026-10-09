@@ -6,8 +6,10 @@ export type LookSource = 'touch' | 'tap' | 'trackpad' | 'mouse';
 /** Who is holding the trigger. A release only clears the hold it owns. */
 export type FireSource = 'none' | 'touch' | 'tap' | 'keys' | 'click' | 'gesture';
 export type EventKind = 'miss' | 'world' | 'water' | 'hit' | 'weak' | 'kill' | 'blocked'
-  | 'overheat' | 'vent' | 'telegraph' | 'arrive' | 'break' | 'burst';
-export type ShotEvent = { serial: number; kind: EventKind; t: number; from: Vec3; point: Vec3; normal: Vec3; drone: number };
+  | 'overheat' | 'vent' | 'telegraph' | 'arrive' | 'break' | 'fail' | 'burst';
+/** What a 'world' or 'blocked' shot struck: ruin concrete, or the bare steel of a frame (combat.FRAME_GROUPS). */
+export const SURFACE = { concrete: 0, steel: 1 } as const;
+export type ShotEvent = { serial: number; kind: EventKind; t: number; from: Vec3; point: Vec3; normal: Vec3; drone: number; surface: number };
 export const PHASE = { patrol: 0, alert: 1, telegraph: 2, dodge: 3, punish: 4, dying: 5, dead: 6, arriving: 7 } as const;
 
 export const MAX_DRONES = 8, EVENT_RING = 16, WATER_LEVEL = .1, SHOT_RANGE = 250;
@@ -97,7 +99,7 @@ export function createShooter(): ShooterState {
     assist: { engaged: false, scale: 1 },
     drones: createDroneField(),
     targets: list(() => ({ c: v3(), r: DRONE_RADIUS, eye: v3(), eyeR: EYE_RADIUS, alive: false, los: false })),
-    events: Array.from({ length: EVENT_RING }, () => ({ serial: 0, kind: 'miss' as EventKind, t: 0, from: v3(), point: v3(), normal: { x: 0, y: 1, z: 0 }, drone: -1 })),
+    events: Array.from({ length: EVENT_RING }, () => ({ serial: 0, kind: 'miss' as EventKind, t: 0, from: v3(), point: v3(), normal: { x: 0, y: 1, z: 0 }, drone: -1, surface: 0 })),
     eventSerial: 0,
     stats: { shots: 0, hits: 0, kills: 0, chain: 0, lastKillT: -Infinity },
   };
@@ -134,9 +136,9 @@ export function moveMode(s: ShooterState): 0 | 2 {
 export const engaged = (s: ShooterState) => aimHeld(s) || !s.input.auto && (s.input.fire || s.weapon.sinceShot < ENGAGED_HOLD);
 export const threat = (s: ShooterState) => aimHeld(s) || s.input.fire || s.weapon.sinceShot < ENGAGED_HOLD;
 /** Copies into the next ring slot; consumers remember the last serial they read. */
-export function pushEvent(s: ShooterState, kind: EventKind, from: Vec3, point: Vec3, normal: Vec3 | null, drone = -1) {
+export function pushEvent(s: ShooterState, kind: EventKind, from: Vec3, point: Vec3, normal: Vec3 | null, drone = -1, surface: number = SURFACE.concrete) {
   const e = s.events[s.eventSerial % EVENT_RING];
-  e.serial = ++s.eventSerial; e.kind = kind; e.t = s.clock; e.drone = drone;
+  e.serial = ++s.eventSerial; e.kind = kind; e.t = s.clock; e.drone = drone; e.surface = surface;
   e.from.x = from.x; e.from.y = from.y; e.from.z = from.z; e.point.x = point.x; e.point.y = point.y; e.point.z = point.z;
   if (normal) { e.normal.x = normal.x; e.normal.y = normal.y; e.normal.z = normal.z; } else { e.normal.x = 0; e.normal.y = 1; e.normal.z = 0; }
 }

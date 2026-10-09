@@ -1,4 +1,6 @@
 import { expect, test } from '@playwright/test';
+import { resume } from './shooter-browser';
+import { openSettings, openGuide, closeAndResume } from './lab-browser';
 test('loads, lifts, moves, brakes, switches cameras and survives pause', async ({ page }) => {
   const errors: string[] = []; page.on('pageerror', e => errors.push(e.message));
   page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
@@ -10,17 +12,17 @@ test('loads, lifts, moves, brakes, switches cameras and survives pause', async (
   expect(traveled[2]).toBeLessThan(64);
   await page.waitForTimeout(1300); expect(Number(await telemetry.getAttribute('data-speed'))).toBeLessThan(.5);
   await page.keyboard.press('Escape'); await expect(page.getByRole('heading', { name: 'Take your time.' })).toBeVisible();
-  await page.getByRole('button', { name: 'Adjust flight settings' }).click();
+  await page.getByRole('button', { name: 'Flight settings', exact: true }).click();
   await page.getByRole('button', { name: 'First person', exact: true }).click();
-  await page.getByRole('button', { name: 'Close dialog' }).click();
+  await closeAndResume(page);
   await expect(telemetry).toHaveAttribute('data-flying', 'true');
   await page.waitForTimeout(500);
   const resumed = JSON.parse((await telemetry.getAttribute('data-position'))!);
   expect(Math.abs(resumed[2] - traveled[2])).toBeLessThan(3);
-  await page.getByRole('button', { name: 'Flight settings' }).click();
+  await openSettings(page);
   await expect(page.getByRole('button', { name: 'First person', exact: true })).toHaveAttribute('aria-pressed', 'true');
   await page.getByRole('button', { name: 'Return to arrival terrace' }).click();
-  await expect(telemetry).toHaveAttribute('data-flying', 'false');
+  await resume(page); await expect(telemetry).toHaveAttribute('data-flying', 'false');
   expect(errors).toEqual([]);
 });
 test('portrait/landscape resize retains position and text route works', async ({ page }) => {
@@ -32,7 +34,7 @@ test('portrait/landscape resize retains position and text route works', async ({
   await page.setViewportSize({ width: 852, height: 393 }); await page.waitForTimeout(500);
   const after = JSON.parse((await telemetry.getAttribute('data-position'))!);
   expect(Math.hypot(...after.map((v: number, i: number) => v - before[i]))).toBeLessThan(.4);
-  await page.getByRole('button', { name: 'Field guide', exact: true }).click();
+  await openGuide(page);
   await page.getByRole('button', { name: 'Recover municipal record' }).click();
   await expect(page.getByText('The last ordinary morning', { exact: true })).toBeVisible();
   await expect(page.getByText('Original fiction', { exact: true })).toBeVisible();

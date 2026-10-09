@@ -77,7 +77,9 @@ function faceSteer(rt: { pitch: number }, c: SteerIn, g: [number, number], d: [n
   }
   if (h < .3) return 0;
   if (!S.faceSide) S.faceSide = turnToward(g, S.fx / h, S.fz / h) || tie(c, g, S.fx / h, S.fz / h);
-  return S.faceSide * Math.max(STEER.face, yawRate(c)) * c.dt;
+  // The taller Blender envelopes need a slightly tighter surge escape, without changing perimeter turns or player look.
+  const faceRate = yawRate(c) + .05 * smooth((c.commanded - 13) / 21);
+  return S.faceSide * Math.max(STEER.face, faceRate) * c.dt;
 }
 export function limitSteer(rt: { yaw: number; pitch: number }, c: SteerIn): void {
   const dt = c.dt, dy = Number.isFinite(S.yaw) ? rt.yaw - S.yaw : 0, dp = Number.isFinite(S.pitch) ? rt.pitch - S.pitch : 0;

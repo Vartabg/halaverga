@@ -33,7 +33,7 @@ export const GHOST_SHAPES: Readonly<Record<GhostShape, Shape>> = {
   lasso: { d: ring(.62), sx: 0, sy: .62, context: ring(.14) },
 };
 
-const BOX = { position: 'fixed', pointerEvents: 'none', zIndex: 3, display: 'grid', justifyItems: 'center', gap: 6 } as const;
+const BOX = { position: 'fixed', pointerEvents: 'none', zIndex: 'var(--z-play)', display: 'grid', justifyItems: 'center', gap: 6 } as const;
 const LABEL = { font: '600 14px system-ui, sans-serif', color: '#fff', textShadow: '0 1px 3px #000c', whiteSpace: 'nowrap' } as const;
 const SKIP = { pointerEvents: 'auto', minWidth: 44, minHeight: 44, padding: '0 14px', borderRadius: 22, border: '1px solid #ffffff66',
   background: '#0b1d24b3', color: '#fff', font: '600 13px system-ui, sans-serif' } as const;

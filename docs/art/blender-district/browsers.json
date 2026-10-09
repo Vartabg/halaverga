@@ -1,0 +1,11 @@
+[
+  {
+    "name": "chrome",
+    "version": "154.0.8037.98",
+    "viewport": "393x852 → 852x393",
+    "hasTouch": true,
+    "drift": 0.004166002009046279,
+    "errors": [],
+    "scope": "Desktop browser with emulated touch viewport; not physical iPhone Safari."
+  }
+]

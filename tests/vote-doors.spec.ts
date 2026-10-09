@@ -1,9 +1,9 @@
 import { expect, test } from '@playwright/test';
 import { controlId, openSheet, sheet } from './controls-browser';
-import { card, chip, land, lift, mock, notYet, ONE_DESK, paused, playing, PLAY_KEY, tel, TWO_DESK, voteMark, votePage } from './vote-browser';
+import { card, chip, land, lift, mock, notYet, ONE_DESK, paused, playing, PLAY_KEY, QUESTION, tel, TWO_DESK, VOTE_NAME, voteMark, votePage } from './vote-browser';
 // The doors to the card besides the chip (spec 1.3): the auto-open after a landing, the pause card, the Controls sheet; plus the card as
 // a modal and the play-time tracker. System Chrome emulation, /api/vote and /api/results always mocked. PLAYTEST_URL=http://127.0.0.1:3421.
-const ASK = 'Which way of flying felt best?', BUTTON = 'Vote: which felt best?';
+const ASK = QUESTION;
 /** Total play seconds in the saved record (the layer saves on pagehide; fire it to flush, which pauses the game: read it once, at the end). */
 async function playedSecs(page: import('@playwright/test').Page) {
   await page.evaluate(() => window.dispatchEvent(new Event('pagehide')));
@@ -51,9 +51,10 @@ test('@vote one tried control is not enough for the auto-open: a landing leaves 
   expect(t.errors).toEqual([]); await t.context.close();
 });
 
-test('@vote the pause card: with two tried it leads with the question above Vote: which felt best?, with one it only has the button; opening it yourself never auto-opens the card', async ({ browser }) => {
+test('@vote the pause card: with two tried it leads with the question above Vote, with one it has no door at all; opening it yourself never auto-opens the card', async ({ browser }) => {
   const t = await votePage(browser, TWO_DESK), { page } = t;
   await mock(page, [200]);
+  await expect(chip(page)).toBeVisible(); // the vote works: the pause card's door follows the same answer as the pill
   await lift(page);
   await page.keyboard.press('Escape');
   await expect(paused(page)).toBeVisible();
@@ -61,41 +62,43 @@ test('@vote the pause card: with two tried it leads with the question above Vote
   await expect(card(page)).toHaveCount(0);
   await expect(paused(page).getByText(ASK, { exact: true })).toBeVisible();
   const open = paused(page).getByTestId('vote-open');
-  await expect(open).toHaveText(BUTTON); await expect(open).toHaveAttribute('data-nudge', '');
+  await expect(open).toHaveText('Vote'); await expect(open).toHaveAccessibleName(VOTE_NAME); await expect(open).toHaveAttribute('data-nudge', '');
   const ask = await paused(page).getByText(ASK, { exact: true }).boundingBox(), b = await open.boundingBox();
   expect(ask!.y).toBeLessThan(b!.y); // the line sits above the button
   await open.click();
   await expect(card(page)).toBeVisible();
   expect(t.errors).toEqual([]); await t.context.close();
   const u = await votePage(browser, ONE_DESK);
-  await mock(u.page, [200]);
   await lift(u.page); await u.page.keyboard.press('Escape');
   await expect(paused(u.page)).toBeVisible();
-  await expect(paused(u.page).getByTestId('vote-open')).toHaveText(BUTTON);
-  await expect(paused(u.page).getByTestId('vote-open')).not.toHaveAttribute('data-nudge', /.*/);
+  await expect(paused(u.page).getByTestId('controls-row')).toBeVisible();
+  await expect(paused(u.page).getByTestId('vote-open')).toHaveCount(0); // one way of two: a plain line, never a button
   await expect(paused(u.page).getByText(ASK, { exact: true })).toHaveCount(0);
+  await expect(paused(u.page).getByTestId('controls-tried')).toHaveText('Tried 1 of 2 needed to vote');
   expect(u.errors).toEqual([]); await u.context.close();
 });
 
-test('@vote the Controls sheet: Vote: which felt best? is the lime primary and Done the outline; the line counts to 2; the button opens the card', async ({ browser }) => {
-  const t = await votePage(browser, ONE_DESK), { page } = t;
+test('@vote the Controls sheet: Vote is the accent primary and Done the outline once two ways are flown (with one there is only the line); the button opens the card', async ({ browser }) => {
+  const u = await votePage(browser, ONE_DESK);
+  await openSheet(u.page);
+  await expect(u.page.getByTestId('controls-tried')).toHaveText('Tried 1 of 2 needed to vote');
+  await expect(sheet(u.page).getByTestId('controls-vote')).toHaveCount(0);
+  await expect(sheet(u.page).getByTestId('controls-done')).toBeVisible();
+  const t = await votePage(browser, TWO_DESK), { page } = t;
   await mock(page, [200]);
+  await expect(chip(page)).toBeVisible();
   await openSheet(page);
-  await expect(page.getByTestId('controls-tried')).toHaveText('Tried 1 of 2 needed to vote');
+  await expect(page.getByTestId('controls-tried')).toHaveText('Tried 2 of 8');
   const vote = sheet(page).getByTestId('controls-vote'), done = sheet(page).getByTestId('controls-done');
-  await expect(vote).toHaveText(BUTTON);
+  await expect(vote).toHaveText('Vote'); await expect(vote).toHaveAccessibleName(VOTE_NAME);
   const bg = (l: typeof vote) => l.evaluate(e => getComputedStyle(e).backgroundColor);
-  expect(await bg(vote)).toBe('rgb(212, 241, 151)'); expect(await bg(done)).toBe('rgba(0, 0, 0, 0)');
+  expect(await bg(vote)).toBe('rgb(94, 230, 208)'); expect(await bg(done)).toBe('rgba(0, 0, 0, 0)');
   expect((await vote.boundingBox())!.x).toBeLessThan((await done.boundingBox())!.x); // the vote comes first
   await vote.click();
   await expect(card(page)).toBeVisible(); await expect(sheet(page)).toHaveCount(0);
   await expect(playing(page)).toHaveCount(0); // the game is held behind the card
-  await card(page).getByRole('button', { name: 'Keep playing' }).click();
+  await notYet(page).click();
   await expect(playing(page)).toBeVisible();
-  const u = await votePage(browser, TWO_DESK);
-  await mock(u.page, [200]);
-  await openSheet(u.page);
-  await expect(u.page.getByTestId('controls-tried')).toHaveText('Tried 2 of 8');
   expect(t.errors.concat(u.errors)).toEqual([]); await t.context.close(); await u.context.close();
 });
 
@@ -125,9 +128,18 @@ test('@vote an idle session that only opens the sheet and steps through the cont
   await mock(page, [200]);
   await openSheet(page);
   await page.waitForTimeout(2600); // the Begin click is outside the 2 s input window by now; the trigger click is the header's, not game input
-  for (let i = 0; i < 4; i++) { await page.keyboard.press('Tab'); await page.waitForTimeout(150); }
+  // Three steps: the checked radio, the number-keys box, Done (a locked vote has no Vote button in the footer); a fourth leaves the sheet for Lift.
+  for (let i = 0; i < 3; i++) { await page.keyboard.press('Tab'); await page.waitForTimeout(150); }
   await sheet(page).hover();
   await page.waitForTimeout(3600);
+  // The backdrop is a header sibling now, not a dialog: moving the mouse across it for 3 s is not game input either.
+  const spot = await page.evaluate(() => {
+    const b = document.querySelector('[data-testid=controls-backdrop]');
+    for (let x = 20; x < innerWidth; x += 20) if (document.elementFromPoint(x, 450) === b) return { x, y: 450 };
+    return null;
+  });
+  expect(spot, 'a point on the backdrop outside the sheet').not.toBeNull();
+  for (let i = 0; i < 12; i++) { await page.mouse.move(spot!.x + (i % 2) * 8, spot!.y); await page.waitForTimeout(250); }
   await page.keyboard.press('Escape');
   await expect(sheet(page)).toHaveCount(0);
   await page.waitForTimeout(2600);

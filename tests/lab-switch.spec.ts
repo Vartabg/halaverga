@@ -1,25 +1,27 @@
 import { expect, test } from '@playwright/test';
-import { droneIn, labPage, lift, shots, tel } from './lab-browser';
+import { controlName } from './controls-browser';
+import { droneIn, hintSlot, labPage, legend, lift, shots, tel, openSettings, resumeFromCard, settingsCurrent } from './lab-browser';
 import { controlId, openSheet, paused, row, saved, sheet, trigger } from './controls-browser';
 // Control switching (spec 8, controls picker 2026-09-28): Cursor stays the desktop default; ?controls= is a session override; the
-// header trigger 'Controls: <label>' opens one sheet listing every control of the family (switch at once, never pause); Flight
-// settings and the pause card carry the same list; a switch mid-action leaves no stuck movement or fire. Non-touch desktop, system Chrome.
+// header trigger 'Controls: <label>' opens one sheet listing every control of the family (switch at once, never pause); the pause card
+// and Flight settings each have a Controls row that opens that same sheet over the paused game; a switch mid-action leaves no stuck
+// movement or fire. Non-touch desktop, system Chrome.
 const controls = (p: import('@playwright/test').Page) => p.evaluate(() => document.documentElement.dataset.controls ?? null);
 const list = (root: import('@playwright/test').Locator) => root.getByTestId('controls-list');
 const radio = (root: import('@playwright/test').Locator, name: RegExp) => list(root).getByRole('radio', { name });
-const isCurrent = (p: import('@playwright/test').Page, label: string) => expect(trigger(p)).toHaveText(`Controls: ${label}`);
+const isCurrent = (p: import('@playwright/test').Page, label: string) => expect(trigger(p)).toHaveAccessibleName(controlName(label));
 
 test('Cursor is the default: the free-cursor surface, no lab surface or data-controls, and the trigger names it', async ({ browser }) => {
   const t = await labPage(browser, 'standard'), { page } = t;
   await expect(page.getByTestId('flight-surface')).toHaveCount(1);
   await expect(page.getByTestId('lab-surface')).toHaveCount(0);
   await expect(trigger(page)).toBeVisible();
-  await expect(trigger(page)).toHaveAccessibleName('Controls: Cursor');
+  await expect(trigger(page)).toHaveAccessibleName(controlName('Cursor'));
   await expect(trigger(page)).toHaveAttribute('aria-haspopup', 'dialog');
   await isCurrent(page, 'Cursor');
   expect(await controls(page)).toBeNull();
   expect(await controlId(page)).toBe('cursor');
-  await expect(page.locator('[class*="trackpadHint"]')).toHaveText('SPACE TO FLY · CLICK TO FIRE · DRAG TO LOOK');
+  await expect(legend(page)).toHaveText('SPACE TO FLY · CLICK TO FIRE · DRAG TO LOOK');
   expect(t.errors).toEqual([]); await t.context.close();
 });
 
@@ -28,7 +30,7 @@ test('?controls=draw is this session only: the lab replaces the standard layers 
   expect(await controls(page)).toBe('draw');
   await expect(page.getByTestId('flight-surface')).toHaveCount(0);
   await isCurrent(page, 'Draw');
-  await expect(page.locator('[class*="trackpadHint"]')).toHaveCount(0);
+  await expect(legend(page)).toHaveCount(0);
   await expect(page.locator('[class*="reticle"]')).toBeHidden();
   // Lift/Land stays available in every lab scheme.
   await expect(page.getByRole('button', { name: 'Lift', exact: true })).toBeVisible();
@@ -41,7 +43,7 @@ test('?controls=draw is this session only: the lab replaces the standard layers 
   expect(t.errors).toEqual([]); await t.context.close();
 });
 
-test('the sheet switches at once without pausing; settings and the pause card carry the same list, with keyboard radios', async ({ browser }) => {
+test('the sheet switches at once without pausing; settings and the pause card open the same sheet from their Controls row, with keyboard radios', async ({ browser }) => {
   const t = await labPage(browser, 'conduct'), { page } = t;
   // One click on a sheet row: Brush at once, still playing, saved.
   await openSheet(page);
@@ -59,33 +61,46 @@ test('the sheet switches at once without pausing; settings and the pause card ca
   await page.keyboard.press('Escape');
   await expect(sheet(page)).toHaveCount(0);
   await expect(paused(page)).toHaveCount(0);
-  // Flight settings carries the same list: arrow keys move and select within the native group.
-  await page.getByRole('button', { name: 'Flight settings' }).click();
+  // Flight settings has a Controls row (no second list) that names the control in use and opens the same sheet: arrow keys move and
+  // select within the native group, the game stays paused, and the pause card is back when the sheet closes.
+  await openSettings(page);
   const dialog = page.locator('dialog[open]');
   await expect(dialog).toHaveCount(1);
   await expect(page.getByTestId('lab-surface')).toHaveCount(0); // paused: the lab controls are unmounted
-  await expect(radio(dialog, /^Brush/)).toBeChecked();
-  await radio(dialog, /^Brush/).focus();
+  await expect(list(dialog)).toHaveCount(0);
+  expect(await settingsCurrent(page)).toBe('brush');
+  await dialog.getByTestId('controls-row').click();
+  await expect(dialog).toHaveCount(0); await expect(sheet(page)).toBeVisible(); await expect(paused(page)).toHaveCount(0);
+  await expect(radio(sheet(page), /^Brush/)).toBeChecked();
+  await expect(radio(sheet(page), /^Brush/)).toBeFocused(); // focus opens on the checked row
   await page.keyboard.press('ArrowUp');
-  await expect(radio(dialog, /^Conduct/)).toBeChecked();
-  await expect(radio(dialog, /^Conduct/)).toBeFocused();
+  await expect(radio(sheet(page), /^Conduct/)).toBeChecked();
+  await expect(radio(sheet(page), /^Conduct/)).toBeFocused();
   expect(await controls(page)).toBe('conduct');
-  await page.getByRole('button', { name: 'Close dialog' }).click();
-  await expect(page.getByRole('button', { name: 'Pause expedition' })).toBeVisible();
+  await page.keyboard.press('Escape'); // closes only the sheet: still paused, the pause card is back with focus on its Controls row
+  await expect(sheet(page)).toHaveCount(0); await expect(paused(page)).toBeVisible();
+  await expect(paused(page).getByTestId('controls-row')).toBeFocused();
+  await resumeFromCard(page);
   await expect(page.getByTestId('lab-surface')).toHaveCount(1);
   await isCurrent(page, 'Conduct');
   await openSheet(page); await row(page, 'brush').click(); await isCurrent(page, 'Brush');
   await page.keyboard.press('Escape');
 
-  // The pause card carries the same list: Escape pauses (nothing is being drawn), ArrowUp picks Conduct, Resume plays it.
+  // The pause card's Controls row opens the same sheet: Escape pauses (nothing is being drawn), the row opens the sheet over the paused
+  // game, ArrowUp picks Conduct, and a click picks Cursor; closing returns to the card and Resume plays the choice.
   await page.keyboard.press('Escape');
   const card = paused(page);
   await expect(card).toBeVisible();
-  await radio(card, /^Brush/).focus();
+  await expect(list(card)).toHaveCount(0);
+  await card.getByTestId('controls-row').click();
+  await expect(sheet(page)).toBeVisible(); await expect(card).toHaveCount(0);
+  await expect(radio(sheet(page), /^Brush/)).toBeFocused();
   await page.keyboard.press('ArrowUp');
-  await expect(radio(card, /^Conduct/)).toBeChecked();
+  await expect(radio(sheet(page), /^Conduct/)).toBeChecked();
   // Back to Cursor from the same list, then Resume: the standard surface returns and the choice is saved.
-  await radio(card, /^Cursor/).check();
+  await row(page, 'cursor').click(); await expect(radio(sheet(page), /^Cursor/)).toBeChecked();
+  await page.keyboard.press('Escape'); await expect(sheet(page)).toHaveCount(0); await expect(card).toBeVisible();
+  await expect(card.getByTestId('controls-row')).toHaveAccessibleName('Controls: Cursor');
   await card.getByRole('button', { name: 'Resume flight' }).click();
   await expect(page.getByTestId('flight-surface')).toHaveCount(1);
   await isCurrent(page, 'Cursor');
@@ -102,8 +117,10 @@ test('a switch mid-cruise or mid-blast leaves no stuck movement or fire', async 
   await page.mouse.click(720, 300);
   await expect.poll(async () => (await tel(page)).speed).toBeGreaterThan(1.5);
   await page.keyboard.press('Escape'); await expect(card).toBeVisible();
-  await radio(card, /^Conduct/).focus(); await page.keyboard.press('ArrowUp');
-  await expect(radio(card, /^Draw/)).toBeChecked();
+  await card.getByTestId('controls-row').click(); await expect(radio(sheet(page), /^Conduct/)).toBeFocused();
+  await page.keyboard.press('ArrowUp');
+  await expect(radio(sheet(page), /^Draw/)).toBeChecked();
+  await page.keyboard.press('Escape'); await expect(sheet(page)).toHaveCount(0); await expect(card).toBeVisible();
   await card.getByRole('button', { name: 'Resume flight' }).click();
   await isCurrent(page, 'Draw');
   await expect.poll(async () => (await tel(page)).speed, { timeout: 5000 }).toBeLessThan(.3);
@@ -116,9 +133,11 @@ test('a switch mid-cruise or mid-blast leaves no stuck movement or fire', async 
   await page.mouse.move(d!.x, d!.y); await page.mouse.down(); await page.waitForTimeout(500);
   await expect.poll(() => shots(page)).toBeGreaterThan(before);
   await page.keyboard.press('Escape'); await expect(card).toBeVisible();
-  await radio(card, /^Draw/).focus(); await page.keyboard.press('ArrowDown'); await page.keyboard.press('ArrowDown');
-  await expect(radio(card, /^Brush/)).toBeChecked();
-  await page.mouse.up();
+  await card.getByTestId('controls-row').click(); await expect(radio(sheet(page), /^Draw/)).toBeFocused();
+  await page.keyboard.press('ArrowDown'); await page.keyboard.press('ArrowDown');
+  await expect(radio(sheet(page), /^Brush/)).toBeChecked();
+  await page.keyboard.press('Escape'); await expect(sheet(page)).toHaveCount(0); await expect(card).toBeVisible();
+  await page.mouse.up(); // the button comes up while paused, on the pause card
   await card.getByRole('button', { name: 'Resume flight' }).click();
   await isCurrent(page, 'Brush');
   await page.waitForTimeout(500); const settled = await shots(page);
@@ -142,7 +161,8 @@ test('a sheet switch mid-cruise stops the cruise; keys 1-8 switch while playing 
   await page.keyboard.press('Escape');
   const card = paused(page);
   await expect(card).toBeVisible();
-  await page.keyboard.press('Digit1'); await isCurrent(page, 'Cursor');
+  // Paused, the top row is empty (no trigger): the page's current control id says which one the key chose.
+  await page.keyboard.press('Digit1'); await expect.poll(() => controlId(page)).toBe('cursor');
   await expect(card).toBeVisible();
   expect(await controls(page)).toBeNull();
   expect(t.errors).toEqual([]); await t.context.close();
@@ -155,7 +175,7 @@ for (const viewport of [{ width: 393, height: 852 }, { width: 375, height: 667 }
     const t = await labPage(browser, 'standard', { touch: true, viewport }), { page } = t;
     await trigger(page).tap(); await expect(sheet(page)).toBeVisible();
     await row(page, 'draw').tap();
-    const hint = page.locator('[class*="flightHint"]'), telemetry = page.getByTestId('flight-telemetry');
+    const hint = hintSlot(page), telemetry = page.getByTestId('flight-telemetry');
     await expect(hint).toHaveText('Draw controls');
     const a = (await hint.boundingBox())!, b = (await telemetry.boundingBox())!;
     const overlap = Math.max(0, Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x)) * Math.max(0, Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y));

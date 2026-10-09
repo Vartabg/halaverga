@@ -217,16 +217,22 @@ describe('drone punish and cooldown', () => {
 });
 describe('drone damage and respawn', () => {
   const dir = v(0, 0, -1);
-  it('dies to 6 body hits or 3 weakpoint hits, breaking exactly once at <= 3 HP', () => {
+  // Damage stages (2026-10-07 shooting experience): the plate breaks at 4 HP and the drone starts failing at 2 HP, so a body-hit
+  // drone reads three states (whole, broken, failing) before it dies; the 2026-09-22 plan broke the plate once at 3 HP.
+  it('dies to 6 body hits or 3 weakpoint hits, breaking exactly once at <= 4 HP and failing once at <= 2 HP', () => {
     only(1);
-    const body: string[] = [], breaksAt: number[] = [];
-    for (let k = 0; k < 6; k++) { body.push(damageDrone(s, sim, 1, false, dir)); drain(); if (events.some(e => e.kind === 'break')) breaksAt.push(s.drones.hp[1]); events = []; }
+    const body: string[] = [], breaksAt: number[] = [], failsAt: number[] = [];
+    for (let k = 0; k < 6; k++) {
+      body.push(damageDrone(s, sim, 1, false, dir)); drain();
+      if (events.some(e => e.kind === 'break')) breaksAt.push(s.drones.hp[1]); if (events.some(e => e.kind === 'fail')) failsAt.push(s.drones.hp[1]); events = [];
+    }
     expect(body).toEqual(['hit', 'hit', 'hit', 'hit', 'hit', 'kill']);
-    expect(breaksAt[0]).toBe(3); expect(breaksAt).toHaveLength(1);
+    expect(breaksAt).toEqual([DRONE.breakAt]); expect(DRONE.breakAt).toBe(4); expect(failsAt).toEqual([DRONE.failAt]); expect(DRONE.failAt).toBe(2);
     expect(damageDrone(s, sim, 1, false, dir)).toBe('none');
     s = createShooter(); sim = createDroneSim(s); cursor = { last: 0 }; events = []; only(2);
     expect([0, 1, 2].map(() => damageDrone(s, sim, 2, true, dir))).toEqual(['weak', 'weak', 'kill']); drain();
-    expect(events.filter(e => e.kind === 'break')).toHaveLength(1); expect(s.drones.broken[2]).toBe(1);
+    // Eye hits: 6 -> 4 (break) -> 2 (fail) -> 0 (no fail event on the killing hit; the burst takes over).
+    expect(events.filter(e => e.kind === 'break')).toHaveLength(1); expect(events.filter(e => e.kind === 'fail')).toHaveLength(1); expect(s.drones.broken[2]).toBe(1);
   });
   it('bursts after the .08 s hit-stop, stays dead 8 s, then arrives with full HP and rejoins its patrol path', () => {
     only(3); viewFrom(3, 40);

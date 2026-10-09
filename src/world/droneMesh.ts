@@ -49,16 +49,26 @@ export const haloAlpha = (r: number) => { const k = Math.max(0, 1 - r); return k
 /** Thin ring: rises over .78..(.78+.07), falls over (1-.12)..1, so it peaks near r .85 and ends at the quad's inscribed edge. */
 export const ringAlpha = (r: number) => smooth(.78, .85, r) * (1 - smooth(1 - .12, 1, r));
 
-const CACHE_KEY = 'halaverga-drone-flash-rim';
+const CACHE_KEY = 'halaverga-drone-flash-rim-damage';
+/** The exposed core glows this colour (linear) through the open top once the plate is gone; aDamage scales it (Drones.tsx). */
+export const EMBER_GLOW = new Color('#ff5a18');
+/**
+ * Per-instance flash (the gated white hit flash, aFlash) and damage (aDamage: 0 whole, about .45 broken, .75-1 failing). Damage lights
+ * the shell from inside: an ember glow fading in over the open top (local y above .18, where the plate sat) and leaking through the
+ * seams of the lower hull, so a damaged drone reads as a hull with a fire in it from any side, at range.
+ */
 function flashRim(material: MeshStandardMaterial, rim: number) {
-  const uRim = { value: new Color(DRONE_COLORS.rim).multiplyScalar(rim) };
+  const uRim = { value: new Color(DRONE_COLORS.rim).multiplyScalar(rim) }, uEmber = { value: EMBER_GLOW };
   material.onBeforeCompile = (shader: WebGLProgramParametersWithUniforms) => {
-    shader.uniforms.uRim = uRim;
-    shader.vertexShader = 'attribute float aFlash;\nvarying float vFlash;\n' + shader.vertexShader.replace('#include <begin_vertex>',
-      '#include <begin_vertex>\nvFlash = aFlash;');
-    shader.fragmentShader = 'varying float vFlash;\nuniform vec3 uRim;\n' + shader.fragmentShader.replace('#include <emissivemap_fragment>', `
+    shader.uniforms.uRim = uRim; shader.uniforms.uEmber = uEmber;
+    shader.vertexShader = 'attribute float aFlash;\nvarying float vFlash;\nattribute float aDamage;\nvarying float vDamage;\nvarying vec3 vLocal;\n'
+      + shader.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\nvFlash = aFlash;\nvDamage = aDamage;\nvLocal = position;');
+    shader.fragmentShader = 'varying float vFlash;\nuniform vec3 uRim;\nvarying float vDamage;\nvarying vec3 vLocal;\nuniform vec3 uEmber;\n'
+      + shader.fragmentShader.replace('#include <emissivemap_fragment>', `
       #include <emissivemap_fragment>
       totalEmissiveRadiance += vec3(vFlash) * 1.6 + uRim * pow(1.0 - saturate(dot(normal, normalize(vViewPosition))), 3.0);
+      float exposed = smoothstep(0.18, 0.5, vLocal.y) + 0.25 * smoothstep(0.35, 0.0, abs(vLocal.y));
+      totalEmissiveRadiance += uEmber * exposed * vDamage * 3.0;
     `);
   };
   material.customProgramCacheKey = () => CACHE_KEY;

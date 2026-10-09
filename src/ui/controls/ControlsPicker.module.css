@@ -1,135 +1,149 @@
-/* The controls picker: header trigger, non-modal sheet, the shared list, the settings section and the demo note. AA: ink #f5f0dc on
-   #142d34 (over any scene the 79% pill keeps it above 6:1); checked #1a3029 on lime #d4f197 (about 11:1); muted #becdc7 on #132a30. */
-/* Three columns, the trigger in the middle one: the side columns are equal, so the trigger stays centred and never moves whether the
-   Vote chip (third column, growing away from it) is there or not. Fixed children (the backdrop and the sheet) take no cell. */
-.root{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,auto) minmax(0,1fr);align-items:center;column-gap:8px;width:100%;min-width:0;max-width:100%}
-.root>.trigger{grid-column:2}
-.trigger{position:relative;z-index:2;display:inline-flex;align-items:center;justify-content:center;min-height:44px;min-width:44px;max-width:100%;padding:0 16px;margin:0;
-  border:1px solid #58e1ff66;border-radius:24px;background:#142d34c9;-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);color:var(--ink);
-  font:13px/1 system-ui,-apple-system,'Segoe UI',Arial,sans-serif;letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+/* The controls picker: header trigger, non-modal sheet, the shared list, the settings section and the demo note. The suit's language (globals.css):
+   graphite plates, bone ink and the one teal accent. AA: ink #eceae4 on #1c2023 is 13.8:1 (the 90% pill keeps it above 6:1 over any scene); accent-ink
+   #0c1b1b on the accent #5ee6d0 is 11.5:1; muted #b4b9ba on #1c2023 is 8.4:1. */
+/* The picker's root and layer add no box: the Vote chip and the Controls button are flex items of the header's button row (so the row's
+   `>button` rules never match them: these buttons keep their own pill styles), and the sheet layer only groups the backdrop and the sheet. */
+.root,.layer{display:contents}
+/* With the pill in the row the root is a box, so that when the readout needs the room (the rule below) the pill, and only the pill, can drop to a
+   second line under Controls: the root wraps in reverse (the first item, Vote, becomes the lower line) and stays right-aligned. DOM order is unchanged. */
+.root:has(.chip){display:flex;flex-wrap:wrap-reverse;justify-content:flex-end;gap:8px}
+/* The Controls button is one width in every state, open (a lighter graphite, same weight) or closed (min-width 108 holds the word, an 8 px gap and the 20 px dots slot, which stays reserved
+   when the dots are not showing), so the Vote pill is the only thing that appears or goes. With the pill the cluster is 64 + 8 + 108 + 8 + 44
+   = 232 px, the budget the readout (Experience.module.css, .telemetry) leaves at every width. */
+.trigger{position:relative;display:inline-flex;align-items:center;justify-content:center;gap:8px;flex:none;min-height:44px;min-width:108px;padding:0 12px;margin:0;
+  border:1px solid #8b939766;border-radius:24px;background:#1c2023e6;-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);color:var(--ink);
+  font-weight:500;font-size:13px;line-height:1;letter-spacing:.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
   cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
-.trigger:hover{background:#305058}
-.trigger[aria-expanded=true]{background:var(--lime);color:#1a3029;font-weight:600}
-.trigger:focus-visible{outline:2px solid var(--lime);outline-offset:2px}
-.trigger[aria-expanded=true]:focus-visible{outline-color:#f5f0dc;box-shadow:0 0 0 4px #1a3029}
-/* The header Vote chip (44 px, static). Below two tried: outline with `Vote n/2 · s`; from two: lime. Up to 520 px wide (every phone in portrait) the
-   seconds sit under `Vote n/2` and the long label's tail is visually hidden (still in the accessible name), so the chip stays inside the viewport. */
-.chip{position:relative;grid-column:3;justify-self:start;display:inline-flex;align-items:center;justify-content:center;min-height:44px;min-width:44px;max-width:100%;
-  padding:0 14px;margin:0;border:1px solid #58e1ff66;border-radius:24px;background:#142d34c9;-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);color:var(--ink);
-  font:13px/1 system-ui,-apple-system,'Segoe UI',Arial,sans-serif;letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+.trigger:hover{background:#3a4247}
+/* Open: a lighter graphite fill and a 2 px bone edge (the 1 px border plus a 1 px inset ring, so the button keeps its width), never the accent. The accent says
+   "press me": the Vote pill, Begin, Resume and checked rows, and with the sheet open the Vote pill sits right beside this button. Ink on the lighter graphite is 8.6:1. */
+.trigger[aria-expanded=true]{background:#3a4247;border-color:#eceae4;box-shadow:inset 0 0 0 1px #eceae4}
+.trigger:focus-visible{outline:2px solid var(--accent);outline-offset:2px;box-shadow:0 0 0 2px var(--halo)}
+/* The locked vote's two dots: 8 px circles, 4 px apart, in a 20 px slot that is always there. Counted = filled in the text colour; never the accent
+   (the accent is for what can be pressed). Their text twin is the end of the button's accessible name and the sheet's tried line. */
+.dots{display:inline-flex;align-items:center;gap:4px;flex:none;width:20px;height:8px}
+.dots i{display:block;box-sizing:border-box;width:8px;height:8px;border:1px solid #eceae4b3;border-radius:50%}
+.dots i[data-on]{background:var(--ink);border-color:var(--ink)}
+/* The Vote pill: only in the row while the vote works, so it is always the accent call to vote (44 px, a 64 px minimum so the row's budget holds). */
+.chip{position:relative;display:inline-flex;align-items:center;justify-content:center;flex:none;min-height:44px;min-width:64px;
+  padding:0 14px;margin:0;border:1px solid var(--accent);border-radius:24px;background:var(--accent);color:var(--accent-ink);
+  font-weight:600;font-size:13px;line-height:1;letter-spacing:.01em;white-space:nowrap;
   cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
-.chip:hover{background:#305058}
-.chip[data-ready]{background:var(--lime);border-color:var(--lime);color:#1a3029;font-weight:600}
-.chip[data-ready]:hover{background:#e3ffad}
-.chip:focus-visible{outline:3px solid var(--lime);outline-offset:2px}
-.chip[data-ready]:focus-visible{outline-color:#f5f0dc;box-shadow:0 0 0 5px #1a3029}
-@media(max-width:520px){
-  .chip{padding:0 10px;font-size:12px}
-  .chipMore{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
-  .chipText{display:flex;flex-direction:column;align-items:center;gap:1px;line-height:1.1}
-  .chipSecs{font-size:11px}
-  .chipDot{display:none}
-}
+.chip:hover{background:var(--accent-hover)}
+.chip:focus-visible{outline:3px solid var(--ink);outline-offset:2px;box-shadow:0 0 0 5px var(--halo)}
+/* The row makes room for the readout, never the other way round: at phone widths the number is the one thing a player reads in the row. With the pill the
+   cluster is 232 px at normal text (Vote 64 + Controls 108 + Pause 44 + two 8 px gaps) and about 300 px at 200 percent, because the words in the two buttons
+   grow with the text while the rest does not. The header is capped at the row minus the readout's own natural width, in em of its 11 px (so it follows the text
+   size): the number alone at 400 px wide and narrower (3.5 em, plus 12 px of padding; 3.6 em for a little slack), the number and its unit up to 600 (7.3 em, plus
+   20 px). Whenever the three buttons do not fit inside that cap the pill wraps under Controls, so only a large-text phone ever gets a second line (96 px, the height
+   of the old two-row header: the touch bands start below it) and the readout keeps its number. Above 600 px there is room, so there is no cap. The readout's own
+   cap (Experience.module.css) is the room beside Controls and Pause, so even when nothing fits (320 wide at 200 percent) the number is clipped, never put over a
+   button. Browsers without :has() keep one row and that clipping. */
+@media(max-width:400px){:global(header[data-play]):has(.chip){font-size:11px;max-width:calc(100% - 2 * var(--gx) - 3.6em - 12px)}}
+@media(min-width:401px) and (max-width:600px){:global(header[data-play]):has(.chip){font-size:11px;max-width:calc(100% - 2 * var(--gx) - 7.3em - 20px)}}
 
-/* Full-viewport catcher under the sheet: it takes the presses (and closes on click), so nothing reaches the flight surface. */
-.backdrop{position:fixed;inset:0;z-index:0;background:transparent;touch-action:none;-webkit-tap-highlight-color:transparent}
-/* Under the header (its 44 px row, plus the second row --lab-row on narrow widths), inside the safe areas; the same offsets the other
-   header-anchored bands use. The list scrolls inside the sheet; the footer is sticky, so Done and Vote never scroll away. */
-.sheet{--top:calc(max(28px,env(safe-area-inset-top)) + 56px + var(--lab-row,0px));position:fixed;z-index:1;top:var(--top);left:50%;transform:translateX(-50%);
-  width:min(420px,calc(100vw - 2 * max(16px,env(safe-area-inset-left),env(safe-area-inset-right))));
-  max-height:calc(100vh - var(--top) - max(8px,env(safe-area-inset-bottom)) - 8px);max-height:calc(100dvh - var(--top) - max(8px,env(safe-area-inset-bottom)) - 8px);
-  overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-y;color:var(--ink);background:#132a30;border:1px solid #80948d;
-  border-radius:6px;box-shadow:0 20px 60px #071a2480}
-@media(max-width:600px){.sheet{--top:calc(max(20px,env(safe-area-inset-top)) + 56px + var(--lab-row,0px))}}
-@media(max-height:550px) and (orientation:landscape){.sheet{--top:calc(max(12px,env(safe-area-inset-top)) + 56px + var(--lab-row,0px))}}
-.title{margin:0;padding:14px 16px 4px;font:600 15px/1.3 system-ui,-apple-system,'Segoe UI',Arial,sans-serif;letter-spacing:.02em}
-.sheetBody{padding:4px 8px 8px}
-.foot{position:sticky;bottom:0;display:grid;gap:6px;padding:10px 16px 12px;background:#132a30;border-top:1px solid #6d8a84;box-shadow:0 -12px 12px -8px #071a24cc}
-/* Eight desktop rows in one column do not fit a 1280 x 720 window (four showed): two columns on a wide window, so the whole list is
-   nearly in view; the sheet still scrolls, and its footer's shadow shows there is more. */
-@media(min-width:721px){
-  .sheet[data-family=desktop]{width:min(680px,calc(100vw - 2 * max(16px,env(safe-area-inset-left),env(safe-area-inset-right))))}
-  .sheet[data-family=desktop] .sheetBody .list{grid-template-columns:repeat(2,minmax(0,1fr))}
+
+/* Full-viewport catcher under the sheet: it takes the presses (and closes on click), so nothing reaches the flight surface. Both sit under
+   the top row (--z-bar, above --z-sheet), so Pause and Controls stay above it: one tap on Pause pauses and closes the sheet. They take presses even
+   where an ancestor is pass-through. */
+.backdrop{position:fixed;inset:0;z-index:var(--z-sheet);pointer-events:auto;background:transparent;touch-action:none;-webkit-tap-highlight-color:transparent}
+/* The sheet has two forms. Desktop and tablet (wider than 600 px): a one-column popover under the row, its right edge on the row's right
+   edge, 420 wide, so it never covers the crosshair at the centre of a desktop window. Phones, both orientations (600 px and narrower, or a
+   short landscape window): a bottom sheet in thumb reach. The list scrolls inside the sheet between the title and the footer, so Done and Vote
+   never scroll away. Both stay inside the safe areas and open instantly (nothing to reduce under reduced motion). */
+.sheet{--side:max(16px,env(safe-area-inset-left),env(safe-area-inset-right));position:fixed;z-index:var(--z-sheet);pointer-events:auto;top:var(--hdr);right:max(var(--gx),env(safe-area-inset-right));
+  width:min(420px,calc(100vw - 2 * var(--side)));max-height:calc(100vh - var(--hdr) - 16px);max-height:min(calc(100dvh - var(--hdr) - 16px),640px);
+  display:flex;flex-direction:column;overflow:hidden;touch-action:pan-y;color:var(--ink);background:var(--panel);border:1px solid var(--line);
+  border-radius:12px;box-shadow:0 20px 60px #0e101280}
+.title{flex:none;margin:0;padding:14px 16px 4px;font-weight:600;font-size:15px;line-height:1.3;letter-spacing:.01em}
+/* The list is the one scroller, between the title and the footer. The footer is a row of the sheet's own column, not a sticky box laid over the list: a sticky
+   footer left the scrolling box's edge under it, so a row focused by the keyboard (Tab, the arrows) could sit wholly behind Done (WCAG 2.2 2.4.11) and the
+   browser had nothing telling it to scroll the row up. Now the list's box ends where the footer starts, so the focus scroll stops there. */
+.sheetBody{flex:1 1 auto;min-height:0;padding:4px 8px 8px;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-y}
+.foot{flex:none;display:grid;gap:6px;padding:10px 16px 12px;background:#1c2023;border-top:1px solid #434b50;box-shadow:0 -12px 12px -8px #0e1012cc}
+@media(max-width:600px),(max-height:550px) and (orientation:landscape){
+  .sheet{top:auto;right:auto;left:50%;bottom:max(8px,env(safe-area-inset-bottom));transform:translateX(-50%);
+    max-height:calc(100vh - var(--hdr) - 8px);max-height:min(80dvh,calc(100dvh - var(--hdr) - 8px));border-radius:12px}
 }
 /* A short landscape phone (852 x 393 shows about 2.5 rows in one column): a wider sheet with the list in two columns and a one-row
-   footer, so all five touch controls are within one short scroll. The sheet scrolls by touch (data-scroll-ok in usePlayGuard). */
+   footer, so all five touch controls are within one short scroll. The list scrolls by touch (data-scroll-ok on it, read by usePlayGuard). */
 @media(max-height:550px) and (orientation:landscape){
-  .sheet{width:min(680px,calc(100vw - 2 * max(16px,env(safe-area-inset-left),env(safe-area-inset-right))))}
+  .sheet{width:min(680px,calc(100vw - 2 * var(--side)))}
   .title{padding:8px 16px 0}
   .sheetBody .list{grid-template-columns:repeat(2,minmax(0,1fr))}
-  .foot{grid-template-columns:auto minmax(0,1fr);align-items:center;column-gap:12px;padding:6px 16px 8px}
+  .foot{grid-template-columns:auto minmax(0,1fr);align-items:center;gap:0 12px;padding:6px 16px 8px}
   .foot .buttons{grid-column:2;grid-row:1 / span 2}
-  .foot .check{grid-column:1}
+  .foot .check,.foot .footLine{grid-column:1}
 }
 .tried{margin:0;font-size:13px;line-height:1.4;color:var(--muted)}
 .check{display:flex;align-items:center;gap:10px;min-height:44px;font-size:13px}
-.check input{flex:none;width:22px;height:22px;margin:0;accent-color:var(--lime)}
+.check input{flex:none;width:22px;height:22px;margin:0;accent-color:var(--accent)}
 .buttons{display:flex;gap:8px}
-.action{flex:1 1 auto;min-height:44px;min-width:44px;padding:0 14px;border:1px solid #94aaa1;border-radius:3px;background:transparent;color:var(--ink);font-size:13px}
-.action:hover{background:#2b4747}
-.action.primary{background:var(--lime);border-color:var(--lime);color:#1a3029;font-weight:600}
-.action.primary:hover{background:#e3ffad}
+.action{flex:1 1 auto;min-height:44px;min-width:44px;padding:0 14px;border:1px solid var(--line-strong);border-radius:10px;background:transparent;color:var(--ink);font-size:13px;font-weight:500}
+.action:hover{background:var(--panel-2)}
+.action.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:600}
+.action.primary:hover{background:var(--accent-hover)}
+/* The touch foot's first row: the tried line and, on the right, the link to Flight settings (44 px tall, so the row is as tall as the link). */
+.footLine{display:flex;align-items:center;justify-content:space-between;gap:12px;min-width:0}
+.footLine .tried{flex:1 1 auto;min-width:0}
+.link{flex:none;display:inline-flex;align-items:center;min-height:44px;margin:0;padding:0 2px;border:0;background:transparent;color:var(--ink);font-size:13px;font-weight:600;text-decoration:underline;text-underline-offset:3px;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+.link:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+/* The Controls row on the pause card and in Flight settings: the word, the control now in use, a chevron. The chevron is the same bordered shape as the
+   pause card's other rows (Experience.module.css): its <i> keeps the glyph for the markup but draws the shape and shows no text. */
+.rowButton{display:flex;align-items:center;gap:10px;width:100%;margin-top:0;text-align:left}
+.rowButton>b{flex:none;font-size:13px;font-weight:600}
+.rowButton>span{min-width:0;flex:1 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted);font-size:13px}
+.rowButton>i{flex:none;width:7px;height:7px;margin-right:4px;border:solid var(--muted);border-width:0 1.5px 1.5px 0;transform:rotate(-45deg);font-size:0;line-height:0;color:transparent}
+.rowButton+.tried{margin-top:6px}
 
 /* The list: native radios in one fieldset (its legend is for screen readers; the sheet and section carry a visible title). */
 .list{display:grid;gap:4px;min-width:0;margin:0;padding:0;border:0}
 .legend{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
 .row{display:grid;grid-template-columns:auto 48px minmax(0,1fr);align-items:center;column-gap:10px;min-height:52px;padding:6px 10px;border:1px solid transparent;
-  border-radius:4px;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
-.row:hover{background:#203b40}
-.row:has(.radio:checked){border-color:var(--lime);background:#1c3a3a}
-.row:has(.radio:focus-visible){outline:3px solid var(--lime);outline-offset:2px}
-.radio{width:22px;height:22px;margin:0;accent-color:var(--lime)}
+  border-radius:10px;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+.row:hover{background:var(--panel-2)}
+.row:has(.radio:checked){border-color:var(--accent);background:#243136}
+.row:has(.radio:focus-visible){outline:3px solid var(--accent);outline-offset:2px}
+.radio{width:22px;height:22px;margin:0;accent-color:var(--accent)}
 .text{display:flex;flex-direction:column;gap:2px;min-width:0}
 .head{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
 .head b{font-size:14px;font-weight:600}
 .text small{font-size:12px;line-height:1.4;color:var(--muted)}
 .badges{display:inline-flex;gap:4px}
 .badge{padding:1px 6px;border:1px solid currentColor;border-radius:9px;font-size:11px;line-height:1.4;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
-.badge[data-badge=tried]{background:var(--lime);border-color:var(--lime);color:#1a3029;font-weight:600}
+.badge[data-badge=tried]{background:var(--accent);border-color:var(--accent);color:#0c1b1b;font-weight:600}
 /* Key hints only for a fine pointer driving the page (html[data-input=mouse]) on screens wider than 600 px. */
 .kbd{display:none;min-width:16px;padding:1px 4px;border:1px solid currentColor;border-radius:4px;font:inherit;font-size:11px;line-height:1.2;color:var(--muted)}
 @media (pointer:fine) and (min-width:601px){:global(html[data-input=mouse]) .kbd{display:inline-block}}
 
 /* A picture of the motion: a faint base line and one ink stroke that loops along it (still by default; moving only when motion is welcome). */
 .glyph{flex:none;overflow:visible;fill:none;stroke-linecap:round;stroke-linejoin:round}
-.glyphBase{stroke:#8fa7a1;stroke-width:1.5;opacity:.45}
+.glyphBase{stroke:#8b9397;stroke-width:1.5;opacity:.45}
 .glyphInk{stroke:#58e1ff;stroke-width:2.2;stroke-dasharray:3 4}
 @media (prefers-reduced-motion:no-preference){.glyph:not([data-reduced=true]) .glyphInk{stroke-dasharray:28 72;animation:ctlInk 1.8s linear infinite}}
 @keyframes ctlInk{from{stroke-dashoffset:100}to{stroke-dashoffset:0}}
 
-/* The settings, pause card and Field guide copy of the list. */
-.section{margin:16px 0}
-.sectionTitle{margin:0 0 6px;font:600 15px/1.3 system-ui,-apple-system,'Segoe UI',Arial,sans-serif}
-.details>summary{display:flex;align-items:center;min-height:44px;font-size:14px;font-weight:600;cursor:pointer}
-.details>summary:focus-visible{outline:3px solid var(--lime);outline-offset:2px}
-.switch{display:flex;gap:6px;margin:4px 0 8px}
-.switch button{flex:1;min-height:44px;padding:0 10px;border:1px solid #94aaa1;border-radius:3px;background:transparent;color:var(--ink);font-size:13px}
-.switch button[aria-pressed=true]{background:var(--lime);border-color:var(--lime);color:#1a3029;font-weight:600}
-.section .tried{margin-top:6px}
-.section>details>.action{width:100%;margin-top:8px}
-
-/* The first-visit note in the start card. Landscape phones hide it: the trigger it names only exists after Begin. */
-.demo{display:flex;align-items:center;gap:10px;max-width:38ch;margin:12px 0 0;padding:8px 10px;border:1px solid #58e1ff66;border-radius:4px;background:#142d34e6;color:var(--ink)}
-.demo p{margin:0;font-size:12px;line-height:1.45}
-.demo button{flex:none;min-width:64px;min-height:44px;padding:0 12px;border:1px solid #94aaa1;border-radius:3px;background:transparent;color:var(--ink);font-size:13px}
-.demo button:hover{background:#2b4747}
+/* The first-visit note in the start card: passive text, nothing to tap, set as a muted aside with an accent rule (not a box: a box read as a banner).
+   Landscape phones hide it: the trigger it names only exists after Begin. */
+.demo{max-width:38ch;margin:14px 0 0;padding:1px 0 1px 12px;border:0;border-left:2px solid var(--accent);border-radius:0;background:transparent;color:var(--muted);pointer-events:none}
+.demo p{margin:0;font-size:13px;line-height:1.5}
+@media(max-width:600px) and (max-height:620px){.demo{margin-top:12px}}
 @media(max-height:430px) and (orientation:landscape){.demo{display:none}}
 
-@media (prefers-reduced-motion:no-preference){.trigger,.row,.action,.switch button{transition:background-color .15s ease,color .15s ease}}
+@media (prefers-reduced-motion:no-preference){.trigger,.row,.action{transition:background-color .15s ease,color .15s ease}}
 
 @media (forced-colors:active){
   .trigger{border-color:CanvasText;background:Canvas;color:ButtonText;forced-color-adjust:none}
-  .trigger[aria-expanded=true]{background:Highlight;color:HighlightText}
+  .trigger[aria-expanded=true]{border-color:Highlight;outline:2px solid Highlight;outline-offset:-3px}
   .trigger:focus-visible{outline:2px solid Highlight;box-shadow:none}
-  .chip{border-color:ButtonText;background:ButtonFace;color:ButtonText;forced-color-adjust:none}
-  .chip[data-ready]{border-color:Highlight;background:Highlight;color:HighlightText}
-  .chip:focus-visible,.chip[data-ready]:focus-visible{outline:3px solid Highlight;box-shadow:none}
+  .chip{border-color:Highlight;background:Highlight;color:HighlightText;forced-color-adjust:none}
+  .chip:focus-visible{outline:3px solid CanvasText;box-shadow:none}
+  .dots i{border-color:CanvasText}.dots i[data-on]{background:Highlight;border-color:Highlight}
   .sheet,.demo{border-color:CanvasText;background:Canvas;color:CanvasText}
   .foot{background:Canvas;border-top-color:CanvasText}
   .row:has(.radio:checked){border-color:Highlight;background:Canvas}
   .row:has(.radio:focus-visible){outline-color:Highlight}
   .badge,.badge[data-badge=tried],.kbd{border-color:CanvasText;background:Canvas;color:CanvasText}
-  .action,.switch button,.demo button,.action.primary{border-color:ButtonText;background:ButtonFace;color:ButtonText}
-  .switch button[aria-pressed=true]{background:Highlight;color:HighlightText}
+  .action,.action.primary{border-color:ButtonText;background:ButtonFace;color:ButtonText}
   .glyphBase{stroke:CanvasText;opacity:1}.glyphInk{stroke:Highlight}
 }

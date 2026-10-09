@@ -1,8 +1,26 @@
-:root{color-scheme:dark;--ink:#f5f0dc;--muted:#becdc7;--lime:#d4f197;--panel:#14282e;--line:#647c7b;font-family:Arial,Helvetica,sans-serif;background:#14282e;color:var(--ink)}
-*{box-sizing:border-box}body{margin:0}button,input,select{font:inherit}button,a,input,select{touch-action:manipulation}button{cursor:pointer}button:disabled{cursor:wait;opacity:.65}button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--lime);outline-offset:5px}a{color:var(--lime)}button{color:inherit}p{line-height:1.65}::selection{background:var(--lime);color:#14282e}
-.skip{position:fixed;left:16px;top:-70px;z-index:100;background:var(--panel);padding:16px}.skip:focus{top:12px}.sr-only{position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+/* The interface takes the Meridian Envoy suit's language (docs/plans/2026-10-06-landing-pause.md): graphite surfaces, bone-white type and one
+   teal accent for the primary action, focus and active states, over the ash-grey world. One type family (--font-sans, self-hosted by next/font in
+   layout.tsx, system sans behind it), one spacing scale (--s-*) and three radii (--r-*). AA on the panel: ink 13.8:1, muted 8.4:1, accent 10.9:1;
+   accent-ink on the accent 11.5:1. The accent alone is under 3:1 against the ash sky, so the focus ring carries a graphite halo (below). */
+:root{color-scheme:dark;--ink:#eceae4;--muted:#b4b9ba;--accent:#5ee6d0;--accent-ink:#0c1b1b;--accent-hover:#84eedc;--panel:#1c2023;--panel-2:#262b2f;--line:#434b50;--line-strong:#8b9397;--halo:#0e1012;
+  --s-1:4px;--s-2:8px;--s-3:12px;--s-4:16px;--s-5:20px;--s-6:24px;--s-8:32px;--r-sm:6px;--r-md:10px;--r-lg:14px;
+  font-family:var(--font-sans,system-ui),-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;background:var(--panel);color:var(--ink);-webkit-font-smoothing:antialiased}
+/* The layers, back to front: every z-index in the app is one of these (tests/layout-tokens.test.ts). The order is the one the game had before
+   the screen cleanup; only the numbers changed. Native dialogs (Field guide, Flight settings, Flow welcome) sit in the browser's top layer above
+   all of it, and the skip link is a literal 100 in this file. See docs/screen-cleanup.md for what lives on each layer.
+   --z-world the 3D canvas · --z-veil the vignette · --z-surface the flight surface, the lab surface and the crosshair (it paints over them, in
+   DOM order, and under the lab ink) · --z-hud passive overlays (readout, legend, Flow and Simple panels, lab ink) · --z-play play controls (touch
+   layer, twin cluster, stick ring, Lift/Land, tap pad, the lab's hold and ghost guides)
+   · --z-sheet the Controls sheet and its backdrop (above play, under the top row so one tap on Pause still pauses) · --z-bar the top row and the
+   hint slot · --z-card the pause card, "Leave the game?" and the recovery card · --z-vote the vote scrim and card. */
+:root{--z-world:-3;--z-veil:-1;--z-surface:1;--z-hud:2;--z-play:3;--z-sheet:4;--z-bar:5;--z-card:6;--z-vote:7}
+*{box-sizing:border-box}body{margin:0}button,input,select{font:inherit}button,a,input,select{touch-action:manipulation}button{cursor:pointer}button:disabled{cursor:wait;opacity:.65}
+/* Focus: a 3 px accent ring 5 px out, with a graphite halo in the gap so the ring reads against the sky as well as a panel (1.4.11). */
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--accent);outline-offset:5px;box-shadow:0 0 0 5px var(--halo)}
+a{color:var(--accent)}button{color:inherit}p{line-height:1.65}::selection{background:var(--accent);color:var(--accent-ink)}
+.skip{position:fixed;left:16px;top:12px;z-index:100;transform:translateY(calc(-100% - 24px));background:var(--panel);border:1px solid var(--line-strong);border-radius:var(--r-md);padding:16px}.skip:focus{transform:none}.sr-only{position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation:none!important;transition:none!important}}
-@media(forced-colors:active){button{border:2px solid ButtonText!important}a{color:LinkText!important}}
+@media(forced-colors:active){button{border:2px solid ButtonText!important}a{color:LinkText!important}button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{box-shadow:none}}
 /* Browser guard: never rubber-band or chain a scroll to the page, never auto-inflate text on rotation. */
 html{overscroll-behavior:none;-webkit-text-size-adjust:100%;text-size-adjust:100%}body{overscroll-behavior:none}
 /* Only while playing (usePlayGuard sets html[data-playing]): the page cannot scroll, pan, zoom, select or show a callout.

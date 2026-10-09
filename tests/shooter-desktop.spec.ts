@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { openSettings, closeAndResume } from './lab-browser';
 import AxeBuilder from '@axe-core/playwright';
 import { beginFlow } from './flow-browser';
 import { aiming, begin, fov, heading, hud, resume, reticle, seed, shots, speed } from './shooter-browser';
@@ -132,8 +133,8 @@ test('ADS narrows the field of view and returns it exactly; reduced motion keeps
   await page.keyboard.up('KeyQ'); await page.waitForTimeout(1000);
   await expect(hud(page)).toHaveAttribute('data-fov', before!);
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  await page.getByRole('button', { name: 'Flight settings' }).click();
-  await page.getByLabel('Reduced camera motion').check(); await page.getByRole('button', { name: 'Close dialog' }).click();
+  await openSettings(page);
+  await page.getByLabel('Reduced camera motion').check(); await closeAndResume(page);
   await page.keyboard.down('KeyQ'); await expect(hud(page)).toHaveAttribute('data-aiming', 'true');
   await page.waitForTimeout(800); await expect(hud(page)).toHaveAttribute('data-fov', '65.0');
   await page.keyboard.up('KeyQ');
@@ -142,8 +143,8 @@ test('ADS narrows the field of view and returns it exactly; reduced motion keeps
 test('turning the blaster off mid-aim restores the reticle; ?shooter=0 has no HUD', async ({ page }) => {
   await begin(page); await expect(reticle(page)).toHaveCount(0);
   await page.keyboard.down('KeyQ'); await expect(hud(page)).toHaveAttribute('data-aiming', 'true');
-  await page.getByRole('button', { name: 'Flight settings' }).click();
-  await page.getByLabel('Suit blaster (drones and shooting)').uncheck(); await page.getByRole('button', { name: 'Close dialog' }).click();
+  await openSettings(page);
+  await page.getByLabel('Suit blaster (drones and shooting)').uncheck(); await closeAndResume(page);
   await page.keyboard.up('KeyQ');
   await expect(hud(page)).toHaveCount(0); await expect(reticle(page)).toHaveCount(1);
   await page.goto('/?shooter=0'); await page.getByRole('button', { name: 'Begin expedition' }).click();
@@ -160,6 +161,6 @@ test('the kill announcement sits outside aria-hidden; ADS and settings pass axe'
   const scan = async () => expect((await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze()).violations).toEqual([]);
   await expect(hud(page)).toHaveAttribute('data-aiming', 'true'); await scan();
   await page.keyboard.up('KeyQ');
-  await page.getByRole('button', { name: 'Flight settings' }).click(); await expect(page.getByRole('dialog')).toBeVisible(); await scan();
+  await openSettings(page); await expect(page.getByRole('dialog')).toBeVisible(); await scan();
   expect(errors).toEqual([]);
 });

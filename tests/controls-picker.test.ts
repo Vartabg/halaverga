@@ -15,9 +15,10 @@ import { livePlay } from '@/ui/vote/voteTracker';
 import { controlKeyFor, digitIndex, type ControlKeyCtx, type ControlKeyEvent } from '@/ui/controls/controlKeys';
 import ControlList from '@/ui/controls/ControlList';
 import ControlsEntry from '@/ui/controls/ControlsEntry';
+import ControlsLayer from '@/ui/controls/ControlsLayer';
 import ControlsPicker from '@/ui/controls/ControlsPicker';
-import ControlsSection from '@/ui/controls/ControlsSection';
 import ControlsSheet from '@/ui/controls/ControlsSheet';
+import PauseControls, { ControlsRow } from '@/ui/controls/PauseControls';
 // The controls picker (spec sections 3 and 4). Node only: pure key rules, the SSR markup, the storage helpers and the CSS contract.
 // The behaviour a player sees (digits mounting layers, no shot or pause from the sheet, layout matrix, axe) is tests/controls-picker.spec.ts.
 
@@ -26,8 +27,10 @@ const html = (node: Parameters<typeof renderToStaticMarkup>[0]) => renderToStati
 const rowsOf = (markup: string) => markup.split('<label').slice(1).map(r => r.split('</label>')[0]);
 const idsOf = (markup: string) => [...markup.matchAll(/data-control="([^"]+)"/g)].map(m => m[1]);
 const noop = () => {};
+// While the vote is locked (nothing flown in these tests) the Controls button's name ends with the twin of its two dots (addendum C1).
+const LOCKED = ': vote unlocks after two ways, 0 of 2 tried';
 
-const fresh = () => useGame.setState({ started: false, paused: false, voteOpen: false, controlLab: 'standard', touchScheme: 'classic',
+const fresh = () => useGame.setState({ started: false, paused: false, voteOpen: false, controlsOpen: false, controlLab: 'standard', touchScheme: 'classic',
   trackpadSteering: 'free', desktopMode: 'trackpad' });
 const seedPlay = (secs: Record<string, number>) => { const p = livePlay(); for (const k of Object.keys(p.secs)) p.secs[k] = secs[k] ?? 0; };
 afterEach(() => { fresh(); seedPlay({}); });
@@ -43,26 +46,39 @@ describe('trigger (SSR)', () => {
   it('renders nothing before Begin', () => {
     expect(html(createElement(ControlsPicker, { family: 'desktop' }))).toBe('');
   });
-  it('says Controls: One finger on touch and Controls: Cursor on desktop, closed, with aria-haspopup', () => {
-    useGame.setState({ started: true });
+  it('shows the word Controls and names the control in its accessible name, closed, with aria-haspopup (the visible word is a prefix of the name: WCAG 2.5.3)', () => {
+    useGame.setState({ started: true, paused: false });
     const touch = html(createElement(ControlsPicker, { family: 'touch' })), desktop = html(createElement(ControlsPicker, { family: 'desktop' }));
-    expect(touch).toContain('>Controls: One finger</button>');
-    expect(desktop).toContain('>Controls: Cursor</button>');
+    expect(touch).toContain(`aria-label="Controls: One finger${LOCKED}"`); expect(touch).toMatch(/>Controls<span class="[^"]*_dots_/);
+    expect(desktop).toContain(`aria-label="Controls: Cursor${LOCKED}"`); expect(desktop).toMatch(/>Controls<span class="[^"]*_dots_/);
     for (const m of [touch, desktop]) {
       expect(m).toContain('aria-haspopup="dialog"'); expect(m).toContain('aria-expanded="false"');
       expect(m).toContain('data-testid="controls-trigger"'); expect(m).not.toContain('role="dialog"');
     }
   });
   it('names the current control whatever the settings are', () => {
-    useGame.setState({ started: true, touchScheme: 'twin' });
-    expect(html(createElement(ControlsPicker, { family: 'touch' }))).toContain('Controls: Twin stick');
+    useGame.setState({ started: true, paused: false, touchScheme: 'twin' });
+    expect(html(createElement(ControlsPicker, { family: 'touch' }))).toContain(`aria-label="Controls: Twin stick${LOCKED}"`);
     useGame.setState({ trackpadSteering: 'simple' });
-    expect(html(createElement(ControlsPicker, { family: 'desktop' }))).toContain('Controls: One finger + keys');
+    expect(html(createElement(ControlsPicker, { family: 'desktop' }))).toContain(`aria-label="Controls: One finger + keys${LOCKED}"`);
     useGame.setState({ desktopMode: 'mouse' });
-    expect(html(createElement(ControlsPicker, { family: 'desktop' }))).toContain('Controls: Mouse + keys');
+    expect(html(createElement(ControlsPicker, { family: 'desktop' }))).toContain(`aria-label="Controls: Mouse + keys${LOCKED}"`);
     useGame.setState({ controlLab: 'brush' });
-    expect(html(createElement(ControlsPicker, { family: 'touch' }))).toContain('Controls: Brush');
-    expect(html(createElement(ControlsPicker, { family: 'desktop' }))).toContain('Controls: Brush');
+    expect(html(createElement(ControlsPicker, { family: 'touch' }))).toContain(`aria-label="Controls: Brush${LOCKED}"`);
+    expect(html(createElement(ControlsPicker, { family: 'desktop' }))).toContain(`aria-label="Controls: Brush${LOCKED}"`);
+  });
+  it('is only in the top row while playing: paused, the trigger and the chip are gone, and the sheet is its own layer', () => {
+    useGame.setState({ started: true, paused: true });
+    expect(html(createElement(ControlsPicker, { family: 'desktop' }))).toBe('');
+    useGame.setState({ paused: false, controlsOpen: false });
+    expect(html(createElement(ControlsLayer, { family: 'desktop' }))).toBe('');
+    useGame.setState({ controlsOpen: true });
+    const m = html(createElement(ControlsLayer, { family: 'desktop' }));
+    expect(m).toContain('data-testid="controls-backdrop"'); expect(m).toContain('data-testid="controls-sheet"');
+    expect(html(createElement(ControlsPicker, { family: 'desktop' }))).not.toContain('controls-sheet'); // never inside the header
+    expect(html(createElement(ControlsPicker, { family: 'desktop' }))).toContain('aria-expanded="true"');
+    useGame.setState({ started: false });
+    expect(html(createElement(ControlsLayer, { family: 'desktop' }))).toBe('');
   });
 });
 
@@ -118,13 +134,13 @@ describe('ControlList (SSR)', () => {
   });
 });
 
-describe('ControlsSheet and ControlsSection (SSR)', () => {
-  it('the sheet is a non-modal dialog named Controls with the tried line, Vote and Done', () => {
+describe('ControlsSheet and the Controls row (SSR)', () => {
+  it('the sheet is a non-modal dialog named Controls with the tried line and Done (the Vote button joins them only once two ways are flown)', () => {
     const touch = html(createElement(ControlsSheet, { family: 'touch', onClose: noop }));
     expect(touch).toContain('role="dialog"'); expect(touch).toContain('aria-modal="false"');
     expect(touch).toMatch(/aria-labelledby="([^"]+)"/); expect(touch).toContain('>Controls</h2>');
     expect(touch).toContain('Tried 0 of 2 needed to vote'); expect(touch).toContain('aria-live="polite"');
-    expect(touch).toContain('>Vote: which felt best?</button>'); expect(touch).toContain('>Done</button>');
+    expect(touch).not.toContain('controls-vote'); expect(touch).toContain('>Done</button>'); // a locked vote has no button, only the line above
     expect(touch).not.toContain('Number keys 1-8');
     const desktop = html(createElement(ControlsSheet, { family: 'desktop', onClose: noop }));
     expect(desktop).toContain('Tried 0 of 2 needed to vote'); expect(desktop).toContain('Number keys 1-8 switch controls');
@@ -134,22 +150,32 @@ describe('ControlsSheet and ControlsSection (SSR)', () => {
     seedPlay({ 'desktop:cursor': 30, 'desktop:draw': 21, 'desktop:flow': 5 });
     expect(html(createElement(ControlsSheet, { family: 'desktop', onClose: noop }))).toContain('Tried 2 of 8');
   });
-  it('the section carries the Try every control heading only for the field guide, in a details that starts open on the server', () => {
-    const guide = html(createElement(ControlsSection, { name: 'control-guide' })), pause = html(createElement(ControlsSection, { name: 'control-pause' }));
-    expect(guide).toContain('>Try every control</h3>'); expect(pause).not.toContain('Try every control');
-    expect(guide).toMatch(/<details[^>]*open/); expect(guide).toContain('<summary>Controls: Cursor</summary>');
-    expect(idsOf(guide)).toEqual(ORDER); expect(guide).toContain('name="control-guide"'); expect(pause).toContain('name="control-pause"');
-    expect(guide).toContain('Tried 0 of 8'); expect(guide).not.toContain('needed to vote'); // CODE-9: no vote door in the Field guide, so no "needed to vote"
-    expect(pause).toContain('Tried 0 of 2 needed to vote'); // the pause card has a vote door in its section, so its line may say what a vote needs
-    expect(guide).toContain('Number keys 1-8 switch controls');
-    expect(guide).not.toContain('controls-vote'); // no vote button unless asked
-    expect(html(createElement(ControlsSection, { name: 'control-settings', vote: true }))).toContain('data-testid="controls-vote"');
+  it('the Controls row is one button with the word and the control now in use; it carries no list', () => {
+    const row = html(createElement(ControlsRow, {}));
+    expect(row).toContain('data-testid="controls-row"'); expect(row).toContain('aria-haspopup="dialog"'); expect(row).toContain('aria-label="Controls: Cursor"');
+    expect(row).toContain('<b>Controls</b><span>Cursor</span>'); expect(row).toContain('<i aria-hidden="true">');
+    expect(row).not.toContain('controls-list'); expect(row).not.toContain('radio'); // the list lives only in the sheet
+    useGame.setState({ trackpadSteering: 'flow' });
+    expect(html(createElement(ControlsRow, { fromPanel: true }))).toContain('<b>Controls</b><span>Flow</span>'); // the row names whatever is in use now
+  });
+  it('the pause card door is the row and the tried line (and the vote door once the vote works): no list, no Try every control, no second copy of the sheet', () => {
+    const pause = html(createElement(PauseControls));
+    expect(pause).toContain('data-testid="controls-row"'); expect(pause).toContain('Tried 0 of 2 needed to vote'); // the line says what a vote needs
+    expect(pause).not.toContain('data-testid="vote-open"'); // a locked vote has no door (tests/use-vote-state.test.ts: it joins them when two ways are flown)
+    for (const gone of ['controls-list', 'controls-section', 'Try every control', 'Number keys 1-8', '<details', 'name="control-pause"']) expect(pause, gone).not.toContain(gone);
+  });
+  it('the sheet footer links to Flight settings on touch only; the desktop footer has the number-keys checkbox instead', () => {
+    const touch = html(createElement(ControlsSheet, { family: 'touch', onClose: noop })), desktop = html(createElement(ControlsSheet, { family: 'desktop', onClose: noop }));
+    expect(touch).toMatch(/<button[^>]*data-testid="controls-settings"[^>]*aria-label="Flight settings: size, left-handed, look speed"[^>]*>Flight settings<\/button>/);
+    expect(touch.indexOf('data-testid="controls-tried"')).toBeLessThan(touch.indexOf('data-testid="controls-settings"')); // one row with the tried line
+    expect(touch).toContain('footLine'); expect(touch.indexOf('footLine')).toBeLessThan(touch.indexOf('data-testid="controls-tried"'));
+    expect(desktop).not.toContain('controls-settings'); expect(desktop).not.toContain('Flight settings');
   });
   it('the entry mounts the note or the trigger, and the trigger part waits for Begin', () => {
     expect(html(createElement(ControlsEntry, { part: 'note' }))).toContain('role="note"');
     expect(html(createElement(ControlsEntry, { part: 'trigger' }))).toBe('');
     useGame.setState({ started: true });
-    expect(html(createElement(ControlsEntry, { part: 'trigger' }))).toContain('Controls: Cursor');
+    expect(html(createElement(ControlsEntry, { part: 'trigger' }))).toContain(`aria-label="Controls: Cursor${LOCKED}"`);
     expect(html(createElement(ControlsEntry, { part: 'trigger', failed: true }))).toBe('');
   });
 });
@@ -228,11 +254,21 @@ describe('DemoNote', () => {
   beforeEach(() => vi.resetModules());
   afterEach(() => vi.unstubAllGlobals());
   const render = async () => html(createElement((await import('@/ui/controls/DemoNote')).default));
-  it('shows the exact copy and a Got it button on the first visit', async () => {
+  it('shows the exact copy as passive text on the first visit: no button to tap, nothing to dismiss', async () => {
     vi.stubGlobal('localStorage', memoryStorage());
     const m = await render();
     expect(m).toContain('A demo of new ways to fly. After you begin, try each in the Controls menu, then vote.');
-    expect(m).toContain('role="note"'); expect(m).toContain('>Got it</button>');
+    expect(m).toContain('role="note"'); expect(m).not.toContain('<button'); expect(m).not.toContain('Got it');
+  });
+  it('C2 it counts as seen only for the store change that is Begin, and only with a box on screen (display:none has none)', async () => {
+    const { seenAtBegin } = await import('@/ui/controls/DemoNote');
+    const shown = { getClientRects: () => [{}] }, hidden = { getClientRects: () => [] };
+    const off = { started: false }, on = { started: true };
+    expect(seenAtBegin(on, off, shown)).toBe(true);
+    expect(seenAtBegin(on, off, hidden)).toBe(false); // mounted but hidden by CSS: nobody read it
+    expect(seenAtBegin(on, off, null)).toBe(false);
+    expect(seenAtBegin(on, on, shown)).toBe(false); // some other change after Begin
+    expect(seenAtBegin(off, off, shown)).toBe(false); // not Begin yet
   });
   it('stays away once dismissed, and dismissal is stored under its own key', async () => {
     const store = memoryStorage(); vi.stubGlobal('localStorage', store);
@@ -257,26 +293,49 @@ describe('ControlsPicker.module.css contract', () => {
     expect(css).toMatch(/\.row\{[^}]*min-height:(4[4-9]|[5-9]\d)px/);
     expect(css).toMatch(/\.trigger\{[^}]*min-height:44px/);
     expect(css).toMatch(/\.action\{[^}]*min-height:44px/);
-    expect(css).toMatch(/\.demo button\{[^}]*min-height:44px/);
-    expect(css).toMatch(/\.switch button\{[^}]*min-height:44px/);
     expect(css).toMatch(/\.check\{[^}]*min-height:44px/);
   });
-  it('the sheet sits under the header inside the safe areas and scrolls; the footer is sticky', () => {
-    expect(css).toContain('--top:calc(max(28px,env(safe-area-inset-top)) + 56px + var(--lab-row,0px))');
-    expect(css).toContain('--top:calc(max(20px,env(safe-area-inset-top)) + 56px + var(--lab-row,0px))');
-    expect(css).toContain('--top:calc(max(12px,env(safe-area-inset-top)) + 56px + var(--lab-row,0px))');
-    expect(css).toMatch(/\.sheet\{[^}]*max-height:calc\(100dvh - var\(--top\) - max\(8px,env\(safe-area-inset-bottom\)\)/);
-    expect(css).toMatch(/\.sheet\{[^}]*overflow-y:auto;overscroll-behavior:contain/);
-    expect(css).toMatch(/\.sheet\{[^}]*touch-action:pan-y/);
-    expect(css).toMatch(/\.sheet\{[^}]*env\(safe-area-inset-left\),env\(safe-area-inset-right\)/);
-    expect(css).toMatch(/\.foot\{position:sticky;bottom:0;[^}]*background:#132a30/);
+  it('has no leftovers of the deleted list copies (the family switch, the section wrapper, the folded details)', () => {
+    for (const gone of ['.switch', '.section', '.details']) expect(css, gone).not.toContain(gone);
   });
-  it('checked rows and buttons are dark on lime; the trigger is ink on the dark pill; focus is visible', () => {
-    expect(css).toMatch(/\.trigger\[aria-expanded=true\]\{background:var\(--lime\);color:#1a3029/);
-    expect(css).toMatch(/\.trigger\{[^}]*background:#142d34c9/);
-    expect(css).toMatch(/\.badge\[data-badge=tried\]\{background:var\(--lime\)[^}]*color:#1a3029/);
-    expect(css).toMatch(/\.trigger:focus-visible\{outline:2px solid var\(--lime\)/);
-    expect(css).toMatch(/\.row:has\(\.radio:focus-visible\)\{outline:3px solid var\(--lime\)/);
+  it('the sheet is a popover under the row by default (right edge on the row, 420 wide, one column) and its list is the one scroller between the title and the footer, which is a row of the sheet, not a sticky box over the list (WCAG 2.4.11)', () => {
+    expect(css).not.toContain('--lab-row'); expect(css).not.toMatch(/--top:calc/); // one token: the row's --hdr, from the experience
+    expect(css).toMatch(/\.sheet\{[^}]*top:var\(--hdr\);right:max\(var\(--gx\),env\(safe-area-inset-right\)\)/);
+    expect(css).toMatch(/\.sheet\{[^}]*width:min\(420px,calc\(100vw - 2 \* var\(--side\)\)\)/);
+    expect(css).toMatch(/\.sheet\{[^}]*max-height:min\(calc\(100dvh - var\(--hdr\) - 16px\),640px\)/);
+    expect(css).toMatch(/\.sheet\{[^}]*display:flex;flex-direction:column;overflow:hidden/);
+    expect(css).toMatch(/\.sheetBody\{flex:1 1 auto;min-height:0;[^}]*overflow-y:auto;overscroll-behavior:contain/);
+    expect(css).toMatch(/\.sheetBody\{[^}]*touch-action:pan-y/);
+    expect(css).toMatch(/\.sheet\{--side:max\(16px,env\(safe-area-inset-left\),env\(safe-area-inset-right\)\)/);
+    expect(css).toMatch(/\.foot\{flex:none;[^}]*background:#1c2023/); expect(css).not.toMatch(/\.foot\{[^}]*position:sticky/);
+    expect(css).toMatch(/\.title\{flex:none/);
+    expect(css).not.toContain('min-width:721'); // no two-column desktop sheet any more: it covered the crosshair
+    expect(css).not.toMatch(/data-family=desktop\] \.sheetBody/);
+  });
+  it('on a phone (600 px and narrower, or a short landscape window) it is a bottom sheet inside the safe area; short landscape keeps two columns', () => {
+    const phone = css.match(/@media\(max-width:600px\),\(max-height:550px\) and \(orientation:landscape\)\{([\s\S]*?)\n\}/);
+    expect(phone).not.toBeNull();
+    expect(phone![1]).toMatch(/\.sheet\{[^}]*top:auto;right:auto;left:50%;bottom:max\(8px,env\(safe-area-inset-bottom\)\);transform:translateX\(-50%\)/);
+    expect(phone![1]).toMatch(/max-height:min\(80dvh,calc\(100dvh - var\(--hdr\) - 8px\)\)/);
+    expect(phone![1]).toMatch(/border-radius:12px/);
+    const short = css.match(/@media\(max-height:550px\) and \(orientation:landscape\)\{([\s\S]*?)\n\}/);
+    expect(short).not.toBeNull();
+    expect(short![1]).toMatch(/\.sheet\{width:min\(680px/); expect(short![1]).toMatch(/\.sheetBody \.list\{grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
+  });
+  it('the Controls row and the footer link are 44 px tall targets, the link in the tried line\'s row (no extra footer height)', () => {
+    expect(css).toMatch(/\.link\{[^}]*min-height:44px/);
+    expect(css).toMatch(/\.footLine\{display:flex;[^}]*justify-content:space-between/);
+    expect(css).toMatch(/\.rowButton\{[^}]*width:100%/); // its height is the shared .secondary 44 px
+  });
+  it('checked rows and buttons are dark on the accent; the trigger is ink on the graphite pill, and open it is a lighter graphite with a bone edge, never the accent; focus is visible', () => {
+    const open = css.match(/\.trigger\[aria-expanded=true\]\{([^}]*)\}/)![1];
+    expect(open).toContain('background:#3a4247'); expect(open).toContain('border-color:#eceae4'); expect(open).toContain('inset 0 0 0 1px #eceae4'); expect(open).not.toMatch(/accent|lime/);
+    expect(open).not.toMatch(/border-width|padding|min-width/); // the same box open or closed (one width in every state)
+    expect(css).not.toMatch(/\.trigger\[aria-expanded=true\][^{]*\{[^}]*(var\(--accent\)|#5ee6d0|var\(--lime\)|#d4f197)/);
+    expect(css).toMatch(/\.trigger\{[^}]*background:#1c2023e6/); // 90 percent: AA over a bright sky
+    expect(css).toMatch(/\.badge\[data-badge=tried\]\{background:var\(--accent\)[^}]*color:#0c1b1b/);
+    expect(css).toMatch(/\.trigger:focus-visible\{outline:2px solid var\(--accent\)/);
+    expect(css).toMatch(/\.row:has\(\.radio:focus-visible\)\{outline:3px solid var\(--accent\)/);
   });
   it('key hints only for a fine pointer driving the page on widths over 600 px', () => {
     expect(css).toMatch(/\.kbd\{display:none/);
@@ -291,12 +350,13 @@ describe('ControlsPicker.module.css contract', () => {
     expect(css).toMatch(/@media \(forced-colors:active\)\{[\s\S]*Highlight;color:HighlightText/);
     expect(css).toMatch(/forced-colors:active[\s\S]*\.sheet,\.demo\{border-color:CanvasText;background:Canvas/);
   });
-  it('the demo note is hidden on short landscape screens', () => {
+  it('the demo note is hidden on short landscape screens, and passive: it takes no touches and has no button styles', () => {
     expect(css).toContain('@media(max-height:430px) and (orientation:landscape){.demo{display:none}}');
+    expect(css).toMatch(/\.demo\{[^}]*pointer-events:none/); expect(css).not.toMatch(/\.demo button/);
   });
-  it('the backdrop takes the presses under the sheet and the trigger sits above it', () => {
-    expect(css).toMatch(/\.backdrop\{position:fixed;inset:0;z-index:0/);
-    expect(css).toMatch(/\.trigger\{position:relative;z-index:2/);
-    expect(css).toMatch(/\.sheet\{[^}]*z-index:1/);
+  it('the backdrop takes the presses under the sheet, both on --z-sheet, under the top row (--z-bar) so Pause and Controls stay above, and both take presses under a pass-through ancestor', () => {
+    expect(css).toMatch(/\.backdrop\{position:fixed;inset:0;z-index:var\(--z-sheet\);pointer-events:auto/);
+    expect(css).toMatch(/\.sheet\{[^}]*z-index:var\(--z-sheet\);pointer-events:auto/);
+    expect(css).not.toMatch(/\.trigger\{[^}]*z-index/);
   });
 });

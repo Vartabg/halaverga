@@ -33,7 +33,7 @@ const box = (world: RAPIER.World, c: Vec3, hx: number, hy: number, hz: number) =
   world.createCollider(RAPIER.ColliderDesc.cuboid(hx, hy, hz).setTranslation(c.x, c.y, c.z)); world.step();
 };
 const target = (c: Vec3, los = true): DroneTarget => ({ c, r: DRONE_RADIUS, eye: v(c.x, c.y, c.z + EYE_FORWARD), eyeR: EYE_RADIUS, alive: true, los });
-const shot = (): ShotHit => ({ kind: 'miss', t: 0, drone: -1, point: v(0, 0, 0), normal: v(0, 0, 0) });
+const shot = (): ShotHit => ({ kind: 'miss', t: 0, drone: -1, point: v(0, 0, 0), normal: v(0, 0, 0), surface: 0 });
 const rawRay = (world: RAPIER.World, o: Vec3, d: Vec3, max: number) => world.castRay(new RAPIER.Ray(o, d), max, true);
 const fwd = v(0, 0, -1);
 
@@ -65,7 +65,7 @@ describe('shot resolution against the city', () => {
     expect(out.point.z).toBeCloseTo(50 - (20 - WATER_LEVEL) * 28 / 20, 6);
   });
   it('skips a prop between the camera and the head', () => {
-    const { world, sw } = setup(), o = v(0, 60, 10), head = v(.6, 59.5, 6), out = shot(), hit: WorldHit = { t: 0, normal: v(0, 0, 0) };
+    const { world, sw } = setup(), o = v(0, 60, 10), head = v(.6, 59.5, 6), out = shot(), hit: WorldHit = { t: 0, normal: v(0, 0, 0), surface: 0 };
     box(world, v(0, 60, 8), .5, .5, .5);
     expect(sw.castShot(o, fwd, SHOT_RANGE, hit)).toBe(true); expect(hit.t).toBeCloseTo(1.5, 5);
     resolveShot(sw, o, fwd, head, null, [target(v(0, 60, -10))], 1, -1, out);
