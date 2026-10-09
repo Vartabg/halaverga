@@ -1,0 +1,22 @@
+{
+  "1440x1000": {
+    "acquired": true,
+    "shotMs": 52,
+    "hitsAtDamaged": 4,
+    "killsAtDamaged": 0,
+    "damagedMs": 360,
+    "killed": true,
+    "burstMs": 204,
+    "afterMs": 729
+  },
+  "844x390": {
+    "acquired": true,
+    "shotMs": 53,
+    "hitsAtDamaged": 4,
+    "killsAtDamaged": 0,
+    "damagedMs": 357,
+    "killed": true,
+    "burstMs": 209,
+    "afterMs": 736
+  }
+}
