@@ -39,7 +39,9 @@ export function advanceSuitRoll(r: SuitRoll, pose: Pose & { epoch: number }, inp
   if (input.paused) { r.held = true; return r.angle; }
   // Reduced motion drops the signal rather than the angle, so a roll switched off mid-turn eases out without a jolt.
   if (real > 0) r.lateral = settle(r.lateral, input.reduced ? 0 : swept / real || 0, ROLL.signal, dt);
-  const reach = (ROLL.classic + (ROLL.hero - ROLL.classic) * hero) * pose.flight * (1 - clamp(flare, 0, 1));
+  const base = (ROLL.classic + (ROLL.hero - ROLL.classic) * hero) * pose.flight * (1 - clamp(flare, 0, 1)), aim = pose.aim ?? 0;
+  // Aiming steadies the body; skipped at exactly 0 so the shooter-off roll stays bit-identical.
+  const reach = aim === 0 ? base : base * (1 - .7 * aim);
   const fade = speedFade(Math.hypot(v.x, v.y, v.z));
   const target = !input.flying ? 0 : reach * fade * Math.tanh(clamp(r.lateral, -SWEEP.cap, SWEEP.cap) / ROLL.soft);
   // Never past the reach, so the roll gives way to a rising flare or a switch to classic poses at once.

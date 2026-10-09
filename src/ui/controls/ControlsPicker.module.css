@@ -1,0 +1,111 @@
+/* The controls picker: header trigger, non-modal sheet, the shared list, the settings section and the demo note. AA: ink #f5f0dc on
+   #142d34 (over any scene the 79% pill keeps it above 6:1); checked #1a3029 on lime #d4f197 (about 11:1); muted #becdc7 on #132a30. */
+.root{display:flex;justify-content:center;min-width:0;max-width:100%}
+.trigger{position:relative;z-index:2;display:inline-flex;align-items:center;justify-content:center;min-height:44px;min-width:44px;max-width:100%;padding:0 16px;margin:0;
+  border:1px solid #58e1ff66;border-radius:24px;background:#142d34c9;-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);color:var(--ink);
+  font:13px/1 system-ui,-apple-system,'Segoe UI',Arial,sans-serif;letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+.trigger:hover{background:#305058}
+.trigger[aria-expanded=true]{background:var(--lime);color:#1a3029;font-weight:600}
+.trigger:focus-visible{outline:2px solid var(--lime);outline-offset:2px}
+.trigger[aria-expanded=true]:focus-visible{outline-color:#f5f0dc;box-shadow:0 0 0 4px #1a3029}
+
+/* Full-viewport catcher under the sheet: it takes the presses (and closes on click), so nothing reaches the flight surface. */
+.backdrop{position:fixed;inset:0;z-index:0;background:transparent;touch-action:none;-webkit-tap-highlight-color:transparent}
+/* Under the header (its 44 px row, plus the second row --lab-row on narrow widths), inside the safe areas; the same offsets the other
+   header-anchored bands use. The list scrolls inside the sheet; the footer is sticky, so Done and Vote never scroll away. */
+.sheet{--top:calc(max(28px,env(safe-area-inset-top)) + 56px + var(--lab-row,0px));position:fixed;z-index:1;top:var(--top);left:50%;transform:translateX(-50%);
+  width:min(420px,calc(100vw - 2 * max(16px,env(safe-area-inset-left),env(safe-area-inset-right))));
+  max-height:calc(100vh - var(--top) - max(8px,env(safe-area-inset-bottom)) - 8px);max-height:calc(100dvh - var(--top) - max(8px,env(safe-area-inset-bottom)) - 8px);
+  overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-y;color:var(--ink);background:#132a30;border:1px solid #80948d;
+  border-radius:6px;box-shadow:0 20px 60px #071a2480}
+@media(max-width:600px){.sheet{--top:calc(max(20px,env(safe-area-inset-top)) + 56px + var(--lab-row,0px))}}
+@media(max-height:550px) and (orientation:landscape){.sheet{--top:calc(max(12px,env(safe-area-inset-top)) + 56px + var(--lab-row,0px))}}
+.title{margin:0;padding:14px 16px 4px;font:600 15px/1.3 system-ui,-apple-system,'Segoe UI',Arial,sans-serif;letter-spacing:.02em}
+.sheetBody{padding:4px 8px 8px}
+.foot{position:sticky;bottom:0;display:grid;gap:6px;padding:10px 16px 12px;background:#132a30;border-top:1px solid #6d8a84;box-shadow:0 -12px 12px -8px #071a24cc}
+/* Eight desktop rows in one column do not fit a 1280 x 720 window (four showed): two columns on a wide window, so the whole list is
+   nearly in view; the sheet still scrolls, and its footer's shadow shows there is more. */
+@media(min-width:721px){
+  .sheet[data-family=desktop]{width:min(680px,calc(100vw - 2 * max(16px,env(safe-area-inset-left),env(safe-area-inset-right))))}
+  .sheet[data-family=desktop] .sheetBody .list{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+/* A short landscape phone (852 x 393 shows about 2.5 rows in one column): a wider sheet with the list in two columns and a one-row
+   footer, so all five touch controls are within one short scroll. The sheet scrolls by touch (data-scroll-ok in usePlayGuard). */
+@media(max-height:550px) and (orientation:landscape){
+  .sheet{width:min(680px,calc(100vw - 2 * max(16px,env(safe-area-inset-left),env(safe-area-inset-right))))}
+  .title{padding:8px 16px 0}
+  .sheetBody .list{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .foot{grid-template-columns:auto minmax(0,1fr);align-items:center;column-gap:12px;padding:6px 16px 8px}
+  .foot .buttons{grid-column:2;grid-row:1 / span 2}
+  .foot .check{grid-column:1}
+}
+.tried{margin:0;font-size:13px;line-height:1.4;color:var(--muted)}
+.check{display:flex;align-items:center;gap:10px;min-height:44px;font-size:13px}
+.check input{flex:none;width:22px;height:22px;margin:0;accent-color:var(--lime)}
+.buttons{display:flex;gap:8px}
+.action{flex:1 1 auto;min-height:44px;min-width:44px;padding:0 14px;border:1px solid #94aaa1;border-radius:3px;background:transparent;color:var(--ink);font-size:13px}
+.action:hover{background:#2b4747}
+.buttons .action:last-child{background:var(--lime);border-color:var(--lime);color:#1a3029;font-weight:600}
+.buttons .action:last-child:hover{background:#e3ffad}
+
+/* The list: native radios in one fieldset (its legend is for screen readers; the sheet and section carry a visible title). */
+.list{display:grid;gap:4px;min-width:0;margin:0;padding:0;border:0}
+.legend{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+.row{display:grid;grid-template-columns:auto 48px minmax(0,1fr);align-items:center;column-gap:10px;min-height:52px;padding:6px 10px;border:1px solid transparent;
+  border-radius:4px;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+.row:hover{background:#203b40}
+.row:has(.radio:checked){border-color:var(--lime);background:#1c3a3a}
+.row:has(.radio:focus-visible){outline:3px solid var(--lime);outline-offset:2px}
+.radio{width:22px;height:22px;margin:0;accent-color:var(--lime)}
+.text{display:flex;flex-direction:column;gap:2px;min-width:0}
+.head{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.head b{font-size:14px;font-weight:600}
+.text small{font-size:12px;line-height:1.4;color:var(--muted)}
+.badges{display:inline-flex;gap:4px}
+.badge{padding:1px 6px;border:1px solid currentColor;border-radius:9px;font-size:11px;line-height:1.4;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+.badge[data-badge=tried]{background:var(--lime);border-color:var(--lime);color:#1a3029;font-weight:600}
+/* Key hints only for a fine pointer driving the page (html[data-input=mouse]) on screens wider than 600 px. */
+.kbd{display:none;min-width:16px;padding:1px 4px;border:1px solid currentColor;border-radius:4px;font:inherit;font-size:11px;line-height:1.2;color:var(--muted)}
+@media (pointer:fine) and (min-width:601px){:global(html[data-input=mouse]) .kbd{display:inline-block}}
+
+/* A picture of the motion: a faint base line and one ink stroke that loops along it (still by default; moving only when motion is welcome). */
+.glyph{flex:none;overflow:visible;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.glyphBase{stroke:#8fa7a1;stroke-width:1.5;opacity:.45}
+.glyphInk{stroke:#58e1ff;stroke-width:2.2;stroke-dasharray:3 4}
+@media (prefers-reduced-motion:no-preference){.glyph:not([data-reduced=true]) .glyphInk{stroke-dasharray:28 72;animation:ctlInk 1.8s linear infinite}}
+@keyframes ctlInk{from{stroke-dashoffset:100}to{stroke-dashoffset:0}}
+
+/* The settings, pause card and Field guide copy of the list. */
+.section{margin:16px 0}
+.sectionTitle{margin:0 0 6px;font:600 15px/1.3 system-ui,-apple-system,'Segoe UI',Arial,sans-serif}
+.details>summary{display:flex;align-items:center;min-height:44px;font-size:14px;font-weight:600;cursor:pointer}
+.details>summary:focus-visible{outline:3px solid var(--lime);outline-offset:2px}
+.switch{display:flex;gap:6px;margin:4px 0 8px}
+.switch button{flex:1;min-height:44px;padding:0 10px;border:1px solid #94aaa1;border-radius:3px;background:transparent;color:var(--ink);font-size:13px}
+.switch button[aria-pressed=true]{background:var(--lime);border-color:var(--lime);color:#1a3029;font-weight:600}
+.section .tried{margin-top:6px}
+.section>details>.action{width:100%;margin-top:8px}
+
+/* The first-visit note in the start card. Landscape phones hide it: the trigger it names only exists after Begin. */
+.demo{display:flex;align-items:center;gap:10px;max-width:38ch;margin:12px 0 0;padding:8px 10px;border:1px solid #58e1ff66;border-radius:4px;background:#142d34e6;color:var(--ink)}
+.demo p{margin:0;font-size:12px;line-height:1.45}
+.demo button{flex:none;min-width:64px;min-height:44px;padding:0 12px;border:1px solid #94aaa1;border-radius:3px;background:transparent;color:var(--ink);font-size:13px}
+.demo button:hover{background:#2b4747}
+@media(max-height:430px) and (orientation:landscape){.demo{display:none}}
+
+@media (prefers-reduced-motion:no-preference){.trigger,.row,.action,.switch button{transition:background-color .15s ease,color .15s ease}}
+
+@media (forced-colors:active){
+  .trigger{border-color:CanvasText;background:Canvas;color:ButtonText;forced-color-adjust:none}
+  .trigger[aria-expanded=true]{background:Highlight;color:HighlightText}
+  .trigger:focus-visible{outline:2px solid Highlight;box-shadow:none}
+  .sheet,.demo{border-color:CanvasText;background:Canvas;color:CanvasText}
+  .foot{background:Canvas;border-top-color:CanvasText}
+  .row:has(.radio:checked){border-color:Highlight;background:Canvas}
+  .row:has(.radio:focus-visible){outline-color:Highlight}
+  .badge,.badge[data-badge=tried],.kbd{border-color:CanvasText;background:Canvas;color:CanvasText}
+  .action,.switch button,.demo button,.buttons .action:last-child{border-color:ButtonText;background:ButtonFace;color:ButtonText}
+  .switch button[aria-pressed=true]{background:Highlight;color:HighlightText}
+  .glyphBase{stroke:CanvasText;opacity:1}.glyphInk{stroke:Highlight}
+}

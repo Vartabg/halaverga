@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 test('loads, lifts, moves, brakes, switches cameras and survives pause', async ({ page }) => {
   const errors: string[] = []; page.on('pageerror', e => errors.push(e.message));
   page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
-  await page.goto('/'); await page.getByRole('button', { name: 'Begin expedition' }).click();
+  await page.goto('/?shooter=0'); await page.getByRole('button', { name: 'Begin expedition' }).click();
   const telemetry = page.getByTestId('flight-telemetry');
   await page.keyboard.press('Space'); await expect(telemetry).toHaveAttribute('data-flying', 'true');
   await page.keyboard.down('KeyW'); await page.waitForTimeout(1000); await page.keyboard.up('KeyW');
@@ -25,7 +25,7 @@ test('loads, lifts, moves, brakes, switches cameras and survives pause', async (
 });
 test('portrait/landscape resize retains position and text route works', async ({ page }) => {
   await page.setViewportSize({ width: 393, height: 852 });
-  await page.goto('/'); await page.getByRole('button', { name: 'Begin expedition' }).click();
+  await page.goto('/?shooter=0'); await page.getByRole('button', { name: 'Begin expedition' }).click();
   await page.keyboard.press('Space'); await page.waitForTimeout(800);
   const telemetry = page.getByTestId('flight-telemetry');
   const before = JSON.parse((await telemetry.getAttribute('data-position'))!);

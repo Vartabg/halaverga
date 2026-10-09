@@ -1,0 +1,13 @@
+/* Gesture Lab chrome: the fallback buttons and the measurements table (the control list is the shared Controls picker, src/ui/controls). Every control is at least 44 px. */
+.note{margin:6px 0 0;font-size:12px;color:var(--muted);min-height:1.4em}
+
+.fallback button{min-height:44px;min-width:44px;padding:10px 14px;border:1px solid #94aaa1;border-radius:3px;background:transparent;font-size:13px}
+.fallback button:hover{background:#2b4747}
+.fallback{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0}
+.fallback .note{flex-basis:100%}
+
+.tableWrap{overflow-x:auto;max-width:100%;margin:10px 0;border:1px solid var(--line);border-radius:4px}
+.tableWrap:focus-visible{outline:2px solid var(--lime);outline-offset:2px}
+.table{border-collapse:collapse;width:100%;font:12px 'Courier New',monospace}
+.table th,.table td{padding:6px 8px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
+.table th[scope=row],.table thead th:first-child{text-align:left;font-weight:600}

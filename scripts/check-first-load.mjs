@@ -1,9 +1,25 @@
-// The landing page's first load must not reach three.js or the flight clips: they live in the lazy scene chunk.
-// Run after `next build`: reads the prerendered landing HTML, sums the scripts it loads and fails on any scene marker.
+// The landing page's first load must not reach three.js, the flight clips or the blaster UI/audio: they live in lazy chunks.
+// Run after `next build`: reads the prerendered landing HTML, sums the scripts it loads, fails on any marker and on size creep.
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 const root = fileURLToPath(new URL('..', import.meta.url));
-const MARKERS = ['WebGLRenderer', 'isVector3', '@react-three', 'BufferGeometry', 'powerHero', 'bankLeft'];
+const SCENE = ['WebGLRenderer', 'isVector3', '@react-three', 'BufferGeometry', 'powerHero', 'bankLeft'];
+// Minification-safe blaster markers: CSS module class prefixes, data-testids, a DOM API name and settings copy, never
+// component identifiers (the minifier renames those). runtime.shooter's plain state (combat.ts) is an accepted exception.
+// 'FireControls-module' is deleted (2026-09-26); the marker stays so a reintroduced Fire button never lands on the landing page.
+const SHOOTER = ['ShooterHud-module', 'FireControls-module', 'shooter-hud', 'fire-button', 'createDynamicsCompressor', 'drones and shooting'];
+// The touch controls (stick, look, cluster) are a chunk warmed after hydration (Experience loads them with next/dynamic).
+const TOUCH = ['TouchControls-module', 'rise-button', 'touch-stick'];
+// The Gesture Lab (surface, ink, schemes, guides, picker, header bar) loads only when a lab scheme is on, a picker opens or play
+// starts (the bar). Only its plain bus and flight hooks (bus.ts, applyGesture.ts) reach the landing graph, through runtime.ts.
+const LAB = ['Gesture-module', 'Lab-module', 'lab-surface', 'lab-picker', 'lab-bar', 'LabBar-module', 'lab-ghost', 'halaverga.lab.guides'];
+// The controls picker (header trigger, sheet, shared list, demo note) and its play record are chunks: the landing page carries only the
+// two dynamic() doors (Experience, LazyControls). Every control name, line and preference key lives in the chunk.
+const CONTROLS = ['ControlsPicker-module', 'controls-picker', 'halaverga.controls', 'halaverga.vote.play'];
+// The in-game vote (tracker, card, client) is a chunk mounted after Begin: the landing page never carries it.
+const VOTE = ['VoteCard-module', 'vote-card', '/api/vote', 'halaverga.vote'];
+// Main measured 614.9 KB (PR #11); the blaster keeps only its input handlers and plain state on the landing page.
+const BUDGET_KB = 636;
 const html = await readFile(root + '.next/server/app/index.html', 'utf8').catch(() => {
   throw new Error('No landing build found: run `next build` first.');
 });
@@ -15,7 +31,9 @@ let bytes = 0; const found = [];
 for (const src of sources) {
   const body = await readFile(root + '.next/' + src.slice('/_next/'.length).split('?')[0], 'utf8');
   bytes += Buffer.byteLength(body);
-  for (const marker of MARKERS) if (body.includes(marker)) found.push(`${marker} in ${src}`);
+  for (const marker of [...SCENE, ...SHOOTER, ...TOUCH, ...LAB, ...CONTROLS, ...VOTE]) if (body.includes(marker)) found.push(`${marker} in ${src}`);
 }
-console.log(`Landing first load: ${sources.size} scripts, ${(bytes / 1024).toFixed(1)} KB.`);
-if (found.length) { console.error('Scene code reached the landing first load:\n  ' + found.join('\n  ')); process.exit(1); }
+const kb = bytes / 1024;
+console.log(`Landing first load: ${sources.size} scripts, ${kb.toFixed(1)} KB (budget ${BUDGET_KB} KB).`);
+if (found.length) { console.error('Scene, blaster, touch-control, Gesture Lab, controls picker or vote code reached the landing first load:\n  ' + found.join('\n  ')); process.exit(1); }
+if (kb > BUDGET_KB) { console.error(`The landing first load grew past its ${BUDGET_KB} KB budget.`); process.exit(1); }

@@ -16,7 +16,8 @@ export function useCruiseCapture(surface: RefObject<HTMLDivElement | null>) {
     cancel(); stopTrackpad();
     if (useGame.getState().trackpadSteering === 'simple') {
       runtime.trackpad.captureFailed = true;
-      useGame.setState({ message: 'Pointer capture is unavailable. Drag to look or use arrow keys; WASD moves and Space lifts. Click to retry.' });
+      // Without the lock a click cannot fire, so the blaster's keyboard trigger is named here.
+      useGame.setState({ message: `Pointer capture is unavailable. Drag to look or use arrow keys; WASD moves and Space lifts.${useGame.getState().shooter ? ' Hold C to fire.' : ''} Click to retry.` });
     } else if (useGame.getState().trackpadSteering === 'flow') {
       runtime.trackpad.captureFailed = true;
       useGame.setState({ message: 'Flow could not capture the pointer. Click the scene to retry, or use free cursor controls.' });

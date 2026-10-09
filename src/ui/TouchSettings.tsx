@@ -1,0 +1,49 @@
+import { persistGame, useGame } from '@/game/store';
+import styles from './Experience.module.css';
+type Patch = Parameters<ReturnType<typeof useGame.getState>['set']>[0];
+const save = (patch: Patch) => { useGame.setState(patch); persistGame(); };
+// Touch controls (Flight settings, any coarse pointer, blaster on or off). One thumb (classic) is the default again (Garo
+// 2026-09-26): main's one-finger flight with tap-a-drone shooting; Two thumbs is the opt-in twin stick. The scheme itself is chosen in the shared Controls list above (selectControl is its only writer); this holds the settings that depend on it. Every control is a labelled native input with a 44 px target, saved at once. Range inputs get an inline
+// 44 px height because Experience.module.css styles only select and number inputs.
+const RANGE = { width: '100%', minHeight: 44, accentColor: 'var(--lime)' } as const;
+function Range({ label, value, min, max, step, shown, onChange }: {
+  label: string; value: number; min: number; max: number; step: number; shown: string; onChange: (v: number) => void;
+}) {
+  return <label className={styles.setting}>{label} · {shown}
+    <input type="range" min={min} max={max} step={step} value={value} style={RANGE}
+      onChange={e => { const v = e.target.valueAsNumber; if (Number.isFinite(v)) onChange(v); }} />
+  </label>;
+}
+function Check({ checked, onChange, children }: { checked: boolean; onChange: (v: boolean) => void; children: string }) {
+  return <label className={styles.check}><input type="checkbox" checked={checked} onChange={e => onChange(e.target.checked)} /> {children}</label>;
+}
+const pct = (v: number) => `${Math.round(v * 100)}%`;
+
+export default function TouchSettings() {
+  const scheme = useGame(s => s.touchScheme), shooter = useGame(s => s.shooter);
+  const touchLook = useGame(s => s.touchLook), touchAim = useGame(s => s.touchAim), lookAccel = useGame(s => s.lookAccel);
+  const invertY = useGame(s => s.invertY), flipSides = useGame(s => s.flipSides), flyWhereILook = useGame(s => s.flyWhereILook);
+  const controlSize = useGame(s => s.controlSize), controlOpacity = useGame(s => s.controlOpacity);
+  const edgeRest = useGame(s => s.edgeRest), reduced = useGame(s => s.reduced);
+  const twin = scheme !== 'classic';
+  return <fieldset data-testid="touch-settings"><legend>Touch controls</legend>
+    {!twin && <p className={styles.muted}>Hold to fly, slide to steer, hold near an edge to keep turning, let go to hover. Tap a drone to blast it.</p>}
+    {twin && <>
+      <p className={styles.muted}>Left thumb moves, right thumb looks. Rise and Descend change height.</p>
+      <Range label="Look sensitivity" value={touchLook} min={.5} max={2} step={.05} shown={`${touchLook.toFixed(2)}x`}
+        onChange={v => save({ touchLook: v })} />
+      {shooter && <Range label="Aim sensitivity" value={touchAim} min={.5} max={1.5} step={.05} shown={`${touchAim.toFixed(2)}x`}
+        onChange={v => save({ touchAim: v })} />}
+      <Check checked={lookAccel} onChange={v => save({ lookAccel: v })}>Look acceleration (fast swipes turn further)</Check>
+      {reduced && <p className={styles.muted}>Look acceleration is off while Reduce motion is on.</p>}
+      <Check checked={edgeRest} onChange={v => save({ edgeRest: v })}>Edge turning (rest your look thumb at an edge to keep turning)</Check>
+      <Check checked={invertY} onChange={v => save({ invertY: v })}>Invert look up and down</Check>
+      <Check checked={flipSides} onChange={v => save({ flipSides: v })}>Left-handed (swap sides)</Check>
+      <Check checked={flyWhereILook} onChange={v => save({ flyWhereILook: v })}>Fly where I look (climb by aiming up)</Check>
+      <Range label="Control size" value={controlSize} min={.85} max={1.2} step={.05} shown={pct(controlSize)}
+        onChange={v => save({ controlSize: v })} />
+      <Range label="Control opacity" value={controlOpacity} min={.4} max={1} step={.05} shown={pct(controlOpacity)}
+        onChange={v => save({ controlOpacity: v })} />
+    </>}
+  </fieldset>;
+}

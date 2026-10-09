@@ -3,6 +3,7 @@ import { useFrame } from '@react-three/fiber';
 import { CuboidCollider, RigidBody } from '@react-three/rapier';
 import { BoxGeometry, EdgesGeometry, LineBasicMaterial, type Mesh, Vector3 } from 'three';
 import { WORLD } from '@/game/motion';
+import { BOUNDARY_GROUPS } from '@/game/combat';
 import { boundaryDistance } from '@/game/navigation';
 import { runtime } from '@/game/runtime';
 import { useGame } from '@/game/store';
@@ -26,7 +27,8 @@ export default function DistrictBoundary() {
     }
   });
   return <>
-    <RigidBody type="fixed" colliders={false}>
+    {/* Shots and drone sight lines ignore the invisible walls (combat.ts groups); flight queries still collide. */}
+    <RigidBody type="fixed" colliders={false} collisionGroups={BOUNDARY_GROUPS}>
       <CuboidCollider args={[1, 75, depth / 2 + 4]} position={[WORLD.minX - 1.44, 35, centre[2]]} />
       <CuboidCollider args={[1, 75, depth / 2 + 4]} position={[WORLD.maxX + 1.44, 35, centre[2]]} />
       <CuboidCollider args={[width / 2 + 4, 75, 1]} position={[0, 35, WORLD.minZ - 1.44]} />

@@ -1,6 +1,6 @@
 # Flow trackpad preview
 
-Update 2026-09-21: physical playtest feedback reported browser/window gesture conflicts. [One finger + keyboard](simple-trackpad.md) is now the default for new preferences. Flow remains an explicit scroll experiment; existing saved profiles are preserved.
+Update 2026-09-21: physical playtest feedback reported browser/window gesture conflicts. [One finger + keyboard](simple-trackpad.md) became the default for new preferences (reversed on 2026-09-24: the free cursor is the desktop default again, see [DECISIONS.md](DECISIONS.md)). Flow remains an explicit scroll experiment; existing saved profiles are preserved.
 
 2026-09-19. Built on the approved athletic explorer and reclaimed boulevard (`fbccf22`). Opt-in: existing saved profiles and the free-cursor default remain supported.
 

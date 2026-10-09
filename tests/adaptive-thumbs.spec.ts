@@ -1,9 +1,10 @@
 import { expect, test } from '@playwright/test';
+import { CLASSIC, seed } from './shooter-browser';
 for (const first of ['left', 'right'] as const) for (const released of ['left', 'right'] as const) {
   test(`adaptive thumbs: ${first} arrives first, ${released} releases first`, async ({ browser }) => {
     const viewport = first === 'left' ? { width: 393, height: 852 } : { width: 852, height: 393 };
     const context = await browser.newContext({ viewport, isMobile: true, hasTouch: true });
-    const page = await context.newPage(), errors: string[] = [];
+    const page = await context.newPage(), errors: string[] = []; await seed(page, CLASSIC);
     page.on('pageerror', e => errors.push(e.message));
     await page.goto('/'); await page.getByRole('button', { name: 'Begin expedition' }).tap();
     const cdp = await context.newCDPSession(page), surface = page.getByTestId('flight-surface');
@@ -43,7 +44,7 @@ for (const first of ['left', 'right'] as const) for (const released of ['left', 
 }
 test('neutral dual thumbs look without launching; cancellation and extra contacts cannot latch flight', async ({ browser }) => {
   const context = await browser.newContext({ viewport: { width: 393, height: 852 }, isMobile: true, hasTouch: true });
-  const page = await context.newPage(); await page.goto('/'); await page.getByRole('button', { name: 'Begin expedition' }).tap();
+  const page = await context.newPage(); await seed(page, CLASSIC); await page.goto('/'); await page.getByRole('button', { name: 'Begin expedition' }).tap();
   const cdp = await context.newCDPSession(page), surface = page.getByTestId('flight-surface'), telemetry = page.getByTestId('flight-telemetry');
   const left = { id: 1, x: 90, y: 650 }, right = { id: 2, x: 290, y: 650 };
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [left, right] });

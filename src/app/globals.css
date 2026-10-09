@@ -3,3 +3,10 @@
 .skip{position:fixed;left:16px;top:-70px;z-index:100;background:var(--panel);padding:16px}.skip:focus{top:12px}.sr-only{position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation:none!important;transition:none!important}}
 @media(forced-colors:active){button{border:2px solid ButtonText!important}a{color:LinkText!important}}
+/* Browser guard: never rubber-band or chain a scroll to the page, never auto-inflate text on rotation. */
+html{overscroll-behavior:none;-webkit-text-size-adjust:100%;text-size-adjust:100%}body{overscroll-behavior:none}
+/* Only while playing (usePlayGuard sets html[data-playing]): the page cannot scroll, pan, zoom, select or show a callout.
+   touch-action is intersected down the tree, so none on body covers every play control. Paused, page zoom and scroll return. */
+html[data-playing],html[data-playing] body{height:100%;overflow:hidden}
+html[data-playing] body{position:fixed;inset:0;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
+html[data-playing] button,html[data-playing] canvas{touch-action:none;-webkit-tap-highlight-color:transparent}
