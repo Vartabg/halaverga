@@ -1,6 +1,7 @@
-import { createKit, building, car, colors } from './kit';
+import { createKit, building, car, colors, CALM_GROUP } from './kit';
 import { trees } from './reclamationData';
 import { heroRuins } from './heroRuins';
+export const HILL = { wall: '#7b786f', top: '#69655a', outerWall: '#75726a', outerTop: '#625e54', lift: [2.2, 1.4] as [number, number] };
 export function makeCity() {
   const k = createKit();
   // A hillside on either side of the submerged transport corridor.
@@ -22,8 +23,8 @@ export function makeCity() {
   ];
   entries.forEach((e, i) => building(k, ...e, i));
   for (const side of [-1, 1]) {
-    k.box(side * 140, 3, -15, 52, 25, 205, '#6b7b66', true);
-    k.box(side * 179, 12, -36, 40, 43, 200, '#657362', true);
+    k.hill(side * 140, 3, -15, 52, 25, 205, HILL.wall, HILL.top, HILL.lift);
+    k.hill(side * 179, 12, -36, 40, 43, 200, HILL.outerWall, HILL.outerTop, HILL.lift);
     building(k, side * 140, 15.5, -70, 21, 23, 9, '#c49a7c', 23);
     building(k, side * 173, 33.5, -125, 19, 18, 7, '#a8a58e', 24);
   }
@@ -33,7 +34,7 @@ export function makeCity() {
   k.box(0, 20.04, 65, 22.8, .06, 18.8, colors.road);
   k.box(0, 9, 65, 18, 18, 14, '#7f7776', true);
   for (const x of [-9, 9]) {
-    k.box(x, 21.2, 69, .14, 2.2, 10, colors.steel);
+    k.box(x, 21.2, 69, .14, 2.2, 10, '#a9b4b4', false, 0, 0, 2, CALM_GROUP);
     k.box(x, 22.25, 69, .2, .13, 10, colors.white);
     k.box(x, 20.12, 65, .28, .12, 9, '#ddaa76');
   }

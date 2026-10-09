@@ -1,16 +1,29 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { RigidBody, CapsuleCollider, useRapier, useBeforePhysicsStep, type RapierRigidBody, type RapierCollider } from '@react-three/rapier';
 import { useThree } from '@react-three/fiber';
 import { Vector3 } from 'three';
 import { useGame, persistGame } from './store';
-import { runtime, readIntent, clearInput } from './runtime';
-import { advanceVelocity, boundMovement, landingVelocity, moving, setVec, START, FOOT } from './motion';
+import { runtime, readIntent, clearInput, arrowLook } from './runtime';
+import { advanceVelocity, boundMovement, flightTarget, landingVelocity, moving, setVec, START, FOOT } from './motion';
 import { presentation } from './presentation';
-import { edgeFreshness } from './trackpadFlight';
+import { applyEdgeTurns, thumbTurn } from './edgeTurn';
+import { carve } from './carve';
 import { FlightSafety } from './FlightSafety';
-import { boundaryDistance, CLEARANCE, nearestTerminal, removeInward, softenBounds } from './navigation';
+import { CLEARANCE, nearestTerminal, removeInward } from './navigation';
+import { resetLimitSteer } from './limitSteer';
+import { driveLimits } from './limitDrive';
+import { limitStep, resetCueHold } from './limitStep';
+import { readScrape, scrape } from './scrape';
+import { inputKind, limitHint } from './limitCopy';
+import { touchMode } from './pointerMode';
 import { sweepTurn } from './turnSweep';
-const direction = new Vector3();
+import { moveMode } from './combat';
+import { aimVelocity } from './aimMotion';
+import { levelFlight, probeBelow, touchBlockedStep, touchLandStep, LAND_WINDOW } from './touchFlight';
+import { gestureBase, gestureBefore, gestureOffset, gestureVelocity } from './gesture/applyGesture';
+import { clearGesture, gesture } from './gesture/bus';
+import { createGestureCtx } from './gestureCtx';
+const direction = new Vector3(), baseScratch = { x: 0, y: 0, z: 0 };
 export default function Player() {
   const body = useRef<RapierRigidBody>(null), collider = useRef<RapierCollider>(null);
   const { world, rapier } = useRapier(), { camera } = useThree();
@@ -20,6 +33,9 @@ export default function Player() {
   const safety = useRef<FlightSafety | null>(null), warmup = useRef(0), landingStall = useRef(0);
   const paused = useGame(s => s.paused);
   const spawn = useRef(useGame.getState().checkpoint);
+  // Gesture Lab host services (canLand, pathClear, a cached ground ray, land, say), built once per physics world.
+  const gctx = useMemo(() => createGestureCtx({ world, rapier, collider: () => collider.current, safe: () => safety.current,
+    landed: () => { landingStall.current = 0; } }), [world, rapier]);
   useEffect(() => { if (paused) liftTime.current = 0; }, [paused]);
   useEffect(() => {
     const c = world.createCharacterController(CLEARANCE.margin); c.setSlideEnabled(true);
@@ -44,56 +60,83 @@ export default function Player() {
       const checkpoint = safe.checkpoint(state.checkpoint);
       b.setTranslation(checkpoint, true); b.setNextKinematicTranslation(checkpoint);
       setVec(runtime.position, checkpoint.x, checkpoint.y, checkpoint.z); runtime.poseEpoch++;
-      clearInput(true); liftTime.current = 0;
+      clearInput(true); liftTime.current = 0; resetLimitSteer();
       useGame.setState({ flying: false, landing: false, checkpoint, message: 'Suit restored to a clear landing.' });
       return;
     }
     if (runtime.reset) {
       b.setTranslation(START, true); b.setNextKinematicTranslation(START); setVec(runtime.position, START.x, START.y, START.z);
-      clearInput(true); runtime.reset = false; runtime.yaw = 0; runtime.pitch = -.12; runtime.poseEpoch++; liftTime.current = 0;
+      clearInput(true); runtime.reset = false; runtime.yaw = 0; runtime.pitch = -.12; runtime.poseEpoch++; liftTime.current = 0; resetLimitSteer();
       useGame.setState({ flying: false, landing: false, checkpoint: START }); persistGame(); return;
     }
-    const p = b.translation(), intent = readIntent();
+    // Held Descend: start the landing before the intent is read, so its sink is already dropped this step.
+    if (touchLandStep({ world, rapier, collider: col, safe, position: current, flying: state.flying })) landingStall.current = 0;
+    // Held Descend stopped short by the clearance assist (last step's result): land beside the obstacle, or say there is no landing.
+    if (touchBlockedStep({ world, rapier, collider: col, safe, position: current, flying: state.flying, clearance: runtime.clearance.active,
+      vy: runtime.velocity.y, dt })) landingStall.current = 0;
+    // The lab scheme steps first (its request, lift or land, and its turn rates), so readIntent sees this step's gesture intent.
+    const p = b.translation(); gesture.reduced = state.reduced; gestureBefore(dt, p, gctx, runtime);
+    const intent = readIntent();
     const k = runtime.keys;
     const pointerFlight = runtime.thumb.active || runtime.trackpad.active;
-    if (pointerFlight) {
-      const pointer = runtime.trackpad.active ? runtime.trackpad : runtime.thumb;
-      runtime.trackpad.edgeAge += dt;
-      const gain = runtime.trackpad.active && !state.sustainedEdges ? edgeFreshness(runtime.trackpad.edgeAge) : 1;
-      runtime.yaw -= pointer.edgeTurn * dt * 1.5 * gain;
-      runtime.pitch = Math.max(-1.3, Math.min(1.25, runtime.pitch + pointer.edgePitch * dt * gain));
+    applyEdgeTurns(dt, state); // cursor and twin look rest (edgeTurn.ts)
+    thumbTurn(dt); // classic one thumb: main 7945430's edge hold, 1.5 rad/s, direct (Garo 2026-09-26)
+    // Blaster on: arrows get a fine first step and the ADS gain (arrowLook). Off: main's exact lines, bit for bit.
+    if (state.shooter) arrowLook(dt);
+    else {
+      runtime.yaw += (Number(k.has('ArrowLeft')) - Number(k.has('ArrowRight'))) * dt * 1.5;
+      runtime.pitch = Math.max(-1.3, Math.min(1.25, runtime.pitch + (Number(k.has('ArrowUp')) - Number(k.has('ArrowDown'))) * dt * 1.2));
     }
-    runtime.yaw += (Number(k.has('ArrowLeft')) - Number(k.has('ArrowRight'))) * dt * 1.5;
-    runtime.pitch = Math.max(-1.3, Math.min(1.25, runtime.pitch + (Number(k.has('ArrowUp')) - Number(k.has('ArrowDown'))) * dt * 1.2));
-    if (runtime.landGoal && moving(intent)) { runtime.landGoal = null; useGame.setState({ landing: false }); }
+    // A new Draw stroke also cancels a landing: Draw steers by velocity, which the intent does not show.
+    if (runtime.landGoal && (moving(intent) || (gesture.live && gesture.velocityOn))) { runtime.landGoal = null; useGame.setState({ landing: false }); }
     let flying = state.flying;
     if (runtime.lift || (pointerFlight && moving(intent) && !flying)) {
       runtime.lift = false;
       if (!flying) { flying = true; liftTime.current = .4; runtime.velocity.y = 6; useGame.setState({ flying: true }); }
       else if (runtime.landGoal) { runtime.landGoal = null; useGame.setState({ landing: false }); }
-      else if (runtime.landTarget) { runtime.landGoal = runtime.landTarget.clone().add(new Vector3(0, FOOT, 0)); landingStall.current = 0; useGame.setState({ landing: true }); }
+      else if (runtime.landTarget) { runtime.landGoal = runtime.landTarget.clone().add(new Vector3(0, FOOT, 0)); landingStall.current = 0; clearGesture(); useGame.setState({ landing: true }); }
       else useGame.setState({ message: 'Aim at a nearby flat rooftop or terrace to land.' });
     }
+    // PR #12: the one-finger 'simple' trackpad profile looks without thrusting; every other gesture still surges.
     const gestureThrust = runtime.thumb.active || (runtime.trackpad.active && state.trackpadSteering !== 'simple');
-    let v = runtime.landGoal ? landingVelocity(p, runtime.landGoal) : advanceVelocity(runtime.velocity, intent, runtime.yaw, runtime.pitch, flying, runtime.surge || gestureThrust, dt);
+    // Shooting never touches flight speed: mode 2 (ADS hover) only for a held Q or Aim; firing keeps whatever the flight was doing.
+    const mode = state.shooter ? moveMode(runtime.shooter) : 0, surge = runtime.surge || gestureThrust || runtime.stick.boost || gesture.surge;
+    // Limits (plan 2026-09-28): near a wall, the sky, the water or a solid face a pressed suit turns toward open air; the pilot's own turn
+    // wins, and so does the aim (trigger held). Twin touch flies level, so its view pitch is left alone. A drawn (velocity-steered) Lab
+    // stroke flies by velocity, not by heading, so nothing turns there. Any step it does not run drops the latches (limitDrive.ts).
+    const level = levelFlight(state);
+    driveLimits(runtime, { on: flying && !runtime.landGoal && mode !== 2 && !(gesture.live && gesture.velocityOn), dt, p, v: runtime.velocity, speed: runtime.speed, intent,
+      surge, level, aiming: state.shooter && runtime.shooter.input.fire, contact: runtime.clearance, scrape, safe });
+    // Twin touch flies level: altitude comes only from Rise and Descend, so aiming never climbs or dives (ADS pitch lift included).
+    const fp = level ? 0 : runtime.pitch;
+    // The branches build on the velocity without last step's lab offset (gestureBase), so offsets never compound.
+    const vb = gestureBase(runtime.velocity, baseScratch);
+    // A fast steered turn carves: travel follows the view instead of skidding (carve.ts). A look flick while coasting keeps its drift.
+    // The classic one thumb never carves: its 1.5 rad/s edge hold is below the carve threshold and its travel is main's.
+    carve(vb, runtime.yaw, dt, flying && !runtime.landGoal && !runtime.thumb.active && (moving(intent) || surge || gesture.live), runtime.poseEpoch);
+    let v = runtime.landGoal ? landingVelocity(p, runtime.landGoal)
+      : mode === 2 ? aimVelocity(vb, intent, runtime.yaw, fp, flying, dt)
+      : advanceVelocity(vb, intent, runtime.yaw, fp, flying, surge, dt);
+    gestureVelocity(v, runtime.landGoal, flying);
     if (liftTime.current > 0) { v.y = 6; liftTime.current -= dt; }
+    gestureOffset(v, flying && !runtime.landGoal);
     const from = { ...runtime.velocity }, chosen = v;
-    runtime.clearance.active = false; runtime.clearance.boundary = boundaryDistance(p) < 12;
+    runtime.clearance.active = false; runtime.clearance.cue = '';
     if (flying && !runtime.landGoal) {
-      v = softenBounds(p, v);
-      const anticipated = safe.anticipate(p, v); v = anticipated.velocity;
-      if (anticipated.contact) {
+      // The soft limiter, the look-ahead sweep, the full-speed slide at the ceiling and water, and the cue (limitStep.ts).
+      const limited = limitStep(safe, p, v, flightTarget(intent, runtime.yaw, fp, flying, surge), from); v = limited.velocity; runtime.clearance.cue = limited.cue;
+      if (limited.contact) {
         runtime.clearance.active = true;
-        const w = anticipated.contact.witness1, n = new Vector3().copy(anticipated.contact.normal1).normalize();
+        const w = limited.contact.witness1, n = new Vector3().copy(limited.contact.normal1).normalize();
         setVec(runtime.clearance.point, w.x, w.y, w.z); setVec(runtime.clearance.normal, n.x, n.y, n.z);
       }
-    }
+    } else resetCueHold();
     setVec(runtime.velocity, v.x, v.y, v.z);
     if (flying) { c.disableSnapToGround(); c.disableAutostep(); c.setMaxSlopeClimbAngle(Math.PI / 2); c.setMinSlopeSlideAngle(0); }
     else { c.enableSnapToGround(.3); c.enableAutostep(.35, .2, true); c.setMaxSlopeClimbAngle(Math.PI / 4); c.setMinSlopeSlideAngle(Math.PI / 6); }
     const movement = boundMovement(p, { x: v.x * dt, y: v.y * dt, z: v.z * dt }, flying);
     c.computeColliderMovement(col, movement);
-    const actual = c.computedMovement();
+    const actual = c.computedMovement(); readScrape(c, scrape);
     for (let i = 0; i < c.numComputedCollisions(); i++) {
       const hit = c.computedCollision(i);
       if (hit) { const corrected = removeInward(runtime.velocity, hit.normal1); setVec(runtime.velocity, corrected.x, corrected.y, corrected.z); }
@@ -111,6 +154,11 @@ export default function Player() {
       }
     }
     if (runtime.landGoal && runtime.landGoal.distanceTo(runtime.position) < .06) {
+      runtime.landGoal = null; setVec(runtime.velocity, 0, 0, 0); flying = false;
+      useGame.setState({ flying: false, landing: false, checkpoint: next, message: 'Landed. Take a moment. Look around.' }); persistGame();
+    }
+    // Descend held into a landable surface the probe missed (arrived from the side, or already inside the window): land here.
+    if (flying && runtime.stick.descend && c.computedGrounded() && safe.canLand({ ...next, y: next.y - FOOT })) {
       runtime.landGoal = null; setVec(runtime.velocity, 0, 0, 0); flying = false;
       useGame.setState({ flying: false, landing: false, checkpoint: next, message: 'Landed. Take a moment. Look around.' }); persistGame();
     }
@@ -140,7 +188,8 @@ export default function Player() {
       const terminal = nearestTerminal(runtime.position);
       const nearTerminal = terminal !== null;
       runtime.location = terminal ? terminal.location : next.y > 50 ? 'Upper skyline' : next.y < 6 ? 'Flooded boulevard' : next.z < 15 ? 'Broken viaduct' : 'Arrival terrace';
-      useGame.setState({ canLand: !!runtime.landTarget, nearTerminal, boundaryNear: runtime.clearance.boundary, clearanceActive: runtime.clearance.active });
+      const nearGround = flying && probeBelow(world, rapier, col, safe, runtime.position, FOOT + LAND_WINDOW) !== null;
+      useGame.setState({ canLand: !!runtime.landTarget, nearTerminal, nearGround, limitCue: runtime.clearance.cue, limitHint: limitHint(flying ? runtime.clearance.cue : '', inputKind(touchMode(), state.trackpadSteering, state.desktopMode)), clearanceActive: runtime.clearance.active });
     }
   });
   return <RigidBody ref={body} type="kinematicPosition" colliders={false} position={[spawn.current.x, spawn.current.y, spawn.current.z]}>

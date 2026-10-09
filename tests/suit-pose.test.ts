@@ -5,6 +5,7 @@ import { applySuitPose, advanceSuitMotion, orientSuit } from '../src/world/suitP
 import { buildSuitRig } from '../src/world/suitRig';
 import { advanceFlightPose, angleDelta, CHASE_BOOM, CHASE_HEAD, FACING, type Pose } from '../src/game/presentation';
 import { ROLL, sightLine } from '../src/world/suitRoll';
+import { boomFor } from '../src/game/cameraFx';
 // Speed alone decides the lean and the pitch that offsets it, exactly as advanceFlightPose derives them.
 const pose = (patch: Partial<Pose> = {}): Pose => {
   const base = { viewYaw: 0, viewPitch: 0, yaw: 0, pitch: 0, bank: 0, speed: 34, flight: 1, brake: 0, ...patch };
@@ -73,6 +74,8 @@ test('the root heading follows the travel yaw, and hovering stays upright wherev
 });
 test('braking hard out of a climb never swings the chest toward a camera below', () => {
   const root = new Group(), back = new Vector3(), toCamera = new Vector3(), q = new Euler(0, 0, 0, 'YXZ'), head = new Vector3(0, .65, 0);
+  // CHASE_BOOM, and CameraRig's nearer, lower hip boom on a phone in landscape.
+  for (const boom of [CHASE_BOOM, boomFor(0, 852 / 393, { x: 0, y: 0, z: 0 }, 1)])
   for (const viewPitch of [0, .6, 1.25]) for (const drag of [.9, .96]) for (const reduced of [false, true]) for (const turn of [0, 1.2]) {
     const p = pose({ speed: 0, flight: 0 }); p.viewPitch = viewPitch; p.pitch = viewPitch;
     let speed = 34, yaw = 0, worst = 1;
@@ -83,7 +86,7 @@ test('braking hard out of a climb never swings the chest toward a camera below',
       advanceFlightPose(p, { yaw, pitch: viewPitch, speed, velocity, flying: true, reduced }, 1 / 60);
       orientSuit(root, p, hero);
       back.set(0, 0, 1).applyQuaternion(root.quaternion);
-      toCamera.copy(CHASE_BOOM).applyEuler(q.set(p.viewPitch, p.viewYaw, 0)).add(head).normalize();
+      toCamera.set(boom.x, boom.y, boom.z).applyEuler(q.set(p.viewPitch, p.viewYaw, 0)).add(head).normalize();
       worst = Math.min(worst, back.dot(toCamera));
     }
     expect(worst).toBeGreaterThan(.1);

@@ -50,11 +50,24 @@ export class AdaptiveThumbs {
     if (!this.contacts.delete(id)) return;
     this.neutral(); this.active = false; this.holdAllowed = false;
     if (!this.contacts.size) { this.mode = 'idle'; return; }
-    if (this.mode === 'blocked') return;
+    // A third finger blocked the hands (limits plan S8, review F11): with two left they are the two thumbs again (left moves, right
+    // looks, both rebased where they are, so neither launches until it slides); with one left it is a single thumb that waits for
+    // its 8 px slide like any other. Both used to stay dead until every finger lifted.
+    if (this.mode === 'blocked' && this.contacts.size > 2) return;
+    if (this.contacts.size === 2) {
+      const [left, right] = [...this.contacts.values()].sort((a, b) => a.x - b.x);
+      this.rebase(left); this.rebase(right); left.role = 'move'; right.role = 'look'; this.mode = 'dual'; this.active = true; return;
+    }
     const remaining = this.contacts.values().next().value!;
     this.rebase(remaining); remaining.role = 'single'; this.mode = 'single';
     // Releasing the movement thumb must not make a stationary look thumb launch forward.
     // Sliding the remaining contact resumes single-thumb flight without lifting it.
+  }
+  /** The contact left alone after a joined second thumb lifted keeps flying where it is (no launch: it was flying before the join). */
+  resume(id: number, width: number, height: number) {
+    const p = this.contacts.get(id);
+    if (!p || this.mode !== 'single' || this.active) return;
+    this.active = true; this.move(id, p.x, p.y, width, height);
   }
   cancel() { this.contacts.clear(); this.mode = 'idle'; this.active = false; this.holdAllowed = false; this.neutral(); }
 }

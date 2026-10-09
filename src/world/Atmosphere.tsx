@@ -29,7 +29,7 @@ function AnalyticWater() {
     }
   });
   return <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, .1, -40]}>
-    <planeGeometry args={[1100, 1100]} />
+    <planeGeometry args={[2400, 2400]} />
     <shaderMaterial ref={material} uniforms={uniforms} vertexShader={vertex} fragmentShader={`
       varying vec3 vWorld; uniform float time; uniform vec3 haze; uniform vec2 wake; uniform float wakeStrength;
       void main(){vec2 p=vWorld.xz;

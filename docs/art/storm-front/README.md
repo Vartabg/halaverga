@@ -1,5 +1,7 @@
 # Meridian storm atmosphere
 
+This records the sky-only pass `d2501a4`. The subsequent [shooting integration](SHOOTING-INTEGRATION.md) combines it with the current game; the timings and art comparison below preserve the earlier atmosphere study.
+
 The user requested a focused sky and atmosphere revision because the sunny setting contradicted the mood of the ruined district. This pass depicts severe weather at the 2113 arrival. It does not imply smoke or ash has remained from the 2033 catastrophe or add a new cause to the story.
 
 - Continuous slate overcast, overlapping dark cloud banks, finer underside detail and distant rain curtains painted into the sky shader. No visible sun disk or blue-sky opening.

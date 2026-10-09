@@ -6,6 +6,9 @@ import { CHASE_BOOM, CHASE_HEAD } from '../src/game/presentation';
 import { advanceFlightMix, createFlightMix, cruising, flightPose, frame, idx, measure, rig, settledMix } from './flight-harness';
 import { drive, edge, keyboard, tap, thumb, trackpad, type Device } from './flight-drive';
 import { speedFade } from '../src/world/suitRoll';
+import { boomFor } from '../src/game/cameraFx';
+/** CameraRig's hip boom on a phone in landscape (short viewport, w 1): nearer and lower than CHASE_BOOM. */
+const SHORT = boomFor(0, 852 / 393, { x: 0, y: 0, z: 0 }, 1);
 const PITCHES = [-1.3, -.8, -.12, 0, .5, 1, 1.25];
 type Worst = { chest: number; straight: number; face: number; yaw: number; clamped: number; hinges: boolean; finite: boolean; at: string };
 const start = (): Worst => ({ chest: 9, straight: 9, face: -9, yaw: 0, clamped: 0, hinges: true, finite: true, at: '' });
@@ -33,7 +36,7 @@ function stopAndTurn(worst: Worst, { viewPitch, drag, reduced, turn, hero, from 
 }
 describe('flight clips keep the back toward the chase camera', () => {
   it('over the static grid of view, body offset, bank, speed, yaw, style, brake, phase, reduced motion and turn roll', () => {
-    const r = rig(), life = cruising(), worst = start();
+    const r = rig(), life = cruising(), worst = start(), short = start();
     for (const viewPitch of PITCHES) for (const offset of [-FACING.pitchDown, 0, FACING.pitchUp]) for (const bank of [-.3, 0, .3])
       for (const speed of [0, 8, 13, 20, 34]) for (const yaw of [-FACING.yaw, 0, FACING.yaw]) for (const hero of [0, 1]) for (const brake of [0, .6, 1])
         for (const clock of [0, 1.1, 2.3, 3.4]) for (const reduced of [false, true]) for (const roll of [-.8, 0, .8]) {
@@ -45,13 +48,18 @@ describe('flight clips keep the back toward the chase camera', () => {
           mix.bank.fill(reduced ? 0 : bank / .3); mix.steer = reduced ? 0 : bank / .3;
           // The hover tilt fades as Suit.tsx fades it, with the horizontal speed, so the grid holds only reachable states.
           frame(r, p, mix, life, hero, reduced, true, roll, speedFade(speed * Math.cos(p.pitch)));
-          record(worst, measure(r, p), bank === 0 && yaw === 0, mix.clamped, () => JSON.stringify({ viewPitch, offset, bank, speed, yaw, hero, brake, reduced, roll }));
+          const at = () => JSON.stringify({ viewPitch, offset, bank, speed, yaw, hero, brake, reduced, roll });
+          record(worst, measure(r, p), bank === 0 && yaw === 0, mix.clamped, at);
+          record(short, measure(r, p, SHORT), bank === 0 && yaw === 0, mix.clamped, at);
         }
     if (process.env.ROLL_REPORT) console.log(`static grid: chest min ${worst.chest.toFixed(4)} straight ${worst.straight.toFixed(3)} face max ${worst.face.toFixed(3)}`);
     expect(worst.chest, worst.at).toBeGreaterThan(.05); expect(worst.straight).toBeGreaterThan(.1);
     expect(worst.face).toBeLessThan(0); expect(worst.yaw).toBeLessThanOrEqual(.1);
     // The joint limits are a guard, not a shaper: normal play never reaches them.
     expect(worst.clamped).toBe(0); expect(worst.hinges).toBe(true); expect(worst.finite).toBe(true);
+    // The same body, seen from the nearer phone-landscape boom.
+    expect(short.chest, short.at).toBeGreaterThan(.05); expect(short.straight).toBeGreaterThan(.1);
+    expect(short.face).toBeLessThan(0);
   }, 30000);
   it('through hard stops and turns with the full stack, camera from overhead to below', () => {
     const worst = start();

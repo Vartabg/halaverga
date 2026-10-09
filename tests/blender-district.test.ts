@@ -3,6 +3,8 @@ import { describe, expect, it } from 'vitest';
 import { Box3, Mesh, MeshStandardMaterial } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
+import RAPIER from '@dimforge/rapier3d-compat';
+import { districtHorizonColliders } from '@/world/districtColliders';
 
 /** Decode the shipped asset, catching missing compression support, UV pruning and runaway exports. */
 describe('Blender district delivery', () => {
@@ -32,6 +34,18 @@ describe('Blender district delivery', () => {
     const bounds = new Box3().setFromObject(gltf.scene);
     expect(bounds.min.y).toBeGreaterThan(-1.1); expect(bounds.max.y).toBeLessThan(100);
     expect(bounds.min.z).toBeLessThan(-220); expect(bounds.max.z).toBeGreaterThan(70);
+    // The relay towers are reachable now: shots/flight must hit their authored surfaces, while the canal stays open.
+    await RAPIER.init();
+    const world = new RAPIER.World({ x: 0, y: 0, z: 0 });
+    const colliders = districtHorizonColliders(gltf.scene);
+    expect(colliders).toHaveLength(3);
+    for (const c of colliders) world.createCollider(RAPIER.ColliderDesc.trimesh(c.vertices, c.indices));
+    world.step();
+    const cast = (x: number) => world.castRay(new RAPIER.Ray({ x, y: 30, z: -220 }, { x: 0, y: 0, z: -1 }), 80, true);
+    expect(cast(-21)?.timeOfImpact).toBeGreaterThan(15);
+    expect(cast(20)?.timeOfImpact).toBeLessThan(30);
+    expect(cast(0)).toBeNull();
+    world.free();
     gltf.scene.traverse(object => { if (object instanceof Mesh) object.geometry.dispose(); });
   });
 });

@@ -5,14 +5,15 @@ import { SWEEP, type TurnSweep } from '../game/turnSweep';
  * Whole-body turn roll, visual only: the suit banks toward the centre of the travel's curve. The presentation pose, the camera and
  * physics never read it; it is shared as a plain number for telemetry. Advanced once per frame, after the flight mix.
  */
-export type SuitRoll = { epoch: number; held: boolean; lateral: number; angle: number };
+export type SuitRoll = { epoch: number; held: boolean; lateral: number; angle: number; aim: number };
 /** `turn` is the sweep Player.tsx gathers per physics step (src/game/turnSweep.ts); the roll drains it each frame. */
 export type RollInput = { paused: boolean; reduced: boolean; flying: boolean; velocity: Vec; turn: TurnSweep };
 /**
  * `hero`/`classic`: peak roll (rad) with hero and classic poses; `soft`: lateral acceleration (m/s^2) at tanh 1; `signal`/`ease`:
- * settle rates (1/s) of the acceleration and of the angle; `from`/`full`: speeds (m/s) over which the roll fades in.
+ * settle rates (1/s) of the acceleration and of the angle; `from`/`full`: speeds (m/s) over which the roll fades in; `aim`: settle rate
+ * of the aim weight the reach reads (a shot fired in a bank used to cut the reach by 30% in one frame: 43.8 to 13.7 deg).
  */
-export const ROLL = { hero: .8, classic: .55, soft: 22, signal: 10, ease: 10, from: 2, full: 6 } as const;
+export const ROLL = { hero: .8, classic: .55, soft: 22, signal: 10, ease: 10, aim: 6, from: 2, full: 6 } as const;
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 /**
  * 0 below 2 m/s, 1 from 6 m/s, smooth between. The roll fades in with the full speed, so a steep dive still banks; Suit.tsx fades the
@@ -22,7 +23,7 @@ export function speedFade(speed: number) {
   const u = clamp((speed - ROLL.from) / (ROLL.full - ROLL.from), 0, 1) || 0;
   return u * u * (3 - 2 * u);
 }
-export const createSuitRoll = (): SuitRoll => ({ epoch: Number.NaN, held: false, lateral: 0, angle: 0 });
+export const createSuitRoll = (): SuitRoll => ({ epoch: Number.NaN, held: false, lateral: 0, angle: 0, aim: 0 });
 /**
  * Returns the roll (rad, positive rolls left) for orientSuit. `hero` is the settled hero-pose weight and `flare` the landing flare
  * weight: the roll gives way to the flare and to touchdown, where the ground plant reads the root orientation.
@@ -33,13 +34,17 @@ export function advanceSuitRoll(r: SuitRoll, pose: Pose & { epoch: number }, inp
   const swept = input.turn.lateral; input.turn.lateral = 0;
   if (r.epoch !== pose.epoch || (r.held && !input.paused)) {
     // A teleport, reset or resume restarts upright instead of rolling across the gap.
-    r.epoch = pose.epoch; r.held = false; r.lateral = r.angle = 0;
+    r.epoch = pose.epoch; r.held = false; r.lateral = r.angle = r.aim = 0;
     return 0;
   }
   if (input.paused) { r.held = true; return r.angle; }
   // Reduced motion drops the signal rather than the angle, so a roll switched off mid-turn eases out without a jolt.
   if (real > 0) r.lateral = settle(r.lateral, input.reduced ? 0 : swept / real || 0, ROLL.signal, dt);
-  const reach = (ROLL.classic + (ROLL.hero - ROLL.classic) * hero) * pose.flight * (1 - clamp(flare, 0, 1));
+  const base = (ROLL.classic + (ROLL.hero - ROLL.classic) * hero) * pose.flight * (1 - clamp(flare, 0, 1)), want = pose.aim ?? 0;
+  // Aiming steadies the body, through a settled weight so a shot in a bank eases the reach instead of cutting it in one frame;
+  // it stays exactly 0 (and the reach exactly base) with the shooter off, so that roll is bit-identical.
+  r.aim = want === 0 && r.aim < 1e-4 ? 0 : settle(r.aim, want, ROLL.aim, dt);
+  const reach = r.aim === 0 ? base : base * (1 - .7 * r.aim);
   const fade = speedFade(Math.hypot(v.x, v.y, v.z));
   const target = !input.flying ? 0 : reach * fade * Math.tanh(clamp(r.lateral, -SWEEP.cap, SWEEP.cap) / ROLL.soft);
   // Never past the reach, so the roll gives way to a rising flare or a switch to classic poses at once.

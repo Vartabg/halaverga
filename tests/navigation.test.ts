@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import RAPIER from '@dimforge/rapier3d-compat';
 import { Euler, Quaternion } from 'three';
 import { makeCity } from '../src/world/cityData';
+import { makeField } from '../src/world/fieldData';
 import { FlightSafety } from '../src/game/FlightSafety';
 import { advanceVelocity, FOOT, START, WORLD, type Vec } from '../src/game/motion';
 import { BUILDING_ROUTE, CLEARANCE, removeInward, softenBounds } from '../src/game/navigation';
@@ -13,7 +14,8 @@ const worlds: RAPIER.World[] = [];
 const routeResults: { from: string; to: string; clear: boolean }[] = [];
 let stressSteps = 0, stressApproaches = 0;
 const identity = { x: 0, y: 0, z: 0, w: 1 };
-beforeAll(async () => { await RAPIER.init(); const city = makeCity(); solids = city.solids; city.geometry.dispose(); });
+// The district plus the flyable ruins around it (fieldData.ts, 2026-10-06): the stress approaches sample the whole box.
+beforeAll(async () => { await RAPIER.init(); const city = makeCity(), field = makeField(); solids = [...city.solids, ...field.solids]; city.geometry.dispose(); field.geometries.forEach(g => g.dispose()); });
 afterEach(() => { worlds.splice(0).forEach(w => w.free()); });
 function setup(position: Vec) {
   const world = new RAPIER.World({ x: 0, y: 0, z: 0 }); worlds.push(world);
@@ -35,9 +37,11 @@ function move(fixture: ReturnType<typeof setup>, velocity: Vec) {
   return corrected;
 }
 describe('authored city navigation', () => {
+  // Since the 2026-10-06 ruins, building 1 (x -62) is a bare steel skeleton above its third floor; the burned shell of building 4
+  // (x -38, its upper block centred on x -41, z -28, faces at z -17.2 and -38.8, solid from 27.9 to 40.3 m) is the sealed upper storey.
   it('seals the broken upper stories, while keeping both principal landings valid', () => {
     const f = setup(START);
-    expect(f.safety.isClear({ x: -62, y: 33.3, z: 16 })).toBe(false);
+    expect(f.safety.isClear({ x: -41, y: 33.3, z: -28 })).toBe(false);
     expect(f.safety.isClear({ x: 36, y: 54, z: -38 })).toBe(false);
     expect(f.safety.canLand({ x: 0, y: 20, z: 65 })).toBe(true);
     expect(f.safety.canLand({ x: 30, y: 61.415, z: -38 })).toBe(true);
@@ -53,9 +57,9 @@ describe('authored city navigation', () => {
     }
   });
   it('stops a full-speed facade approach early and immediately allows departure', () => {
-    const f = setup({ x: -62, y: 33.3, z: 42 });
+    const f = setup({ x: -41, y: 33.3, z: -2 });
     for (let i = 0; i < 180; i++) move(f, { x: 0, y: 0, z: -34 });
-    expect(f.body.translation().z).toBeGreaterThan(27.3);
+    expect(f.body.translation().z).toBeGreaterThan(-16.2);
     const stopped = f.body.translation().z;
     for (let i = 0; i < 30; i++) move(f, { x: 0, y: 0, z: 13 });
     expect(f.body.translation().z).toBeGreaterThan(stopped + 5);
@@ -68,11 +72,11 @@ describe('authored city navigation', () => {
   });
   it('rejects trapped, unsupported and narrow-edge checkpoints', () => {
     const f = setup(START);
-    expect(f.safety.checkpoint({ x: -62, y: 33.3, z: 16 })).toEqual(START);
+    expect(f.safety.checkpoint({ x: -41, y: 33.3, z: -28 })).toEqual(START);
     expect(f.safety.checkpoint({ x: 0, y: 50, z: 45 })).toEqual(START);
     expect(f.safety.canLand({ x: 11.9, y: 20, z: 65 })).toBe(false);
     expect(f.safety.checkpoint(START)).toEqual(START);
-    expect(f.safety.pathClear({ x: -62, y: 33.3, z: 42 }, { x: -62, y: 33.3, z: 0 })).toBe(false);
+    expect(f.safety.pathClear({ x: -41, y: 33.3, z: -2 }, { x: -41, y: 33.3, z: -44 })).toBe(false);
   });
   it('brakes at all district limits while allowing a turn back', () => {
     const cases = [
@@ -92,8 +96,8 @@ describe('authored city navigation', () => {
   it('keeps seeded high-speed approaches outside the authored solids', () => {
     const f = setup(START); let seed = 7331;
     const random = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
-    for (let attempt = 0; attempt < 160; attempt++) {
-      const p = { x: -190 + random() * 380, y: 3.2 + random() * 88, z: -178 + random() * 270 };
+    for (let attempt = 0; attempt < 260; attempt++) { // the whole box since 2026-10-06: the district and the ruins around it
+      const p = { x: WORLD.minX + 15 + random() * (WORLD.maxX - WORLD.minX - 30), y: 3.2 + random() * (WORLD.ceiling - 17), z: WORLD.minZ + 10 + random() * (WORLD.maxZ - WORLD.minZ - 20) };
       if (f.world.intersectionWithShape(p, identity, new RAPIER.Ball(1.5), undefined, undefined, f.capsule)) continue;
       f.body.setTranslation(p, true); f.body.setNextKinematicTranslation(p); f.world.step();
       const yaw = random() * Math.PI * 2, pitch = (random() - .5) * 1.8;
@@ -116,8 +120,8 @@ afterAll(() => {
   const width = WORLD.maxX - WORLD.minX, depth = WORLD.maxZ - WORLD.minZ;
   const rectangles = solids.filter(s => s.kind === 'building').map(s => `<rect x="${s.position[0] - s.size[0]}" y="${s.position[2] - s.size[2]}" width="${s.size[0] * 2}" height="${s.size[2] * 2}" fill="#957b76" fill-opacity=".6" stroke="#e0bc99" stroke-width=".6"/>`).join('');
   const stops = ['arrival', 'boulevard', 'viaduct', 'roof'].map(id => BUILDING_ROUTE.find(p => p.id === id)!);
-  const pins = stops.map((p, i) => `<circle cx="${p.x}" cy="${p.z}" r="6" fill="#d4f197"/><text x="${p.x}" y="${p.z + 3}" text-anchor="middle" fill="#14282e" font-size="9">${i + 1}</text>`).join('');
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-225 -208 450 336" role="img"><title>Meridian exterior flight route</title><desc>Building exclusion footprints, district perimeter and route from the arrival terrace through the flooded boulevard and viaduct to the tower roof. Altitude varies along the route.</desc><rect x="-225" y="-208" width="450" height="336" rx="8" fill="#142b32"/><rect x="${WORLD.minX}" y="${WORLD.minZ}" width="${width}" height="${depth}" fill="#27484a" stroke="#e8c59d" stroke-dasharray="4 3"/><path d="M0 108V-188" stroke="#247484" stroke-width="28"/>${rectangles}<polyline points="${BUILDING_ROUTE.map(p => `${p.x},${p.z}`).join(' ')}" fill="none" stroke="#d4f197" stroke-width="2"/>${pins}<text x="-205" y="-197" fill="#f5f0dc" font-family="sans-serif" font-size="8">MERIDIAN · EXTERIOR SURVEY · NORTH ↑</text></svg>`;
+  const pins = stops.map((p, i) => `<circle cx="${p.x}" cy="${p.z}" r="6" fill="#5ee6d0"/><text x="${p.x}" y="${p.z + 3}" text-anchor="middle" fill="#1c2023" font-size="9">${i + 1}</text>`).join('');
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-225 -208 450 336" role="img"><title>Meridian exterior flight route</title><desc>Building exclusion footprints, district perimeter and route from the arrival terrace through the flooded boulevard and viaduct to the tower roof. Altitude varies along the route.</desc><rect x="-225" y="-208" width="450" height="336" rx="8" fill="#1c2023"/><rect x="${WORLD.minX}" y="${WORLD.minZ}" width="${width}" height="${depth}" fill="#27484a" stroke="#e8c59d" stroke-dasharray="4 3"/><path d="M0 108V-188" stroke="#247484" stroke-width="28"/>${rectangles}<polyline points="${BUILDING_ROUTE.map(p => `${p.x},${p.z}`).join(' ')}" fill="none" stroke="#5ee6d0" stroke-width="2"/>${pins}<text x="-205" y="-197" fill="#f5f0dc" font-family="sans-serif" font-size="8">MERIDIAN · EXTERIOR SURVEY · NORTH ↑</text></svg>`;
   const sources = ['src/game/FlightSafety.ts','src/game/navigation.ts','src/game/motion.ts','src/world/kit.ts','src/world/cityData.ts','src/game/Player.tsx','src/world/DistrictBoundary.tsx'];
   const report = { engine: 'Rapier ' + RAPIER.version(), generatedAt: new Date().toISOString(), maximumSpeed: 34, physicsStepSeconds: 1 / 60, bounds: WORLD, cityColliderCount: solids.length, exteriorBuildingVolumes: solids.filter(s => s.kind === 'building').length, flightProbeRadius: 1.05, routeAuditRadius: 1.15, route: BUILDING_ROUTE, routeResults, stressApproaches, stressSteps, sourceHashes: Object.fromEntries(sources.map(p => [p, createHash('sha256').update(readFileSync(p)).digest('hex')])), scope: 'Finite seeded swept-body regression and declared route tubes in the actual city geometry. Not an exhaustive proof of every trajectory or physical-device validation.' };
   mkdirSync(output, { recursive: true }); writeFileSync(join(output, 'district-map.svg'), svg); writeFileSync(join(output, 'navigation-audit.json'), JSON.stringify(report, null, 2) + '\n');

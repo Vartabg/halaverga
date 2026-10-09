@@ -30,3 +30,14 @@ export class ScrollStroke {
   }
 }
 export const edgeFreshness = (seconds: number) => Math.max(0, Math.min(1, (0.28 - seconds) / .16));
+/**
+ * How the free cursor left the window while cruising (turn-360 spec 1.5): 1 = through a side (keep turning), 2 = through the top or
+ * bottom (fly straight after a short grace). A side exit needs the last point inside the side band and deeper into it than into the
+ * top/bottom band; a corner or a point outside every band counts as 2.
+ */
+export function exitKind(x: number, y: number, w: number, h: number): 1 | 2 {
+  const bx = Math.min(72, w * .1), by = Math.min(72, h * .1);
+  const side = x <= bx ? bx - x : x >= w - bx ? x - (w - bx) : -1;
+  const vert = y <= by ? by - y : y >= h - by ? y - (h - by) : -1;
+  return side >= 0 && side > vert ? 1 : 2;
+}

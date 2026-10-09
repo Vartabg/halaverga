@@ -1,5 +1,85 @@
 # First-flight verification · 2026-09-11
 
+## Desktop controls restore · 2026-09-24 (emulation only)
+
+Owner feedback (Garo, on desktop): "oh no this is bad, now its terrible on the desktop", and "I liked the controls much better before they were changed the first time you added the gun". What he chose: bring back the 7945430 desktop controls (click to fly, the pointer steers, click again to stop, drag to look while stopped), with one change for the blaster. While stopped or on the ground, a click fires (on release), holding still fires automatically, and dragging only looks. Space starts flying, and so does W once in the air. The twin-stick phone controls from d15eac5 stay phone-only. Base d15eac5; units A (desktop flight), B (touch isolation) and C (desktop copy) merged in the worktree with no merge-level code fixes needed.
+
+What Garo saw, measured before and after at his exact pane state. System Chrome, viewport 325x928, `hasTouch` false, `isMobile` false. The save was seeded as `{trackpadSteering:'simple', controlsVersion:3, hintProgress:{touch:0,simple:0,mouse:0}}`. Before = `git archive d15eac5` built and served on 127.0.0.1:3392. After = the merged build on 127.0.0.1:3391. Both pages read `navigator.maxTouchPoints` 0, `(pointer: coarse)` false and `html[data-input]` `mouse`, so no touch layer, touch cluster or Fire button was on screen in either build.
+
+| Step (325x928) | Before (d15eac5) | After (merged) |
+|---|---|---|
+| After Begin | `html[data-playing]` set (fixed page, gesture blockers, zoom pause armed). The simple profile's hint series showed "Click the scene to start", hidden behind the header buttons, which wrap into a row of three 44 px boxes at this width. Round ↑ Lift button. | No `data-playing`. No hint series and no SimpleTrackpadHud. Pill "SPACE TO FLY · CLICK TO FIRE · DRAG TO LOOK" (wraps to 2 lines). `data-hover-fire` true (cursor hidden over the scene). ↑ Lift button. |
+| One scene click | Pointer lock taken (`pointerLockElement` DIV, Chrome's "Press Esc" bubble), 0 shots, hint "Slide to look". | No pointer lock, exactly 1 shot, still on foot. |
+| W held 0.9 s | Flew (↓ Land), lock kept. | Walks on the ground, as W did at 7945430 (only Space takes off; see the open question below). |
+| Save | stays `simple`/3 | `free`/4 |
+
+The same held at 1440x900: before, the hint series and a pointer lock after the click; after, the pill, no lock and 1 shot. Page errors: none in any run.
+
+What read as "phone buttons" before: the header's Field guide / ⚙ / Ⅱ boxes, which wrap under the brand at 325 px (the narrow layout, `max-width:600px`); the round Lift/Land `.action` button; the simple profile's centred hint pill series; and the pointer-lock takeover with Chrome's bubble. The d15eac5 fixed page and gesture blockers also ran on this desktop. What is still on screen after: the header buttons and the Lift/Land button, both exactly as at 7945430 (the pane is narrow, so the narrow layout still applies). The simple series, the lock and the fixed page are gone.
+
+Commands and results (merged tree, 2026-09-24):
+
+- `pnpm verify`: typecheck 0 errors; vitest 82 files, 838 tests pass; `next build` passes; `node scripts/check-first-load.mjs` 9 scripts, 627.4 KB (budget 636 KB; d15eac5 was 625.4 KB, so +2.0 KB for the pill and press modules on the landing path). No scene, blaster or touch markers.
+- `pnpm exec next start --hostname 127.0.0.1 --port 3391`, then `PLAYTEST_URL=http://127.0.0.1:3391 pnpm test:browser`: 206 passed, 1 skipped (`webkit-gesture`, Playwright's WebKit build is not cached), 0 failed, 15.7 min. That includes the new `tests/desktop-restore.spec.ts` (2/2) and the unedited phone proof: twin-stick, twin-fit, simple-controls-touch, shooter-touch, adaptive-thumbs, thumb-flight, touch-zoom, landscape-camera, the play-guard touch tests, recovery's touch test and trackpad's touch handover. The only edits in play-guard.spec and recovery.spec are to their desktop tests.
+- `tests/desktop-restore.spec.ts` runs at 1440x900 and at 325x928 with `hasTouch` false and Garo's live save. After Begin: the ground pill, no controls-hint, no SimpleTrackpadHud, no `data-playing`, and `data-hover-fire` true. A click gives exactly 1 shot with no pointer lock. Space lifts and cruises (the cruise pill, `data-hover-fire` false). A pointer move steers (heading down more than .2). A click brakes to hover with 0 shots (the hover pill). A cursor move while hovering does not look; W then cruises, and the first 2 px move changes the heading by less than .05, while the pre-fix jump would have been a 100 px look. The cruise stays on after W is released. Flight settings shows "Classic · Free cursor"; after closing it, Space does not reopen a dialog. There is no touch-layer, fire-button, rise-button or touch-stick, and no "Blaster sound is off". Escape pauses and Resume brings back the right pill. After a reload the save reads `free`/4.
+- Manual probe (system Chrome, scratchpad script): landing, ground, cruise, hover, a 0.7 s still hold (6 shots at 1440, 5 at 325), Flight settings and the Field guide at 1440x900 and 325x928, all read. Phone context 852x393 (`isMobile`, `hasTouch`): the twin-stick UI is unchanged (touch-layer, ghost, Rise, Descend, Aim, Fire, the "Left thumb: move" hint, `html[data-input]` touch, `data-playing` set). Both servers were stopped afterwards.
+
+Note for the lead: the Trackpad settings text says "Blaster sound starts off; turn on Suit and wind audio below" instead of the spec's "turn it on under Blaster". It is unit C's wording and is left as is.
+
+Review fixes (same day, after a desktop review against a 7945430 build):
+
+- The pointer no longer hides over the scene while stopped (the `cursor:none` rule is gone; `data-hover-fire` stays as a test marker). 7945430 never hid it.
+- No hold-to-fire: a press that never drags 6 px fires exactly once on release, however long it is held, so "press, pause, then drag to look" never shoots. Hold C for sustained fire. `holdBegins` (tested but never called) is removed.
+- The W or Space press that starts the cruise is the old click: W is not added to the held keys and its auto-repeats are ignored until release, so a held W takes off at the saved cruise speed (under 10 m/s measured, previously 26-31 m/s). A fresh W press while cruising still adds thrust, as at 7945430.
+- Space while cruising (no surface in reach, no landing, no focused button) brakes to hover, so a keyboard-only player can always stop. With a surface in reach Space lands, as before.
+- The hover pill reads "W TO FLY · SPACE TO LAND · CLICK TO FIRE · DRAG TO LOOK" while a surface is in reach.
+- The key auto-repeat guard from a6c34b5 now applies only to One finger + keyboard, Flow and touch; the classic desktop profiles re-add a key held through a pause, as at 7945430.
+- Touch-capable devices driven by a mouse or trackpad (touch laptops, iPad with a trackpad): the selection/context-menu blockers and the zoom pause follow the live pointer (`touchMode()`), so they apply only while a finger drives. The fixed page (`html[data-playing]`) and the zoomed-Begin check still follow capability.
+- Not changed: W on the ground still walks (only Space takes off; open question for Garo). With Mouse + keyboard saved, a left click fires once the mouse is captured (from e9de2cb, documented).
+- New `tests/desktop-keyboard.spec.ts`: keys-only default profile (walk, Space lift and cruise, Space brake, strafe), W held with auto-repeat from hover (peak under 10 m/s, cruise kept after release), and the touch-laptop guard.
+
+All of this is Chrome emulation. **Emulation is not device validation.** Still to do:
+
+- Garo on a physical Mac trackpad in Chrome, and in the Claude pane at its desktop preset and at a wider width. The pane's mobile preset emulates a touch phone by design, so it will show the phone controls.
+- A physical iPhone Safari check that the twin-stick controls are unchanged.
+- Open question for Garo: W takes off from the ground too? (`HOVER_KEYS.wLiftsFromGround`, false for now.)
+
+## Industry-grade touch controls and browser protection · 2026-09-24 (emulation only)
+
+Owner request (Garo, after playing the Vercel preview on his iPhone): "Oh wow the game is terrible controls. Redo them so that they are at industry grade standards and movements/gestures dont exit the browser and/or pause the game unintentionally". Spec: twin-stick touch (floating left stick, right-thumb look, Fire / Aim / Rise / Descend cluster), level stick flight by default, a play guard (page pinned, scroll and zoom gestures swallowed only while playing), pause only on leaving the page, and a "Leave the game?" card for the back swipe.
+
+Integration (unit E): `Experience.tsx` loads `TouchControls` with a dynamic `import()` right after hydration (and warms `FireControls`), holds the loaded component in state, and Begin and Resume wait for it. `usePlayGuard()` runs always. Begin and Resume go through `onPlayGesture()`, which refuses to start while pinch-zoomed and shows "Pinch out to normal size, then tap Resume." The pause card moved into `PauseCard.tsx` (the Leave card, the zoom note, the "Screen too short" note, the Home Screen tip, a portrait-only "Best played sideways." line). `scripts/check-first-load.mjs` adds TOUCH markers (`TouchControls-module`, `rise-button`, `touch-stick`); the budget stays 636 KB.
+
+Specs added: `tests/twin-stick.spec.ts`, `tests/twin-fit.spec.ts`, `tests/play-guard.spec.ts`, `tests/webkit-gesture.spec.ts` (skips unless Playwright's own WebKit build is already cached; on this Mac only an older `webkit-2215` is cached while Playwright 1.63 expects `webkit-2359`, so it skips; nothing is installed). The legacy touch specs run the classic scheme through a seeded save (`CLASSIC` in `tests/shooter-browser.ts`); classic rotation now keeps playing with input released. `tests/accessibility.spec.ts` adds axe (WCAG 2 A and AA) on twin play in both orientations, the pause card with the tip, touch settings with the screen diagnostics, the Leave card, the zoom note, and twin play with tap controls.
+
+Merge gate (integration, 2026-09-24):
+
+- `pnpm typecheck`: 0 errors. `pnpm test`: 78 files, 806 tests pass. `pnpm build`: passes; the prerendered head has the manifest link and the Apple web-app tags, and the viewport has no zoom limit. `node scripts/check-first-load.mjs`: 9 scripts, 625.4 KB (budget 636 KB).
+- Playwright, system Chrome against `next start` on 127.0.0.1:3391: the full run gave 180 passed, 4 failed, 1 skipped (`webkit-gesture`, WebKit not cached). The 4 were `tests/simple-controls-touch.spec.ts` assertions on More controls folding (the classic seed turns Aim off, a non-default choice since controls version 3); after the fix that file passes 19/19. `play-guard`: 9 passed; the safe-area override applied, and in Chrome the zoom guard reset the zoom to 1 and showed the note.
+- Found and fixed at integration: (1) desktop trackpad regressions (13 failures across flow, flow-recovery, shooter-desktop, simple-trackpad, trackpad-comparison and simple-hints; the same 63 tests pass on a HEAD build): the touch layer again remounts per pause state, as on main, so the desktop hooks' per-session refs reset on resume; and it is held in state once loaded instead of `next/dynamic`, whose React.lazy suspended on the first mount after Begin and dropped an immediate first click. After both, the 63 pass. (2) The twin touch hint series now also mounts with the blaster off. (3) Hold Descend from about 10 m lands after about 3.35 s at 61 fps (coast-up after Rise, 9.1 m/s descent, then main's eased landing approach); the spec allows 4.5 s.
+
+All automated results above are system Chrome emulation (CDP touch). **Emulation is not iPhone validation.**
+
+NOT VALIDATED until Garo checks on his iPhone, in both orientations:
+
+- a left-edge back swipe during a stick drag (should show the Leave card, not exit);
+- a portrait stick drag near Safari's bottom bar (should not switch tabs or open the tab overview);
+- a home swipe and return (should come back paused);
+- a Control Center or Notification Center pull (should release input without pausing);
+- a two-thumb pinch in play (should not zoom) and a pinch on the pause card (should zoom);
+- zooming on the pause card, then tapping Resume (should reset the zoom or show the zoom note);
+- the toolbar showing or hiding mid-drag (should keep the stick);
+- rotation mid-drag (should keep playing, controls re-anchored);
+- a 3 s Fire hold (no loupe or callout);
+- 5 fingers held (all kept) and a sixth finger (clean cancel, no pause);
+- hold Descend to land;
+- how level flight feels;
+- tapping the edge of Pause;
+- two minutes of cruise with no auto-lock;
+- Add to Home Screen (should open full screen);
+- the Screen diagnostics values in Flight settings;
+- thumb reach and button sizes.
+
 ## Whole-body turn roll · 2026-09-19
 
 - `src/game/turnSweep.ts` (new) gathers the travel's lateral velocity change per physics step in `Player.tsx` (`runtime.turn`), clamped to 45 m/s² per step and closed for .2 s after any step in which the flight safety turned the travel; `src/world/suitRoll.ts` (new) drains it each frame and turns it into a roll; `orientSuit` applies it about the line of sight to the chase camera, weighted by t̂·ĉ; `Suit.tsx` advances it after the flight mix and writes `presentation.suitRoll`, which the telemetry samples every 350 ms as `data-suit-roll`. `CHASE_HEAD` (.65 m) is shared by `CameraRig.tsx` and the roll. The long-axis bank term is removed.
@@ -332,6 +412,35 @@ User playtest feedback: the separate Surge action was awkward, steering required
 - Source review covered cancellation before a takeoff physics step, pointer ownership, timer cleanup, camera ownership and the absence of per-move React state updates.
 
 This is the next playtest candidate. The original five-minute performance sample below belongs to the first-flight source hashes, not this control revision; no new iPhone performance claim is made.
+
+## Screen cleanup · 2026-10-02
+
+The top row, the one Controls sheet, the Vote that shows only when it works, the one hint line and the nine named layers (the decisions are in [DECISIONS.md](DECISIONS.md), the iPhone checklist in [screen-cleanup.md](screen-cleanup.md)). All of this is Chrome emulation, node tests and real DevTools touches on this Mac. None of it is iPhone validation, a trackpad check or a screen-reader check.
+
+- `pnpm typecheck`: 0 errors. `pnpm test`: 178 files, 2203 tests pass.
+- `pnpm build` passes. `node scripts/check-first-load.mjs`: 9 scripts, 627.1 KB (the budget is 629 KB, ratcheted down from 636 KB; the build before the cleanup measured 635.6 KB). The spec's 628.5 KB end target was missed first (629.6 KB after units 2 to 5 put about 1.8 KB back on the 627.8 KB the guide move reached) and met by making the Flow and Simple trackpad panels lazy chunks (spec 11.3 in part; `TapControls` stays static). No scene, blaster, touch, lab, controls, vote, Field guide or trackpad panel marker is in the first load. `node scripts/check-vote-build.mjs` passes.
+- `playwright test` in full, twice, against a production `next start` of this tree (127.0.0.1, port 3476; each time the served HTML held the build's `.next/BUILD_ID`), system Chrome, 459 tests: 457 passed, 1 skipped (`webkit-gesture.spec.ts`: WebKit is not installed here) and 1 failed in each run, and the failure was a different test each time. Both are wall-clock checks that are not about the screen. (1) The desktop Brush sweep in `controls-every.spec.ts`: it took about 400 ms against a 400 ms swipe limit, so a slow frame made it a nudge (4.1 m instead of 9.5 m); the build from before the cleanup does the same (2 of 40 runs), so it is not a regression. The sweep now takes about 197 ms (`test(controls): the desktop Brush sweep finishes well inside the 400 ms swipe limit`): 40 of 40, then the whole file 18 of 18. (2) `twin-stick.spec.ts` Rise and Descend: Descend dropped 1.88 m where the check wants more than 2 m in a 700 ms hold; it passes 40 of 40 alone and the whole file 29 of 29. It is not changed and can flake again on a busy machine. Every test passed in at least one of the two full runs on the same build, and none failed twice. The runs include `layout-fit.spec.ts` (overlap, 44 px targets, containment, passive readout and hint, the 16 px flight-surface grid, 150 and 200 percent text, forced colors, axe), `accessibility.spec.ts` (reduced motion, axe AA), `screen-touch-sheet.spec.ts` (real touches on the sheet, Pause, the strip and a second finger), `keyboard-row.spec.ts` (Tab order in the row and on the pause card, a ring at every stop, Escape and focus return) and the vote, controls, hint and twin specs.
+- After the Flow and Simple trackpad panels became lazy chunks (the last commits of the branch), the full playwright suite was not run again. These were, on a fresh build served from port 3476 (BUILD_ID matched): 94 tests in the Flow, Simple trackpad, trackpad, hint-slot, blaster, isolation and restore specs, and 115 in `layout-fit`, `composition`, `controls-parity`, `controls-picker`, `keyboard-row`, `screen-touch-sheet` and `field-guide-lazy`: all 209 passed. Vitest, in full: 178 files, 2203 tests pass.
+- Layers: the paint order of every element at 70,490 sampled points in 70 screen states (landing, play, sheet, paused, settings, guide, vote, Flow, tap pad, twin, Draw and Brush, at 1440, 1024, 393, 375 and 852 wide) is identical on the build before the `--z-*` remap and on the final build.
+- Secrets: `gitleaks git` over the branch's commits since its base found no leaks. A `gitleaks dir` scan of the working directory flags only generated build files under the gitignored `.next/`.
+
+Still open, Garo only: the seven iPhone checks in [screen-cleanup.md](screen-cleanup.md), portrait and landscape, Safari tab and Home Screen app, and a real trackpad.
+
+### Final repair round · 2026-10-02
+
+The last review's findings were checked one by one, each reproduced on a production build of the branch before the round (`9d5318b`) or read in the code, then fixed or skipped with a reason. The new tests below were run against that earlier build and fail there; they pass on the repaired tree.
+
+- **Landing text overprinted** at 393x659, 390x664, 375x667, 375x553, 360x640, 320x568 and, on a first visit, 1024x700 (the title over the eyebrow and the copy, by 38 to 114 px; the first-visit demo note made the card taller and it climbed into the title). The title and the card are now one bottom-anchored column; the smallest clearance between any two text blocks is 14.3 px (375x553, first visit), 18 to 24 px at the common phone sizes. `tests/layout-landing.ts` runs in `layout-fit.spec.ts` at the six test viewports, 360 and 320 wide and the Safari-tab sizes, first visit and return (28 tests).
+- **Landing text floor.** The eyebrow, brand tagline and footer labels (6 to 9 px) are 11 px; the hint line and the demo note are 14 px on a phone and 13 px elsewhere; the Field guide button is 13 px. The test fails on any landing text under 11 px.
+- **The open Controls button was lime**, the Vote pill's colour; it is a slate with a cream edge and the same width. Checked with the pill ready and the sheet open (`vote-ready-sheet-*.png`).
+- **Keyboard focus was left under the sticky footers** in Flight settings and the Controls sheet (WCAG 2.2 2.4.11). On the earlier build `tests/focus-footer.spec.ts` finds four controls under the Resume footer at 320x568 and a radio 57 px under the sheet's footer; it finds none now, at 320x568, 375x667, 393x852, 852x393 and 568x320. The sheet's list was only touch-scrolled at 667x320; it is now also at 320x568.
+- **A second finger tapping Pause (or Controls) while the first flies did nothing** (Chrome sends no click for a second touch). Both buttons now act on the second finger's pointerup; the old spec asserted only the pointer events and passed. The new specs bring up the pause card and open the sheet once. An iPhone is not proven to send the same events.
+- **A cursor on its way to Pause steered the view** (the cleanup had shrunk the header box for every input; 300 px along the strip turned the heading 0.9 rad). A mouse, wider than 600 px, gets the whole-row box back (`FEEL:` commit; `tests/trackpad.spec.ts`).
+- **The two `FEEL` and layers commits cannot be `git revert`ed alone** (the revert conflicts with later commits on the same CSS lines). The docs now say so and give the by-hand undo. The touch one was applied in a scratch clone of this branch: typecheck, 2,204 unit tests and 34 touch layout and sheet specs pass, and the strip beside the readout hits `header` again instead of the flight surface.
+- **Skipped, with reasons:** the Draw guide caption under the Lift circle at 320x568 (it is the Gesture Lab guide's own placement, lab geometry this task must not move, and it is the same on the base); the readout and hint 1 px apart at doubled text (cosmetic, nothing overlaps or is cut, and the doubled-text pass is `scaleText` in `layout-fit`, not a root font size); the twin cluster's Descend label 3 px from the bottom (cluster geometry is unchanged by decision B3); a line in the sheet saying the ballot is closed (new words wait for Garo's OK; the check before the link goes out is in `docs/screen-cleanup.md`).
+- `pnpm typecheck`: 0 errors. `pnpm test`: 178 files, 2205 tests pass. `pnpm build` passes; `node scripts/check-first-load.mjs`: 8 scripts, 627.4 KB (budget 629 KB; it was 627.1 KB before this round); `node scripts/check-vote-build.mjs` passes.
+- `playwright test` in full against a production `next start` of this tree (127.0.0.1, port 3485, the served HTML held the build's `.next/BUILD_ID`), system Chrome, 501 tests: 499 passed, 1 skipped (`webkit-gesture.spec.ts`, WebKit is not installed here) and 1 failed once, then passed 3 of 3 alone: `lab-switch.spec.ts` "a switch mid-cruise or mid-blast leaves no stuck movement or fire" saw no new shots during its sustained-fire step (before it opens any sheet).
+- Screenshots of the affected states were re-shot from an isolated production build of the final source with a fake vote store (`shots/landing-*`, `sheet-open-*`, `paused-sheet-*`, `vote-ready-sheet-*`, and the other states) and looked at. Chrome emulation, not an iPhone.
 
 ## First build: verified locally
 

@@ -7,8 +7,9 @@ import { buildSuitParts, parents, pivots } from '../src/world/suitGeometry';
 import { BONE_COUNT, BONE_NAMES, BONE_PARENTS, boneIndex } from '../src/world/suitSkeleton';
 test('human suit preserves weighted articulation, fitted proportions and the browser budget', async () => {
   const bytes = readFileSync(new URL('../public/models/suit.glb', import.meta.url));
-  // Approved anatomy spends its budget on the silhouette: 41.2k triangles, three surfaces.
-  expect(bytes.length).toBeLessThan(1_600_000);
+  // Approved anatomy spends its budget on the silhouette: 41.2k triangles, three surfaces. The Meridian Envoy outfit (Garo
+  // 2026-10-06) adds one more surface with two materials: 13.8k triangles and 0.68 MB, so the budget moved from 1.6 to 2.2 MB.
+  expect(bytes.length).toBeLessThan(2_200_000);
   const json = JSON.parse(bytes.toString('utf8', 20, 20 + bytes.readUInt32LE(12)));
   expect(json.images ?? []).toHaveLength(0);
   // Motion is authored in code, so the asset carries none. Every bone rests at identity, and one set of four weights skins each vertex.
@@ -58,8 +59,8 @@ test('human suit preserves weighted articulation, fitted proportions and the bro
       }
     });
     expect(blendedVertices).toBeGreaterThan(100); expect(usedJoints.size).toBe(BONE_COUNT);
-    expect(triangles).toBeLessThan(42_000); expect(batches).toBeLessThanOrEqual(3);
-    expect(finishes).toEqual(new Set(['textile', 'skin', 'eyes']));
+    expect(triangles).toBeLessThan(56_000); expect(batches).toBeLessThanOrEqual(5);
+    expect(finishes).toEqual(new Set(['textile', 'skin', 'eyes', 'plate', 'glow']));
   } finally { rig.dispose(); }
 });
 test('assembly rejects missing parts and never disposes or mutates shared loader assets', () => {

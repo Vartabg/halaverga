@@ -1,0 +1,96 @@
+{
+  "asset": "public/models/arm-cannon.glb",
+  "blender": "4.0.2",
+  "method": "Measured on the exported GLB. Extent: widest projection perpendicular to BARREL_AXIS. Flexion (runtime R1 + R3 weights, hand_r 1e-3): nearest posed triangle under 95% forearm/hand weight, negative = inside (within 2 cm).",
+  "sha256": "798c77a8925e3061221e0ade610c6660d0468bdeb51d93d19ccf4eb45cbc1837",
+  "bytes": 115744,
+  "triangles": {
+    "cannon_shell": 2590,
+    "cannon_slide": 400,
+    "cannon_vent": 108
+  },
+  "triangles_total": 3098,
+  "muzzle_residual_mm": 0.0,
+  "vent_hinge_dot_axis": -0.0,
+  "length_m": 0.4,
+  "largest_extent_m": 0.2054,
+  "extent_u_by_z_m": [
+    0.2,
+    0.194
+  ],
+  "radial_extent_m": {
+    "top": 0.092,
+    "outer": 0.11,
+    "underside": 0.102,
+    "inner": 0.09
+  },
+  "length_over_extent": 1.947,
+  "min_cuff_clearance_mm": 5.03,
+  "min_cuff_clearance_station": 0.124,
+  "hand_head_inset_mm": 10.19,
+  "cone_min_inset_mm": 13.76,
+  "metal_area_pct": 16.5,
+  "flexion": {
+    "CARRY": {
+      "min_mm_to_upper_arm": 56.07,
+      "pass": true
+    },
+    "CARRY_KICK": {
+      "min_mm_to_upper_arm": 56.07,
+      "pass": true
+    },
+    "CARRY_VENT": {
+      "min_mm_to_upper_arm": 56.07,
+      "pass": true
+    },
+    "AIM": {
+      "min_mm_to_upper_arm": 56.07,
+      "pass": true
+    },
+    "VENT": {
+      "min_mm_to_upper_arm": 56.07,
+      "pass": true
+    },
+    "STRESS": {
+      "min_mm_to_upper_arm": 56.07,
+      "pass": true
+    }
+  },
+  "cuff_flexor": 0.15,
+  "visibility": {
+    "views": [
+      "chase",
+      "ads_portrait",
+      "ads_landscape"
+    ],
+    "core_lens": [
+      {
+        "visible_fraction": 0.937,
+        "projected_m2": 0.002373
+      },
+      {
+        "visible_fraction": 0.937,
+        "projected_m2": 0.002398
+      },
+      {
+        "visible_fraction": 0.937,
+        "projected_m2": 0.002366
+      }
+    ],
+    "strips_fins": [
+      {
+        "visible_fraction": 0.261,
+        "projected_m2": 0.000709
+      },
+      {
+        "visible_fraction": 0.271,
+        "projected_m2": 0.000938
+      },
+      {
+        "visible_fraction": 0.276,
+        "projected_m2": 0.001108
+      }
+    ]
+  },
+  "consecutive_builds_identical": true
+}

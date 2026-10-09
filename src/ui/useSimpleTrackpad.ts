@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, type PointerEvent, type RefObject } fro
 import { brakeFlow, look, runtime, stopTrackpad } from '@/game/runtime';
 import { useGame } from '@/game/store';
 import { recordGesture } from '@/game/gestureLog';
+import { simplePrimaryPress } from './shooterKeys';
+import { readEnv } from './useShooterInput';
 
 type Capture = { request: () => void; cancel: () => void };
 const enabled = () => useGame.getState().desktopMode === 'trackpad' && useGame.getState().trackpadSteering === 'simple';
@@ -21,11 +23,10 @@ export function useSimpleTrackpad(surface: RefObject<HTMLDivElement | null>, cap
     return () => element.removeEventListener('wheel', wheel);
   }, [surface, paused, release]);
   const start = (e: PointerEvent<HTMLDivElement>) => {
-    if (useGame.getState().paused || e.ctrlKey || e.metaKey || e.altKey) return;
-    if (e.button !== 0) return;
-    if (document.pointerLockElement === e.currentTarget || runtime.trackpad.capture === 'requesting') {
-      recordGesture('simple-brake'); release(); return;
-    }
+    const route = simplePrimaryPress(e, readEnv(), runtime.trackpad.capture === 'requesting');
+    // 'fire' never arrives: useShooterInput's capture-phase swallowsPress stops that same route first. A shot keeps pointer and flight.
+    if (route === 'ignore' || route === 'fire') return;
+    if (route === 'brake') { recordGesture('simple-brake'); release(); return; }
     press.current = { id: e.pointerId, x: e.clientX, y: e.clientY, dragged: false, epoch: runtime.trackpad.cancelEpoch };
     last.current = { x: e.clientX, y: e.clientY };
     e.currentTarget.setPointerCapture(e.pointerId);

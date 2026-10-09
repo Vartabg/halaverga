@@ -1,6 +1,8 @@
 import { DISTRICT_URL } from './districtAsset';
 import { useEffect, useMemo } from 'react';
 import { useLoader } from '@react-three/fiber';
+import { TrimeshCollider } from '@react-three/rapier';
+import { districtHorizonColliders } from './districtColliders';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { Mesh, MeshStandardMaterial, RepeatWrapping, SRGBColorSpace, TextureLoader, Vector2 } from 'three';
@@ -13,7 +15,7 @@ export default function BlenderDistrict() {
     '/textures/environment/concrete_floor_02_nor_gl_1k.jpg',
     '/textures/environment/concrete_floor_02_rough_1k.jpg',
   ]);
-  const { scene, materials } = useMemo(() => {
+  const { scene, materials, colliders } = useMemo(() => {
     maps.forEach((map, i) => {
       map.wrapS = map.wrapT = RepeatWrapping; map.anisotropy = 4;
       if (i === 0) map.colorSpace = SRGBColorSpace;
@@ -47,9 +49,10 @@ export default function BlenderDistrict() {
       }
       object.material = material; object.castShadow = true; object.receiveShadow = true;
     });
-    return { scene, materials };
+    return { scene, materials, colliders: districtHorizonColliders(scene) };
   }, [gltf, maps]);
   // Geometry and source textures belong to useLoader's cache; only clones are owned here.
   useEffect(() => () => materials.forEach(material => material.dispose()), [materials]);
-  return <primitive object={scene} dispose={null} />;
+  return <><primitive object={scene} dispose={null} />
+    {colliders.map(c => <TrimeshCollider key={c.name} args={[c.vertices, c.indices]} />)}</>;
 }

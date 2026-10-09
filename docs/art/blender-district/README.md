@@ -9,7 +9,7 @@ The environment pass replaces the repeated procedural building envelopes and dis
 - A damaged skyline and split relay towers beyond the playable boundary, with distant hillside silhouettes.
 - A heavy storm ceiling, cool diffuse light, distant rain haze and cold wet-surface reflections. The [sky follow-up](../storm-front/README.md) supersedes the initial warm daylight treatment.
 - Wet asphalt shading, with a 512 × 512 planar canal reflection in full detail. The lighter setting retains single-pass analytic water. Reduced motion freezes water motion and removes the wake.
-- The existing building collision envelopes and fallen slab colliders are retained. Runtime movement, camera control, landings and route dimensions are unchanged.
+- The authored building collision envelopes are retained. The later [shooting integration](../storm-front/SHOOTING-INTEGRATION.md) removes obsolete procedural debris that snagged low flight and adds structural colliders to the now-reachable horizon.
 - Reload scene clears a rejected district model request as well as the suit request. Switching graphics quality releases the reflection target and its owned geometry/material.
 
 ## Assets and budgets

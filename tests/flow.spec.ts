@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { settingsCurrent, openSettings, closeAndResume } from './lab-browser';
 import { beginFlow, heading, hud, position, release, selected, speed, telemetry, wheel } from './flow-browser';
 
 for (const camera of ['first', 'third']) test(`Flow looks through 360 degrees in hover without a held click or drift in ${camera} person`, async ({ page }) => {
@@ -49,9 +50,9 @@ test('secondary click frees the cursor for Land and settings, and recapture is s
   await beginFlow(page); await wheel(page, -80, false); await expect.poll(() => speed(page)).toBeGreaterThan(.5);
   await release(page); await expect.poll(() => speed(page)).toBeLessThan(.1);
   await expect(page.getByRole('button', { name: 'Land', exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Flight settings' }).click();
-  await expect(page.getByLabel('Trackpad steering')).toHaveValue('flow');
-  await page.getByRole('button', { name: 'Close dialog' }).click();
+  await openSettings(page);
+  expect(await settingsCurrent(page)).toBe('flow');
+  await closeAndResume(page);
   await page.mouse.click(720, 500); await expect(hud(page)).toHaveAttribute('data-capture', 'engaged');
   expect(await selected(page)).toBe(0); await expect.poll(() => speed(page)).toBeLessThan(.1);
 });

@@ -10,7 +10,7 @@ import { STORM_HAZE } from './weather';
 export default function CanalReflection() {
   const gl = useThree(state => state.gl);
   const water = useMemo(() => {
-    const geometry = new PlaneGeometry(1100, 1100);
+    const geometry = new PlaneGeometry(2400, 2400);
     const reflector = new Reflector(geometry, { textureWidth: 512, textureHeight: 512,
       multisample: 0, clipBias: .003, shader: {
         name: 'MeridianWater', uniforms: { color: { value: null }, tDiffuse: { value: null }, haze: { value: new Color(STORM_HAZE) },

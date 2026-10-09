@@ -1,0 +1,55 @@
+/* The in-game vote card (spec 1.4). The scrim catches every pointer (so nothing reaches the pause card or controls beneath it),
+   and scrolls inside the safe areas; the card itself holds no animation at all, so reduced motion has nothing to stop. */
+.scrim{position:fixed;inset:0;z-index:var(--z-vote);display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;overscroll-behavior:contain;
+  -webkit-overflow-scrolling:touch;touch-action:pan-y;background:#0e1012d1;
+  padding:max(12px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) max(12px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left))}
+.card{margin:auto;width:min(460px,100%);padding:22px 22px 18px;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:14px;
+  box-shadow:0 24px 80px #0e101280;line-height:1.5;touch-action:pan-y;-webkit-user-select:text;user-select:text}
+/* Auto-open guard (m2): the card ignores pointers until 400 ms have passed and every pointer has lifted. The keyboard still works. */
+.card[data-guard]{pointer-events:none}
+.card h2{font-size:24px;font-weight:600;letter-spacing:-.015em;line-height:1.2;margin:0 0 8px}
+.card h2:focus{outline:none}.card h2:focus-visible{outline:3px solid var(--accent);outline-offset:4px}
+.family{margin:0 0 4px;font-size:13px;color:var(--muted)}
+.sub,.need{margin:0 0 12px;font-size:14px}
+/* The rows: one native radio per way flown, the input stretched over the whole row (56 px high), Can't tell last. */
+.rows{display:flex;flex-direction:column;gap:8px;margin:0 0 12px}
+.row{position:relative;display:flex;align-items:center;gap:12px;width:100%;min-height:56px;padding:8px 14px;border:1px solid var(--line-strong);border-radius:10px;
+  background:transparent;font-size:14px;cursor:pointer}
+.row input{position:absolute;inset:0;margin:0;opacity:0;width:100%;height:100%;cursor:pointer}
+.rowText{display:flex;flex-direction:column;gap:2px;flex:1;min-width:0}
+.rowText b{font-size:15px}.rowText small{font-size:13px;line-height:1.35;color:var(--muted)}
+.dot{flex:none;width:20px;height:20px;border:2px solid var(--line-strong);border-radius:50%}
+.row svg *{animation:none!important}
+.row:hover{background:var(--panel-2)}
+.row:has(input:checked){background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.row:has(input:checked):hover{background:#84eedc}
+.row:has(input:checked) small{color:#163a38}
+.row:has(input:checked) svg path{stroke:#0c1b1b}
+.row:has(input:checked) .dot{border-color:#0c1b1b;background:#0c1b1b;box-shadow:inset 0 0 0 3px var(--accent)}
+.row:has(input:focus-visible){outline:3px solid var(--accent);outline-offset:3px}
+.rows:has(input:disabled) .row{opacity:.7;cursor:wait}
+.privacy{margin:0;font-size:12px;line-height:1.5;color:var(--muted)}
+.link{display:inline-flex;align-items:center;min-height:44px;font-size:14px}.privacy .link{display:flex}
+.paused{margin:0;font-size:13px;color:var(--muted)}
+.status{min-height:1.5em;margin:10px 0 0;font-size:14px}
+/* The ballot's foot (status + Send + Not yet) sticks to the bottom of the scrolling scrim in every orientation, with a shadow as the
+   scroll cue (V1, V2): the answer to Send is never below the fold, and Send is reachable without scrolling the rows. */
+.foot[data-ballot]{position:sticky;bottom:calc(-1*max(12px,env(safe-area-inset-bottom)));z-index:1;margin:0 -22px -18px;
+  padding:0 22px calc(10px + max(12px,env(safe-area-inset-bottom)));background:var(--panel);box-shadow:0 -12px 14px -8px #0e1012}
+.tally{margin:6px 0 0;font-size:14px;color:var(--accent)}
+.buttons{display:flex;flex-wrap:wrap;gap:10px;margin-top:10px}
+.send{flex:1 1 160px;min-height:48px;padding:10px 18px;background:var(--accent);color:var(--accent-ink);border:1px solid var(--accent);border-radius:10px;font-weight:600;font-size:14px}
+.send:hover:not([aria-disabled=true]){background:var(--accent-hover)}
+.send[aria-disabled=true]{background:var(--panel-2);border-color:var(--line);color:var(--muted);cursor:not-allowed}
+.send[aria-busy=true]{cursor:wait}
+.skip{flex:0 1 110px;min-height:48px;padding:10px 15px;background:transparent;border:1px solid var(--line-strong);border-radius:10px;color:var(--ink);font-size:14px;font-weight:500}
+.skip:hover:not(:disabled){background:var(--panel-2)}
+.send:focus-visible,.skip:focus-visible,.link:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
+@media(max-height:500px) and (orientation:landscape){.card{padding:14px 18px}.card h2{font-size:21px;margin-bottom:6px}.rows{gap:6px}
+  .foot[data-ballot]{margin:0 -18px -14px;padding:0 18px calc(8px + max(12px,env(safe-area-inset-bottom)))}.foot .status{margin-top:6px}.foot .buttons{margin-top:6px}}
+@media(prefers-reduced-motion:reduce){.scrim,.card,.card *{transition:none!important;animation:none!important;scroll-behavior:auto}}
+@media(forced-colors:active){.scrim{background:Canvas}.card{border-color:CanvasText}.dot{border-color:ButtonText}
+  .row:has(input:checked),.row:has(input:checked):hover{background:Highlight;color:HighlightText;forced-color-adjust:none}
+  .foot[data-ballot]{background:Canvas;box-shadow:none;border-top:1px solid CanvasText}.row:has(input:checked) small{color:HighlightText}
+  .row:has(input:checked) svg path{stroke:HighlightText}.row:has(input:checked) .dot{border-color:HighlightText;background:HighlightText;box-shadow:inset 0 0 0 3px Highlight}
+  .send,.skip{background:ButtonFace;color:ButtonText;border-color:ButtonText}}

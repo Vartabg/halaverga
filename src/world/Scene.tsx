@@ -1,19 +1,36 @@
 'use client';
-import { Suspense, useEffect } from 'react';
+import { Suspense, lazy, useEffect } from 'react';
 import { Canvas, useThree } from '@react-three/fiber';
 import { Physics } from '@react-three/rapier';
 import { ACESFilmicToneMapping } from 'three';
 import City from './City';
+import RuinField from './RuinField';
 import DistrictBoundary from './DistrictBoundary';
 import { Sky, Water } from './Atmosphere';
 import Suit from './Suit';
 import Player from '@/game/Player';
 import CameraRig from '@/game/CameraRig';
 import FlightPresentation from '@/game/FlightPresentation';
+import Shooter from '@/game/Shooter';
+import { shooterFault } from '@/game/shooterFault';
+import Boundary from '@/ui/Boundary';
+import Drones from './Drones';
+import ShotFx from './ShotFx';
+import ImpactFx from './ImpactFx';
+import ArmCannon from './ArmCannon';
 import { useGame } from '@/game/store';
 import { clearInput } from '@/game/runtime';
 import EnvironmentLight from './EnvironmentLight';
 import { STORM_HAZE } from './weather';
+import { labFault } from '@/ui/labSwitch';
+import { useTouchCapable } from '@/ui/useTouchCapable';
+// The Gesture Lab's scene parts load only when a lab scheme is on (spec 10): the drone screen history (-9), Draw's world probe
+// (-45) and ribbon, and the hero trail. The standard controls fetch only the drone screen history, and only for the classic one
+// thumb with the blaster on (tap a drone to blast, 2026-09-26).
+const GestureTrack = lazy(() => import('./GestureTrack'));
+const DrawProbe = lazy(() => import('./DrawProbe'));
+const GestureRibbon = lazy(() => import('./GestureRibbon'));
+const HeroTrail = lazy(() => import('./HeroTrail'));
 function GraphicsRecovery({ onLoss }: { onLoss: () => void }) {
   const { gl, invalidate } = useThree();
   useEffect(() => {
@@ -23,6 +40,27 @@ function GraphicsRecovery({ onLoss }: { onLoss: () => void }) {
     invalidate(); return () => canvas.removeEventListener('webglcontextlost', lost);
   }, [gl, invalidate, onLoss]);
   return null;
+}
+/** The suit blaster, its arm cannon and the rogue drones, mounted only while the setting is on (so arm-cannon.glb is fetched only
+ * then). A render or load error turns the blaster off; flight continues. */
+function ShooterLayer() {
+  const shooter = useGame(s => s.shooter);
+  return shooter ? <Boundary fallback={null} onError={() => shooterFault('render', null)}><Shooter /><Drones /><ShotFx /><ImpactFx />
+    <Suspense fallback={null}><ArmCannon /></Suspense></Boundary> : null;
+}
+/** Standard on the classic one thumb, blaster on, touch-capable device: the drone screen history alone (the tap pick reads it).
+ *  A desktop that has never shown touch mounts nothing here, so its Standard stays as it was. A failure only leaves it out. */
+function TapTrack() {
+  const on = useGame(s => s.shooter && s.touchScheme === 'classic' && s.controlLab === 'standard'), capable = useTouchCapable();
+  return on && capable ? <Boundary fallback={null} onError={() => {}}><Suspense fallback={null}><GestureTrack /></Suspense></Boundary> : null;
+}
+/** Mounted inside Physics (DrawProbe queries the world). A load or render error returns the session to the standard controls. */
+function LabLayer() {
+  const lab = useGame(s => s.controlLab);
+  if (lab === 'standard') return <TapTrack />;
+  return <Boundary key={lab} fallback={null} onError={() => labFault('The Gesture Lab scene failed. Standard controls are on.')}>
+    <Suspense fallback={null}><GestureTrack />{lab === 'draw' && <><DrawProbe /><GestureRibbon /></>}<HeroTrail /></Suspense>
+  </Boundary>;
 }
 export default function Scene({ onLoss }: { onLoss: () => void }) {
   const paused = useGame(s => s.paused), quality = useGame(s => s.quality);
@@ -41,7 +79,8 @@ export default function Scene({ onLoss }: { onLoss: () => void }) {
     <EnvironmentLight /><Sky /><Water />
     <Suspense fallback={null}>
       <Physics paused={paused} timeStep={1 / 60} updatePriority={-50} gravity={[0, -22, 0]}>
-        <City /><DistrictBoundary /><Player /><FlightPresentation /><Suit /><CameraRig />
+        <City /><RuinField /><DistrictBoundary /><Player /><FlightPresentation /><Suit /><CameraRig />
+        <ShooterLayer /><LabLayer />
       </Physics>
     </Suspense>
   </Canvas>;
