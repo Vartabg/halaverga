@@ -168,7 +168,9 @@ export function damageDrone(s: ShooterState, sim: DroneSim, i: number, weak: boo
   f.tint[i] = DRONE.tint; f.lastHit[i] = s.clock;
   kv.x += dir.x * KNOCK_GAIN; kv.y += dir.y * KNOCK_GAIN; kv.z += dir.z * KNOCK_GAIN;
   f.wobbleV[i] += (sim.rng() < .5 ? -1 : 1) * WOBBLE_GAIN;
+  // Damage reads in stages (2026-10-07): at 4 HP the shell plate breaks off ('break'); at 2 HP the drone starts failing ('fail').
   if (before > DRONE.breakAt && f.hp[i] <= DRONE.breakAt && !f.broken[i]) { f.broken[i] = 1; pushEvent(s, 'break', f.pos[i], f.pos[i], null, i); }
+  if (before > DRONE.failAt && f.hp[i] <= DRONE.failAt && f.hp[i] > 0) pushEvent(s, 'fail', f.pos[i], f.pos[i], null, i);
   if (f.hp[i] <= 0) {
     f.phase[i] = PHASE.dying; f.phaseT[i] = 0;
     if (sim.dodger === i) sim.dodger = -1;

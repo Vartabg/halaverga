@@ -105,6 +105,8 @@ export default function ShooterHud() {
       d.heat = String(Math.round(w.heat / HEAT.max * 100)); d.locked = String(w.lock > 0); d.acquired = String(a.acquired); d.fov = a.fov.toFixed(1);
       // The arm cannon for the browser specs: none, ready (parented, hand still shown) or shown (hand hidden, cannon drawn).
       d.cannon = cannonLink.ready ? cannonLink.handHidden ? 'shown' : 'ready' : 'none';
+      // Each drone's HP (dead ones 0), so a spec or a capture can follow one drone through its damage stages.
+      d.hp = Array.from(s.drones.hp.subarray(0, s.drones.count), (hp, i) => s.drones.phase[i] === 6 ? 0 : hp).join(',');
     };
     stamp();
     const timer = setInterval(stamp, 100);

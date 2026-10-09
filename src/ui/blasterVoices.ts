@@ -28,9 +28,19 @@ function hiss(ctx: BaseAudioContext, dest: AudioNode, noise: AudioBuffer, rng: (
   s.connect(f).connect(env(ctx, dest, t, peak, attack, dur));
   run(s, t, t + dur, rng() * Math.max(0, noise.duration - dur)); return t + dur;
 }
+/**
+ * The kill explosion, with weight: a sub thump (70 -> 32 Hz) that a phone cannot play, carried there by a mid body (triangle
+ * 180 -> 95 Hz) and a lowpassed rumble; a hard crack on top; then a debris tail (bandpassed noise that swells in over 80 ms and
+ * decays over half a second) with two small metallic ticks as pieces land. p is the chain pitch.
+ */
 function boom(ctx: BaseAudioContext, dest: AudioNode, noise: AudioBuffer, rng: () => number, t: number, p: number) {
-  hiss(ctx, dest, noise, rng, t, .25, .3, 'lowpass', 1200, .7, .004);
-  return tone(ctx, dest, 'sine', 90 * p, 40 * p, t, .3, .35, .005);
+  hiss(ctx, dest, noise, rng, t, .02, .4, 'highpass', 1800, .7, .001);
+  hiss(ctx, dest, noise, rng, t, .35, .3, 'lowpass', 900, .7, .004);
+  tone(ctx, dest, 'sine', 70 * p, 32 * p, t, .4, .4, .006);
+  tone(ctx, dest, 'triangle', 180 * p, 95 * p, t, .28, .3, .004);
+  tone(ctx, dest, 'sine', 2600 * p, 2600 * p, t + .14 + rng() * .04, .03, .08, .002);
+  tone(ctx, dest, 'sine', 3300 * p, 3300 * p, t + .26 + rng() * .05, .03, .06, .002);
+  return hiss(ctx, dest, noise, rng, t + .03, .55, .14, 'bandpass', 1200 * p, 1.5, .08);
 }
 
 export const VOICES: Record<Voice, Build> = {
@@ -50,10 +60,27 @@ export const VOICES: Record<Voice, Build> = {
     return tone(ctx, dest, 'sine', 3900, 3900, t, .06, .14, .002);
   },
   blocked: (ctx, dest) => tone(ctx, dest, 'triangle', 150, 110, ctx.currentTime, .06, .3),
+  // Arrivals by surface. Concrete: a dull thud (lowpassed noise, 70 ms) under a 6 ms click. Steel: a bright ping (2400 -> 1900 Hz)
+  // with a hard click. Water: a plop (520 -> 180 Hz) and a short lowpassed splash.
+  world(ctx, dest, noise, rng) {
+    const t = ctx.currentTime; hiss(ctx, dest, noise, rng, t, .006, .22, 'highpass', 2500, .7, .001);
+    return hiss(ctx, dest, noise, rng, t, .07, .2, 'lowpass', 500, .9, .003);
+  },
+  steel(ctx, dest, noise, rng) {
+    const t = ctx.currentTime; hiss(ctx, dest, noise, rng, t, .008, .25, 'highpass', 3500, .7, .001);
+    return tone(ctx, dest, 'sine', 2400, 1900, t, .11, .16, .002);
+  },
+  water(ctx, dest, noise, rng) {
+    const t = ctx.currentTime; tone(ctx, dest, 'sine', 520, 180, t, .09, .22, .004);
+    return hiss(ctx, dest, noise, rng, t + .01, .12, .12, 'lowpass', 1800, .7, .01);
+  },
+  // The killing hit: the 3 dB tick and a crack with a short thump (90 -> 45 Hz, 120 ms) on the frame of the hit; the explosion
+  // itself ('burst', below) follows 80 ms later from the drone's position with the same chain pitch.
   kill(ctx, dest, noise, rng, opts) {
     const t = ctx.currentTime, p = 2 ** (chainSemitones(opts.chain) / 12);
     tone(ctx, dest, 'sine', 2000 * p, 2000 * p, t, .04, HIT_PEAK * db(3), .002);
-    return boom(ctx, dest, noise, rng, t, p);
+    hiss(ctx, dest, noise, rng, t, .06, .35, 'bandpass', 1600 * p, 1.2, .001);
+    return tone(ctx, dest, 'sine', 90 * p, 45 * p, t, .12, .3, .004);
   },
   overheat(ctx, dest, noise, rng) {
     const t = ctx.currentTime; hiss(ctx, dest, noise, rng, t, .4, .08, 'highpass', 4000, .7, .05);
@@ -69,5 +96,11 @@ export const VOICES: Record<Voice, Build> = {
     return tone(ctx, dest, 'sine', 750, 750, t + .15, .15, .16, .01);
   },
   break: (ctx, dest, noise, rng) => hiss(ctx, dest, noise, rng, ctx.currentTime, .12, .5, 'bandpass', 2500, 8, .001),
-  burst: (ctx, dest, noise, rng) => boom(ctx, dest, noise, rng, ctx.currentTime, 1),
+  // Failing drone (2 HP): an electrical crackle, three short bandpassed bursts over a sagging buzz (230 -> 160 Hz).
+  fail(ctx, dest, noise, rng) {
+    const t = ctx.currentTime;
+    for (let k = 0; k < 3; k++) hiss(ctx, dest, noise, rng, t + k * .05, .025, .2, 'bandpass', 3200, 6, .002);
+    return tone(ctx, dest, 'sawtooth', 230, 160, t, .2, .07, .01);
+  },
+  burst: (ctx, dest, noise, rng, opts) => boom(ctx, dest, noise, rng, ctx.currentTime, 2 ** (chainSemitones(opts.chain) / 12)),
 };
