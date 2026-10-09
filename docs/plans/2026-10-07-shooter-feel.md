@@ -113,3 +113,14 @@ it) a fixed page-clock delay after a key press: `*-shot-*` (+31 ms), `*-damaged-
 - The scorch mark is dark on the dark roof and shows mostly on lighter concrete.
 - The burst's sub thump does not exist on a phone speaker by design; its weight there rests on the mid body and the crack.
 - No haptics, no decal persistence beyond 12 marks / 6 s, no per-surface hit marker (markers stay for drones only).
+
+### Test counts (2026-10-09)
+
+- `pnpm typecheck` clean; `pnpm test` 187 files, 2,366 tests passed (base 186 / 2,349; new `tests/shooter-feel.test.ts`, 18 tests);
+  `pnpm build`; `check-first-load` 628.2 KB of 629; `check-vote-build` passed.
+- Shooter specs (arm-cannon, classic-blast, desktop-blaster, shooter-desktop, shooter-touch, suit-clips) and accessibility: 44 passed.
+- Full `pnpm test:browser`: 503 passed, 1 skipped (the WebKit gesture spec: WebKit is not installed on this Mac), 43.6 min, system Chrome.
+- Tests changed: `drone-brain` (break at 4 HP and fail at 2 HP, was break at 3); `shot-fx` (source pins repointed to `fxBurst.ts`,
+  `fxImpacts.ts` and `fxShaders.ts` where the recipes moved, the fireball sizes 1.4×, the alpha pool's scorch slots; the 5-draw-call
+  and under-200-lines checks kept and extended to the new modules); `shot-resolve` and `gesture-draw` (the new `surface` field in
+  literals). No flash-gate, accessibility or flight assertion was touched.
