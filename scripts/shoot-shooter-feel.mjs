@@ -14,6 +14,17 @@ const VIEWS = [{ name: '1440x1000', width: 1440, height: 1000 }, { name: '844x39
 const SAVE = { muted: true, aimAssist: 1.5, shooter: true, controlsVersion: 6, desktopMode: 'trackpad', trackpadSteering: 'free', hintProgress: 99 };
 const HIDE = '[class*=pauseCard],[class*=vignette]{visibility:hidden!important}';
 const hud = page => page.getByTestId('shooter-hud');
+/** Init script: the peak WebGL draw calls and triangles in any one frame (shadow passes included), the kill's frames among them. */
+function countPeaks() {
+  let calls = 0, tris = 0; const w = window; w.__peak = { calls: 0, tris: 0 };
+  const tri = (mode, count, inst = 1) => (mode === 4 ? count / 3 : mode === 5 || mode === 6 ? Math.max(0, count - 2) : 0) * inst;
+  for (const C of [WebGLRenderingContext, WebGL2RenderingContext]) for (const name of ['drawArrays', 'drawElements', 'drawArraysInstanced', 'drawElementsInstanced']) {
+    const f = C.prototype[name]; if (!f) continue;
+    C.prototype[name] = function (...a) { calls++; tris += name === 'drawArrays' ? tri(a[0], a[2]) : name === 'drawElements' ? tri(a[0], a[1]) : name === 'drawArraysInstanced' ? tri(a[0], a[2], a[3]) : tri(a[0], a[1], a[4]); return f.apply(this, a); };
+  }
+  const tick = () => { w.__peak.calls = Math.max(w.__peak.calls, calls); w.__peak.tris = Math.max(w.__peak.tris, tris); calls = tris = 0; requestAnimationFrame(tick); };
+  requestAnimationFrame(tick);
+}
 const stat = async (page, k) => Number(await hud(page).getAttribute('data-' + k));
 const acquired = async page => (await hud(page).getAttribute('data-acquired')) === 'true';
 /** Drone eyes (saturated red blobs) in a screenshot, CSS px, biggest first (tests/lab-browser.ts). */
@@ -82,6 +93,7 @@ try {
     const context = await browser.newContext({ viewport: { width: v.width, height: v.height }, deviceScaleFactor: 1 });
     const page = await context.newPage();
     await page.addInitScript(s => { localStorage.setItem('halaverga-flight-v1', JSON.stringify(s)); }, SAVE);
+    await page.addInitScript(countPeaks);
     await page.goto(base + '/?shooter=1', { waitUntil: 'networkidle' });
     await page.addStyleTag({ content: HIDE });
     await page.getByRole('button', { name: 'Begin expedition' }).click();
@@ -113,6 +125,10 @@ try {
     entry.burstMs = await frozen(page, last, 160, `${out}/${tag}-kill-burst-${v.name}.jpg`);
     const resumed = await page.evaluate('performance.now()');
     entry.afterMs = entry.burstMs + await frozen(page, resumed, 520, `${out}/${tag}-kill-after-${v.name}.jpg`);
+    // 4. An arrival on the ruins: look down at the roof ahead and fire, freeze 150 ms later (splash, dust, sparks, scorch).
+    await page.keyboard.down('ArrowDown'); await page.waitForTimeout(350); await page.keyboard.up('ArrowDown'); await page.waitForTimeout(250);
+    last = await tap(page); entry.impactMs = await frozen(page, last, 150, `${out}/${tag}-impact-${v.name}.jpg`);
+    entry.peak = await page.evaluate(() => window.__peak);
     await page.keyboard.up('KeyQ');
     console.log(`${tag} ${v.name}: ${JSON.stringify(entry)}`);
     await context.close();
