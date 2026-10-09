@@ -39,12 +39,15 @@ void main(){ float d = abs(vUv.y - .5) * 2., hot = 1. - smoothstep(0., .38, d), 
 /**
  * Per-instance alpha and view-space billboarding. The instance matrix carries position plus a 2x2 screen transform in its first two
  * columns' xy: a plain scale (fxMaterials.place) draws an upright sprite; a rotated pair (fxMaterials.placeTurned) a turned one.
+ * A slot whose matrix has its [0].w flag set to 1 (fxMaterials.placeOnSurface) is a world-oriented quad instead: the scorch marks
+ * share the alpha pool's draw call this way (2026-10-07, so the impacts stay at 5 draw calls).
  */
 export function billboard(shader: WebGLProgramParametersWithUniforms) {
   shader.vertexShader = shader.vertexShader.replace('#include <common>', '#include <common>\nattribute float aAlpha;\nvarying float vAlpha;')
     .replace('#include <project_vertex>', `vAlpha = aAlpha;
-vec4 mvPosition = modelViewMatrix * instanceMatrix * vec4(0., 0., 0., 1.);
-mvPosition.xy += instanceMatrix[0].xy * position.x + instanceMatrix[1].xy * position.y;
+mat4 fxM = instanceMatrix; float fxFlat = fxM[0].w; fxM[0].w = 0.;
+vec4 mvPosition = modelViewMatrix * fxM * vec4(fxFlat > .5 ? position : vec3(0.), 1.);
+if (fxFlat <= .5) mvPosition.xy += fxM[0].xy * position.x + fxM[1].xy * position.y;
 gl_Position = projectionMatrix * mvPosition;`);
   shader.fragmentShader = shader.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vAlpha;')
     .replace('#include <color_fragment>', '#include <color_fragment>\ndiffuseColor.a *= vAlpha;');
@@ -58,11 +61,4 @@ export function billboardLit(shader: WebGLProgramParametersWithUniforms) {
   billboard(shader);
   shader.fragmentShader = shader.fragmentShader.replace('#include <color_fragment>\ndiffuseColor.a *= vAlpha;',
     '#include <color_fragment>\ndiffuseColor.rgb = mix(diffuseColor.rgb * 2.4 + .06, diffuseColor.rgb, sqrt(clamp(diffuseColor.a, 0., 1.)));\ndiffuseColor.a *= vAlpha;');
-}
-/** Per-instance alpha on an ordinary (world-oriented) instanced quad: the scorch marks, laid flat on the surface they mark. */
-export function flatAlpha(shader: WebGLProgramParametersWithUniforms) {
-  shader.vertexShader = shader.vertexShader.replace('#include <common>', '#include <common>\nattribute float aAlpha;\nvarying float vAlpha;')
-    .replace('#include <begin_vertex>', '#include <begin_vertex>\nvAlpha = aAlpha;');
-  shader.fragmentShader = shader.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vAlpha;')
-    .replace('#include <color_fragment>', '#include <color_fragment>\ndiffuseColor.a *= vAlpha;');
 }

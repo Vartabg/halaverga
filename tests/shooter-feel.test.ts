@@ -134,3 +134,17 @@ describe('voices', () => {
   });
   it('a failing drone crackles', () => { expect(play('fail').filter(n => n.kind === 'source')).toHaveLength(3); });
 });
+
+describe('scorch marks lie on the surface inside the alpha sprite pool (no extra draw call)', () => {
+  it('placeOnSurface flags the slot world-oriented and spans the plane at right angles to the normal, lifted off the face', async () => {
+    const { placeOnSurface, spritePool } = await import('../src/world/fxMaterials');
+    const m = spritePool(4, false), n = { x: .6, y: 0, z: .8 }, e = m.instanceMatrix.array;
+    placeOnSurface(m, 2, { x: 1, y: 2, z: 3 }, n, .5); const o = 32;
+    expect(e[o + 3]).toBe(1);
+    const t = [e[o], e[o + 1], e[o + 2]], b = [e[o + 4], e[o + 5], e[o + 6]], dot = (a: number[]) => a[0] * n.x + a[1] * n.y + a[2] * n.z;
+    expect(Math.abs(dot(t))).toBeLessThan(1e-6); expect(Math.abs(dot(b))).toBeLessThan(1e-6);
+    expect(Math.hypot(...t)).toBeCloseTo(.5, 6); expect(Math.hypot(...b)).toBeCloseTo(.5, 6);
+    expect(e[o + 12] - 1).toBeCloseTo(n.x * .04, 6); expect(e[o + 14] - 3).toBeCloseTo(n.z * .04, 6);
+    m.geometry.dispose(); m.dispose();
+  });
+});

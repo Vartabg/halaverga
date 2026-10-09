@@ -1,5 +1,5 @@
-// Sparks, splashes, dust, scorch marks, debris, fireball, shockwave and smoke: 6 draw calls (sparks, additive sprites, alpha sprites,
-// rings, debris, scorch). The recipes live in fxImpacts.ts (arrivals by surface, damage trails) and fxBurst.ts (the kill).
+// Sparks, splashes, dust, scorch marks, debris, fireball, shockwave and smoke: 5 draw calls (sparks, additive sprites, alpha sprites
+// with the scorch marks in their first SCORCHES slots, rings, debris). The recipes live in fxImpacts.ts (arrivals by surface, damage trails) and fxBurst.ts (the kill).
 import { useEffect, useMemo } from 'react';
 import { useFrame, type RootState } from '@react-three/fiber';
 import { Euler, Matrix4, type PerspectiveCamera, Quaternion, Vector3 } from 'three';
@@ -9,7 +9,7 @@ import { runtime } from '@/game/runtime';
 import { useGame } from '@/game/store';
 import { burstGain, claim, debrisAt, drawSparks, impactDelay, isShotKind, lobeDir, makePuffs, makeSparks, puffFrame, puffU, shardGain, shardK,
   shardScale, shardTint, spawnSpark, waterContactTime, type Ring } from './fxPools';
-import { FX, commit, debrisPool, disposePool, drawPuffs, fxKit, place, placeOnSurface, retainFx, ringPool, scorchPool, sparkMinPx, sparkPool, spritePool, tint } from './fxMaterials';
+import { FX, commit, debrisPool, disposePool, drawPuffs, fxKit, hideSprite, place, placeOnSurface, retainFx, ringPool, sparkMinPx, sparkPool, spritePool, tint } from './fxMaterials';
 import { SCORCH, burstSparks, damageStage, spawnBreak, spawnFail, spawnImpact, trailDrone, waterRing, type TrailClock } from './fxImpacts';
 import { spawnKillBurst, spawnPreBurst } from './fxBurst';
 // ALPHA holds the kill plume and lingering smoke beside up to 8 damaged-drone trails without evicting them. RINGS: water rings from
@@ -19,12 +19,12 @@ const HEAT_T = .6, EMBER_T = .55, TRAIL_T = .45, TRAIL_GAP = .05;
 const TINTS = [FX.metal, FX.panel, FX.rust], m4 = new Matrix4(), q = new Quaternion(), eu = new Euler(), vp = new Vector3(), vs = new Vector3();
 
 function createImpactFx() {
-  const sparks = sparkPool(SPARKS), add = spritePool(ADD, true), alpha = spritePool(ALPHA, false), rings = ringPool(RINGS), scorch = scorchPool(SCORCHES);
+  const sparks = sparkPool(SPARKS), add = spritePool(ADD, true), alpha = spritePool(SCORCHES + ALPHA, false), rings = ringPool(RINGS);
   const debris = debrisPool(DEBRIS), sp = makeSparks(SPARKS), addP = makePuffs(ADD), alphaP = makePuffs(ALPHA), ringP = makePuffs(RINGS);
   const pools = { add: addP, alpha: alphaP, rings: ringP, sparks: sp };
   const heat = debris.geometry.attributes.aHeat.array as Float32Array, popHist = new Float64Array(3).fill(-Infinity);
   const sPos = sparks.geometry.attributes.position.array as Float32Array, sCol = sparks.geometry.attributes.color.array as Float32Array;
-  const scAlpha = scorch.geometry.attributes.aAlpha.array as Float32Array;
+  const scAlpha = alpha.geometry.attributes.aAlpha.array as Float32Array;
   const db = new Float64Array(DEBRIS * DB), dbLive = new Uint8Array(DEBRIS), dbRing: Ring = { next: 0, size: DEBRIS };
   // Pending arrivals: spawnAt, point, normal, surface (the tracer lands first).
   const pend = new Float64Array(EVENT_RING * PD), pendKind: EventKind[] = Array.from({ length: EVENT_RING }, () => 'miss');
@@ -104,9 +104,9 @@ function createImpactFx() {
     for (let i = 0; i < SCORCHES; i++) {
       if (!scLive[i]) continue;
       const o = i * SC, u = (t - sc[o]) / SCORCH.life;
-      if (!(u >= 0 && u < 1)) { scLive[i] = 0; scAlpha[i] = 0; place(scorch, i, 0, 0, 0, 0, 0, 0); continue; }
+      if (!(u >= 0 && u < 1)) { scLive[i] = 0; hideSprite(alpha, i); continue; }
       p.x = sc[o + 1]; p.y = sc[o + 2]; p.z = sc[o + 3]; n.x = sc[o + 4]; n.y = sc[o + 5]; n.z = sc[o + 6];
-      placeOnSurface(scorch, i, p, n, sc[o + 7]); scAlpha[i] = .8 * Math.min(1, 1.5 * (1 - u)); top = i + 1;
+      placeOnSurface(alpha, i, p, n, sc[o + 7]); tint(alpha, i, FX.scorch, 1); scAlpha[i] = .8 * Math.min(1, 1.5 * (1 - u)); top = i + 1;
     }
     return top;
   };
@@ -137,11 +137,13 @@ function createImpactFx() {
     g.setDrawRange(0, top); sparks.visible = top > 0;
     if (top) { g.attributes.position.needsUpdate = true; g.attributes.color.needsUpdate = true; }
     fxKit().spark.size = reduced ? .15 : .15 * (.8 + .4 * rng()) * (t < emberUntil ? 1.5 * emberGain : 1);
-    commit(add, drawPuffs(add, addP, t)); commit(alpha, drawPuffs(alpha, alphaP, t));
-    commit(rings, drawRings()); commit(debris, drawDebris()); commit(scorch, drawScorch());
+    // Scorch marks first (slots 0..SCORCHES-1), the smoke after them, so smoke in front of a mark blends over it.
+    const marks = drawScorch();
+    commit(add, drawPuffs(add, addP, t)); commit(alpha, Math.max(marks, drawPuffs(alpha, alphaP, t, SCORCHES)));
+    commit(rings, drawRings()); commit(debris, drawDebris());
   };
   add.renderOrder = sparks.renderOrder = 2;   // after the alpha smoke, so flames and embers are never dimmed by it
-  return { meshes: [sparks, add, alpha, rings, debris, scorch], tick: guarded('ImpactFx', frame) };
+  return { meshes: [sparks, add, alpha, rings, debris], tick: guarded('ImpactFx', frame) };
 }
 
 export default function ImpactFx() {

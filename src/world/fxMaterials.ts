@@ -3,7 +3,7 @@ import { AdditiveBlending, DoubleSide, BufferAttribute, BufferGeometry, Color, D
   InstancedBufferAttribute, InstancedMesh, LinearFilter, type Material, MeshBasicMaterial, MeshStandardMaterial, PlaneGeometry,
   Points, PointsMaterial, RingGeometry, ShaderMaterial } from 'three';
 import { puffFrame, puffU, type Puffs, type Rgb } from './fxPools';
-import { billboard, billboardLit, debrisShader, flatAlpha, sparkShader, tracerFragment, tracerVertex } from './fxShaders';
+import { billboard, billboardLit, debrisShader, sparkShader, tracerFragment, tracerVertex } from './fxShaders';
 import { shardPositions } from './shards';
 export const FX = { core: new Color('#f2feff'), fringe: new Color('#58e1ff'), hot: new Color('#ff8a3c'), white: new Color('#ffffff'),
   spark: new Color('#ffd08a'), water: new Color('#9fe3d6'), fire: new Color('#ff9a3c'), ember: new Color('#8a1c0c'),
@@ -15,7 +15,7 @@ export const FX = { core: new Color('#f2feff'), fringe: new Color('#58e1ff'), ho
   metal: new Color('#454c55'), panel: new Color('#585f68'), rust: new Color('#5e2a1e'), char: new Color('#2b1d17'),
   // Lingering kill smoke and the failing drone's trail: darker than the ash overcast, lighter than the ruins (the lit rim in
   // fxShaders.billboardLit does the rest), concrete dust, and the white-hot steel ping.
-  ash: new Color('#3b3733'), ashEnd: new Color('#5b5651'), dust: new Color('#6a655c'), dustEnd: new Color('#8a847a'), steelHot: new Color('#fff3d6') };
+  ash: new Color('#3b3733'), ashEnd: new Color('#5b5651'), scorch: new Color('#0d0b0a'), dust: new Color('#6a655c'), dustEnd: new Color('#8a847a'), steelHot: new Color('#fff3d6') };
 /** Sparks never draw below this many drawing-buffer pixels (2 CSS px; ImpactFx sets it from the pixel ratio each frame). */
 export const sparkMinPx = { value: 2 };
 function haloTexture() {
@@ -61,11 +61,7 @@ function createKit() {
     spark: Object.assign(new PointsMaterial({ size: .15, sizeAttenuation: true, vertexColors: true, map: sparkMap, transparent: true, depthWrite: false,
       blending: AdditiveBlending, fog: true }), { onBeforeCompile: sparkShader(sparkMinPx), customProgramCacheKey: () => 'fx-spark' }),
     debris: Object.assign(new MeshStandardMaterial({ color: '#ffffff', metalness: .25, roughness: .75, flatShading: true }),
-      { onBeforeCompile: debrisShader, customProgramCacheKey: () => 'fx-debris-heat' }),
-    // Scorch marks: a soft dark disc laid on the surface, alpha-blended and tone-mapped like the ruins, pulled off the face so it never
-    // z-fights the concrete it marks.
-    scorch: Object.assign(new MeshBasicMaterial({ color: '#0d0b0a', map: halo, transparent: true, depthWrite: false, polygonOffset: true,
-      polygonOffsetFactor: -2, polygonOffsetUnits: -2, fog: true }), { onBeforeCompile: flatAlpha, customProgramCacheKey: () => 'fx-scorch' }) };
+      { onBeforeCompile: debrisShader, customProgramCacheKey: () => 'fx-debris-heat' }) };
 }
 let kit: ReturnType<typeof createKit> | null = null, users = 0;
 export const fxKit = () => kit ??= createKit();
@@ -73,7 +69,7 @@ export const fxKit = () => kit ??= createKit();
 export function disposeFx() {
   if (!kit) return;
   kit.halo.dispose(); kit.sparkMap.dispose();
-  for (const m of [kit.spriteAdd, kit.spriteAlpha, kit.tracer, kit.ring, kit.spark, kit.debris, kit.scorch] as Material[]) m.dispose();
+  for (const m of [kit.spriteAdd, kit.spriteAlpha, kit.tracer, kit.ring, kit.spark, kit.debris] as Material[]) m.dispose();
 }
 /** Effect-side reference count: call from useEffect so StrictMode remounts keep the shared materials. */
 export function retainFx() { users++; return () => { if (--users <= 0) { users = 0; disposeFx(); } }; }
@@ -107,10 +103,6 @@ export function debrisPool(n: number) {
   const g = shardGeometry(); dyn(g, 'aHeat', n, 1);
   return pool(withColor(new InstancedMesh(g, fxKit().debris, n)));
 }
-export function scorchPool(n: number) {
-  const g = new PlaneGeometry(1, 1); dyn(g, 'aAlpha', n, 1);
-  return pool(new InstancedMesh(g, fxKit().scorch, n));
-}
 export function sparkPool(n: number) {
   const g = new BufferGeometry(); dyn(g, 'position', n, 3, false); dyn(g, 'color', n, 3, false); g.setDrawRange(0, 0);
   return pool(new Points(g, fxKit().spark));
@@ -129,15 +121,16 @@ export function placeTurned(m: InstancedMesh, i: number, x: number, y: number, z
   e[o] = c * sx; e[o + 1] = s * sx; e[o + 2] = e[o + 3] = 0; e[o + 4] = -s * sy; e[o + 5] = c * sy; e[o + 6] = e[o + 7] = e[o + 8] = e[o + 9] = 0;
   e[o + 10] = 1; e[o + 11] = 0; e[o + 12] = x; e[o + 13] = y; e[o + 14] = z; e[o + 15] = 1;
 }
-/** A flat quad of `size` m laid on a surface: its +Z turned onto the unit normal n and lifted `lift` m off the face along it. */
-export function placeOnSurface(m: InstancedMesh, i: number, p: { x: number; y: number; z: number }, n: { x: number; y: number; z: number }, size: number, lift = .02) {
+/** A flat quad of `size` m laid on a surface (a scorch mark in the alpha sprite pool): its +Z turned onto the unit normal n, lifted
+ * `lift` m off the face along it (no z-fight with the concrete), and flagged world-oriented ([0].w = 1, see fxShaders.billboard). */
+export function placeOnSurface(m: InstancedMesh, i: number, p: { x: number; y: number; z: number }, n: { x: number; y: number; z: number }, size: number, lift = .04) {
   const e = m.instanceMatrix.array, o = i * 16;
   // Tangent: the world axis least aligned with n, projected onto the plane; bitangent: n x tangent.
   let tx: number, ty: number, tz: number;
   if (Math.abs(n.y) < .9) { tx = -n.z; ty = 0; tz = n.x; } else { tx = 0; ty = n.z; tz = -n.y; }
   const l = Math.hypot(tx, ty, tz) || 1; tx /= l; ty /= l; tz /= l;
   const bx = n.y * tz - n.z * ty, by = n.z * tx - n.x * tz, bz = n.x * ty - n.y * tx;
-  e[o] = tx * size; e[o + 1] = ty * size; e[o + 2] = tz * size; e[o + 3] = 0;
+  e[o] = tx * size; e[o + 1] = ty * size; e[o + 2] = tz * size; e[o + 3] = 1;
   e[o + 4] = bx * size; e[o + 5] = by * size; e[o + 6] = bz * size; e[o + 7] = 0;
   e[o + 8] = n.x; e[o + 9] = n.y; e[o + 10] = n.z; e[o + 11] = 0;
   e[o + 12] = p.x + n.x * lift; e[o + 13] = p.y + n.y * lift; e[o + 14] = p.z + n.z * lift; e[o + 15] = 1;

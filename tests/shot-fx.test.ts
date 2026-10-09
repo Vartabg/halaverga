@@ -460,9 +460,9 @@ describe('kill and hit effect shapes (no squares, no slabs)', () => {
     expect(burstSrc()).toMatch(/shardK\(k < 3 \? 1\.15 : \.65 \+ \.25 \* rng\(\), sg\)/); expect(impact).toMatch(/shardK\(\.75, shardGain\(gainAt\(e\.point\)\)\)/);
     expect(shardK(5, 5)).toBe(SHARD_K_MAX);
   });
-  it('keeps the six-draw-call budget (scorch marks joined on 2026-10-07) and wires the hot ramp and shard scale', () => {
+  it('keeps the five-draw-call budget (the 2026-10-07 scorch marks share the alpha sprite pool) and wires the hot ramp and shard scale', () => {
     const impact = readFileSync(new URL('../src/world/ImpactFx.tsx', import.meta.url), 'utf8');
-    expect(impact).toMatch(/meshes: \[sparks, add, alpha, rings, debris, scorch\]/);
+    expect(impact).toMatch(/meshes: \[sparks, add, alpha, rings, debris\]/); expect(impact).toMatch(/spritePool\(SCORCHES \+ ALPHA, false\)/);
     expect(impact).toMatch(/drawSparks\(sp, t, sPos, sCol, FX\.pop, FX\.blaze, FX\.ember\)/);
     expect(impact).toMatch(/shardScale\(i, sh\)/);
     expect(impact).toMatch(/tint\(debris, i, TINTS\[shardTint\(i\)\], 1\)/);   // every claimed slot gets its tint
