@@ -1,4 +1,5 @@
 'use client';
+import { DISTRICT_URL } from '@/world/districtAsset';
 import dynamic from 'next/dynamic';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { hydrateGame, persistGame, useGame } from '@/game/store';
@@ -31,13 +32,14 @@ export default function Experience() {
   const enter = () => { resume(); main.current?.focus(); };
   const closePanel = () => { state.set({ panel: false }); if (state.started && state.ready && !failed) enter(); };
   const closeGuide = () => { state.set({ journal: false }); if (state.started && state.ready && !failed) enter(); };
-  // A rejected suit-asset load stays cached under its URL, so a bare remount would rethrow the same failure. The
+  // Rejected model loads stay cached under their URLs, so a bare remount would rethrow the same failure. The
   // clear is imported here rather than at module scope to keep three.js out of the landing page's first load.
   const retry = async () => {
     pause();
     const [{ useLoader }, { GLTFLoader }, { SUIT_URL }] = await Promise.all([
       import('@react-three/fiber'), import('three/addons/loaders/GLTFLoader.js'), import('@/world/Suit')]);
     useLoader.clear(GLTFLoader, SUIT_URL);
+    useLoader.clear(GLTFLoader, DISTRICT_URL);
     setFailed(false); setSceneKey(v => v + 1); state.set({ ready: false, flying: false, landing: false });
   };
   const fallback = <div className={styles.recovery} role="alert"><h2>The world needs a moment.</h2><p>Your field guide remains available. Reload the scene to continue from your saved landing.</p><button className={styles.primary} onClick={retry}>Reload scene</button></div>;

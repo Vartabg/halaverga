@@ -29,13 +29,14 @@ export default function Scene({ onLoss }: { onLoss: () => void }) {
     role="img" frameloop="demand" dpr={quality === 'high' ? [1, 1.5] : 1} shadows={quality === 'high' ? 'percentage' : false}
     camera={{ position: [0, 24, 72], fov: 65, near: .1, far: 650 }}
     gl={{ antialias: true, alpha: false, powerPreference: 'high-performance', stencil: false }}
-    onCreated={({ gl }) => { gl.toneMapping = ACESFilmicToneMapping; gl.toneMappingExposure = 1.2; }}>
+    onCreated={({ gl }) => { gl.toneMapping = ACESFilmicToneMapping; gl.toneMappingExposure = 1.08; }}>
     <GraphicsRecovery onLoss={onLoss} />
-    <fog attach="fog" args={['#a9c0b8', 95, 330]} />
-    <hemisphereLight args={['#c0dbed', '#737657', 1.7]} />
-    <directionalLight position={[-65, 100, 80]} color="#ffe6b2" intensity={3.5} castShadow={quality === 'high'}
+    <fog attach="fog" args={['#a6a6ac', 100, 440]} />
+    <hemisphereLight args={['#9eafca', '#535469', 1.4]} />
+    <directionalLight position={[-65, 70, -110]} color="#ffdfa6" intensity={4.1} castShadow={quality === 'high'}
       shadow-mapSize={[2048, 2048]} shadow-camera-left={-110} shadow-camera-right={110}
       shadow-camera-top={110} shadow-camera-bottom={-110} shadow-camera-far={380} shadow-bias={-.0002} shadow-normalBias={.09} />
+    <directionalLight position={[50, 45, 90]} color="#b3c9ef" intensity={1.6} />
     <EnvironmentLight /><Sky /><Water />
     <Suspense fallback={null}>
       <Physics paused={paused} timeStep={1 / 60} updatePriority={-50} gravity={[0, -22, 0]}>

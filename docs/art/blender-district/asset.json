@@ -1,0 +1,394 @@
+{
+  "generator": "Blender 4.0.2",
+  "seed": 20332113,
+  "source": "Original project-authored geometry; no downloaded meshes.",
+  "sites": [
+    [
+      -34,
+      2,
+      28,
+      17,
+      18,
+      7
+    ],
+    [
+      -62,
+      2,
+      16,
+      23,
+      20,
+      10
+    ],
+    [
+      36,
+      2,
+      22,
+      18,
+      17,
+      6
+    ],
+    [
+      68,
+      2,
+      29,
+      21,
+      19,
+      10
+    ],
+    [
+      -38,
+      2,
+      -28,
+      20,
+      21,
+      11
+    ],
+    [
+      36,
+      2,
+      -38,
+      23,
+      22,
+      16
+    ],
+    [
+      -70,
+      2,
+      -40,
+      24,
+      24,
+      15
+    ],
+    [
+      76,
+      2,
+      -33,
+      23,
+      28,
+      8
+    ],
+    [
+      -34,
+      2,
+      -86,
+      18,
+      21,
+      6
+    ],
+    [
+      37,
+      2,
+      -100,
+      23,
+      20,
+      10
+    ],
+    [
+      -73,
+      2,
+      -98,
+      27,
+      22,
+      10
+    ],
+    [
+      84,
+      2,
+      -96,
+      28,
+      24,
+      14
+    ],
+    [
+      -40,
+      2,
+      -146,
+      22,
+      20,
+      10
+    ],
+    [
+      43,
+      2,
+      -160,
+      26,
+      20,
+      13
+    ],
+    [
+      -109,
+      7,
+      -11,
+      22,
+      27,
+      12
+    ],
+    [
+      115,
+      8,
+      -5,
+      23,
+      22,
+      13
+    ],
+    [
+      -140,
+      15.5,
+      -70,
+      21,
+      23,
+      9
+    ],
+    [
+      -173,
+      33.5,
+      -125,
+      19,
+      18,
+      7
+    ],
+    [
+      140,
+      15.5,
+      -70,
+      21,
+      23,
+      9
+    ],
+    [
+      173,
+      33.5,
+      -125,
+      19,
+      18,
+      7
+    ]
+  ],
+  "triangles": 269296,
+  "meshes": [
+    {
+      "mesh": "district_00_void",
+      "triangles": 672
+    },
+    {
+      "mesh": "district_00_concrete",
+      "triangles": 12160
+    },
+    {
+      "mesh": "district_00_chalk",
+      "triangles": 1960
+    },
+    {
+      "mesh": "district_00_steel",
+      "triangles": 8272
+    },
+    {
+      "mesh": "district_00_oxide",
+      "triangles": 4152
+    },
+    {
+      "mesh": "district_00_glass",
+      "triangles": 6552
+    },
+    {
+      "mesh": "district_00_ceramic",
+      "triangles": 3088
+    },
+    {
+      "mesh": "district_00_paint",
+      "triangles": 2552
+    },
+    {
+      "mesh": "district_01_void",
+      "triangles": 1248
+    },
+    {
+      "mesh": "district_01_concrete",
+      "triangles": 20168
+    },
+    {
+      "mesh": "district_01_chalk",
+      "triangles": 3456
+    },
+    {
+      "mesh": "district_01_glass",
+      "triangles": 12432
+    },
+    {
+      "mesh": "district_01_steel",
+      "triangles": 13984
+    },
+    {
+      "mesh": "district_01_oxide",
+      "triangles": 9056
+    },
+    {
+      "mesh": "district_01_ceramic",
+      "triangles": 3004
+    },
+    {
+      "mesh": "district_01_paint",
+      "triangles": 2036
+    },
+    {
+      "mesh": "district_02_void",
+      "triangles": 1120
+    },
+    {
+      "mesh": "district_02_concrete",
+      "triangles": 14080
+    },
+    {
+      "mesh": "district_02_chalk",
+      "triangles": 1816
+    },
+    {
+      "mesh": "district_02_glass",
+      "triangles": 9936
+    },
+    {
+      "mesh": "district_02_steel",
+      "triangles": 12352
+    },
+    {
+      "mesh": "district_02_oxide",
+      "triangles": 6416
+    },
+    {
+      "mesh": "district_02_ceramic",
+      "triangles": 5952
+    },
+    {
+      "mesh": "district_03_void",
+      "triangles": 1248
+    },
+    {
+      "mesh": "district_03_concrete",
+      "triangles": 18016
+    },
+    {
+      "mesh": "district_03_chalk",
+      "triangles": 3128
+    },
+    {
+      "mesh": "district_03_glass",
+      "triangles": 11160
+    },
+    {
+      "mesh": "district_03_steel",
+      "triangles": 13840
+    },
+    {
+      "mesh": "district_03_oxide",
+      "triangles": 7352
+    },
+    {
+      "mesh": "district_03_ceramic",
+      "triangles": 4424
+    },
+    {
+      "mesh": "district_04_void",
+      "triangles": 736
+    },
+    {
+      "mesh": "district_04_concrete",
+      "triangles": 10776
+    },
+    {
+      "mesh": "district_04_chalk",
+      "triangles": 2944
+    },
+    {
+      "mesh": "district_04_glass",
+      "triangles": 6768
+    },
+    {
+      "mesh": "district_04_steel",
+      "triangles": 7936
+    },
+    {
+      "mesh": "district_04_oxide",
+      "triangles": 5328
+    },
+    {
+      "mesh": "district_04_ceramic",
+      "triangles": 1944
+    },
+    {
+      "mesh": "quay_-1_concrete",
+      "triangles": 1656
+    },
+    {
+      "mesh": "quay_-1_oxide",
+      "triangles": 412
+    },
+    {
+      "mesh": "quay_-1_steel",
+      "triangles": 776
+    },
+    {
+      "mesh": "quay_1_concrete",
+      "triangles": 1656
+    },
+    {
+      "mesh": "quay_1_oxide",
+      "triangles": 412
+    },
+    {
+      "mesh": "quay_1_steel",
+      "triangles": 776
+    },
+    {
+      "mesh": "arrival_concrete",
+      "triangles": 640
+    },
+    {
+      "mesh": "arrival_void",
+      "triangles": 72
+    },
+    {
+      "mesh": "arrival_ceramic",
+      "triangles": 12
+    },
+    {
+      "mesh": "arrival_paint",
+      "triangles": 1156
+    },
+    {
+      "mesh": "horizon_ceramic",
+      "triangles": 2096
+    },
+    {
+      "mesh": "horizon_glass",
+      "triangles": 2220
+    },
+    {
+      "mesh": "horizon_steel",
+      "triangles": 640
+    },
+    {
+      "mesh": "horizon_concrete",
+      "triangles": 4532
+    },
+    {
+      "mesh": "horizon_chalk",
+      "triangles": 48
+    },
+    {
+      "mesh": "horizon_oxide",
+      "triangles": 128
+    }
+  ],
+  "rawBytes": 27217636,
+  "runtimeBytes": 6151008,
+  "runtimeSha256": "ef68074423ee7438af49619a4dbe020996e2434adcaba58d02ce9eed43f79e16",
+  "blenderSha256": "55dc3c48994b10f9ea8116ac7001b16f649e4a69fd036d5a3ad793d9bc632a18",
+  "compression": "@gltf-transform/cli 4.2.1; EXT_meshopt_compression; Three.js bundled MeshoptDecoder",
+  "runtimeMeshes": 53,
+  "runtimeMaterials": 8,
+  "extensionsRequired": [
+    "EXT_meshopt_compression",
+    "KHR_mesh_quantization"
+  ],
+  "textureProvenance": "../reclaimed-boulevard/sources.json (existing Poly Haven CC0 concrete maps)"
+}

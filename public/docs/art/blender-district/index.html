@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Meridian / Blender world pass</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#141b1d;color:#eee9da;font:16px/1.55 system-ui,sans-serif}main{max-width:1440px;margin:auto;padding:32px}header{display:flex;justify-content:space-between;align-items:center;gap:24px}.eyebrow{font-size:12px;letter-spacing:.18em;color:#cdb88d}h1{font-size:clamp(32px,5vw,64px);font-weight:500;line-height:1.1;margin:8px 0 18px}p{max-width:760px;color:#bdc9c9}a{color:#f2cf8e}nav{display:flex;gap:8px;margin:28px 0 12px}button{padding:12px 22px;border:1px solid #768787;background:transparent;color:inherit;font:inherit;cursor:pointer}button[aria-pressed=true]{background:#e6d0a4;color:#152024}button:focus-visible,a:focus-visible{outline:3px solid #d9ad54;outline-offset:4px}figure{margin:0}img{width:100%;display:block;border:1px solid #455456}figcaption{font-size:13px;margin:8px 0 24px;color:#bdc9c9}.details{display:grid;grid-template-columns:2fr 1fr;gap:24px}.details .phone{max-width:393px;justify-self:center}footer{padding:24px 0;border-top:1px solid #455456;font-size:13px;color:#bdc9c9}@media(max-width:700px){main{padding:20px}.details{grid-template-columns:1fr}header{align-items:flex-start;flex-direction:column}}
+</style>
+<main>
+<header><div><div class="eyebrow">HALAVERGA / ENVIRONMENT STUDY 02</div><h1>Meridian, after the storm.</h1></div><a href="/">Enter the district ↗</a></header>
+<p>Blender-authored ruined architecture, torn concrete façades, recessed interiors, structural steel, rooftop equipment and a fractured skyline. Warm light, cooler shadows, wet surfaces and reflections bring the canal back into the scene.</p>
+<nav aria-label="Compare world versions"><button id="before" aria-pressed="false">Before</button><button id="after" aria-pressed="true">Blender pass</button></nav>
+<figure><img id="comparison" src="after.png" alt="Rebuilt district from the arrival terrace, with damaged concrete towers and sunlit wet pavement"><figcaption id="caption" aria-live="polite">Blender pass · actual game capture · desktop Chrome</figcaption></figure>
+<div class="details"><figure><img src="approach.png" alt="Flight over the ruined viaduct, with buildings reflected in the canal"><figcaption>The viaduct approach. Existing flight routes and collision envelopes are retained.</figcaption></figure><figure class="phone"><img src="portrait.png" alt="Rebuilt district shown at a portrait phone viewport"><figcaption>393 × 852 viewport in desktop Chrome. Physical iPhone testing is still required.</figcaption></figure></div>
+<footer>Original geometry authored with Blender 4.0.2. Runtime asset: 6.15 MB, 269,296 triangles, 53 mesh batches and 8 materials. Existing CC0 Poly Haven concrete textures and vegetation are retained. These images are game captures; the .blend source and rebuild scripts are included in the task branch.</footer>
+</main>
+<script>
+for(const mode of ['before','after'])document.getElementById(mode).onclick=()=>{
+ for(const id of ['before','after'])document.getElementById(id).setAttribute('aria-pressed',String(id===mode));
+ const img=document.getElementById('comparison');img.src=mode+'.png';
+ img.alt=mode==='before'?'Original district, with repeated glass grids and flat daylight':'Rebuilt district, with damaged façades, a new skyline and wet pavement';
+ document.getElementById('caption').textContent=(mode==='before'?'Before':'Blender pass')+' · actual game capture · desktop Chrome';
+};
+</script>
+</html>

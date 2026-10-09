@@ -33,6 +33,21 @@ export function useCityMaterials() {
     const ground = new MeshStandardMaterial({ vertexColors: true, map: maps[3], normalMap: maps[4],
       roughness: 1, normalScale: new Vector2(.8, .8) });
     const paint = new MeshStandardMaterial({ vertexColors: true, roughness: .85 });
-    return [stone, glass, metal, ground, paint];
+    const asphalt = new MeshStandardMaterial({ vertexColors: true, map: maps[0], normalMap: maps[1],
+      roughness: .74, normalScale: new Vector2(.35, .35) });
+    asphalt.onBeforeCompile = shader => {
+      shader.vertexShader = 'varying vec3 vRoad;\n' + shader.vertexShader;
+      shader.vertexShader = shader.vertexShader.replace('#include <begin_vertex>',
+        '#include <begin_vertex>\nvRoad=(modelMatrix*vec4(position,1.)).xyz;');
+      shader.fragmentShader = 'varying vec3 vRoad;\n' + shader.fragmentShader;
+      shader.fragmentShader = shader.fragmentShader.replace('#include <roughnessmap_fragment>', `
+        #include <roughnessmap_fragment>
+        float wetMask = sin(vRoad.x*.61+sin(vRoad.z*.32))*sin(vRoad.z*.49+sin(vRoad.x*.3));
+        float puddle = smoothstep(.38,.65,wetMask);
+        roughnessFactor = mix(.84,.16,puddle);
+        diffuseColor.rgb *= mix(.9,.46,puddle);
+      `);
+    };
+    return [stone, glass, metal, ground, paint, asphalt];
   }, [maps]);
 }

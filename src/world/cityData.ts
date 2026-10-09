@@ -27,12 +27,7 @@ export function makeCity() {
     building(k, side * 140, 15.5, -70, 21, 23, 9, '#c49a7c', 23);
     building(k, side * 173, 33.5, -125, 19, 18, 7, '#a8a58e', 24);
   }
-  // Distant surviving skyline: sculpted broken tops, never a wallpaper image.
-  for (let i = 0; i < 20; i++) {
-    const x = (i - 9.5) * 17, h = 24 + (i * 17 % 41), z = -210 - (i % 3) * 13;
-    k.box(x, h / 2 - 3, z, 11 + i % 5, h, 13, '#737e83');
-    k.box(x - 3, h - 1, z, 5, 8, 12, '#737e83');
-  }
+  // Distant silhouettes are authored with the Blender district.
   // Arrival terrace is the sole fully prepared landing surface.
   k.box(0, 19, 65, 24, 2, 20, colors.concrete, true);
   k.box(0, 20.04, 65, 22.8, .06, 18.8, colors.road);
