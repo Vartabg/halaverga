@@ -92,6 +92,28 @@ for (const viewport of [PORTRAIT, LANDSCAPE]) {
       await send('touchEnd', [thumb]);
       expect(t.errors).toEqual([]); await t.context.close();
     });
+    test('a second-finger tap that misses every drone never stalls the flying thumb (dynamics review S1)', async ({ browser }) => {
+      const t = await autoTouchPage(browser, viewport), { page, send, thumb, surface } = t;
+      await page.waitForTimeout(600);
+      await send('touchStart', [thumb]);
+      await expect(telemetry(page)).toHaveAttribute('data-flying', 'true', { timeout: 1500 });
+      await expect.poll(() => speed(page), { timeout: 2000 }).toBeGreaterThan(5);
+      const empty = await clearOfDrones(page, [{ x: viewport.width * .3, y: viewport.height * .35 }, { x: viewport.width * .5, y: viewport.height * .3 }, { x: viewport.width * .35, y: viewport.height * .5 }]);
+      const before = await shots(page), tap: Touch = { id: 2, x: Math.round(empty.x), y: Math.round(empty.y) }, cruise = await speed(page);
+      // Three quick taps on empty space, 130 ms each: none of them may become a thumb or zero the held one (it used to go dead until an 8 px slide).
+      for (let k = 0; k < 3; k++) {
+        await send('touchStart', [thumb, tap]); await page.waitForTimeout(130);
+        await expect(surface).toHaveAttribute('data-control-mode', 'single');
+        await send('touchEnd', [tap]); await page.waitForTimeout(160);
+        await expect(surface).toHaveAttribute('data-control-mode', 'single');
+      }
+      await page.waitForTimeout(700);
+      expect(await flying(page)).toBe('true'); expect(await speed(page)).toBeGreaterThan(cruise * .7);
+      expect(await shots(page)).toBe(before);
+      await send('touchEnd', [thumb]);
+      await expect.poll(() => speed(page), { timeout: 1500 }).toBeLessThan(.5);
+      expect(t.errors).toEqual([]); await t.context.close();
+    });
     test('a second finger held on a drone becomes the look thumb (dual) and never fires', async ({ browser }) => {
       const t = await autoTouchPage(browser, viewport), { page, send, thumb, surface } = t;
       await page.waitForTimeout(600);

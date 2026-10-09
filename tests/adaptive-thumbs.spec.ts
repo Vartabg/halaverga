@@ -59,7 +59,7 @@ test('neutral dual thumbs look without launching; cancellation and extra contact
   await expect(surface).toHaveAttribute('data-control-mode', 'blocked'); await page.waitForTimeout(1100);
   expect(Number(await telemetry.getAttribute('data-speed'))).toBeLessThan(.5);
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [{ id: 3, x: 190, y: 550 }] });
-  await expect(surface).toHaveAttribute('data-control-mode', 'blocked');
+  await expect(surface).toHaveAttribute('data-control-mode', 'dual'); // the third finger lifted: the two thumbs are back (limits review F11)
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchCancel', touchPoints: [] });
   await expect(surface).toHaveAttribute('data-control-mode', 'idle');
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ id: 4, x: 90, y: 650 }, { id: 5, x: 290, y: 650 }] });
@@ -69,4 +69,37 @@ test('neutral dual thumbs look without launching; cancellation and extra contact
   await page.waitForTimeout(500); expect(Number(await telemetry.getAttribute('data-speed'))).toBeLessThan(.1);
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchCancel', touchPoints: [] });
   await context.close();
+});
+// Limits plan S8: a hand that a third finger blocked, or that pause/resume released, used to stay dead until every finger lifted.
+async function classicPage(browser: import('@playwright/test').Browser) {
+  const context = await browser.newContext({ viewport: { width: 393, height: 852 }, isMobile: true, hasTouch: true });
+  const page = await context.newPage(); await seed(page, CLASSIC); await page.goto('/'); await page.getByRole('button', { name: 'Begin expedition' }).tap();
+  const cdp = await context.newCDPSession(page), surface = page.getByTestId('flight-surface'), telemetry = page.getByTestId('flight-telemetry');
+  return { context, page, cdp, surface, telemetry, speed: async () => Number(await telemetry.getAttribute('data-speed')),
+    send: (type: 'touchStart' | 'touchMove' | 'touchEnd' | 'touchCancel', points: { id: number; x: number; y: number }[]) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: points }) };
+}
+test('a third finger blocks the hand, and when only one finger is left it flies on without lifting every finger', async ({ browser }) => {
+  const { context, page, surface, speed, send } = await classicPage(browser);
+  const a = { id: 1, x: 90, y: 650 }, b = { id: 2, x: 290, y: 650 }, c = { id: 3, x: 190, y: 550 };
+  await send('touchStart', [a]); await page.waitForTimeout(450); await send('touchStart', [a, b]); await expect(surface).toHaveAttribute('data-control-mode', 'dual');
+  await send('touchStart', [a, b, c]); await expect(surface).toHaveAttribute('data-control-mode', 'blocked');
+  await send('touchEnd', [c]); await expect(surface).toHaveAttribute('data-control-mode', 'dual'); // two left: the two thumbs are back
+  await send('touchEnd', [b]); await expect(surface).toHaveAttribute('data-control-mode', 'single');
+  // The second thumb never slid, so the original finger flies on where it is (as after any unused second thumb), and steers on its next move.
+  await expect.poll(speed, { timeout: 1500 }).toBeGreaterThan(3);
+  a.x += 40; await send('touchMove', [a]); await page.waitForTimeout(500); await expect(surface).toHaveAttribute('data-control-mode', 'single'); expect(await speed()).toBeGreaterThan(3);
+  await send('touchEnd', [a]); await context.close();
+});
+test('pause and resume with a thumb still down: the next move takes a fresh grip and flies, no lift and re-grip', async ({ browser }) => {
+  const { context, page, surface, speed, send } = await classicPage(browser);
+  const a = { id: 1, x: 200, y: 650 };
+  await send('touchStart', [a]); await page.waitForTimeout(450); a.y -= 60; await send('touchMove', [a]);
+  await expect.poll(speed).toBeGreaterThan(3);
+  await page.keyboard.press('Escape'); await page.getByRole('button', { name: 'Resume flight' }).click();
+  await expect(surface).toHaveAttribute('data-control-mode', 'idle');
+  await page.waitForTimeout(1500); expect(await speed()).toBeLessThan(.5);
+  a.y -= 25; await send('touchMove', [a]); await expect(surface).toHaveAttribute('data-control-mode', 'single');
+  a.y -= 25; await send('touchMove', [a]);
+  await expect.poll(speed, { timeout: 1500 }).toBeGreaterThan(3);
+  await send('touchEnd', [a]); await context.close();
 });

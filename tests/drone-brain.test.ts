@@ -288,7 +288,7 @@ describe('drone flash gate', () => {
 });
 describe('drone hygiene', () => {
   it('never calls Math.random', () => {
-    for (const file of ['drones', 'droneDodge', 'dronePatrols']) {
+    for (const file of ['drones', 'droneDodge', 'droneSteer', 'dronePatrols']) {
       const src = readFileSync(`src/game/${file}.ts`, 'utf8');
       expect(src, file).not.toContain('Math.random');
       for (const marker of ["from 'three'", '@react-three', '@dimforge', 'WebGLRenderer', 'isVector3', 'BufferGeometry', 'powerHero', 'bankLeft'])

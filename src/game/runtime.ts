@@ -4,6 +4,7 @@ import { useGame } from './store';
 import { flowSpeed, type CaptureState } from './flowFlight';
 import { aimGain, createShooter, engaged, resetShooterInput, releaseFire } from './combat';
 import { clearGesture, gesture } from './gesture/bus';
+import type { LimitCue } from './limitCue';
 import { gestureIntent, type GestureIntentOut } from './gesture/applyGesture';
 // The landing page imports this module, so vectors stay plain objects and three.js is imported for types only; a value import would load the 3D bundle with the page.
 export const runtime = {
@@ -11,9 +12,9 @@ export const runtime = {
   yaw: 0, pitch: -0.12, surge: false, lift: false, reset: false,
   poseEpoch: 0, cameraDistance: 0,
   turn: { lateral: 0, guard: 0 },
-  clearance: { active: false, boundary: false, point: { x: 0, y: 0, z: 0 }, normal: { x: 0, y: 1, z: 0 } },
+  clearance: { active: false, cue: '' as LimitCue, point: { x: 0, y: 0, z: 0 }, normal: { x: 0, y: 1, z: 0 } },
   thumb: { active: false, throttle: 0, strafe: 0, edgeTurn: 0, edgePitch: 0, bank: 0 }, keys: new Set<string>(),
-  trackpad: { active: false, throttle: 8 / SPEED.surge, edgeTurn: 0, edgePitch: 0, edgeAge: 0, unlocking: false,
+  trackpad: { active: false, throttle: 8 / SPEED.surge, edgeTurn: 0, edgePitch: 0, edgeAge: 0, unlockUntil: -Infinity,
     /** How the cursor left the window while cruising: 0 inside, 1 through a side (keeps turning), 2 top or bottom; outsideAge in s. */
     outside: 0 as 0 | 1 | 2, outsideAge: 0,
     capture: 'idle' as CaptureState, held: false, selectedSpeed: 0, brakeEpoch: 0, brakedAt: -Infinity, cancelEpoch: 0, captureFailed: false },
@@ -134,6 +135,15 @@ export function startTrackpad() {
   Object.assign(runtime.trackpad, { active: true, throttle: useGame.getState().cruiseSpeed / SPEED.surge, edgeTurn: 0, edgePitch: 0, edgeAge: 0, outside: 0, outsideAge: 0 });
   useGame.setState({ trackpadFlying: true });
 }
+/**
+ * Our own pointer-lock exit (cancel, resize, unmount). A lock granted and then released at once dispatches two pointerlockchange
+ * events that both read as "unlocked", so the exit is expected for a short window instead of once; only an Esc outside it pauses.
+ */
+export function exitOwnPointerLock() {
+  runtime.trackpad.unlockUntil = performance.now() + 400;
+  if (typeof document !== 'undefined' && document.pointerLockElement) document.exitPointerLock();
+}
+export const unlockExpected = () => performance.now() < runtime.trackpad.unlockUntil;
 export function stopTrackpad() {
   runtime.trackpad.cancelEpoch++;
   if (runtime.trackpad.capture !== 'idle') runtime.trackpad.brakeEpoch++;

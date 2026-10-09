@@ -1,6 +1,6 @@
 import { expect, type Browser, type Locator, type Page } from '@playwright/test';
 import type { ControlId } from '../src/game/controlTypes';
-import { VOTE_ROUND } from '../src/lib/vote/shape';
+import { VOTE_ROUND } from '../src/lib/vote/ballot';
 import { labPage, type Lab } from './lab-browser';
 export { labPage, lift, shots, tel } from './lab-browser';
 // Shared helpers for the controls picker specs (controls-picker.spec.ts). They wrap lab-browser's labPage for any registry id and
@@ -25,10 +25,17 @@ export async function controlsPage(browser: Browser, id: ControlId | 'standard',
   const { saved, ...rest } = opts;
   return labPage(browser, lab, { ...rest, url, ...(saved === null ? {} : { saved: { flowIntroSeen: true, ...saved } }) });
 }
-/** /api/vote and /api/results never reach a real database: both are always mocked. */
-export async function mockVote(page: Page) {
-  await page.route('**/api/results', r => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ v: 2, round: VOTE_ROUND, total: 0, notes: 0, stale: 0, builds: {}, families: {} }) }));
-  await page.route('**/api/vote', r => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true }) }));
+/** A v3 /api/results body: every family unranked (no per-control numbers), or the given ones (shape: src/lib/vote/ballot.ts). */
+export const voteResults = (families: Record<string, unknown> = {}, open = true) => {
+  const empty = { votes: 0, ranked: false, tie: null, order: null, controls: null };
+  return { v: 3, round: VOTE_ROUND, asOf: '2026-09-30T14:05:12Z', open, families: { touch: empty, desktop: empty, ...families } };
+};
+/** /api/vote and /api/results never reach a real database: both are always mocked. Returns the vote bodies the page sent. */
+export async function mockVote(page: Page, results: unknown = voteResults()) {
+  const bodies: Array<Record<string, unknown>> = [];
+  await page.route('**/api/results', r => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(results) }));
+  await page.route('**/api/vote', r => { bodies.push(r.request().postDataJSON()); return r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true }) }); });
+  return bodies;
 }
 /** An init script (for labPage's `init`): an earlier play record, seconds per 'family:id', written once per tab before the app reads it. */
 export function playInit(secs: Record<string, number>): () => void {

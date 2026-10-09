@@ -13,6 +13,9 @@ export const PHASE = { patrol: 0, alert: 1, telegraph: 2, dodge: 3, punish: 4, d
 export const MAX_DRONES = 8, EVENT_RING = 16, WATER_LEVEL = .1, SHOT_RANGE = 250;
 /** Rapier interaction groups (memberships << 16 | filter). The boundary joins group 1 only; shots are group 2 and see group 0 only. */
 export const BOUNDARY_GROUPS = 0x0002ffff, SHOT_GROUPS = 0x00040001;
+/** Bare ruin steel (kind 'frame' city solids): flight, shots and safety probes see it (membership keeps bit 0); only the chase camera's
+ * boom looks through it (boomFilter), so a column sliding past the camera never pumps the view. */
+export const FRAME_GROUPS = 0x0009ffff;
 /** Rapier QueryFilterFlags.ONLY_FIXED (verified in rapier3d-compat 0.19.2): excludes the kinematic player capsule. */
 export const ONLY_FIXED = 6;
 export const DRONE_RADIUS = .9, EYE_RADIUS = .32, EYE_FORWARD = .72, DRONE_HP = 6;

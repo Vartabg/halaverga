@@ -1,2 +1,3 @@
 import Experience from '@/ui/Experience';
-export default function Home() { return <Experience />; }
+import AnalyticsBoot from './AnalyticsBoot';
+export default function Home() { return <><Experience /><AnalyticsBoot /></>; }

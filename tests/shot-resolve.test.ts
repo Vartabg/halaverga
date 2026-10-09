@@ -4,6 +4,7 @@ import RAPIER from '@dimforge/rapier3d-compat';
 import { Euler, Quaternion } from 'three';
 import { makeCity } from '../src/world/cityData';
 import { WORLD } from '../src/game/motion';
+const WALL_HALF = (WORLD.ceiling + 45) / 2, WALL_Y = (WORLD.ceiling - 35) / 2;
 import { BOUNDARY_GROUPS, DRONE_RADIUS, EYE_FORWARD, EYE_RADIUS, SHOT_RANGE, WATER_LEVEL, type DroneTarget, type Vec3 } from '../src/game/combat';
 import { createShooterWorld, resolveShot, type ShotHit, type WorldHit } from '../src/game/shotResolve';
 let solids: ReturnType<typeof makeCity>['solids'];
@@ -18,8 +19,9 @@ function setup() {
   solids.forEach(s => world.createCollider(RAPIER.ColliderDesc.cuboid(...s.size).setTranslation(...s.position).setRotation(new Quaternion().setFromEuler(new Euler(...s.rotation)))));
   const width = WORLD.maxX - WORLD.minX, depth = WORLD.maxZ - WORLD.minZ, cz = (WORLD.minZ + WORLD.maxZ) / 2;
   const walls: [number, number, number, number, number, number][] = [
-    [1, 75, depth / 2 + 4, WORLD.minX - 1.44, 35, cz], [1, 75, depth / 2 + 4, WORLD.maxX + 1.44, 35, cz],
-    [width / 2 + 4, 75, 1, 0, 35, WORLD.minZ - 1.44], [width / 2 + 4, 75, 1, 0, 35, WORLD.maxZ + 1.44],
+    // DistrictBoundary's walls: 40 m under the water to 5 m over the ceiling.
+    [1, WALL_HALF, depth / 2 + 4, WORLD.minX - 1.44, WALL_Y, cz], [1, WALL_HALF, depth / 2 + 4, WORLD.maxX + 1.44, WALL_Y, cz],
+    [width / 2 + 4, WALL_HALF, 1, 0, WALL_Y, WORLD.minZ - 1.44], [width / 2 + 4, WALL_HALF, 1, 0, WALL_Y, WORLD.maxZ + 1.44],
     [width / 2 + 4, 1, depth / 2 + 4, 0, WORLD.ceiling + 2.04, cz], [width / 2 + 4, 1, depth / 2 + 4, 0, -1.4, cz],
   ];
   const boundary = world.createRigidBody(RAPIER.RigidBodyDesc.fixed());
@@ -46,11 +48,12 @@ describe('shot resolution against the city', () => {
     expect(out.kind).toBe('weak'); expect(out.drone).toBe(0); expect(out.t).toBeCloseTo(7 - EYE_FORWARD - EYE_RADIUS, 6);
   });
   it('passes through the invisible boundary wall', () => {
-    const { world, sw } = setup(), o = v(0, 90, 0), d = v(1, 0, 0), out = shot();
-    expect(rawRay(world, o, d, SHOT_RANGE)?.timeOfImpact).toBeCloseTo(WORLD.maxX + .44, 3); // the wall is on this ray
+    // 100 m from the east wall (since 2026-10-06 the walls are farther out than a shot's range from the centre).
+    const { world, sw } = setup(), o = v(WORLD.maxX - 100, 90, 0), d = v(1, 0, 0), out = shot();
+    expect(rawRay(world, o, d, SHOT_RANGE)?.timeOfImpact).toBeCloseTo(100.44, 3); // the wall is on this ray
     resolveShot(sw, o, d, o, null, [], 0, -1, out);
     expect(out.kind).toBe('miss'); expect(out.t).toBe(SHOT_RANGE);
-    expect(out.point).toEqual(v(SHOT_RANGE, 90, 0)); expect(out.normal).toEqual(v(-1, -0, -0));
+    expect(out.point).toEqual(v(o.x + SHOT_RANGE, 90, 0)); expect(out.normal).toEqual(v(-1, -0, -0));
     resolveShot(sw, v(0, 60, 0), v(0, 1, 0), v(0, 60, 0), null, [], 0, -1, out);
     expect(out.kind).toBe('miss'); // ceiling too
   });

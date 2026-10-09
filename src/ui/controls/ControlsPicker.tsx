@@ -5,11 +5,13 @@ import { clearInput } from '@/game/runtime';
 import { useGame } from '@/game/store';
 import { useCurrentControl } from './ControlList';
 import ControlsSheet from './ControlsSheet';
+import VoteChip from './VoteChip';
 import { useControlFamily } from './useControlFamily';
 import styles from './ControlsPicker.module.css';
 // The header trigger 'Controls: <label>' and its sheet: every control of the family in one list (a lazy chunk, mounted after Begin).
 // Opening drops held input but the game keeps running. The sheet is a non-modal dialog, so the cursor over it never steers the view;
-// Escape closes it (and never pauses); the backdrop closes on click only, so no press reaches the flight surface.
+// Escape closes it (and never pauses); the backdrop closes on click only, so no press reaches the flight surface. The Vote chip sits
+// beside the trigger (its own grid column, so the trigger never moves) until this family has voted.
 
 /** `family` is for tests; the page follows the last pointer. */
 export default function ControlsPicker({ family: forced }: { family?: ControlFamily }) {
@@ -40,6 +42,7 @@ export default function ControlsPicker({ family: forced }: { family?: ControlFam
   }}>
     <button ref={trigger} type="button" className={styles.trigger} data-testid="controls-trigger" aria-haspopup="dialog" aria-expanded={open}
       onMouseDown={e => e.preventDefault()} onClick={toggle}>{`Controls: ${label}`}</button>
+    <VoteChip family={family} />
     {open && <>
       <div className={styles.backdrop} aria-hidden="true" data-testid="controls-backdrop" onClick={close} />
       <ControlsSheet family={family} onClose={close} />

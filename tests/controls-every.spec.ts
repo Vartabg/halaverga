@@ -1,8 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { controlById, controlKey, controlsFor, type ControlFamily, type ControlId } from '../src/game/controlTypes';
-import { VOTE_ROUND } from '../src/lib/vote/shape';
 import { labPage } from './lab-browser';
-import { controlId, openSheet, paused, playInit, row, sheet, trigger } from './controls-browser';
+import { controlId, mockVote, openSheet, paused, playInit, row, sheet, trigger } from './controls-browser';
 import { DRIVES } from './controls-every-drive';
 // Every control type, end to end (owner 2026-09-28: "all different types of controls available for the demo ... an online vote").
 // For each id on its own family: choose it in the Controls sheet, see its input layer mount (data attributes), do one real gesture,
@@ -18,13 +17,6 @@ const SIZES = [
 const LABS: ControlId[] = ['draw', 'conduct', 'brush'];
 const tapOrClick = (l: ReturnType<Page['locator']>, touch: boolean) => touch ? l.tap() : l.click();
 
-/** Both endpoints mocked; returns the vote bodies the page sent. */
-async function mockVote(page: Page) {
-  const bodies: Array<Record<string, unknown>> = [];
-  await page.route('**/api/results', r => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ v: 2, round: VOTE_ROUND, total: 0, notes: 0, stale: 0, builds: {}, families: {} }) }));
-  await page.route('**/api/vote', r => { bodies.push(r.request().postDataJSON()); return r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true }) }); });
-  return bodies;
-}
 /** The mounted layer for the id, by the page's own data attributes and test ids. */
 async function expectLayer(page: Page, id: ControlId) {
   const lab = LABS.includes(id), hint = page.locator('[class*="trackpadHint"]');
@@ -49,8 +41,8 @@ for (const { name, family, touch, viewport } of SIZES) {
       test(`${label}: chosen in the sheet, mounts its layer, one real gesture, no pause, then a vote`, async ({ browser }) => {
         test.setTimeout(90000);
         // Every control of the family is already tried (21 s > 20 s), this one included: a control only counts as tried after 20 s of
-        // play (opening the sheet is not enough), and this test's one gesture is far shorter. Under 180 s in total, so the one
-        // auto-open never fires mid-test. The real accrual of tried seconds is tested in vote.spec.ts.
+        // play (opening the sheet is not enough), and this test's one gesture is far shorter. The drives never land, so the one auto-open
+        // (on a landing, from two tried) does not fire mid-test. The real accrual of tried seconds is tested in vote.spec.ts.
         const others = Object.fromEntries(controlsFor(family).map(c => [controlKey(family, c.id), 21]));
         const saved = { flowIntroSeen: true, ...(touch && (LABS.includes(id) || id === 'twin-stick') ? { autoFire: false } : {}) };
         const t = await labPage(browser, 'standard', { touch, viewport, saved, init: playInit(others) }), { page, finger } = t;
@@ -80,13 +72,14 @@ for (const { name, family, touch, viewport } of SIZES) {
         await tapOrClick(page.getByTestId('vote-open'), touch);
         const card = page.getByTestId('vote-card');
         await expect(card).toBeVisible();
-        await expect(card.getByTestId('vote-tried')).toContainText(`Tried ${controlsFor(family).length} of ${controlsFor(family).length}.`);
-        await tapOrClick(card.getByTestId('vote-favorite').getByRole('radio', { name: label, exact: true }), touch);
-        await tapOrClick(card.getByTestId(`vote-rating-${id}`).getByRole('radio', { name: '4', exact: true }), touch);
+        // The ballot lists every way of the family (all are tried), the pick is this one, and nothing is pre-selected.
+        await expect(card.getByTestId('vote-choices').getByRole('radio', { checked: true })).toHaveCount(0);
+        await tapOrClick(card.getByTestId('vote-choices').getByRole('radio', { name: label, exact: true }), touch);
         await tapOrClick(card.getByRole('button', { name: 'Send vote' }), touch);
-        await expect(card.getByRole('status')).toHaveText('Thanks, your vote is counted.');
+        await expect(card.getByRole('status')).toHaveText('Thanks. Your vote is in.');
         expect(bodies).toHaveLength(1);
-        expect(bodies[0]).toMatchObject({ v: 2, favorite: id, device: family, ratings: { [id]: 4 } });
+        expect(Object.keys(bodies[0]).sort()).toEqual(['device', 'favorite', 'last', 'nonce', 'tried', 'v']);
+        expect(bodies[0]).toMatchObject({ v: 3, favorite: id, last: id, device: family });
         const tried = bodies[0].tried as string[];
         expect(tried).toContain(id);
         expect(new Set(tried).size).toBe(tried.length);

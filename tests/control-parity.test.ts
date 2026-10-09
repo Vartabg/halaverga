@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CONTROL_TYPES, idFor, settingsFor, type ControlFamily, type ControlId } from '../src/game/controlTypes';
 import { START } from '../src/game/motion';
-import { runtime } from '../src/game/runtime';
+import { runtime, unlockExpected } from '../src/game/runtime';
 import { hydrateGame, saveControlFields, useGame, type ControlFields } from '../src/game/store';
 import { applyControlsQuery } from '../src/ui/controls/controlsQuery';
 import { currentControlId, selectControl } from '../src/ui/controls/selectControl';
@@ -119,16 +119,16 @@ describe('selectControl', () => {
     expect(saved[STORAGE]).toBeUndefined();
     off(); runtime.keys.clear();
   });
-  it('sets runtime.trackpad.unlocking before exitPointerLock, and only when a lock is held', () => {
+  it('opens the own-release window before exitPointerLock, and only when a lock is held', () => {
     const order: string[] = [];
-    vi.stubGlobal('document', { pointerLockElement: {}, exitPointerLock: () => { order.push(`exit unlocking=${runtime.trackpad.unlocking}`); } });
-    runtime.trackpad.unlocking = false;
+    vi.stubGlobal('document', { pointerLockElement: {}, exitPointerLock: () => { order.push(`exit expected=${unlockExpected()}`); } });
+    runtime.trackpad.unlockUntil = -Infinity;
     selectControl('captured', { family: 'desktop' });
-    expect(order).toEqual(['exit unlocking=true']);
-    runtime.trackpad.unlocking = false;
+    expect(order).toEqual(['exit expected=true']);
+    runtime.trackpad.unlockUntil = -Infinity;
     vi.stubGlobal('document', { pointerLockElement: null, exitPointerLock: () => { order.push('no lock: should not exit'); } });
     selectControl('mouse-keys', { family: 'desktop' });
-    expect(order).toHaveLength(1); expect(runtime.trackpad.unlocking).toBe(false);
+    expect(order).toHaveLength(1); expect(unlockExpected()).toBe(false);
   });
   it('saves to halaverga-flight-v1, and hydrate derives the same id for every control', () => {
     for (const c of CONTROL_TYPES) {

@@ -131,7 +131,7 @@ test('the sheet Vote button closes the sheet and opens the vote card (mocked)', 
   const t = await controlsPage(browser, 'standard', { viewport: DESKTOP }), { page } = t;
   await mockVote(page);
   await openSheet(page);
-  await sheet(page).getByRole('button', { name: 'Vote on the controls' }).click();
+  await sheet(page).getByRole('button', { name: 'Vote: which felt best?' }).click();
   await expect(page.getByTestId('vote-card')).toBeVisible();
   await expect(sheet(page)).toHaveCount(0);
   expect(t.errors).toEqual([]); await t.context.close();
@@ -171,7 +171,7 @@ for (const v of [PHONE_LANDSCAPE, PHONE_PORTRAIT]) {
     for (const label of ['Cursor', 'Flow', 'Captured', 'Mouse + keys', 'One finger + keys']) await expect(sheet(page).getByText(label, { exact: true })).toHaveCount(0);
     await expect(sheet(page).locator('kbd')).toHaveCount(0);
     await expect(sheet(page).getByRole('checkbox')).toHaveCount(0);
-    await expect(sheet(page).getByTestId('controls-tried')).toHaveText('Tried 0 of 5');
+    await expect(sheet(page).getByTestId('controls-tried')).toHaveText('Tried 0 of 2 needed to vote');
     const s = await box(sheet(page));
     expect(inside(s, v), 'sheet inside the viewport').toBe(true);
     expect(s.width).toBeLessThanOrEqual(v.height < 500 ? 680.5 : 420.5); // a short landscape phone gets the two-column sheet
@@ -183,7 +183,7 @@ for (const v of [PHONE_LANDSCAPE, PHONE_PORTRAIT]) {
     const fits = await sheet(page).evaluate(e => e.scrollHeight <= e.clientHeight + 1);
     expect(fits, 'five rows fit the sheet').toBe(true);
     if (v.height < 500) expect((await box(row(page, 'twin-stick'))).x, 'two columns').toBeGreaterThan((await box(row(page, 'one-finger'))).x + 100);
-    for (const name of ['Done', 'Vote on the controls']) expect(inside(await box(sheet(page).getByRole('button', { name })), v), name).toBe(true);
+    for (const name of ['Done', 'Vote: which felt best?']) expect(inside(await box(sheet(page).getByRole('button', { name })), v), name).toBe(true);
     // A touch pick closes the sheet at once, the store changes, and the one-finger hold flies with no further tap.
     await row(page, 'one-finger').tap();
     await expect(sheet(page)).toHaveCount(0);

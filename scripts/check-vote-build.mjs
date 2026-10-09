@@ -1,32 +1,51 @@
-// The vote handler records which build each vote came from (serverBuild = BUILD_STAMP in src/ui/buildInfo.ts). That stamp is a
-// literal process.env.NEXT_PUBLIC_BUILD_STAMP inlined at build time, so the built /api/vote server code must carry a real
-// "YYYY-MM-DD · sha" stamp, never 'unknown'. Run after `next build` (docs/voting.md, spec M1). Exit 1 on any failure.
-import { readFile } from 'node:fs/promises';
+// Run after `next build` (docs/voting.md). Asserts the vote surface exists in the build: both API routes and /results (a route handler,
+// so it sets its own Cache-Control per answer) are server entries, /privacy is prerendered static, and /results is not (it must read the
+// store at request time). It also asserts that .next/routes-manifest.json carries the response-header groups of
+// src/config/securityHeaders.ts, with no Cache-Control on /results there (a config header would also cover its failure pages). Exit 1 on any miss.
+import { access, readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
-const root = fileURLToPath(new URL('..', import.meta.url));
-const next = root + '.next/';
-const entry = 'server/app/api/vote/route.js';
-const main = await readFile(next + entry, 'utf8').catch(() => null);
-if (main === null) { console.error(`No ${entry} in the build: run \`next build\` first (and check src/app/api/vote/route.ts exists).`); process.exit(1); }
-// Turbopack entries load their chunks with R.c("server/chunks/...") (paths relative to .next/); webpack ones with require().
-const files = new Set([entry]);
-for (const m of main.matchAll(/R\.c\("([^"]+)"\)/g)) files.add(m[1]);
-for (const m of main.matchAll(/require\("(\.\.?\/[^"]+)"\)/g)) files.add(new URL(m[1], 'file:///' + entry).pathname.slice(1));
-// The traced files catch anything the entry loads indirectly; only the build's own server chunks are scanned.
-const trace = await readFile(next + entry + '.nft.json', 'utf8').then(JSON.parse).catch(() => ({ files: [] }));
-for (const f of trace.files) {
-  const path = new URL(f, 'file:///' + entry).pathname.slice(1);
-  if (path.startsWith('server/') && path.endsWith('.js')) files.add(path);
+
+const next = fileURLToPath(new URL('..', import.meta.url)) + '.next/';
+const has = (p) => access(next + p).then(() => true, () => false);
+const failures = [];
+const need = async (p, why) => { if (!(await has(p))) failures.push(`missing .next/${p} (${why})`); };
+
+await need('server/app/api/vote/route.js', 'POST /api/vote, src/app/api/vote/route.ts');
+await need('server/app/api/results/route.js', 'GET /api/results, src/app/api/results/route.ts');
+await need('server/app/results/route.js', 'GET /results, src/app/results/route.ts');
+if (await has('server/app/results/page.js')) failures.push('.next/server/app/results/page.js exists: /results must be a route handler (CODE-6), not a page');
+await need('server/app/privacy.html', 'the static /privacy page, src/app/privacy/page.tsx');
+if (await has('server/app/results.html')) failures.push('.next/server/app/results.html exists: /results was prerendered, it must render at request time');
+
+const manifest = await readFile(next + 'app-path-routes-manifest.json', 'utf8').then(JSON.parse, () => null);
+if (!manifest) failures.push('missing .next/app-path-routes-manifest.json: run `next build` first');
+else {
+  for (const [entry, route] of [['/api/vote/route', '/api/vote'], ['/api/results/route', '/api/results'], ['/results/route', '/results'], ['/privacy/page', '/privacy']]) {
+    if (manifest[entry] !== route) failures.push(`the build has no ${route} (${entry})`);
+  }
 }
-// The middle dot may be emitted raw or escaped.
-const STAMP = /\d{4}-\d{2}-\d{2} (?:·|\\u00b7|\\xb7|\\u00B7|\\xB7) (?:[0-9a-f]{7,12}|uncommitted)/;
-const UNKNOWN = /serverBuild\s*[:=]\s*["'`]unknown["'`]|BUILD_STAMP\s*[:=]\s*["'`]unknown["'`]/;
-let stamp = null; const bad = [];
-for (const f of files) {
-  const body = await readFile(next + f, 'utf8').catch(() => '');
-  stamp ??= body.match(STAMP)?.[0] ?? null;
-  if (UNKNOWN.test(body)) bad.push(f);
+
+const routes = await readFile(next + 'routes-manifest.json', 'utf8').then(JSON.parse, () => null);
+const groups = routes?.headers;
+if (!Array.isArray(groups)) failures.push('missing .next/routes-manifest.json headers: next.config.ts headers() was not built');
+else {
+  const value = (source, key) => groups.filter((g) => g.source === source).flatMap((g) => g.headers).filter((x) => x.key.toLowerCase() === key.toLowerCase()).at(-1)?.value;
+  const want = [
+    ['/(.*)', 'X-Frame-Options', 'DENY'], ['/(.*)', 'X-Content-Type-Options', 'nosniff'],
+    ['/(.*)', 'Referrer-Policy', 'strict-origin-when-cross-origin'], ['/(.*)', 'Cross-Origin-Opener-Policy', 'same-origin'],
+    ['/(.*)', 'Content-Security-Policy', "frame-ancestors 'none'; base-uri 'none'; object-src 'none'; form-action 'self'"],
+    ['/api/:path*', 'Content-Security-Policy', "default-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; sandbox"],
+    ['/api/:path*', 'Cross-Origin-Resource-Policy', 'same-origin'], ['/api/:path*', 'X-Robots-Tag', 'noindex'],
+    ['/results', 'X-Robots-Tag', 'noindex'],
+  ];
+  for (const [source, key, v] of want) if (value(source, key) !== v) failures.push(`headers ${source} ${key}: want "${v}", built "${value(source, key) ?? 'absent'}"`);
+  const order = groups.map((g) => g.source);
+  if (order.indexOf('/(.*)') !== 0 || order.indexOf('/api/:path*') < 1) failures.push('header groups are out of order: the common group must come first so /api/:path* and /results override it');
+  if (value('/api/:path*', 'Access-Control-Allow-Origin') !== undefined) failures.push('/api/:path* must not set Access-Control-Allow-Origin: nothing allows cross-origin reads');
+  for (const source of ['/api/:path*', '/results']) if (value(source, 'Cache-Control') !== undefined) failures.push(`${source} must not set Cache-Control in the config: the handler sets public 120 s for a tally and no-store for every failure (CODE-6)`);
 }
-console.log(`Vote route build: scanned ${files.size} server files; build stamp ${stamp ? `"${stamp}"` : 'not found'}.`);
-if (bad.length) { console.error("The vote route uses 'unknown' as its build stamp in:\n  " + bad.join('\n  ')); process.exit(1); }
-if (!stamp) { console.error('The vote route carries no inlined build stamp (expected "YYYY-MM-DD · sha"). Import BUILD_STAMP from src/ui/buildInfo.ts.'); process.exit(1); }
+const images = await readFile(next + 'images-manifest.json', 'utf8').then(JSON.parse, () => null);
+if (images?.images?.unoptimized !== true) failures.push('images.unoptimized is not set in .next/images-manifest.json (next.config.ts)');
+
+if (failures.length) { console.error('Vote build check failed:\n  ' + failures.join('\n  ')); process.exit(1); }
+console.log('Vote build: /api/vote, /api/results and /results (route handler) are server entries, /privacy is static, header groups built.');

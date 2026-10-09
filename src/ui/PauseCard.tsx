@@ -19,7 +19,7 @@ function crampedNow(probe: HTMLElement | null): boolean {
 /** The pause card, the "Leave the game?" card (a back swipe during touch play) and the notes that explain a refused Resume. */
 export default function PauseCard({ ready, onEnter }: Props) {
   const leave = useGame(s => s.leavePrompt), zoomNote = useGame(s => s.zoomNote), shooter = useGame(s => s.shooter);
-  const tipSeen = useGame(s => s.homeTipSeen), nudge = useGame(s => s.voteNudge);
+  const tipSeen = useGame(s => s.homeTipSeen);
   const probe = useRef<HTMLDivElement>(null);
   const [cramped, setCramped] = useState(false), [tip, setTip] = useState(false);
   useEffect(() => {
@@ -45,10 +45,9 @@ export default function PauseCard({ ready, onEnter }: Props) {
     <button className={styles.primary} disabled={!ready} onClick={onEnter}>{ready ? 'Resume flight' : 'Restoring your suit…'} <span aria-hidden="true">↗</span></button>
     <LazyControls name="control-pause" />
     <button className={styles.secondary} onClick={() => useGame.setState({ panel: true })}>Adjust flight settings</button>
-    {/* The vote card (VoteLayer) opens over the paused game; this card hides while it shows and returns after Skip. Eligible
-        players (two styles tried, 3 minutes) see the ask first, since they may never land to get the auto-open. */}
-    {nudge && <p className={styles.voteAsk}>You tried more than one style. Which did you like?</p>}
-    <button className={`${styles.secondary} ${styles.voteOpen}`} data-testid="vote-open" data-nudge={nudge ? '' : undefined} onClick={() => useGame.setState({ voteOpen: true })}>Vote on the controls</button>
+    {/* The vote door is inside the Controls chunk above (V4): right under Resume for players who are asked, after the list for everyone
+        else, and its words cost the landing page nothing. The vote card (VoteLayer) opens over the paused game; this card hides while it
+        shows and returns after Skip. */}
     <p className={styles.portraitLine}>Best played sideways.</p>
     {tip && !tipSeen && <div className={styles.homeTip}><p>Tip: Share › Add to Home Screen for full screen.</p><button className={styles.secondary} onClick={gotIt}>Got it</button></div>}
   </section>;

@@ -41,3 +41,13 @@ Garo's post-mortem: the one-finger flight from the start was the part he liked; 
 - **Tap a drone to blast** (the Lab's pick and aimed 3-shot burst): a quick tap, a second finger's tap while flying; empty space does nothing. No Fire or Aim button, no auto-fire, no crosshair on classic touch.
 - **Shooting is out of the flight path on every device**: no look friction (only the ADS zoom gain), no hip-fire speed cap; ADS hover stays for a held Q.
 - Desktop is unchanged from the 2026-09-24 restore. Details: [DECISIONS.md](../DECISIONS.md), [touch-controls.md](../touch-controls.md).
+
+## Limits: easier to get away from an edge · 2026-09-28
+
+Garo: "moving around the map needs to be better and easier, especially when I reach certain limits and fail to reverse course." The desktop default is unchanged in what an input does in open air; near a limit:
+
+- **The edge hold turns, and the screen says so.** Desktop (free cursor): EDGE AHEAD · MOVE CURSOR TO SIDE the first time an edge cue ends, then just EDGE AHEAD; slide or arrows profile: EDGE AHEAD · SLIDE OR ARROWS TO TURN. The sky says SKY LIMIT · DIVE OR TURN, the water WATER BELOW · PULL UP, a hill or facade SOLID AHEAD · TURN. The cue starts when a limit is within 2.5 s at the closing speed (about 20 m at cruise, up to 85 m at surge), or under 12 m.
+- **A pinned suit turns itself toward open air**, hands-off, at 2 rad/s (2.6 at surge): away from a wall, up out of the water, down out of the sky, away from a hill or facade. It judges where you are trying to go, not where the nose points, so backing away with S or skimming along an edge is left alone. Any turn you make (the cursor at a window edge, the arrows, a held thumb, slide-look) and a held trigger always win. Nothing changes farther than a few metres from a surface.
+- **One soft stop** (30 m/s2, was 65): a 34 m/s approach eases to rest over 1.1 s starting 20 m out, at the same stop points as before.
+- **The district faces show** as grids that fade in from 30 m (cruise) to 60 m (surge), full inside half of that; the floor and the sky face only while their own cue is on.
+- Desktop keys and the cursor are otherwise untouched, and shooting never touches flight. Numbers and the measured before/after are in [DECISIONS.md](../DECISIONS.md); everything here is node math on the real modules plus the desktop browser specs, none of it felt on the iPhone or a trackpad yet.

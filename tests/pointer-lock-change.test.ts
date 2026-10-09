@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { runtime } from '../src/game/runtime';
+import { exitOwnPointerLock, runtime, unlockExpected } from '../src/game/runtime';
 import { saveControlFields, useGame, type ControlFields } from '../src/game/store';
 import { selectControl } from '../src/ui/controls/selectControl';
 import { pointerLockChanged } from '../src/ui/useInput';
@@ -12,7 +12,7 @@ const doc: { pointerLockElement: object | null; exitPointerLock: () => void } = 
 const setup = (fields: ControlFields) => {
   saveControlFields(fields);
   useGame.setState({ started: true, paused: false, voteOpen: false, inputEpoch: 0 });
-  runtime.trackpad.unlocking = false;
+  runtime.trackpad.unlockUntil = -Infinity;
   doc.pointerLockElement = {};
   doc.exitPointerLock = () => { doc.pointerLockElement = null; };
 };
@@ -25,14 +25,14 @@ const pickLocked = (id: Parameters<typeof selectControl>[0]) => {
 const base: ControlFields = { controlLab: 'standard', touchScheme: 'classic', trackpadSteering: 'free', desktopMode: 'trackpad' };
 
 let clock = Date.now();
-// The clock is faked and moved on between tests: a release remembers its time so its twin event is not read as an Esc.
+// The clock is faked and moved on between tests: a game-requested release stays expected for a short window so its twin event is not read as an Esc.
 beforeEach(() => {
   vi.useFakeTimers(); vi.setSystemTime(clock += 10_000);
   vi.stubGlobal('localStorage', { getItem: () => null, setItem: () => {}, removeItem: () => {} });
   vi.stubGlobal('matchMedia', () => ({ matches: false }));
   vi.stubGlobal('document', doc);
 });
-afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); runtime.trackpad.unlocking = false; saveControlFields(base); });
+afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); runtime.trackpad.unlockUntil = -Infinity; saveControlFields(base); });
 
 describe('pointerLockChanged: a switch made from the Controls sheet never pauses', () => {
   for (const from of ['simple', 'flow', 'captured'] as const) {
@@ -41,7 +41,7 @@ describe('pointerLockChanged: a switch made from the Controls sheet never pauses
       pickLocked('mouse-keys');
       expect(useGame.getState().desktopMode).toBe('mouse');
       expect(useGame.getState().paused).toBe(false);
-      expect(runtime.trackpad.unlocking).toBe(false);
+      expect(unlockExpected()).toBe(true); // the window, not a one-shot flag: the twin event of the same release is covered too
     });
   }
   for (const lab of ['draw', 'conduct', 'brush'] as const) {
@@ -82,7 +82,7 @@ describe('pointerLockChanged: any other exit still pauses', () => {
     pointerLockChanged();
     expect(useGame.getState().paused).toBe(false);
   });
-  it('the expected flag is one-shot: an unlock after the release has settled pauses', () => {
+  it('the expected window is short: an unlock after the release has settled pauses', () => {
     setup({ ...base, trackpadSteering: 'simple' });
     pickLocked('mouse-keys');
     vi.advanceTimersByTime(1000);
@@ -92,7 +92,7 @@ describe('pointerLockChanged: any other exit still pauses', () => {
   });
   it('a grant and a loss reported together for one game-requested release (a resize mid-press) never pause', () => {
     setup(base);
-    runtime.trackpad.unlocking = true; doc.exitPointerLock();
+    exitOwnPointerLock();
     pointerLockChanged(); pointerLockChanged();
     expect(useGame.getState().paused).toBe(false);
   });

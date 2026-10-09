@@ -6,6 +6,7 @@ import { runtime } from './runtime';
 import { presentation as pose, CHASE_HEAD } from './presentation';
 import { baseFovStep, boomFor, CAM, fovFor, hipFovFor, shortWeight } from './cameraFx';
 import { useGame } from './store';
+import { boomBlocks } from './boomFilter';
 const rotation = new Euler(0, 0, 0, 'YXZ'), q = new Quaternion(), desired = new Vector3(), dir = new Vector3(), head = new Vector3();
 const shakeEuler = new Euler(0, 0, 0, 'YXZ'), shake = new Quaternion(), axis = new Vector3();
 // Speed-widened FOV, damped on its own so the ADS drop and shot punches never compound into the damp. Synced to c.fov on init.
@@ -38,7 +39,7 @@ export default function CameraRig() {
     const length = boom.current.length();
     if (length > .05) {
       dir.copy(boom.current).divideScalar(length);
-      const hit = world.castShape(head, identity, dir, probe, .04, length, false, undefined, undefined, undefined, undefined, col => col.parent()?.isFixed() ?? true);
+      const hit = world.castShape(head, identity, dir, probe, .04, length, false, undefined, undefined, undefined, undefined, boomBlocks);
       if (hit) boom.current.setLength(Math.max(0, hit.time_of_impact - .08));
     }
     // Both camera and suit consume the same interpolated anchor. Only the boom eases.

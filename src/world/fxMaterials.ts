@@ -1,13 +1,17 @@
-// Shot and impact effect materials and pools: one halo texture, no lights, no per-frame allocation.
-import { AdditiveBlending, BoxGeometry, DoubleSide, BufferAttribute, BufferGeometry, Color, DataTexture, DynamicDrawUsage,
+// Shot and impact effect materials and pools: a halo and a spark texture, no lights, no per-frame allocation.
+import { AdditiveBlending, DoubleSide, BufferAttribute, BufferGeometry, Color, DataTexture, DynamicDrawUsage,
   InstancedBufferAttribute, InstancedMesh, LinearFilter, type Material, MeshBasicMaterial, MeshStandardMaterial, PlaneGeometry,
   Points, PointsMaterial, RingGeometry, ShaderMaterial, type WebGLProgramParametersWithUniforms } from 'three';
 import { puffFrame, puffU, type Puffs, type Rgb } from './fxPools';
+import { shardPositions } from './shards';
 export const FX = { core: new Color('#f2feff'), fringe: new Color('#58e1ff'), hot: new Color('#ff8a3c'), white: new Color('#ffffff'),
   spark: new Color('#ffd08a'), water: new Color('#9fe3d6'), fire: new Color('#ff9a3c'), ember: new Color('#8a1c0c'),
   smoke: new Color('#4a4450'), steam: new Color('#d9e2e0'), amber: new Color('#ffb347'),
   // Kill burst: a white-hot pop, a flame core that cools yellow -> orange -> ember, and a pale smoke plume that reads on ruins.
-  pop: new Color('#fff2c0'), flame: new Color('#ffd27a'), blaze: new Color('#ff7a2a'), plume: new Color('#8c8794') };
+  pop: new Color('#fff2c0'), flame: new Color('#ffd27a'), blaze: new Color('#ff7a2a'), plume: new Color('#6b5648'), plumeEnd: new Color('#8a8078'),
+  // Drone debris tints (dark gunmetal, dim worn panel, scorched red; none near white, so they hold shape on pale sky) and the dark core
+  // that lets the flash read over a bright sky.
+  metal: new Color('#454c55'), panel: new Color('#6a727c'), rust: new Color('#7e2d20'), char: new Color('#2b1d17') };
 /** Sparks never draw below this many drawing-buffer pixels (2 CSS px; ImpactFx sets it from the pixel ratio each frame). */
 export const sparkMinPx = { value: 2 };
 function sparkShader(shader: WebGLProgramParametersWithUniforms) {
@@ -15,12 +19,14 @@ function sparkShader(shader: WebGLProgramParametersWithUniforms) {
   shader.vertexShader = shader.vertexShader.replace('uniform float scale;', 'uniform float scale;\nuniform float uMinPoint;')
     .replace('#include <logdepthbuf_vertex>', 'gl_PointSize = max(gl_PointSize, uMinPoint);\n#include <logdepthbuf_vertex>');
 }
-/** Per-instance heat (aHeat 0..1) glows the kill debris orange as it cools; break chips and cold pieces write 0. */
+/** Per-instance heat (aHeat 0..1) glows the torn tips and corners (far from the lump's middle) white-orange, cooling to dark metal; the
+ *  faces stay metal. A small emissive floor keeps cold pieces readable once the glow is gone. Break chips and cold pieces write heat 0. */
 function debrisShader(shader: WebGLProgramParametersWithUniforms) {
   shader.vertexShader = shader.vertexShader.replace('#include <common>', '#include <common>\nattribute float aHeat;\nvarying float vHeat;')
-    .replace('#include <begin_vertex>', '#include <begin_vertex>\nvHeat = aHeat;');
+    .replace('#include <begin_vertex>', '#include <begin_vertex>\nvHeat = aHeat * clamp(length(position) * 3. - .5, .12, 1.);');
   shader.fragmentShader = shader.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vHeat;')
-    .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance += vec3(1., .48, .16) * 2. * vHeat;');
+    .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+totalEmissiveRadiance += diffuseColor.rgb * .1 + mix(vec3(.5, .06, .02), vec3(1., .6, .25), vHeat * vHeat) * 1.3 * vHeat;`);
 }
 function haloTexture() {
   const n = 64, data = new Uint8Array(n * n * 4);
@@ -30,6 +36,21 @@ function haloTexture() {
   }
   const t = new DataTexture(data, n, n); t.magFilter = t.minFilter = LinearFilter; t.needsUpdate = true;
   return t;
+}
+/** Spark disc: solid to r .5, then a smooth falloff to 0 at r 1, so the point's square corners are always clear. A 2 px point samples
+ *  its four pixel centres at r .71 (alpha about .6): a tight bright dot, never a square or a dim smudge. */
+function sparkTexture() {
+  const n = 32, data = new Uint8Array(n * n * 4);
+  for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+    const r = Math.hypot(x + .5 - n / 2, y + .5 - n / 2) / (n / 2), k = Math.min(1, Math.max(0, (r - .5) / .5)), o = (y * n + x) * 4;
+    data[o] = data[o + 1] = data[o + 2] = 255; data[o + 3] = Math.round((1 - k * k * (3 - 2 * k)) * 255);
+  }
+  const t = new DataTexture(data, n, n); t.magFilter = t.minFilter = LinearFilter; t.needsUpdate = true;
+  return t;
+}
+/** Kill debris and break chips: a chunky torn lump (see shards.ts), flat-shaded, centred so it tumbles in place. */
+export function shardGeometry() {
+  const g = new BufferGeometry(); g.setAttribute('position', new BufferAttribute(shardPositions(), 3)); g.computeVertexNormals(); return g;
 }
 const tracerVertex = `attribute vec3 aStart; attribute vec3 aEnd; attribute float aWidth; attribute float aAlpha;
 varying vec2 vUv; varying float vAlpha;
@@ -61,15 +82,15 @@ function sprite(halo: DataTexture, additive: boolean) {
   return m;
 }
 function createKit() {
-  const halo = haloTexture();
-  return { halo, spriteAdd: sprite(halo, true), spriteAlpha: sprite(halo, false),
+  const halo = haloTexture(), sparkMap = sparkTexture();
+  return { halo, sparkMap, spriteAdd: sprite(halo, true), spriteAlpha: sprite(halo, false),
     tracer: new ShaderMaterial({ vertexShader: tracerVertex, fragmentShader: tracerFragment, uniforms: { core: { value: FX.core },
       fringe: { value: FX.fringe } }, transparent: true, depthWrite: false, blending: AdditiveBlending, toneMapped: false, fog: false,
       side: DoubleSide }),   // the ribbon's winding faces away from the camera with the spec's side = cross(end - start, eye - mid)
     ring: new MeshBasicMaterial({ color: FX.water, transparent: true, depthWrite: false, blending: AdditiveBlending, fog: true }),
-    spark: Object.assign(new PointsMaterial({ size: .15, sizeAttenuation: true, vertexColors: true, transparent: true, depthWrite: false,
+    spark: Object.assign(new PointsMaterial({ size: .15, sizeAttenuation: true, vertexColors: true, map: sparkMap, transparent: true, depthWrite: false,
       blending: AdditiveBlending, fog: true }), { onBeforeCompile: sparkShader, customProgramCacheKey: () => 'fx-spark' }),
-    debris: Object.assign(new MeshStandardMaterial({ color: '#4a525c', metalness: .6, roughness: .55 }),
+    debris: Object.assign(new MeshStandardMaterial({ color: '#ffffff', metalness: .25, roughness: .75, flatShading: true }),
       { onBeforeCompile: debrisShader, customProgramCacheKey: () => 'fx-debris-heat' }) };
 }
 let kit: ReturnType<typeof createKit> | null = null, users = 0;
@@ -77,7 +98,7 @@ export const fxKit = () => kit ??= createKit();
 /** Frees the GPU side of every shared material and the halo texture. The objects stay valid: three re-uploads them if used again. */
 export function disposeFx() {
   if (!kit) return;
-  kit.halo.dispose();
+  kit.halo.dispose(); kit.sparkMap.dispose();
   for (const m of [kit.spriteAdd, kit.spriteAlpha, kit.tracer, kit.ring, kit.spark, kit.debris] as Material[]) m.dispose();
 }
 /** Effect-side reference count: call from useEffect so StrictMode remounts keep the shared materials. */
@@ -109,8 +130,8 @@ export function ringPool(n: number) {
   return pool(withColor(new InstancedMesh(g, fxKit().ring, n)));
 }
 export function debrisPool(n: number) {
-  const g = new BoxGeometry(.5, .08, .35); dyn(g, 'aHeat', n, 1);
-  return pool(new InstancedMesh(g, fxKit().debris, n));
+  const g = shardGeometry(); dyn(g, 'aHeat', n, 1);
+  return pool(withColor(new InstancedMesh(g, fxKit().debris, n)));
 }
 export function sparkPool(n: number) {
   const g = new BufferGeometry(); dyn(g, 'position', n, 3, false); dyn(g, 'color', n, 3, false); g.setDrawRange(0, 0);

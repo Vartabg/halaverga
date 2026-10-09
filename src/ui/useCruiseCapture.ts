@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, type RefObject } from 'react';
-import { startFlow, startTrackpad, stopTrackpad, runtime } from '@/game/runtime';
+import { exitOwnPointerLock, startFlow, startTrackpad, stopTrackpad, runtime } from '@/game/runtime';
 import { useGame } from '@/game/store';
 
 export function useCruiseCapture(surface: RefObject<HTMLDivElement | null>) {
@@ -9,7 +9,7 @@ export function useCruiseCapture(surface: RefObject<HTMLDivElement | null>) {
   const cancel = useCallback(() => {
     pending.current = false; generation.current++;
     runtime.trackpad.capture = 'idle';
-    if (surface.current && document.pointerLockElement === surface.current) { runtime.trackpad.unlocking = true; document.exitPointerLock(); }
+    if (surface.current && document.pointerLockElement === surface.current) exitOwnPointerLock();
   }, [surface]);
   const fail = useCallback(() => {
     if (!pending.current) return;
@@ -47,7 +47,7 @@ export function useCruiseCapture(surface: RefObject<HTMLDivElement | null>) {
       pending.current = false; generation.current++; unsubscribe();
       document.removeEventListener('pointerlockchange', changed);
       document.removeEventListener('pointerlockerror', fail);
-      if (element && document.pointerLockElement === element) { runtime.trackpad.unlocking = true; document.exitPointerLock(); }
+      if (element && document.pointerLockElement === element) exitOwnPointerLock();
     };
   }, [surface, activate, cancel, fail]);
   const request = () => {
@@ -62,7 +62,7 @@ export function useCruiseCapture(surface: RefObject<HTMLDivElement | null>) {
       if (!element?.requestPointerLock) { fail(); return; }
       element.requestPointerLock()?.then(() => {
         if (generation.current === ticket) activate();
-        else if (document.pointerLockElement === element && !runtime.trackpad.active) { runtime.trackpad.unlocking = true; document.exitPointerLock(); }
+        else if (document.pointerLockElement === element && !runtime.trackpad.active) exitOwnPointerLock();
       }).catch(() => { if (generation.current === ticket) fail(); });
     } catch { fail(); }
   };

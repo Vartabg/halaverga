@@ -19,3 +19,28 @@ jobs:
       # software GL advances the simulation too slowly for their thresholds.
       # Recorded evidence: docs/verification.md.
       - run: pnpm verify
+  # A separate job so a newly published advisory (no code changed) shows as its
+  # own red check and never hides the verify result. `pnpm audit` reads only
+  # package.json and the lockfile, so it needs no install, and it is not part of
+  # `pnpm verify`, which stays free of the network after install.
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      # A finding at high or critical fails the job. If the audit endpoint cannot
+      # be reached (an npm outage, a network error), the job warns and passes: that
+      # says nothing about the code, and a registry outage must not block a push.
+      # A real finding always prints "N vulnerabilities found"; an unreachable
+      # endpoint never does (checked on pnpm 10.32.1 with an unreachable registry).
+      - name: Audit production dependencies
+        run: |
+          set +e
+          pnpm run audit:prod 2>&1 | tee "$RUNNER_TEMP/audit.log"
+          code=${PIPESTATUS[0]}
+          if [ "$code" -ne 0 ] && ! grep -Eq '[0-9]+ vulnerabilit(y|ies) found' "$RUNNER_TEMP/audit.log"; then
+            echo "::warning title=Dependency audit skipped::pnpm audit could not reach the audit endpoint (exit $code). Run pnpm audit:prod when it is back."
+            exit 0
+          fi
+          exit "$code"

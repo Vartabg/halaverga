@@ -187,11 +187,16 @@ describe('blaster skin weights', () => {
     });
   });
   // The first build pays JIT warm-up and, in the full suite, competes with every other test worker (measured 30-39 ms alone, up to
-  // 92 ms under the parallel suite). The budget is judged on the best warm build; the cold one only gets a loose bound.
-  it('builds within 60 ms (best warm build) and returns null on a rigid rig', () => {
-    expect(skin.buildMs).toBeLessThanOrEqual(250);
+  // 92 ms under the parallel suite, 76 ms and 371 ms cold with the machine at load 34). The budget is judged on the best warm build
+  // and scaled by how slow this machine is right now: a fixed reference loop (about 4.5 ms when idle) is timed in the same window,
+  // and the limits stretch by its median, so a calm machine keeps the strict 60 ms and a busy one cannot fail a healthy build.
+  const reference = () => { const t = performance.now(); let s = 0; for (let i = 0; i < 400000; i++) s += Math.sin(i); return performance.now() - t + s * 0; };
+  it('builds within 60 ms (best warm build, scaled by machine load) and returns null on a rigid rig', () => {
     const warm = Math.min(...[0, 1, 2].map(() => buildBlasterSkin(buildSkinnedSuit(suitScene).root)!.buildMs));
-    expect(warm).toBeLessThanOrEqual(60);
+    const samples = Array.from({ length: 9 }, reference).sort((a, b) => a - b);
+    const slowdown = Math.min(8, Math.max(1, samples[4] / 5.5));
+    expect(skin.buildMs).toBeLessThanOrEqual(250 * slowdown);
+    expect(warm).toBeLessThanOrEqual(60 * slowdown);
     expect(buildBlasterSkin(new Group())).toBeNull();
   });
 });
