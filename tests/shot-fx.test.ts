@@ -164,7 +164,7 @@ describe('events', () => {
 });
 describe('source guard', () => {
   it('the effect modules never call Math.random', () => {
-    for (const f of ['ShotFx.tsx', 'ImpactFx.tsx', 'fxPools.ts', 'fxMaterials.ts'])
+    for (const f of ['ShotFx.tsx', 'ImpactFx.tsx', 'fxPools.ts', 'fxMaterials.ts', 'fxShaders.ts', 'fxBurst.ts', 'fxImpacts.ts'])
       expect(readFileSync(new URL('../src/world/' + f, import.meta.url), 'utf8')).not.toContain('Math.random');
   });
 });
@@ -268,11 +268,13 @@ describe('cannon-synced muzzle effects', () => {
   it('wires the helpers into the effect components', () => {
     const shotFx = readFileSync(new URL('../src/world/ShotFx.tsx', import.meta.url), 'utf8');
     const impact = readFileSync(new URL('../src/world/ImpactFx.tsx', import.meta.url), 'utf8');
+    // The arrival recipes (sparks by surface) moved to fxImpacts.ts on 2026-10-07; ImpactFx.tsx keeps the pools and the frame loop.
+    const impacts = readFileSync(new URL('../src/world/fxImpacts.ts', import.meta.url), 'utf8');
     expect(shotFx).toMatch(/tracerOrigin\(e, clock, cannonLink\.fxMuzzle, org\)/);
     expect(shotFx).toMatch(/cannonLink\.fxMuzzle\.valid \? cannonLink\.fxMuzzle : runtime\.shooter\.muzzle\.valid/);
     expect(shotFx).toMatch(/stepSteam\(steamQ, t, cannonLink\.ventMouth/); expect(shotFx).toMatch(/tracerSpan\(t - tr\[o\], dist, span, live\[i\] === 2\)/); expect(shotFx).toMatch(/haloAlpha\(eventBurstIndex\(e\.serial\)\)/);
-    expect(impact).toMatch(/sparkParams\(rng\(\), rng\(\), kill, spark\)/);
-    for (const src of [shotFx, impact]) expect(src.split('\n').length).toBeLessThan(200);
+    expect(impacts).toMatch(/sparkParams\(rng\(\), rng\(\), kill, spark\)/); expect(impact).toMatch(/spawnImpact\(pools, addScorch, pendKind\[i\], pend\[o \+ 7\]/);
+    for (const src of [shotFx, impact, impacts]) expect(src.split('\n').length).toBeLessThan(200);
   });
 });
 
@@ -385,7 +387,7 @@ describe('kill and hit effect shapes (no squares, no slabs)', () => {
     expect(pool.instanceColor!.count).toBe(32);
     const m = pool.material as MeshStandardMaterial; expect(m.flatShading).toBe(true); expect(m.color.getHex()).toBe(0xffffff);
     expect(m.customProgramCacheKey!()).toBe('fx-debris-heat'); disposePool(pool);
-    const kit = readFileSync(new URL('../src/world/fxMaterials.ts', import.meta.url), 'utf8');
+    const kit = readFileSync(new URL('../src/world/fxShaders.ts', import.meta.url), 'utf8');   // the shader patches moved out of fxMaterials.ts (2026-10-07)
     expect(kit).toMatch(/diffuseColor\.rgb \* \.1/);   // emissive floor
     expect(kit).toMatch(/aHeat \* clamp\(length\(position\) \* 3\. - \.5, \.12, 1\.\)/);   // heat glows the far tips and corners, the faces stay metal
   });
@@ -434,18 +436,20 @@ describe('kill and hit effect shapes (no squares, no slabs)', () => {
     drawSparks(sp, .75, pos, col, c0, c1, c2); expect(col[1]).toBeCloseTo(.25 * (1 - .5625), 5); expect(col[0]).toBeCloseTo(.75 * (1 - .5625), 5);
     expect(drawSparks(sp, 1.01, pos, col, c0, c1, c2)).toBe(0);
   });
+  // The kill recipe lives in fxBurst.ts since 2026-10-07 (ImpactFx.tsx calls spawnKillBurst); the same shape checks apply there.
+  const burstSrc = () => readFileSync(new URL('../src/world/fxBurst.ts', import.meta.url), 'utf8');
   it('the kill burst is a bright fire the pieces are thrown out of: bigger pop, longer flame and glow, more and bigger embers', () => {
-    const impact = readFileSync(new URL('../src/world/ImpactFx.tsx', import.meta.url), 'utf8');
+    const impact = burstSrc(), loop = readFileSync(new URL('../src/world/ImpactFx.tsx', import.meta.url), 'utf8');
     expect(impact).toMatch(/\.08, 5 \* g, 5 \* g, 1, FX\.pop, FX\.pop, 1, CURVE_FLAT/);   // the first-frame flash is 5 g wide for 80 ms
-    const glow = /spawnPuff\(addP, t, c, 0, ([\d.]+), ([\d.]+) \* g, ([\d.]+) \* g, 1, FX\.blaze, FX\.ember, ([\d.]+), CURVE_HOLD\)/.exec(impact)!;
+    const glow = /spawnPuff\(p\.add, t, c, 0, ([\d.]+), ([\d.]+) \* g, ([\d.]+) \* g, 1, FX\.blaze, FX\.ember, ([\d.]+), CURVE_HOLD\)/.exec(impact)!;
     expect(Number(glow[1])).toBeGreaterThanOrEqual(.9); expect(Number(glow[3])).toBeGreaterThanOrEqual(6);   // a wide dim glow that outlasts the flame
-    expect(impact).toMatch(/t \+ \.1, c, 0, \.7, 2\.6 \* g, 4\.6 \* g/);   // the ember-red core holds .7 s
-    expect(impact).toMatch(/1\.5 \* emberGain/); expect(impact).toMatch(/EMBER_T = \.55/);
+    expect(impact).toMatch(/t \+ \.1, c, 0, \.7, 3 \* g, 5\.6 \* g/);   // the ember-red core holds .7 s (1.4x the 2026-09-23 size, 2026-10-07)
+    expect(loop).toMatch(/1\.5 \* emberGain/); expect(loop).toMatch(/EMBER_T = \.55/);
     const out = { speed: 0, life: 0 }; sparkParams(0, 0, true, out); expect(out.life).toBeGreaterThanOrEqual(.3);   // embers last, not flicker
     expect(killSparkCount(0)).toBeGreaterThanOrEqual(40);
   });
   it('the smoke is several offset puffs that drift out and rise at their own speeds, pale at the end, not one centred smudge', () => {
-    const impact = readFileSync(new URL('../src/world/ImpactFx.tsx', import.meta.url), 'utf8');
+    const impact = burstSrc();
     expect(impact).toMatch(/n = reduced \? 2 : 4/); expect(impact).toMatch(/Math\.cos\(a\) \* r/);   // spread round the burst
     expect(impact).toMatch(/PLUME\.rise \* \(\.7 \+ \.6 \* rng\(\)\)/); expect(impact).toMatch(/PLUME\.s0 \* g \* \(\.7 \+ \.6 \* rng\(\)\)/);   // own rise and size
     expect(FX.plumeEnd.r + FX.plumeEnd.g + FX.plumeEnd.b).toBeGreaterThan(FX.plume.r + FX.plume.g + FX.plume.b);   // fades lighter, toward the sky
@@ -453,20 +457,20 @@ describe('kill and hit effect shapes (no squares, no slabs)', () => {
   });
   it('kill pieces take their size from shardK, so none passes the cap', () => {
     const impact = readFileSync(new URL('../src/world/ImpactFx.tsx', import.meta.url), 'utf8');
-    expect(impact).toMatch(/shardK\(k < 3 \? 1\.15 : \.65 \+ \.25 \* rng\(\), sg\)/); expect(impact).toMatch(/shardK\(\.75, shardGain\(gainAt\(e\.point\)\)\)/);
+    expect(burstSrc()).toMatch(/shardK\(k < 3 \? 1\.15 : \.65 \+ \.25 \* rng\(\), sg\)/); expect(impact).toMatch(/shardK\(\.75, shardGain\(gainAt\(e\.point\)\)\)/);
     expect(shardK(5, 5)).toBe(SHARD_K_MAX);
   });
-  it('keeps the five-draw-call budget and wires the hot ramp and shard scale', () => {
+  it('keeps the six-draw-call budget (scorch marks joined on 2026-10-07) and wires the hot ramp and shard scale', () => {
     const impact = readFileSync(new URL('../src/world/ImpactFx.tsx', import.meta.url), 'utf8');
-    expect(impact).toMatch(/meshes: \[sparks, add, alpha, rings, debris\]/);
+    expect(impact).toMatch(/meshes: \[sparks, add, alpha, rings, debris, scorch\]/);
     expect(impact).toMatch(/drawSparks\(sp, t, sPos, sCol, FX\.pop, FX\.blaze, FX\.ember\)/);
     expect(impact).toMatch(/shardScale\(i, sh\)/);
     expect(impact).toMatch(/tint\(debris, i, TINTS\[shardTint\(i\)\], 1\)/);   // every claimed slot gets its tint
-    expect(impact).toMatch(/gainAt\(c\)/); expect(impact).toMatch(/spawnPuff\(alphaP, t, c, 0, \.5, 1 \* g, 2\.8 \* g, 1, FX\.char/);   // dark core under the flame
+    expect(impact).toMatch(/gainAt\(e\.point\)/); expect(burstSrc()).toMatch(/spawnPuff\(p\.alpha, t, c, 0, \.5, 1\.2 \* g, 3\.4 \* g, 1, FX\.char/);   // dark core under the flame
     expect(impact).toMatch(/add\.renderOrder = sparks\.renderOrder = 2/);   // the smoke draws first, so flames and embers are not dimmed
     expect(impact).not.toMatch(/setScalar\(db/);
     const kit = readFileSync(new URL('../src/world/fxMaterials.ts', import.meta.url), 'utf8');
     expect(kit).not.toMatch(/\bBoxGeometry\b/);
-    for (const f of ['fxMaterials.ts', 'fxPools.ts', 'ImpactFx.tsx']) expect(readFileSync(new URL('../src/world/' + f, import.meta.url), 'utf8').split('\n').length).toBeLessThan(200);
+    for (const f of ['fxMaterials.ts', 'fxPools.ts', 'fxShaders.ts', 'fxBurst.ts', 'fxImpacts.ts', 'ImpactFx.tsx']) expect(readFileSync(new URL('../src/world/' + f, import.meta.url), 'utf8').split('\n').length).toBeLessThan(200);
   });
 });

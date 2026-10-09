@@ -96,10 +96,11 @@ export function lobeDir(n: Vec3, u1: number, u2: number, out: Vec3) {
   out.x = tx * a + bx * b + n.x * c; out.y = ty * a + by * b + n.y * c; out.z = tz * a + bz * b + n.z * c;
   return out;
 }
-// Timed sprite puffs: born, life, x, y, z, rise, size0, size1, stretch, rgb0, rgb1, alpha0, alpha curve, drift xyz per slot.
+// Timed sprite puffs: born, life, x, y, z, rise, size0, size1, stretch, rgb0, rgb1, alpha0, alpha curve, drift xyz, wind xyz per slot.
 // Curves: 0 = alpha (1 - u^2) (default), 1 = alpha (1 - u)^1.5 (holds, then drops: fireballs), 2 = flat (a single pop).
 // Drift: an initial velocity that decays with time constant DRIFT_TAU, so a puff jets out and then hangs (travel |v| * DRIFT_TAU).
-export const PUFF = 20, CURVE_HOLD = 1, CURVE_FLAT = 2, DRIFT_TAU = .1;
+// Wind: a steady velocity for the whole life (the ash wind carrying smoke).
+export const PUFF = 23, CURVE_HOLD = 1, CURVE_FLAT = 2, DRIFT_TAU = .1;
 export type Puffs = Ring & { d: Float64Array; shown: Uint8Array };
 export function makePuffs(size: number): Puffs {
   const d = new Float64Array(size * PUFF);
@@ -107,12 +108,13 @@ export function makePuffs(size: number): Puffs {
   return { next: 0, size, d, shown: new Uint8Array(size) };
 }
 export function spawnPuff(p: Puffs, t: number, at: Vec3, rise: number, life: number, s0: number, s1: number,
-  stretch: number, c0: Rgb, c1: Rgb, alpha: number, curve = 0, drift: Vec3 | null = null) {
+  stretch: number, c0: Rgb, c1: Rgb, alpha: number, curve = 0, drift: Vec3 | null = null, wind: Vec3 | null = null) {
   const o = claim(p) * PUFF, d = p.d;
   d[o] = t; d[o + 1] = life; d[o + 2] = at.x; d[o + 3] = at.y; d[o + 4] = at.z; d[o + 5] = rise;
   d[o + 6] = s0; d[o + 7] = s1; d[o + 8] = stretch; d[o + 9] = c0.r; d[o + 10] = c0.g; d[o + 11] = c0.b;
   d[o + 12] = c1.r; d[o + 13] = c1.g; d[o + 14] = c1.b; d[o + 15] = alpha; d[o + 16] = curve;
   d[o + 17] = drift ? drift.x : 0; d[o + 18] = drift ? drift.y : 0; d[o + 19] = drift ? drift.z : 0;
+  d[o + 20] = wind ? wind.x : 0; d[o + 21] = wind ? wind.y : 0; d[o + 22] = wind ? wind.z : 0;
   return o / PUFF;
 }
 /** Life fraction of slot i at time t: 0..1 while alive, else -1. */
@@ -123,7 +125,8 @@ export function puffU(p: Puffs, i: number, t: number) {
 /** One sprite frame of a live puff: position, size (x, y), colour and alpha, all at life fraction u. */
 export function puffFrame(p: Puffs, i: number, u: number, pos: Vec3, col: Rgb, size: { x: number; y: number }) {
   const o = i * PUFF, d = p.d, age = u * d[o + 1], s = d[o + 6] + (d[o + 7] - d[o + 6]) * u, k = DRIFT_TAU * (1 - Math.exp(-age / DRIFT_TAU));
-  pos.x = d[o + 2] + d[o + 17] * k; pos.y = d[o + 3] + d[o + 5] * age + d[o + 18] * k; pos.z = d[o + 4] + d[o + 19] * k;
+  pos.x = d[o + 2] + d[o + 17] * k + d[o + 20] * age; pos.y = d[o + 3] + d[o + 5] * age + d[o + 18] * k + d[o + 21] * age;
+  pos.z = d[o + 4] + d[o + 19] * k + d[o + 22] * age;
   size.x = s; size.y = s * d[o + 8];
   col.r = d[o + 9] + (d[o + 12] - d[o + 9]) * u; col.g = d[o + 10] + (d[o + 13] - d[o + 10]) * u; col.b = d[o + 11] + (d[o + 14] - d[o + 11]) * u;
   const curve = d[o + 16];

@@ -1,8 +1,9 @@
 // Shot and impact effect materials and pools: a halo and a spark texture, no lights, no per-frame allocation.
 import { AdditiveBlending, DoubleSide, BufferAttribute, BufferGeometry, Color, DataTexture, DynamicDrawUsage,
   InstancedBufferAttribute, InstancedMesh, LinearFilter, type Material, MeshBasicMaterial, MeshStandardMaterial, PlaneGeometry,
-  Points, PointsMaterial, RingGeometry, ShaderMaterial, type WebGLProgramParametersWithUniforms } from 'three';
+  Points, PointsMaterial, RingGeometry, ShaderMaterial } from 'three';
 import { puffFrame, puffU, type Puffs, type Rgb } from './fxPools';
+import { billboard, billboardLit, debrisShader, flatAlpha, sparkShader, tracerFragment, tracerVertex } from './fxShaders';
 import { shardPositions } from './shards';
 export const FX = { core: new Color('#f2feff'), fringe: new Color('#58e1ff'), hot: new Color('#ff8a3c'), white: new Color('#ffffff'),
   spark: new Color('#ffd08a'), water: new Color('#9fe3d6'), fire: new Color('#ff9a3c'), ember: new Color('#8a1c0c'),
@@ -11,23 +12,12 @@ export const FX = { core: new Color('#f2feff'), fringe: new Color('#58e1ff'), ho
   pop: new Color('#fff2c0'), flame: new Color('#ffd27a'), blaze: new Color('#ff7a2a'), plume: new Color('#6b5648'), plumeEnd: new Color('#8a8078'),
   // Drone debris tints (dark gunmetal, dim worn panel, scorched red; none near white, so they hold shape on pale sky) and the dark core
   // that lets the flash read over a bright sky.
-  metal: new Color('#454c55'), panel: new Color('#6a727c'), rust: new Color('#7e2d20'), char: new Color('#2b1d17') };
+  metal: new Color('#454c55'), panel: new Color('#6a727c'), rust: new Color('#7e2d20'), char: new Color('#2b1d17'),
+  // Lingering kill smoke and the failing drone's trail: darker than the ash overcast, lighter than the ruins (the lit rim in
+  // fxShaders.billboardLit does the rest), concrete dust, and the white-hot steel ping.
+  ash: new Color('#3b3733'), ashEnd: new Color('#5b5651'), dust: new Color('#6a655c'), dustEnd: new Color('#8a847a'), steelHot: new Color('#fff3d6') };
 /** Sparks never draw below this many drawing-buffer pixels (2 CSS px; ImpactFx sets it from the pixel ratio each frame). */
 export const sparkMinPx = { value: 2 };
-function sparkShader(shader: WebGLProgramParametersWithUniforms) {
-  shader.uniforms.uMinPoint = sparkMinPx;
-  shader.vertexShader = shader.vertexShader.replace('uniform float scale;', 'uniform float scale;\nuniform float uMinPoint;')
-    .replace('#include <logdepthbuf_vertex>', 'gl_PointSize = max(gl_PointSize, uMinPoint);\n#include <logdepthbuf_vertex>');
-}
-/** Per-instance heat (aHeat 0..1) glows the torn tips and corners (far from the lump's middle) white-orange, cooling to dark metal; the
- *  faces stay metal. A small emissive floor keeps cold pieces readable once the glow is gone. Break chips and cold pieces write heat 0. */
-function debrisShader(shader: WebGLProgramParametersWithUniforms) {
-  shader.vertexShader = shader.vertexShader.replace('#include <common>', '#include <common>\nattribute float aHeat;\nvarying float vHeat;')
-    .replace('#include <begin_vertex>', '#include <begin_vertex>\nvHeat = aHeat * clamp(length(position) * 3. - .5, .12, 1.);');
-  shader.fragmentShader = shader.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vHeat;')
-    .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
-totalEmissiveRadiance += diffuseColor.rgb * .1 + mix(vec3(.5, .06, .02), vec3(1., .6, .25), vHeat * vHeat) * 1.3 * vHeat;`);
-}
 function haloTexture() {
   const n = 64, data = new Uint8Array(n * n * 4);
   for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
@@ -52,31 +42,10 @@ function sparkTexture() {
 export function shardGeometry() {
   const g = new BufferGeometry(); g.setAttribute('position', new BufferAttribute(shardPositions(), 3)); g.computeVertexNormals(); return g;
 }
-const tracerVertex = `attribute vec3 aStart; attribute vec3 aEnd; attribute float aWidth; attribute float aAlpha;
-varying vec2 vUv; varying float vAlpha;
-void main(){ vec3 mid = (aStart + aEnd) * .5, c = cross(aEnd - aStart, cameraPosition - mid); float l = length(c);
-  vec3 p = mix(aStart, aEnd, position.x + .5) + (l > 1e-8 ? c / l : vec3(0.)) * aWidth * position.y;
-  vUv = uv; vAlpha = aAlpha; gl_Position = projectionMatrix * viewMatrix * vec4(p, 1.); }`;
-const tracerFragment = `uniform vec3 core; uniform vec3 fringe; varying vec2 vUv; varying float vAlpha;
-void main(){ float d = abs(vUv.y - .5) * 2., k = smoothstep(.15, .6, d);
-  gl_FragColor = vec4(mix(core, fringe, k), (1. - smoothstep(.6, 1., d)) * mix(1., .85, k) * vAlpha);
-  #include <tonemapping_fragment>
-  #include <colorspace_fragment>
-}`;
-/** Per-instance alpha and view-space billboarding: the instance matrix carries only position and x/y size. */
-function billboard(shader: WebGLProgramParametersWithUniforms) {
-  shader.vertexShader = shader.vertexShader.replace('#include <common>', '#include <common>\nattribute float aAlpha;\nvarying float vAlpha;')
-    .replace('#include <project_vertex>', `vAlpha = aAlpha;
-vec4 mvPosition = modelViewMatrix * instanceMatrix * vec4(0., 0., 0., 1.);
-mvPosition.xy += position.xy * vec2(length(instanceMatrix[0].xyz), length(instanceMatrix[1].xyz));
-gl_Position = projectionMatrix * mvPosition;`);
-  shader.fragmentShader = shader.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vAlpha;')
-    .replace('#include <color_fragment>', '#include <color_fragment>\ndiffuseColor.a *= vAlpha;');
-}
 function sprite(halo: DataTexture, additive: boolean) {
   const m = new MeshBasicMaterial({ map: halo, transparent: true, depthWrite: false, toneMapped: !additive, fog: !additive,
     ...(additive ? { blending: AdditiveBlending } : {}) });
-  m.onBeforeCompile = billboard;
+  m.onBeforeCompile = additive ? billboard : billboardLit;
   const key = additive ? 'fx-sprite-add' : 'fx-sprite-alpha';
   m.customProgramCacheKey = () => key;
   return m;
@@ -87,11 +56,16 @@ function createKit() {
     tracer: new ShaderMaterial({ vertexShader: tracerVertex, fragmentShader: tracerFragment, uniforms: { core: { value: FX.core },
       fringe: { value: FX.fringe } }, transparent: true, depthWrite: false, blending: AdditiveBlending, toneMapped: false, fog: false,
       side: DoubleSide }),   // the ribbon's winding faces away from the camera with the spec's side = cross(end - start, eye - mid)
-    ring: new MeshBasicMaterial({ color: FX.water, transparent: true, depthWrite: false, blending: AdditiveBlending, fog: true }),
+    // White: each ring takes its own tint (FX.water for a water ring, hot orange-white for the kill shockwave).
+    ring: new MeshBasicMaterial({ color: FX.white, transparent: true, depthWrite: false, blending: AdditiveBlending, fog: true }),
     spark: Object.assign(new PointsMaterial({ size: .15, sizeAttenuation: true, vertexColors: true, map: sparkMap, transparent: true, depthWrite: false,
-      blending: AdditiveBlending, fog: true }), { onBeforeCompile: sparkShader, customProgramCacheKey: () => 'fx-spark' }),
+      blending: AdditiveBlending, fog: true }), { onBeforeCompile: sparkShader(sparkMinPx), customProgramCacheKey: () => 'fx-spark' }),
     debris: Object.assign(new MeshStandardMaterial({ color: '#ffffff', metalness: .25, roughness: .75, flatShading: true }),
-      { onBeforeCompile: debrisShader, customProgramCacheKey: () => 'fx-debris-heat' }) };
+      { onBeforeCompile: debrisShader, customProgramCacheKey: () => 'fx-debris-heat' }),
+    // Scorch marks: a soft dark disc laid on the surface, alpha-blended and tone-mapped like the ruins, pulled off the face so it never
+    // z-fights the concrete it marks.
+    scorch: Object.assign(new MeshBasicMaterial({ color: '#0d0b0a', map: halo, transparent: true, depthWrite: false, polygonOffset: true,
+      polygonOffsetFactor: -2, polygonOffsetUnits: -2, fog: true }), { onBeforeCompile: flatAlpha, customProgramCacheKey: () => 'fx-scorch' }) };
 }
 let kit: ReturnType<typeof createKit> | null = null, users = 0;
 export const fxKit = () => kit ??= createKit();
@@ -99,7 +73,7 @@ export const fxKit = () => kit ??= createKit();
 export function disposeFx() {
   if (!kit) return;
   kit.halo.dispose(); kit.sparkMap.dispose();
-  for (const m of [kit.spriteAdd, kit.spriteAlpha, kit.tracer, kit.ring, kit.spark, kit.debris] as Material[]) m.dispose();
+  for (const m of [kit.spriteAdd, kit.spriteAlpha, kit.tracer, kit.ring, kit.spark, kit.debris, kit.scorch] as Material[]) m.dispose();
 }
 /** Effect-side reference count: call from useEffect so StrictMode remounts keep the shared materials. */
 export function retainFx() { users++; return () => { if (--users <= 0) { users = 0; disposeFx(); } }; }
@@ -133,6 +107,10 @@ export function debrisPool(n: number) {
   const g = shardGeometry(); dyn(g, 'aHeat', n, 1);
   return pool(withColor(new InstancedMesh(g, fxKit().debris, n)));
 }
+export function scorchPool(n: number) {
+  const g = new PlaneGeometry(1, 1); dyn(g, 'aAlpha', n, 1);
+  return pool(new InstancedMesh(g, fxKit().scorch, n));
+}
 export function sparkPool(n: number) {
   const g = new BufferGeometry(); dyn(g, 'position', n, 3, false); dyn(g, 'color', n, 3, false); g.setDrawRange(0, 0);
   return pool(new Points(g, fxKit().spark));
@@ -144,6 +122,25 @@ export function place(m: InstancedMesh, i: number, x: number, y: number, z: numb
   const e = m.instanceMatrix.array, o = i * 16;
   e[o] = sx; e[o + 1] = e[o + 2] = e[o + 3] = e[o + 4] = 0; e[o + 5] = sy; e[o + 6] = e[o + 7] = e[o + 8] = e[o + 9] = 0;
   e[o + 10] = sz; e[o + 11] = 0; e[o + 12] = x; e[o + 13] = y; e[o + 14] = z; e[o + 15] = 1;
+}
+/** A billboard sprite turned by `angle` (rad, counter-clockwise on screen) with x/y size: the first two columns carry the 2x2 screen transform. */
+export function placeTurned(m: InstancedMesh, i: number, x: number, y: number, z: number, sx: number, sy: number, angle: number) {
+  const e = m.instanceMatrix.array, o = i * 16, c = Math.cos(angle), s = Math.sin(angle);
+  e[o] = c * sx; e[o + 1] = s * sx; e[o + 2] = e[o + 3] = 0; e[o + 4] = -s * sy; e[o + 5] = c * sy; e[o + 6] = e[o + 7] = e[o + 8] = e[o + 9] = 0;
+  e[o + 10] = 1; e[o + 11] = 0; e[o + 12] = x; e[o + 13] = y; e[o + 14] = z; e[o + 15] = 1;
+}
+/** A flat quad of `size` m laid on a surface: its +Z turned onto the unit normal n and lifted `lift` m off the face along it. */
+export function placeOnSurface(m: InstancedMesh, i: number, p: { x: number; y: number; z: number }, n: { x: number; y: number; z: number }, size: number, lift = .02) {
+  const e = m.instanceMatrix.array, o = i * 16;
+  // Tangent: the world axis least aligned with n, projected onto the plane; bitangent: n x tangent.
+  let tx: number, ty: number, tz: number;
+  if (Math.abs(n.y) < .9) { tx = -n.z; ty = 0; tz = n.x; } else { tx = 0; ty = n.z; tz = -n.y; }
+  const l = Math.hypot(tx, ty, tz) || 1; tx /= l; ty /= l; tz /= l;
+  const bx = n.y * tz - n.z * ty, by = n.z * tx - n.x * tz, bz = n.x * ty - n.y * tx;
+  e[o] = tx * size; e[o + 1] = ty * size; e[o + 2] = tz * size; e[o + 3] = 0;
+  e[o + 4] = bx * size; e[o + 5] = by * size; e[o + 6] = bz * size; e[o + 7] = 0;
+  e[o + 8] = n.x; e[o + 9] = n.y; e[o + 10] = n.z; e[o + 11] = 0;
+  e[o + 12] = p.x + n.x * lift; e[o + 13] = p.y + n.y * lift; e[o + 14] = p.z + n.z * lift; e[o + 15] = 1;
 }
 export function tint(m: InstancedMesh, i: number, c: Rgb, k: number) {
   const a = m.instanceColor!.array; a[i * 3] = c.r * k; a[i * 3 + 1] = c.g * k; a[i * 3 + 2] = c.b * k;
