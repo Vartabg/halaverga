@@ -1,5 +1,7 @@
 # Meridian environment · September 22, 2026
 
+This historical record describes the earlier waterfront branch. The current scene and branch reconciliation are documented in [the reconciled version](integration/2026-10-09-reconciled-versions.md) and [the storm integration](art/storm-front/SHOOTING-INTEGRATION.md).
+
 The flooded 2113 district now uses a violet-grey storm ceiling, a muted amber sun and dark teal floodwater. The water samples the same procedural sky as the dome, with quieter irregular ripples, silt along the retaining walls and a restrained skimming wake. Fog, building reflections and directional lighting share the atmosphere palette. Reduced motion stills the sky and water; pausing stops their clocks.
 
 Broken quay rails, leaning street lamps, rust streaks, drowned steps, driftwood, service cabinets, road barriers and an abandoned transit shelter give the waterfront more signs of its former use. A surrounding ridge and weathered hillside blocks extend the distant silhouette. The central skyline has floor bands, exposed roof frames and broken setbacks. New detail is combined into the existing city geometry and five material groups. New traversable-size obstacles have collision shapes; the authored route remains clear. The playable district boundaries are unchanged.
