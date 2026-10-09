@@ -20,10 +20,10 @@ import { CLEAR_PX, claim, haloAlpha, haloClampPx, isShotKind, makePuffs, makeSte
   tracerSpan, tracerWidth, type Ring, type TracerOrigin, type TracerSpan } from './fxPools';
 import { FX, commit, disposePool, drawPuffs, hideSprite, placeTurned, retainFx, setSprite, spritePool, tint, tracerPool } from './fxMaterials';
 const TRACERS = 8, STEAM = 6, TR = 8, GLOW = 0, CORE = 1, HALO = 2, BLOOM = 3, GLINT = 4, SPIKE = 5, CROSS = 6, PUFFS = 7, SPRITES = PUFFS + STEAM;
-/** Per-shot flash: 50 ms (33 ms from a burst's 4th shot), core <= 36 px and .45 m, halo <= 80 px and .9 m, lance 70 x 5 px along the
- * shot and a 28 px cross. Gated bloom: .9 m for 33 ms. Miss glint: 80 ms, >= 6 px. Tracers: 4 px wide (5 px for touch and tap look). */
+/** Per-shot flash: 50 ms (33 ms from a burst's 4th shot), core <= 36 px and .45 m, halo <= 80 px and .9 m, lance 64 x 5 px along the
+ * shot (centred 16 px out, so with the halo the flash spans at most 88 px) and a 28 px cross. Gated bloom: .9 m for 33 ms. Miss glint: 80 ms, >= 6 px. Tracers: 4 px wide (5 px for touch and tap look). */
 const FLASH_T = .05, FLASH_LATE_T = .033, BLOOM_T = .033, GLINT_T = .08, CORE_PX = 36, HALO_PX = 80, GLOW_PX = 40, GLINT_PX = 6;
-const SPIKE_PX = 70, SPIKE_W = 5, CROSS_PX = 28, SPIKE_JITTER = .17, SPIKE_JITTER_LATE = .45, TRACER_PX = 4, TRACER_TOUCH_PX = 5;
+const SPIKE_PX = 64, SPIKE_W = 5, CROSS_PX = 28, SPIKE_JITTER = .17, SPIKE_JITTER_LATE = .45, TRACER_PX = 4, TRACER_TOUCH_PX = 5;
 const copy = (o: Vec3, v: Vec3) => { o.x = v.x; o.y = v.y; o.z = v.z; return o; };
 const ndc = new Vector3(), ndc2 = new Vector3();
 /** The kicked cannon muzzle, else the solved gameplay muzzle, else the fallback (the shot's own origin). */

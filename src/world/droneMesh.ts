@@ -68,7 +68,7 @@ function flashRim(material: MeshStandardMaterial, rim: number) {
       #include <emissivemap_fragment>
       totalEmissiveRadiance += vec3(vFlash) * 1.6 + uRim * pow(1.0 - saturate(dot(normal, normalize(vViewPosition))), 3.0);
       float exposed = smoothstep(0.18, 0.5, vLocal.y) + 0.25 * smoothstep(0.35, 0.0, abs(vLocal.y));
-      totalEmissiveRadiance += uEmber * exposed * vDamage * 1.6;
+      totalEmissiveRadiance += uEmber * exposed * vDamage * 3.0;
     `);
   };
   material.customProgramCacheKey = () => CACHE_KEY;

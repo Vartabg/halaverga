@@ -10,7 +10,7 @@ export type AddDebris = (c: Vec3, speed0: number, speed1: number, up: number, sc
 /** The ash wind (m/s): kill smoke drifts with the falling ash. */
 export const WIND: Vec3 = { x: ASH.wind[0], y: 0, z: ASH.wind[1] };
 /** Lingering smoke: three dark puffs that climb slowly, spread and thin over 2.6 s, so the drone's absence is felt after the fire. */
-export const LINGER = { count: 3, life: 2.6, rise: .55, s0: 1.8, s1: 5.6, alpha: .5, spread: 1.2 } as const;
+export const LINGER = { count: 3, life: 2.6, rise: .55, s0: 1.8, s1: 5.6, alpha: .72, spread: 1.2 } as const;
 /** The shockwave: a ground-plane ring that races out 1.2 -> 7.5 m in .34 s, white-hot to orange, then gone. */
 export const SHOCK = { life: .34, r0: 1.2, r1: 7.5, alpha: .7 } as const;
 /** Fireball lobes: three offset flame puffs thrown out of the core, so the fire is a shape that boils rather than one disc. */
@@ -49,7 +49,8 @@ export function spawnKillBurst(p: BurstPools, addDebris: AddDebris, t: number, c
       v.x = dir.x * 4; v.y = dir.y * 4; v.z = dir.z * 4;
       spawnPuff(p.add, t + .02 * k, at, 0, .45, 1.2 * g, 3 * g, 1, FX.flame, FX.blaze, .8, CURVE_HOLD, v);
     }
-    spawnPuff(p.rings, t, c, 0, SHOCK.life, SHOCK.r0 * g, SHOCK.r1 * g, 1, FX.pop, FX.blaze, SHOCK.alpha, CURVE_HOLD);
+    // The ring is bright: it shares the pop's 3-per-second gate.
+    if (pop) spawnPuff(p.rings, t, c, 0, SHOCK.life, SHOCK.r0 * g, SHOCK.r1 * g, 1, FX.pop, FX.blaze, SHOCK.alpha, CURVE_HOLD);
   }
   for (let k = 0, n = reduced ? 8 : killSparkCount(rng()); k < n; k++) {
     lobeDir(UP, rng(), rng(), dir); sparkParams(rng(), rng(), true, spark); spawnSpark(p.sparks, t, c, dir, spark.speed, spark.life);

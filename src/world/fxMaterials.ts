@@ -12,7 +12,7 @@ export const FX = { core: new Color('#f2feff'), fringe: new Color('#58e1ff'), ho
   pop: new Color('#fff2c0'), flame: new Color('#ffd27a'), blaze: new Color('#ff7a2a'), plume: new Color('#6b5648'), plumeEnd: new Color('#8a8078'),
   // Drone debris tints (dark gunmetal, dim worn panel, scorched red; none near white, so they hold shape on pale sky) and the dark core
   // that lets the flash read over a bright sky.
-  metal: new Color('#454c55'), panel: new Color('#6a727c'), rust: new Color('#7e2d20'), char: new Color('#2b1d17'),
+  metal: new Color('#454c55'), panel: new Color('#585f68'), rust: new Color('#5e2a1e'), char: new Color('#2b1d17'),
   // Lingering kill smoke and the failing drone's trail: darker than the ash overcast, lighter than the ruins (the lit rim in
   // fxShaders.billboardLit does the rest), concrete dust, and the white-hot steel ping.
   ash: new Color('#3b3733'), ashEnd: new Color('#5b5651'), dust: new Color('#6a655c'), dustEnd: new Color('#8a847a'), steelHot: new Color('#fff3d6') };

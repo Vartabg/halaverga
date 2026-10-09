@@ -94,7 +94,8 @@ try {
     // 1. The shot: trigger, then freeze 30 ms later (flash and lance, tracer in flight, cannon kick), within one frame.
     entry.shotMs = await tapThenFreeze(page, 30); await settleFrozen(page, `${out}/${tag}-shot-${v.name}.jpg`);
     // 2. Damage: hits until one drone is down to 2 HP or less (failing: plate gone, glow, smoke, wobble), then freeze 350 ms after the last hit.
-    const lowest = async () => Math.min(...(await hud(page).getAttribute('data-hp')).split(',').map(Number).filter(h => h > 0));
+    // data-hp is new (2026-10-07); on an older build the frame is taken after four hits instead.
+    const lowest = async () => { const hp = await hud(page).getAttribute('data-hp'); return hp ? Math.min(...hp.split(',').map(Number).filter(h => h > 0)) : (await stat(page, 'hits')) >= 4 ? 0 : 6; };
     let kills = await stat(page, 'kills'), last = 0, guard = 0;
     while ((await lowest()) > 2 && (await stat(page, 'kills')) === kills && guard++ < 40) {
       if (!(await acquired(page))) await aimAtDrone(page, 8000);

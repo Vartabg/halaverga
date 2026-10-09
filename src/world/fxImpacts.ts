@@ -66,7 +66,7 @@ export function spawnBreak(p: ImpactPools, t: number, c: Vec3, g: number) {
 /** The drone starting to fail at 2 HP: a crackle of sparks, a gout of dark smoke and a short amber flare. */
 export function spawnFail(p: ImpactPools, t: number, c: Vec3, g: number, rng: () => number, reduced: boolean) {
   burstSparks(p.sparks, t, c, UP, reduced ? 4 : 12, rng);
-  spawnPuff(p.alpha, t, c, 1.2, 1, .5 * g, 1.8 * g, 1, FX.ash, FX.ashEnd, .5, 0, null, WIND);
+  spawnPuff(p.alpha, t, c, 1.2, 1, .5 * g, 1.8 * g, 1, FX.ash, FX.ashEnd, .7, 0, null, WIND);
   spawnPuff(p.add, t, c, 0, .25, .4 * g, .9 * g, 1, FX.amber, FX.blaze, .7, CURVE_HOLD);
 }
 /** Stage of a live drone's damage: 0 whole, 1 broken (plate gone), 2 failing (2 HP or less). */
@@ -80,7 +80,7 @@ export function trailDrone(p: ImpactPools, clock: TrailClock, i: number, stage: 
   if (stage === 0) { clock.smoke[i] = clock.spark[i] = clock.glow[i] = 0; return; }
   const failing = stage === 2;
   if (t >= clock.smoke[i]) {
-    if (failing) spawnPuff(p.alpha, t, at, 1.4, 1.3, .6 * g, 2.2 * g, 1, FX.ash, FX.ashEnd, .55, 0, null, WIND);
+    if (failing) spawnPuff(p.alpha, t, at, 1.4, 1.3, .6 * g, 2.2 * g, 1, FX.ash, FX.ashEnd, .7, 0, null, WIND);
     else spawnPuff(p.alpha, t, at, 1.2, .9, .35 * g, 1.1 * g, 1, FX.ash, FX.ashEnd, .4, 0, null, WIND);
     clock.smoke[i] = t + (failing ? TRAIL.failSmoke : TRAIL.brokenSmoke);
   }
