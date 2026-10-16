@@ -61,5 +61,5 @@ export default function RuinField() {
     return () => { try { world.removeRigidBody(body); } catch { /* world already freed */ } };
   }, [world, rapier, field]);
   useEffect(() => () => { field.geometries.forEach(g => g.dispose()); material.dispose(); }, [field, material]);
-  return <>{field.geometries.map((g, i) => <mesh key={i} geometry={g} material={material} receiveShadow castShadow={false} dispose={null} />)}</>;
+  return <>{field.geometries.map((g, i) => <mesh key={i} geometry={g} material={material} receiveShadow castShadow dispose={null} />)}</>;
 }

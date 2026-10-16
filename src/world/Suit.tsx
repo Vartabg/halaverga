@@ -13,6 +13,9 @@ import { applyFlightClips } from './flightPose';
 import { advanceSuitRoll, createSuitRoll, speedFade } from './suitRoll';
 import { createBlasterFrame, releaseSuitBlaster, stepSuitBlaster } from './suitBlaster';
 export const SUIT_URL = '/models/suit.glb';
+export function clearWorldCache() {
+  useLoader.clear(GLTFLoader, [SUIT_URL, '/models/environment/tree-maple.glb', '/models/environment/tree-birch.glb']);
+}
 const input = { flying: false, landing: false, paused: true, reduced: false, velocity: runtime.velocity, turn: runtime.turn };
 export default function Suit() {
   const motion = useRef({ hero: 1, epoch: -1 }), animation = useRef(createSuitAnimation()), flight = useRef(createFlightMix()), turn = useRef(createSuitRoll());

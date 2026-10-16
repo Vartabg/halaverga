@@ -267,7 +267,7 @@ describe('drone damage and respawn', () => {
   });
   it('fills targets with the knocked centre, eye, liveness and line of sight', () => {
     only(1); viewFrom(1); step(.1); damageDrone(s, sim, 1, false, v(0, 0, -1)); step(1 / 60);
-    expect(buildTargets(s)).toBe(5);
+    expect(buildTargets(s)).toBe(PATROLS.length);
     const t = s.targets[1], f = s.drones;
     expect(t.c).toEqual(v(f.pos[1].x + f.knock[1].x, f.pos[1].y + f.knock[1].y, f.pos[1].z + f.knock[1].z));
     expect(t.alive).toBe(true); expect(t.los).toBe(true); expect(s.targets[0].alive).toBe(false);

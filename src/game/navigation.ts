@@ -24,8 +24,29 @@ export const BUILDING_ROUTE = [
 // player recovers there. Adding a terminal is a content change — Player.tsx
 // reads this table without flight-loop edits.
 export interface Terminal { id: string; position: Vec; radius: number; location: string; record: typeof arrival }
+const openWorldNote = arrival.note;
 export const TERMINALS: Terminal[] = [
   { id: 'municipal-memory-07', position: { x: -7, y: 21, z: 58 }, radius: 5, location: 'Municipal terminal', record: arrival },
+  { id: 'north-core-12', position: { x: 0, y: 12, z: -260 }, radius: 8, location: 'North avenue buoy', record: {
+    id: 'north-core-12', locationId: 'halaverga-north-core-12', title: 'Channel marker twelve', kind: 'Original fiction',
+    place: 'Meridian north canal avenue · North core', date: 'Recovered 2113 · Telemetry dated 2033',
+    body: 'An automated harbour beacon still repeats its last depth reading along the central avenue. When the ash cloud closed over the northern towers, tug crews lashed three barges across the channel to guide evacuees by sonar alone.',
+    note: openWorldNote } },
+  { id: 'west-flats-09', position: { x: -230, y: 18, z: -40 }, radius: 8, location: 'West flats beacon', record: {
+    id: 'west-flats-09', locationId: 'halaverga-west-flats-09', title: 'Substation nine log', kind: 'Original fiction',
+    place: 'Meridian west basin · West flats', date: 'Recovered 2113 · Log dated 2033',
+    body: 'The western switching yard stayed dry for six hours after the seawall failed. Engineers rerouted the last reserve batteries to the hillside lifts before sealing the transformer vaults against the rising chemical tide.',
+    note: openWorldNote } },
+  { id: 'east-flats-14', position: { x: 230, y: 18, z: -30 }, radius: 8, location: 'East flats relay', record: {
+    id: 'east-flats-14', locationId: 'halaverga-east-flats-14', title: 'East ridge weather mast', kind: 'Original fiction',
+    place: 'Meridian east basin · East flats', date: 'Recovered 2113 · Log dated 2033',
+    body: 'Particulate sensors on the eastern industrial flats saturated at 14:20 local time. The observer noted that street lamps had switched to night mode at noon and never turned off again.',
+    note: openWorldNote } },
+  { id: 'south-breach-03', position: { x: 0, y: 10, z: 165 }, radius: 8, location: 'South breach marker', record: {
+    id: 'south-breach-03', locationId: 'halaverga-south-breach-03', title: 'Outer seawall gauge', kind: 'Original fiction',
+    place: 'Meridian outer seawall · South breach', date: 'Recovered 2113 · Gauge dated 2033',
+    body: 'Here the southern surge tore the outer breakwater down to its pilings. Only low concrete stumps remain above the slick water where the harbour gates once stood.',
+    note: openWorldNote } },
 ];
 export function nearestTerminal(position: Vec): Terminal | null {
   for (const terminal of TERMINALS) {
@@ -33,6 +54,14 @@ export function nearestTerminal(position: Vec): Terminal | null {
     if (Math.hypot(position.x - x, position.y - y, position.z - z) < terminal.radius) return terminal;
   }
   return null;
+}
+export function locationName(p: Vec, terminal = nearestTerminal(p)): string {
+  if (terminal) return terminal.location;
+  if (p.z < -208) return 'North core';
+  if (p.z > 128) return 'South breach';
+  if (p.x < -225) return 'West flats';
+  if (p.x > 225) return 'East flats';
+  return p.y > 50 ? 'Upper skyline' : p.y < 6 ? 'Flooded boulevard' : p.z < 15 ? 'Broken viaduct' : 'Arrival terrace';
 }
 export function boundaryDistance(p: Vec) {
   return Math.min(p.x - WORLD.minX, WORLD.maxX - p.x, p.z - WORLD.minZ, WORLD.maxZ - p.z, WORLD.ceiling - p.y);

@@ -1,6 +1,7 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { Euler, Quaternion, Vector3 } from 'three';
 import { makeCity } from '../src/world/cityData';
+import { makeField } from '../src/world/fieldData';
 import { START, WORLD } from '../src/game/motion';
 import { BUILDING_ROUTE } from '../src/game/navigation';
 import { forwardOf, type Vec3 } from '../src/game/combat';
@@ -8,8 +9,9 @@ import { PATROLS, flyInStart, patrolPeakSpeed, patrolPosition } from '../src/gam
 type Box = { c: Vector3; h: Vector3; inv: Quaternion };
 let boxes: Box[];
 beforeAll(() => {
-  const city = makeCity(); city.geometry.dispose();
-  boxes = city.solids.map(s => ({ c: new Vector3(...s.position), h: new Vector3(...s.size),
+  const city = makeCity(), field = makeField();
+  city.geometry.dispose(); field.geometries.forEach(g => g.dispose());
+  boxes = [...city.solids, ...field.solids].map(s => ({ c: new Vector3(...s.position), h: new Vector3(...s.size),
     inv: new Quaternion().setFromEuler(new Euler(...s.rotation)).invert() }));
 });
 const local = new Vector3();
@@ -39,8 +41,10 @@ const coneDeg = (q: Vec3) => {
   return Math.acos((d.x * view.x + d.y * view.y + d.z * view.z) / len) * 180 / Math.PI;
 };
 describe('drone patrol paths', () => {
-  it('keeps the five patrol ids in order, with the tutorial drone first', () => {
-    expect(PATROLS.map(p => p.id)).toEqual(['terrace-greeter', 'terrace-wing', 'canal-mid', 'viaduct-gap', 'tower-orbit']);
+  it('keeps the eight patrol ids in order, with the tutorial drone first', () => {
+    expect(PATROLS.map(p => p.id)).toEqual([
+      'terrace-greeter', 'terrace-wing', 'canal-mid', 'viaduct-gap', 'tower-orbit', 'north-avenue', 'west-basin', 'east-basin',
+    ]);
   });
   it('follows the Lissajous formula', () => {
     const p = PATROLS[2], q = patrolPosition(p, 1.3, { x: 0, y: 0, z: 0 }), a = p.omega * 1.3 + p.phase;

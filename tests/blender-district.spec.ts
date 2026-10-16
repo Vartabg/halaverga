@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import { openSettings, closeAndResume } from './lab-browser';
 
-test('the storm district and default arm cannon load together and shooting works', async ({ page }) => {
+test('the ruined district and default arm cannon load together and shooting works', async ({ page }) => {
   const loaded = new Set<string>();
   page.on('response', r => { if (r.ok() && r.url().endsWith('.glb')) loaded.add(new URL(r.url()).pathname); });
   await page.goto('/');
@@ -12,23 +12,20 @@ test('the storm district and default arm cannon load together and shooting works
   await page.keyboard.down('KeyC');
   await expect.poll(async () => Number(await hud.getAttribute('data-shots'))).toBeGreaterThan(2);
   await page.keyboard.up('KeyC');
-  expect(loaded.has('/models/environment/meridian-district.glb')).toBe(true);
+  expect(loaded.has('/models/suit.glb')).toBe(true);
   expect(loaded.has('/models/arm-cannon.glb')).toBe(true);
+  expect(loaded.has('/models/environment/meridian-district.glb')).toBe(false);
 });
 
-test('district download failure recovers through Reload scene', async ({ page }) => {
-  let fail = true;
-  await page.route('**/models/environment/meridian-district.glb', route => fail ? route.abort() : route.continue());
+test('optional environment asset download failure is isolated so flight continues', async ({ page }) => {
+  await page.route('**/models/environment/tree-maple.glb', route => route.abort());
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: 'The world needs a moment.' })).toBeVisible();
-  fail = false;
-  await page.getByRole('button', { name: 'Reload scene' }).click();
   await page.getByRole('button', { name: 'Begin expedition' }).click();
   await page.keyboard.press('Space');
   await expect(page.getByTestId('flight-telemetry')).toHaveAttribute('data-flying', 'true');
 });
 
-test('reflection resources settle after repeated high/low quality switches', async ({ page }) => {
+test('scene resources settle after repeated high/low quality switches', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));
   page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
@@ -50,6 +47,6 @@ test('reflection resources settle after repeated high/low quality switches', asy
   }
   expect(resources[4]).toEqual(resources[2]);
   expect(resources[3]).toEqual(resources[1]);
-  expect(resources[4].textures).toBeGreaterThan(resources[3].textures);
+  expect(resources[4].geometries).toBe(resources[3].geometries);
   expect(errors).toEqual([]);
 });

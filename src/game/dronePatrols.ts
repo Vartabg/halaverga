@@ -14,6 +14,10 @@ export const PATROLS: readonly Patrol[] = [
   { id: 'viaduct-gap', c: { x: 0, y: 21, z: -1 }, r: { x: 3, y: 1, z: 2.5 }, omega: .75, phase: .6 },
   // c.y 70 -> 75: the route's ascent -> roof leg runs at y 69 through the ring (1 m at y 70); now 12.7-14.7 m above the roof.
   { id: 'tower-orbit', c: { x: 36, y: 75, z: -38 }, r: { x: 18, y: 1, z: 18 }, omega: .18, phase: 2.2 },
+  // Open-world patrols (utilising MAX_DRONES = 8): the north canal avenue and the west/east basins outside the central ridges.
+  { id: 'north-avenue', c: { x: 0, y: 38, z: -280 }, r: { x: 14, y: 1.5, z: 18 }, omega: .24, phase: .9 },
+  { id: 'west-basin', c: { x: -220, y: 48, z: -40 }, r: { x: 8, y: 1.4, z: 16 }, omega: .26, phase: 2.6 },
+  { id: 'east-basin', c: { x: 220, y: 48, z: -30 }, r: { x: 8, y: 1.4, z: 16 }, omega: .25, phase: 4.1 },
 ];
 export function patrolPosition(p: Patrol, t: number, out: Vec3): Vec3 {
   const a = p.omega * t + p.phase;
