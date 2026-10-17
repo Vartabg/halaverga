@@ -93,8 +93,8 @@ describe('far ruins generator', () => {
   });
   it('knows the sea\'s colour on screen: the tower feet mist toward it, and ACES twins three\'s curve', () => {
     const enc = (x: number) => Math.round(255 * (x <= .0031308 ? 12.92 * x : 1.055 * x ** (1 / 2.4) - .055));
-    const [r, g, b] = SEA_BODY.map(enc); // the poisoned sea at near-normal incidence: #1e2318, an oily dark olive
-    expect(Math.abs(r - 30)).toBeLessThanOrEqual(3); expect(Math.abs(g - 35)).toBeLessThanOrEqual(3); expect(Math.abs(b - 24)).toBeLessThanOrEqual(3);
+    const [r, g, b] = SEA_BODY.map(enc); // the abyssal sea at near-normal incidence: #251412, dark obsidian-wine
+    expect(Math.abs(r - 37)).toBeLessThanOrEqual(3); expect(Math.abs(g - 20)).toBeLessThanOrEqual(3); expect(Math.abs(b - 18)).toBeLessThanOrEqual(3);
     const grey = (x: number): Rgb => [x, x, x];
     let last = -1; for (const x of [.01, .05, .18, .5, 1, 4]) { const v = acesFilmic(grey(x))[1]; expect(v).toBeGreaterThan(last); last = v; }
     expect(acesFilmic(grey(100))[0]).toBeGreaterThan(.97); expect(acesFilmic(grey(0))[0]).toBeLessThan(.001);

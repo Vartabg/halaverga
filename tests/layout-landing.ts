@@ -19,7 +19,7 @@ export async function landingProblems(page: Page, v: View): Promise<string[]> {
     };
     const ps = [...document.querySelectorAll('p')], bs = [...document.querySelectorAll('button')];
     const things: Record<string, Element | null | undefined> = {
-      title: document.querySelector('h1:not(.sr-only)'), eyebrow: ps.find(x => /EXPEDITION 001/.test(x.textContent ?? '')), copy: ps.find(x => /Eighty years/.test(x.textContent ?? '')),
+      title: document.querySelector('h1:not(.sr-only)'), eyebrow: ps.find(x => /COVENANT 001|EXPEDITION 001/.test(x.textContent ?? '')), copy: ps.find(x => /Two hundred Watchers|Eighty years/.test(x.textContent ?? '')),
       begin: bs.find(x => /Begin expedition|Preparing/.test(x.textContent ?? '')), hint: document.querySelector('section p[role=status]'), note: document.querySelector('[data-testid=demo-note]'),
       brand: document.querySelector('header [class*=brand]'), guide: bs.find(x => /Field guide/.test(x.textContent ?? '')),
       footerLeft: document.querySelector('footer > span:first-child'), footerRight: document.querySelector('footer > span:last-child'),

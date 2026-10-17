@@ -3,9 +3,9 @@ import { AdditiveBlending, BoxGeometry, BufferGeometry, Color, DataTexture, Icos
   type WebGLProgramParametersWithUniforms } from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
-export const DRONE_COLORS = { body: '#3a4048', plate: '#4a525c', eyeIdle: '#ffb347', eyeAlert: '#ff5a36', telegraph: '#ffffff', rim: '#ffb347', flash: '#ffffff' } as const;
-/** Arm tip radius and height: the rotors sit on the shell rim (outer edge .62 + .31 = .93 m) so the arms and rings read outside the hull. */
-const ARM_R = .62, ARM_Y = .05;
+export const DRONE_COLORS = { body: '#1f1618', plate: '#8c6232', eyeIdle: '#ffaa2b', eyeAlert: '#ff2418', telegraph: '#fff7de', rim: '#ff8822', flash: '#ffffff' } as const;
+/** Ophanim wheel radius and crown offset: crossed seraphic wheels and horns sit inside the .95 m hit sphere. */
+const ARM_R = .58, ARM_Y = .04;
 
 function merge(parts: BufferGeometry[]) {
   const flat = parts.map(g => g.index ? g.toNonIndexed() : g), out = mergeGeometries(flat);
@@ -13,13 +13,14 @@ function merge(parts: BufferGeometry[]) {
   if (!out) throw new Error('drone geometry merge failed');
   return out;
 }
-/** Original low-poly drone, facing -Z. The eye is a separate unit sphere instance placed at eyeCenter(). */
+/** Fallen Watcher / Corrupted Ophanim, facing -Z: dark obsidian core, crossed burning brass wheels, and all-seeing eye at eyeCenter(). */
 export function buildDroneGeometry() {
-  const parts: BufferGeometry[] = [new IcosahedronGeometry(.55, 1)];
-  for (const deg of [45, 135]) parts.push(new BoxGeometry(ARM_R * 2, .08, .12).rotateY(deg * Math.PI / 180).translate(0, ARM_Y, 0));
+  const parts: BufferGeometry[] = [new IcosahedronGeometry(.54, 1)];
+  for (const deg of [45, 135]) parts.push(new BoxGeometry(ARM_R * 2.15, .09, .14).rotateZ(.32).rotateY(deg * Math.PI / 180).translate(0, ARM_Y, 0));
+  const tilts: [number, number][] = [[.62, .25], [-.62, -.25], [.28, -.68], [-.28, .68]];
   for (let k = 0; k < 4; k++) {
-    const a = Math.PI / 4 + k * Math.PI / 2;
-    parts.push(new TorusGeometry(.28, .03, 6, 16).rotateX(Math.PI / 2).translate(Math.cos(a) * ARM_R, ARM_Y, Math.sin(a) * ARM_R));
+    const [rx, rz] = tilts[k], a = Math.PI / 4 + k * Math.PI / 2;
+    parts.push(new TorusGeometry(.54, .038, 6, 16).rotateX(rx).rotateZ(rz).translate(Math.cos(a) * .28, ARM_Y, Math.sin(a) * .28));
   }
   parts.push(new SphereGeometry(.62, 12, 6, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2));
   return {

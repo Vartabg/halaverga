@@ -7,22 +7,22 @@ type Props = { started: boolean; failed: boolean; ready: boolean; zoomNote: bool
 
 /** The brand mark and wordmark in the top row (landing and the failed world only). */
 export function Brand() {
-  return <div className={styles.brand}><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M5 26V6h5v8h12V6h5v20h-5v-8H10v8Z" fill="currentColor" /></svg><span>HALAVERGA<small>RETURN TO EARTH</small></span></div>;
+  return <div className={styles.brand}><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M5 26V6h5v8h12V6h5v20h-5v-8H10v8Z" fill="currentColor" /></svg><span>HALAVERGA<small>BOOK OF ENOCH</small></span></div>;
 }
 
 export default function Landing({ started, failed, ready, zoomNote, note, onEnter, onRetry, children }: Props) {
   const off = started || failed;
   return <>
     {/* The title and the start card are one bottom-anchored column (Experience.module.css .hero): a taller card pushes the title up, never into it. */}
-    <div className={off ? styles.heroOff : styles.hero}><h1 className={off ? 'sr-only' : styles.heroTitle}>Earth,<br /><em>after us.</em></h1>
+    <div className={off ? styles.heroOff : styles.hero}><h1 className={off ? 'sr-only' : styles.heroTitle}>Watchers,<br /><em>cast down.</em></h1>
       {failed && <div className={styles.recovery} role="alert"><h2>The world needs a moment.</h2><p>Your field guide remains available. Reload the scene to continue from your saved landing.</p>{note && <p>{note}</p>}<button className={styles.primary} onClick={onRetry}>Reload scene</button></div>}
       {!off && <section className={styles.intro} aria-label="Begin expedition">
-        <p className={styles.eyebrow}><span className={styles.statusDot} /> EXPEDITION 001 <span>/</span> MERIDIAN</p>
-        <p className={styles.introCopy}>Eighty years of silence.<br />An entire world still waiting to be understood.</p>
+        <p className={styles.eyebrow}><span className={styles.statusDot} /> COVENANT 001 <span>/</span> DUDAEL</p>
+        <p className={styles.introCopy}>Two hundred Watchers broke the seal.<br />Descend on six wings and purge the chasm.</p>
         <button className={styles.primary} disabled={!ready} onClick={onEnter}>{ready ? 'Begin expedition' : 'Preparing your suit…'}<span aria-hidden="true">↗</span></button>
         <p className={styles.introHint} role="status">{note || (zoomNote ? 'Pinch out to normal size, then tap Begin.' : ready ? 'Explore freely. Leave whenever you like.' : 'Building the district and collision map.')}</p>
         {children}
       </section>}</div>
-    {!started && <footer className={styles.introFooter}><span>2033 <small>CATASTROPHE</small><b>—</b> 2113 <small>ARRIVAL</small></span><span>INTERACTIVE FLIGHT STUDY <i>01</i></span></footer>}
+    {!started && <footer className={styles.introFooter}><span>1 ENOCH <small>THE WATCHERS</small><b>—</b> DUDAEL <small>THE ABYSS</small></span><span>CELESTIAL FLIGHT STUDY <i>01</i></span></footer>}
   </>;
 }

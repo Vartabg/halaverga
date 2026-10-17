@@ -26,26 +26,26 @@ export const BUILDING_ROUTE = [
 export interface Terminal { id: string; position: Vec; radius: number; location: string; record: typeof arrival }
 const openWorldNote = arrival.note;
 export const TERMINALS: Terminal[] = [
-  { id: 'municipal-memory-07', position: { x: -7, y: 21, z: 58 }, radius: 5, location: 'Municipal terminal', record: arrival },
-  { id: 'north-core-12', position: { x: 0, y: 12, z: -260 }, radius: 8, location: 'North avenue buoy', record: {
-    id: 'north-core-12', locationId: 'halaverga-north-core-12', title: 'Channel marker twelve', kind: 'Original fiction',
-    place: 'Meridian north canal avenue · North core', date: 'Recovered 2113 · Telemetry dated 2033',
-    body: 'An automated harbour beacon still repeats its last depth reading along the central avenue. When the ash cloud closed over the northern towers, tug crews lashed three barges across the channel to guide evacuees by sonar alone.',
+  { id: 'municipal-memory-07', position: { x: -7, y: 21, z: 58 }, radius: 5, location: 'Tablet of Semjaza', record: arrival },
+  { id: 'north-core-12', position: { x: 0, y: 12, z: -260 }, radius: 8, location: 'Tablet of the Seven Stars', record: {
+    id: 'north-core-12', locationId: 'halaverga-north-core-12', title: 'The Prison of the Burning Stars', kind: 'Original fiction',
+    place: 'Northern Abyss · Prison of the Seven Stars', date: 'Vision of Uriel · 1 Enoch 21',
+    body: 'Beyond the great chasm stand seven stars like great burning mountains, bound together in a place that has neither firmament above nor founded earth beneath. Uriel spoke: This is the prison of the angels and the stars that transgressed the command of the Most High, kept here until ten thousand years are fulfilled.',
     note: openWorldNote } },
-  { id: 'west-flats-09', position: { x: -230, y: 18, z: -40 }, radius: 8, location: 'West flats beacon', record: {
-    id: 'west-flats-09', locationId: 'halaverga-west-flats-09', title: 'Substation nine log', kind: 'Original fiction',
-    place: 'Meridian west basin · West flats', date: 'Recovered 2113 · Log dated 2033',
-    body: 'The western switching yard stayed dry for six hours after the seawall failed. Engineers rerouted the last reserve batteries to the hillside lifts before sealing the transformer vaults against the rising chemical tide.',
+  { id: 'west-flats-09', position: { x: -230, y: 18, z: -40 }, radius: 8, location: 'Tablet of Azazel', record: {
+    id: 'west-flats-09', locationId: 'halaverga-west-flats-09', title: 'The Binding in Dudael', kind: 'Original fiction',
+    place: 'Western Cleft · Chasm of Dudael', date: 'Decree of Raphael · 1 Enoch 10',
+    body: 'Bind Azazel hand and foot and cast him into the darkness: make an opening in the desert which is in Dudael, and lay beneath him sharp and jagged stones of obsidian, and cover him with darkness so that he may see light no more until the great day of judgment in the fire.',
     note: openWorldNote } },
-  { id: 'east-flats-14', position: { x: 230, y: 18, z: -30 }, radius: 8, location: 'East flats relay', record: {
-    id: 'east-flats-14', locationId: 'halaverga-east-flats-14', title: 'East ridge weather mast', kind: 'Original fiction',
-    place: 'Meridian east basin · East flats', date: 'Recovered 2113 · Log dated 2033',
-    body: 'Particulate sensors on the eastern industrial flats saturated at 14:20 local time. The observer noted that street lamps had switched to night mode at noon and never turned off again.',
+  { id: 'east-flats-14', position: { x: 230, y: 18, z: -30 }, radius: 8, location: 'Tablet of Kokabiel', record: {
+    id: 'east-flats-14', locationId: 'halaverga-east-flats-14', title: 'Secrets of the Firmament', kind: 'Original fiction',
+    place: 'Eastern Monoliths · Mount of Simeon', date: 'Charge of the Grigori · 1 Enoch 8',
+    body: 'Here Baraqijal taught the divination of lightning, Kokabiel the courses of the constellations, Chazaqiel the signs of the clouds, and Shamsiel the portents of the sun. Their corrupted Ophanim wheels still circle the bronze pillars, guarding the forbidden signs carved in the stone.',
     note: openWorldNote } },
-  { id: 'south-breach-03', position: { x: 0, y: 10, z: 165 }, radius: 8, location: 'South breach marker', record: {
-    id: 'south-breach-03', locationId: 'halaverga-south-breach-03', title: 'Outer seawall gauge', kind: 'Original fiction',
-    place: 'Meridian outer seawall · South breach', date: 'Recovered 2113 · Gauge dated 2033',
-    body: 'Here the southern surge tore the outer breakwater down to its pilings. Only low concrete stumps remain above the slick water where the harbour gates once stood.',
+  { id: 'south-breach-03', position: { x: 0, y: 10, z: 165 }, radius: 8, location: 'Tablet of Michael', record: {
+    id: 'south-breach-03', locationId: 'halaverga-south-breach-03', title: 'Commission of the Archangels', kind: 'Original fiction',
+    place: 'Southern Abyss · Gate of Gehenna', date: 'Mandate of the Four · 1 Enoch 9',
+    body: 'Michael, Uriel, Raphael, and Gabriel looked down from the sanctuary of heaven upon the blood shed on the earth and the lawlessness wrought by the Watchers. Sent forth with lances of sunfire, they descended into the chasm to destroy the corrupted host and cleanse the sanctuary.',
     note: openWorldNote } },
 ];
 export function nearestTerminal(position: Vec): Terminal | null {
@@ -57,11 +57,11 @@ export function nearestTerminal(position: Vec): Terminal | null {
 }
 export function locationName(p: Vec, terminal = nearestTerminal(p)): string {
   if (terminal) return terminal.location;
-  if (p.z < -208) return 'North core';
-  if (p.z > 128) return 'South breach';
-  if (p.x < -225) return 'West flats';
-  if (p.x > 225) return 'East flats';
-  return p.y > 50 ? 'Upper skyline' : p.y < 6 ? 'Flooded boulevard' : p.z < 15 ? 'Broken viaduct' : 'Arrival terrace';
+  if (p.z < -208) return 'Prison of the Seven Stars';
+  if (p.z > 128) return 'Gate of Gehenna';
+  if (p.x < -225) return 'Chasm of Dudael';
+  if (p.x > 225) return 'Mount of Simeon';
+  return p.y > 50 ? 'Sanctuary of the Throne' : p.y < 6 ? 'River of Fire' : p.z < 15 ? 'Bridge of the Abyss' : 'Threshold of Hermon';
 }
 export function boundaryDistance(p: Vec) {
   return Math.min(p.x - WORLD.minX, WORLD.maxX - p.x, p.z - WORLD.minZ, WORLD.maxZ - p.z, WORLD.ceiling - p.y);

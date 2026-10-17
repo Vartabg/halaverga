@@ -33,9 +33,11 @@ uniform vec3 uColor;
 varying float vFade;
 void main() {
   vec2 c = gl_PointCoord - .5;
-  float a = (1. - smoothstep(.2, .5, length(c))) * vFade * ${ASH.alpha.toFixed(2)};
+  float r = length(c);
+  float a = (1. - smoothstep(.16, .5, r)) * vFade * ${ASH.alpha.toFixed(2)};
   if (a < .01) discard;
-  gl_FragColor = vec4(uColor, a);
+  vec3 ember = mix(uColor * vec3(1.05, .72, .38), vec3(1., .95, .76), 1. - smoothstep(0., .24, r));
+  gl_FragColor = vec4(ember, a);
   #include <colorspace_fragment>
 }`;
 

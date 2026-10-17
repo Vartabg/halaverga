@@ -36,6 +36,6 @@ test('portrait/landscape resize retains position and text route works', async ({
   expect(Math.hypot(...after.map((v: number, i: number) => v - before[i]))).toBeLessThan(.4);
   await openGuide(page);
   await page.getByRole('button', { name: 'Recover municipal record' }).click();
-  await expect(page.getByText('The last ordinary morning', { exact: true })).toBeVisible();
+  await expect(page.getByText('The Oath upon Mount Hermon', { exact: true })).toBeVisible();
   await expect(page.getByText('Original fiction', { exact: true })).toBeVisible();
 });

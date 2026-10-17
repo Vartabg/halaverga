@@ -2,10 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { locationName, nearestTerminal, TERMINALS } from '../src/game/navigation';
 import arrival from '../src/content/arrival.json';
 describe('terminal table', () => {
-  it('keeps the municipal terminal discoverable at its authored spot', () => {
+  it('keeps the primary Watcher tablet discoverable at its authored spot', () => {
     const terminal = nearestTerminal({ x: -7, y: 21, z: 58 });
     expect(terminal?.id).toBe('municipal-memory-07');
-    expect(terminal?.location).toBe('Municipal terminal');
+    expect(terminal?.location).toBe('Tablet of Semjaza');
     expect(terminal?.record).toBe(arrival);
   });
   it('preserves the previous five-metre proximity boundary', () => {
@@ -25,14 +25,14 @@ describe('terminal table', () => {
       expect(terminal.record.body.length).toBeGreaterThan(0);
     }
   });
-  it('names both central district zones and outer open-world districts accurately', () => {
-    expect(locationName({ x: 0, y: 21, z: 65 })).toBe('Arrival terrace');
-    expect(locationName({ x: 0, y: 4, z: 22 })).toBe('Flooded boulevard');
-    expect(locationName({ x: 0, y: 21, z: 0 })).toBe('Broken viaduct');
-    expect(locationName({ x: 30, y: 69, z: -38 })).toBe('Upper skyline');
-    expect(locationName({ x: 0, y: 30, z: -280 })).toBe('North core');
-    expect(locationName({ x: -300, y: 30, z: -40 })).toBe('West flats');
-    expect(locationName({ x: 300, y: 30, z: -40 })).toBe('East flats');
-    expect(locationName({ x: 0, y: 20, z: 180 })).toBe('South breach');
+  it('names both central district zones and outer open-world regions after the Book of Enoch', () => {
+    expect(locationName({ x: 0, y: 21, z: 65 })).toBe('Threshold of Hermon');
+    expect(locationName({ x: 0, y: 4, z: 22 })).toBe('River of Fire');
+    expect(locationName({ x: 0, y: 21, z: 0 })).toBe('Bridge of the Abyss');
+    expect(locationName({ x: 30, y: 69, z: -38 })).toBe('Sanctuary of the Throne');
+    expect(locationName({ x: 0, y: 30, z: -280 })).toBe('Prison of the Seven Stars');
+    expect(locationName({ x: -300, y: 30, z: -40 })).toBe('Chasm of Dudael');
+    expect(locationName({ x: 300, y: 30, z: -40 })).toBe('Mount of Simeon');
+    expect(locationName({ x: 0, y: 20, z: 180 })).toBe('Gate of Gehenna');
   });
 });
