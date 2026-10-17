@@ -13,9 +13,12 @@ import { applyFlightClips } from './flightPose';
 import { advanceSuitRoll, createSuitRoll, speedFade } from './suitRoll';
 import { createBlasterFrame, releaseSuitBlaster, stepSuitBlaster } from './suitBlaster';
 import { createArchangelWings, stepArchangelWings } from './archangelWings';
+import { TREE_URL } from './Reclamation';
 export const SUIT_URL = '/models/suit.glb';
+/** Reload scene: forget every model the world loads, so a failed download is fetched again instead of replaying the cached error.
+ * One call per file: useLoader.clear with an array clears only the cache entry for that whole array, which nothing loads. */
 export function clearWorldCache() {
-  useLoader.clear(GLTFLoader, [SUIT_URL, '/models/environment/tree-maple.glb', '/models/environment/tree-birch.glb']);
+  for (const url of [SUIT_URL, TREE_URL]) useLoader.clear(GLTFLoader, url);
 }
 const input = { flying: false, landing: false, paused: true, reduced: false, velocity: runtime.velocity, turn: runtime.turn };
 export default function Suit() {

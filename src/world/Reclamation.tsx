@@ -5,8 +5,10 @@ import { Color, Euler, InstancedMesh, Matrix4, Mesh, MeshStandardMaterial, Quate
 import { makeUnderstory, trees, type Plant } from './reclamationData';
 import IvyCards from './IvyCards';
 
-function Grove({ asset, plants }: { asset: string; plants: Plant[] }) {
-  const gltf = useLoader(GLTFLoader, `/models/environment/${asset}.glb`);
+/** The one tree model: Experience's Reload scene clears it from the loader cache (Suit.clearWorldCache). */
+export const TREE_URL = '/models/environment/island_tree_01.glb';
+function Grove({ url, plants }: { url: string; plants: Plant[] }) {
+  const gltf = useLoader(GLTFLoader, url);
   const meshes = useMemo(() => {
     const result: InstancedMesh[] = [];
     gltf.scene.updateMatrixWorld(true);
@@ -40,5 +42,5 @@ function Grove({ asset, plants }: { asset: string; plants: Plant[] }) {
 }
 export default function Reclamation() {
   const understory = useMemo(makeUnderstory, []);
-  return <><Grove asset="island_tree_01" plants={trees} /><IvyCards plants={understory} /></>;
+  return <><Grove url={TREE_URL} plants={trees} /><IvyCards plants={understory} /></>;
 }

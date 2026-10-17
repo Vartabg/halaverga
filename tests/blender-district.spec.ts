@@ -17,13 +17,22 @@ test('the ruined district and default arm cannon load together and shooting work
   expect(loaded.has('/models/environment/meridian-district.glb')).toBe(false);
 });
 
-test('optional environment asset download failure is isolated so flight continues', async ({ page }) => {
-  await page.route('**/models/environment/tree-maple.glb', route => route.abort());
-  await page.goto('/');
-  await page.getByRole('button', { name: 'Begin expedition' }).click();
-  await page.keyboard.press('Space');
-  await expect(page.getByTestId('flight-telemetry')).toHaveAttribute('data-flying', 'true');
-});
+// Each world model, blocked once: the scene fails, Reload scene fetches it again (not the cached error) and flight works.
+for (const model of ['/models/environment/island_tree_01.glb', '/models/suit.glb']) {
+  test(`${model} download failure recovers through Reload scene`, async ({ page }) => {
+    let fail = true, requests = 0;
+    await page.route(`**${model}`, route => { requests++; return fail ? route.abort() : route.continue(); });
+    await page.goto('/');
+    await expect(page.getByRole('heading', { name: 'The world needs a moment.' })).toBeVisible();
+    expect(requests).toBe(1);
+    fail = false;
+    await page.getByRole('button', { name: 'Reload scene' }).click();
+    await page.getByRole('button', { name: 'Begin expedition' }).click();
+    await page.keyboard.press('Space');
+    await expect(page.getByTestId('flight-telemetry')).toHaveAttribute('data-flying', 'true');
+    expect(requests).toBe(2);
+  });
+}
 
 test('scene resources settle after repeated high/low quality switches', async ({ page }) => {
   const errors: string[] = [];
