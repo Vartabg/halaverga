@@ -37,5 +37,5 @@ test('portrait/landscape resize retains position and text route works', async ({
   await openGuide(page);
   await page.getByRole('button', { name: 'Recover municipal record' }).click();
   await expect(page.getByText('The Oath upon Mount Hermon', { exact: true })).toBeVisible();
-  await expect(page.getByText('Original fiction', { exact: true })).toBeVisible();
+  await expect(page.getByText('Quoted source · 1 Enoch 6:6', { exact: true })).toBeVisible();
 });

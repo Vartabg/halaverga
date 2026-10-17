@@ -24,29 +24,30 @@ export const BUILDING_ROUTE = [
 // player recovers there. Adding a terminal is a content change — Player.tsx
 // reads this table without flight-loop edits.
 export interface Terminal { id: string; position: Vec; radius: number; location: string; record: typeof arrival }
-const openWorldNote = arrival.note;
+// Every record body is a verbatim 1 Enoch quotation (kind names the verses); the shared note marks everything around it as game fiction.
+const sourceNote = arrival.note;
 export const TERMINALS: Terminal[] = [
   { id: 'municipal-memory-07', position: { x: -7, y: 21, z: 58 }, radius: 5, location: 'Tablet of Semjaza', record: arrival },
   { id: 'north-core-12', position: { x: 0, y: 12, z: -260 }, radius: 8, location: 'Tablet of the Seven Stars', record: {
-    id: 'north-core-12', locationId: 'halaverga-north-core-12', title: 'The Prison of the Burning Stars', kind: 'Original fiction',
-    place: 'Northern Abyss · Prison of the Seven Stars', date: 'Vision of Uriel · 1 Enoch 21',
-    body: 'Beyond the great chasm stand seven stars like great burning mountains, bound together in a place that has neither firmament above nor founded earth beneath. Uriel spoke: This is the prison of the angels and the stars that transgressed the command of the Most High, kept here until ten thousand years are fulfilled.',
-    note: openWorldNote } },
+    id: 'north-core-12', locationId: 'halaverga-north-core-12', title: 'The Prison of the Burning Stars', kind: 'Quoted source · 1 Enoch 21:3, 6',
+    place: 'Northern Abyss · Prison of the Seven Stars', date: '1 Enoch 21:3, 6',
+    body: "And there I saw seven stars of the heaven bound together in it, like great mountains and burning with fire. … ‘These are of the number of the stars of heaven, which have transgressed the commandment of the Lord, and are bound here till ten thousand years, the time entailed by their sins, are consummated.’",
+    note: sourceNote } },
   { id: 'west-flats-09', position: { x: -230, y: 18, z: -40 }, radius: 8, location: 'Tablet of Azazel', record: {
-    id: 'west-flats-09', locationId: 'halaverga-west-flats-09', title: 'The Binding in Dudael', kind: 'Original fiction',
-    place: 'Western Cleft · Chasm of Dudael', date: 'Decree of Raphael · 1 Enoch 10',
-    body: 'Bind Azazel hand and foot and cast him into the darkness: make an opening in the desert which is in Dudael, and lay beneath him sharp and jagged stones of obsidian, and cover him with darkness so that he may see light no more until the great day of judgment in the fire.',
-    note: openWorldNote } },
+    id: 'west-flats-09', locationId: 'halaverga-west-flats-09', title: 'The Binding in Dudael', kind: 'Quoted source · 1 Enoch 10:4–5',
+    place: 'Western Cleft · Chasm of Dudael', date: '1 Enoch 10:4–5',
+    body: "And again the Lord said to Raphael: ‘Bind Azâzêl hand and foot, and cast him into the darkness: and make an opening in the desert, which is in Dûdâêl, and cast him therein. And place upon him rough and jagged rocks, and cover him with darkness, and let him abide there for ever, and cover his face that he may not see light.’",
+    note: sourceNote } },
   { id: 'east-flats-14', position: { x: 230, y: 18, z: -30 }, radius: 8, location: 'Tablet of Kokabiel', record: {
-    id: 'east-flats-14', locationId: 'halaverga-east-flats-14', title: 'Secrets of the Firmament', kind: 'Original fiction',
-    place: 'Eastern Monoliths · Mount of Simeon', date: 'Charge of the Grigori · 1 Enoch 8',
-    body: 'Here Baraqijal taught the divination of lightning, Kokabiel the courses of the constellations, Chazaqiel the signs of the clouds, and Shamsiel the portents of the sun. Their corrupted Ophanim wheels still circle the bronze pillars, guarding the forbidden signs carved in the stone.',
-    note: openWorldNote } },
+    id: 'east-flats-14', locationId: 'halaverga-east-flats-14', title: 'Secrets of the Firmament', kind: 'Quoted source · 1 Enoch 8:3',
+    place: 'Eastern Monoliths · Mount of Simeon', date: '1 Enoch 8:3',
+    body: "Semjâzâ taught enchantments, and root-cuttings, Armârôs the resolving of enchantments, Barâqîjâl (taught) astrology, Kôkabêl the constellations, Êzêqêêl the knowledge of the clouds, Araqiêl the signs of the earth, Shamsiêl the signs of the sun, and Sariêl the course of the moon.",
+    note: sourceNote } },
   { id: 'south-breach-03', position: { x: 0, y: 10, z: 165 }, radius: 8, location: 'Tablet of Michael', record: {
-    id: 'south-breach-03', locationId: 'halaverga-south-breach-03', title: 'Commission of the Archangels', kind: 'Original fiction',
-    place: 'Southern Abyss · Gate of Gehenna', date: 'Mandate of the Four · 1 Enoch 9',
-    body: 'Michael, Uriel, Raphael, and Gabriel looked down from the sanctuary of heaven upon the blood shed on the earth and the lawlessness wrought by the Watchers. Sent forth with lances of sunfire, they descended into the chasm to destroy the corrupted host and cleanse the sanctuary.',
-    note: openWorldNote } },
+    id: 'south-breach-03', locationId: 'halaverga-south-breach-03', title: 'The Four Looked Down', kind: 'Quoted source · 1 Enoch 9:1',
+    place: 'Southern Abyss · Gate of Gehenna', date: '1 Enoch 9:1',
+    body: "And then Michael, Uriel, Raphael, and Gabriel looked down from heaven and saw much blood being shed upon the earth, and all lawlessness being wrought upon the earth.",
+    note: sourceNote } },
 ];
 export function nearestTerminal(position: Vec): Terminal | null {
   for (const terminal of TERMINALS) {

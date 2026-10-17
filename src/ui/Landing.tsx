@@ -18,7 +18,7 @@ export default function Landing({ started, failed, ready, zoomNote, note, onEnte
       {failed && <div className={styles.recovery} role="alert"><h2>The world needs a moment.</h2><p>Your field guide remains available. Reload the scene to continue from your saved landing.</p>{note && <p>{note}</p>}<button className={styles.primary} onClick={onRetry}>Reload scene</button></div>}
       {!off && <section className={styles.intro} aria-label="Begin expedition">
         <p className={styles.eyebrow}><span className={styles.statusDot} /> COVENANT 001 <span>/</span> DUDAEL</p>
-        <p className={styles.introCopy}>Two hundred Watchers broke the seal.<br />Descend on six wings and purge the chasm.</p>
+        <p className={styles.introCopy}>Two hundred Watchers swore an oath on Hermon.<br />Descend on wings and purge the chasm.</p>
         <button className={styles.primary} disabled={!ready} onClick={onEnter}>{ready ? 'Begin expedition' : 'Preparing your suit…'}<span aria-hidden="true">↗</span></button>
         <p className={styles.introHint} role="status">{note || (zoomNote ? 'Pinch out to normal size, then tap Begin.' : ready ? 'Explore freely. Leave whenever you like.' : 'Building the district and collision map.')}</p>
         {children}

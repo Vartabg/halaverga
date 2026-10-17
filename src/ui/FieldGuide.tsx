@@ -8,8 +8,8 @@ import { BUILD_STAMP, DEPLOYMENT_URL } from './buildInfo';
 export default function FieldGuide({ onClose }: { onClose: () => void }) {
   const discovered = useGame(s => s.discovered), blaster = useGame(s => s.shooter), active = nearestTerminal(runtime.position)?.record ?? record;
   return <Modal title="Field guide" onClose={onClose}>
-    <p className={styles.eyebrow}>CHASM OF DUDAEL · 1 ENOCH 17–21</p>
-    <p>An otherworldly chasm beyond the foundations of earth, inspired by the Book of the Watchers (1 Enoch). A smoldering bronze-and-crimson firmament hangs over the River of Fire, where obsidian monoliths, stepped ziggurats, and shattered celestial temples rise from the dark ember-lit abyss. As a six-winged Archangel, you are sent into the chasm to smite the corrupted Ophanim and Fallen Watchers.</p>
+    <p className={styles.eyebrow}>CHASM OF DUDAEL · INSPIRED BY 1 ENOCH</p>
+    <p>An otherworldly chasm, inspired by the Book of the Watchers (1 Enoch 6–21). A smoldering bronze-and-crimson firmament hangs over the River of Fire, where obsidian monoliths, stepped ziggurats, and shattered celestial temples rise from the dark ember-lit abyss. You fly as a winged angel, sent into the chasm against the sentinels of the Fallen Watchers. The tablets quote 1 Enoch word for word; the chasm, the sentinels and the flight are game fiction.</p>
     <h3>Your route</h3>
     <ol><li>Threshold of Hermon: your starting terrace, 20 metres above the abyssal waters.</li><li>River of Fire: fly forward and descend between the obsidian monoliths to skim the ember-lit stream.</li><li>Bridge of the Abyss: pass through the cleft span across the central chasm.</li><li>Sanctuary of the Throne: rise to the high temple pillar on your right and alight on its summit.</li></ol>
     <img className={styles.districtMap} src="/district-map.svg" width="450" height="336" alt="District map: 1 arrival terrace, 2 flooded boulevard, 3 viaduct opening, 4 tower roof. The line follows the exterior route; shaded footprints mark building interiors." />

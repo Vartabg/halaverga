@@ -4,7 +4,7 @@ import { AdditiveBlending, BoxGeometry, BufferGeometry, Color, DataTexture, Icos
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 export const DRONE_COLORS = { body: '#1f1618', plate: '#8c6232', eyeIdle: '#ffaa2b', eyeAlert: '#ff2418', telegraph: '#fff7de', rim: '#ff8822', flash: '#ffffff' } as const;
-/** Ophanim wheel radius and crown offset: crossed seraphic wheels and horns sit inside the .95 m hit sphere. */
+/** Wheel radius and crown offset: the crossed brass wheels sit inside the .95 m hit sphere. */
 const ARM_R = .58, ARM_Y = .04;
 
 function merge(parts: BufferGeometry[]) {
@@ -13,7 +13,8 @@ function merge(parts: BufferGeometry[]) {
   if (!out) throw new Error('drone geometry merge failed');
   return out;
 }
-/** Fallen Watcher / Corrupted Ophanim, facing -Z: dark obsidian core, crossed burning brass wheels, and all-seeing eye at eyeCenter(). */
+/** A Fallen Watcher sentinel, facing -Z: dark obsidian core, crossed burning brass wheels, and the eye at eyeCenter(). Game fiction:
+ * 1 Enoch's Ophanim are holy (61:10, 71:7), so the enemies are never called that. */
 export function buildDroneGeometry() {
   const parts: BufferGeometry[] = [new IcosahedronGeometry(.54, 1)];
   for (const deg of [45, 135]) parts.push(new BoxGeometry(ARM_R * 2.15, .09, .14).rotateZ(.32).rotateY(deg * Math.PI / 180).translate(0, ARM_Y, 0));
