@@ -70,10 +70,13 @@ describe('what must not change', () => {
 // Fuzz: hands-off flights from random free points across the whole city, real walls and buildings. Seeded, so it is repeatable.
 describe('fuzz: 250 hands-off flights', () => {
   const N = 250, SECONDS = 24;
-  const runs = () => {
+  // Async with a yield per flight: 250 synchronous flights block the worker for over 60 s on CI, and vitest's progress RPC
+  // ("Timeout calling onTaskUpdate") times out even though every test passes. Seeded, so yielding changes no result.
+  const runs = async () => {
     let seed = 12345; const rnd = () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296;
     const probe = new Sim({ x: 0, y: 70, z: 0 }), ball = new RAPIER.Ball(2.2), out: { id: string; tele: number; stall: number }[] = [];
     for (let n = 0; n < N; n++) {
+      await new Promise(resolve => setImmediate(resolve));
       let p: { x: number; y: number; z: number }, tries = 0;
       // The whole box since 2026-10-06 (the district and the flyable ruins around it), 3 m in from each face.
       do { p = { x: WORLD.minX + 3 + rnd() * (WORLD.maxX - WORLD.minX - 6), y: 4 + rnd() * (WORLD.ceiling - 7), z: WORLD.minZ + 3 + rnd() * (WORLD.maxZ - WORLD.minZ - 6) }; tries++; }
@@ -84,8 +87,8 @@ describe('fuzz: 250 hands-off flights', () => {
     }
     probe.free(); return out;
   };
-  let results: ReturnType<typeof runs> = [];
-  beforeAll(() => { results = runs(); }, 120000);
+  let results: Awaited<ReturnType<typeof runs>> = [];
+  beforeAll(async () => { results = await runs(); }, 120000);
   it('no flight ever leaves clear space (the "Suit restored" teleport never fires)', () => {
     const bad = results.filter(r => r.tele > 0).map(r => `${r.id}: isClear failed ${r.tele}x`);
     expect(bad.length, report(bad)).toBe(0);
