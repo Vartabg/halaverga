@@ -25,7 +25,7 @@ export default function MoreControls() {
       <button aria-pressed={!aimToggle} onClick={() => save({ aimToggle: false })}>Hold to aim</button>
       <button aria-pressed={aimToggle} onClick={() => save({ aimToggle: true })}>Toggle aim</button>
     </div>
-    <label className={styles.setting}>Shot magnet (shots bend toward drones)<select value={aimAssist < .5 ? '0' : aimAssist < 1.25 ? '1' : '1.5'} onChange={e => save({ aimAssist: Number(e.target.value) })}>
+    <label className={styles.setting}>Shot magnet (shots bend toward adversaries)<select value={aimAssist < .5 ? '0' : aimAssist < 1.25 ? '1' : '1.5'} onChange={e => save({ aimAssist: Number(e.target.value) })}>
       <option value="0">Off</option><option value="1">Standard</option><option value="1.5">Strong</option>
     </select></label>
     <p className={styles.muted}>Aim: hold Q, right click with a captured mouse, or the Aim button. The blaster cools by itself; pressing Fire or C as the sweep crosses the lit window cools it at once.</p>

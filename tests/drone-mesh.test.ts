@@ -14,10 +14,11 @@ const rOf = (x: number) => Math.abs((x + .5) / 32 - 1);
 
 describe('drone geometry', () => {
   const g = buildDroneGeometry();
-  it('stays within 1400 triangles per drone (body + plate + eye + halo + ring)', () => {
-    const total = tris(g.body) + tris(g.plate) + tris(g.eye) + tris(g.halo) * 2;
-    expect(total).toBeGreaterThan(900);
-    expect(total).toBeLessThanOrEqual(1400);
+  it('stays within 1800 triangles per adversary including its animated wings', () => {
+    const total = tris(g.body) + tris(g.plate) + tris(g.wingL) + tris(g.wingR) + tris(g.eye) + tris(g.halo) * 2;
+    expect(total).toBeGreaterThan(500);
+    expect(tris(g.wingL) + tris(g.wingR)).toBeGreaterThan(50);
+    expect(total).toBeLessThanOrEqual(1800);
   });
   it('merges to consistent non-indexed attributes with normals', () => {
     for (const geo of [g.body, g.plate]) {
@@ -25,16 +26,16 @@ describe('drone geometry', () => {
       expect(geo.attributes.normal.count).toBe(geo.attributes.position.count);
     }
   });
-  it('keeps body and plate inside a .95 m radius, close to the hit sphere', () => {
-    expect(maxRadius(g.body)).toBeLessThanOrEqual(.95);
-    expect(maxRadius(g.plate)).toBeLessThanOrEqual(.95);
+  it('keeps body and armour close to the hit sphere; decorative wings sit outside it', () => {
+    expect(maxRadius(g.body)).toBeLessThanOrEqual(1.05);
+    expect(maxRadius(g.plate)).toBeLessThanOrEqual(1.05);
     expect(maxRadius(g.body)).toBeGreaterThan(DRONE_RADIUS * .8);
   });
-  it('centres the eye at the origin', () => {
+  it('keeps the paired eyes and fiery maw inside the .32 m weak-point sphere', () => {
     const box = new Box3().setFromBufferAttribute(g.eye.attributes.position as never), c = box.getCenter(new Vector3());
-    expect(c.length()).toBeLessThan(1e-6);
+    expect(c.length()).toBeLessThan(.08);
     g.eye.computeBoundingSphere();
-    expect((g.eye.boundingSphere as Sphere).radius).toBeCloseTo(.32, 5);
+    expect((g.eye.boundingSphere as Sphere).radius).toBeLessThan(.32);
   });
 });
 

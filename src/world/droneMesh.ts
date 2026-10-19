@@ -1,36 +1,9 @@
-import { AdditiveBlending, BoxGeometry, BufferGeometry, Color, DataTexture, IcosahedronGeometry, LinearFilter,
-  LinearMipmapLinearFilter, MeshBasicMaterial, MeshStandardMaterial, PlaneGeometry, RGBAFormat, SphereGeometry, TorusGeometry,
-  type WebGLProgramParametersWithUniforms } from 'three';
-import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-
-export const DRONE_COLORS = { body: '#1f1618', plate: '#8c6232', eyeIdle: '#ffaa2b', eyeAlert: '#ff2418', telegraph: '#fff7de', rim: '#ff8822', flash: '#ffffff' } as const;
-/** Wheel radius and crown offset: the crossed brass wheels sit inside the .95 m hit sphere. */
-const ARM_R = .58, ARM_Y = .04;
-
-function merge(parts: BufferGeometry[]) {
-  const flat = parts.map(g => g.index ? g.toNonIndexed() : g), out = mergeGeometries(flat);
-  parts.forEach(g => g.dispose()); flat.forEach(g => g.dispose());
-  if (!out) throw new Error('drone geometry merge failed');
-  return out;
-}
-/** A Fallen Watcher sentinel, facing -Z: dark obsidian core, crossed burning brass wheels, and the eye at eyeCenter(). Game fiction:
- * 1 Enoch's Ophanim are holy (61:10, 71:7), so the enemies are never called that. */
-export function buildDroneGeometry() {
-  const parts: BufferGeometry[] = [new IcosahedronGeometry(.54, 1)];
-  for (const deg of [45, 135]) parts.push(new BoxGeometry(ARM_R * 2.15, .09, .14).rotateZ(.32).rotateY(deg * Math.PI / 180).translate(0, ARM_Y, 0));
-  const tilts: [number, number][] = [[.62, .25], [-.62, -.25], [.28, -.68], [-.28, .68]];
-  for (let k = 0; k < 4; k++) {
-    const [rx, rz] = tilts[k], a = Math.PI / 4 + k * Math.PI / 2;
-    parts.push(new TorusGeometry(.54, .038, 6, 16).rotateX(rx).rotateZ(rz).translate(Math.cos(a) * .28, ARM_Y, Math.sin(a) * .28));
-  }
-  parts.push(new SphereGeometry(.62, 12, 6, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2));
-  return {
-    body: merge(parts),
-    plate: merge([new SphereGeometry(.64, 12, 5, 0, Math.PI * 2, 0, Math.PI * .42)]),
-    eye: new SphereGeometry(.32, 12, 8),
-    halo: new PlaneGeometry(1, 1),
-  };
-}
+import { AdditiveBlending, Color, DataTexture, DoubleSide, LinearFilter, LinearMipmapLinearFilter, MeshBasicMaterial,
+  MeshStandardMaterial, RGBAFormat, type WebGLProgramParametersWithUniforms } from 'three';
+import { makeDemonGeometry } from './demonGeometry';
+export const DRONE_COLORS = { body: '#24232b', plate: '#8e7351', eyeIdle: '#e23e16', eyeAlert: '#ff541a', telegraph: '#fff7de', rim: '#d84a23', flash: '#ffffff' } as const;
+/** Public engine name retained for the combat pool; the rendered adversaries are original abyssal creatures. */
+export const buildDroneGeometry = makeDemonGeometry;
 /** World size that covers `px` CSS pixels at distance `dist` for a vertical FOV in degrees. */
 export const minWorldSize = (px: number, dist: number, fovDeg: number, heightPx: number) =>
   px * dist * 2 * Math.tan(fovDeg * Math.PI / 360) / heightPx;
@@ -80,7 +53,7 @@ export function createDroneMaterials() {
   const haloTexture = radialTexture(haloAlpha), ringTexture = radialTexture(ringAlpha);
   const glow = (map: DataTexture) => new MeshBasicMaterial({ map, transparent: true, depthWrite: false, blending: AdditiveBlending, toneMapped: false, fog: false });
   const m = {
-    body: flashRim(new MeshStandardMaterial({ color: DRONE_COLORS.body, metalness: .6, roughness: .45 }), .35),
+    body: flashRim(new MeshStandardMaterial({ side: DoubleSide, color: DRONE_COLORS.body, metalness: .6, roughness: .45 }), .35),
     plate: flashRim(new MeshStandardMaterial({ color: DRONE_COLORS.plate, metalness: .6, roughness: .45 }), .25),
     eye: new MeshBasicMaterial({ toneMapped: false }),
     halo: glow(haloTexture), ring: glow(ringTexture), haloTexture, ringTexture,

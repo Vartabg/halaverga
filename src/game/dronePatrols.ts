@@ -1,6 +1,6 @@
 import type { Vec3 } from './combat';
 import { WORLD } from './motion';
-// Patrol loops for the rogue 2033 security drones: a figure-eight wobble (y at twice the rate) on a horizontal ellipse.
+// Patrol loops for the abyssal host: a figure-eight wobble (y at twice the rate) on a horizontal ellipse.
 // Every path clears the city solids by >= 5.7 m and the building route by >= 5 m (tests/drone-patrol.test.ts).
 export type Patrol = { id: string; c: Vec3; r: Vec3; omega: number; phase: number };
 export const PATROLS: readonly Patrol[] = [
@@ -15,9 +15,9 @@ export const PATROLS: readonly Patrol[] = [
   // c.y 70 -> 75: the route's ascent -> roof leg runs at y 69 through the ring (1 m at y 70); now 12.7-14.7 m above the roof.
   { id: 'tower-orbit', c: { x: 36, y: 75, z: -38 }, r: { x: 18, y: 1, z: 18 }, omega: .18, phase: 2.2 },
   // Open-world patrols (utilising MAX_DRONES = 8): the north canal avenue and the west/east basins outside the central ridges.
-  { id: 'north-avenue', c: { x: 0, y: 38, z: -280 }, r: { x: 14, y: 1.5, z: 18 }, omega: .24, phase: .9 },
-  { id: 'west-basin', c: { x: -220, y: 48, z: -40 }, r: { x: 8, y: 1.4, z: 16 }, omega: .26, phase: 2.6 },
-  { id: 'east-basin', c: { x: 220, y: 48, z: -30 }, r: { x: 8, y: 1.4, z: 16 }, omega: .25, phase: 4.1 },
+  { id: 'north-avenue', c: { x: 0, y: 42, z: -85 }, r: { x: 12, y: 1.5, z: 14 }, omega: .24, phase: .9 },
+  { id: 'west-basin', c: { x: -18, y: 45, z: -53 }, r: { x: 4, y: 1.4, z: 10 }, omega: .26, phase: 2.6 },
+  { id: 'east-basin', c: { x: 18, y: 45, z: -65 }, r: { x: 4, y: 1.4, z: 10 }, omega: .25, phase: 4.1 },
 ];
 export function patrolPosition(p: Patrol, t: number, out: Vec3): Vec3 {
   const a = p.omega * t + p.phase;

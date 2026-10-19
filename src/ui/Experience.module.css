@@ -42,9 +42,9 @@
 .hero{position:absolute;left:max(var(--gx),env(safe-area-inset-left));top:calc(var(--hdr) + 4px);bottom:14%;display:flex;flex-direction:column-reverse;justify-content:flex-start;align-items:flex-start;gap:clamp(12px,2.5svh,24px);overflow:auto;overscroll-behavior:contain;pointer-events:none}
 .heroOff{display:contents}
 /* One family: the first line bold, the second light, the same size. */
-.heroTitle{flex:none;order:1;margin:0;font-size:clamp(64px,min(10vw,13svh),136px);font-weight:700;letter-spacing:-.045em;line-height:.92;color:var(--ink);text-shadow:0 2px 24px #0e101266;pointer-events:none}.heroTitle em{font-style:normal;font-weight:300;letter-spacing:-.03em}
+.heroTitle{font-family:Georgia,'Times New Roman',serif;flex:none;order:1;margin:0;font-size:clamp(64px,min(10vw,13svh),136px);font-weight:700;letter-spacing:-.045em;line-height:.92;color:var(--ink);text-shadow:0 2px 24px #0e101266;pointer-events:none}.heroTitle em{font-style:normal;font-weight:300;letter-spacing:-.03em}
 /* The start card: a graphite plate with the eyebrow, the two lines, Begin, the hint line and (first visits) the demo note, in that order. */
-.intro{flex:none;margin:0;width:min(440px,100%);padding:20px 24px 22px;background:#1c2023eb;border:1px solid var(--line);border-radius:var(--r-lg);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);box-shadow:0 20px 60px #0e101266;pointer-events:auto}
+.intro{flex:none;margin:0;width:min(440px,100%);padding:20px 24px 22px;background:#151d26dc;border:1px solid var(--line);border-radius:3px;-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);box-shadow:0 20px 60px #0e101266;pointer-events:auto}
 .eyebrow{margin:0;font-size:11px;font-weight:600;letter-spacing:.16em;line-height:1.5;display:flex;gap:10px;align-items:center;color:var(--muted)}.eyebrow>span:not(.statusDot){color:var(--line-strong)}
 .statusDot{flex:none;width:7px;height:7px;border-radius:50%;background:var(--accent);box-shadow:0 0 8px var(--accent)}
 .introCopy{font-size:15px;line-height:1.55;margin:14px 0 18px;color:var(--ink)}
@@ -150,3 +150,6 @@
 /* Gesture Lab: no crosshair (the finger aims); the lab surface replaces the flight surface. Classic one thumb on a touch screen
    (tap a drone to blast) hides it the same way. */
 :global(html[data-controls]) .reticle,:global(html[data-input=touch][data-touch-blast]) .reticle{display:none}
+
+/* Entry controls name the actual default input on phones, without adding a hydration dependency. */
+.coarseHint{display:none}@media(pointer:coarse){.fineHint{display:none}.coarseHint{display:inline}}

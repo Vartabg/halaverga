@@ -145,13 +145,13 @@ describe('far ruins generator', () => {
     expect(mats).toContain('concrete(true)'); expect(mats).toContain('return [stone, glass, metal, ground, paint, calm]');
     city.geometry.dispose();
   });
-  it('draws it as one static, unshadowed, fogged, display-referred mesh in the Scene', () => {
+  it('keeps the archived skyline renderer separate from the active celestial vault', () => {
     const mesh = readFileSync('src/world/Skyline.tsx', 'utf8'), scene = readFileSync('src/world/Scene.tsx', 'utf8'), water = readFileSync('src/world/Atmosphere.tsx', 'utf8');
     expect(mesh).toContain('toneMapped: false'); expect(mesh).toContain('fog: true');
     expect(mesh).toContain('castShadow={false}'); expect(mesh).toContain('receiveShadow={false}');
     expect(mesh).not.toContain('useFrame'); expect(mesh).not.toContain('invalidate');
     expect(mesh).toContain('geometry.dispose()'); expect(mesh).toContain('material.dispose()');
-    expect(scene).toContain('<Skyline />');
+    expect(scene).not.toContain('<Skyline />'); expect(scene).toContain('<CelestialVault />');
     // the sea follows the camera and takes the fog uniforms
     expect(water).toContain('UniformsLib.fog'); expect(water).toContain('camera.position.x'); expect(water).toMatch(/<shaderMaterial[^>]* fog\b/);
   });

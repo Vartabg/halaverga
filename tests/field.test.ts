@@ -54,9 +54,9 @@ describe('flyable ruin field', () => {
     const src = readFileSync('src/world/fieldData.ts', 'utf8');
     expect(src).toContain('ruinSpecs(look, ruin, p.w, p.d, height, 0, true)'); // exact: no sheared tops, so the boxes match
   });
-  it('is mounted in the physics world with its colliders, as one lit, textured, fogged material', () => {
+  it('preserves the archived ruin renderer while the active scene mounts the new sanctuary', () => {
     const scene = readFileSync('src/world/Scene.tsx', 'utf8'), mesh = readFileSync('src/world/RuinField.tsx', 'utf8');
-    expect(scene).toMatch(/<Physics[\s\S]*<RuinField \/>[\s\S]*<\/Physics>/);
+    expect(scene).not.toContain('<RuinField />'); expect(scene).toContain('<Sanctuary />');
     expect(mesh).toContain('MeshLambertMaterial'); expect(mesh).toContain('FRAME_GROUPS'); expect(mesh).toContain('removeRigidBody');
     expect(mesh).toContain('concrete_floor_02_diff_1k.jpg'); // the city's own texture: cached, no new download
   });

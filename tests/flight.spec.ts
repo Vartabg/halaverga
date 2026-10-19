@@ -11,6 +11,8 @@ test('loads, lifts, moves, brakes, switches cameras and survives pause', async (
   const traveled = JSON.parse((await telemetry.getAttribute('data-position'))!);
   expect(traveled[2]).toBeLessThan(64);
   await page.waitForTimeout(1300); expect(Number(await telemetry.getAttribute('data-speed'))).toBeLessThan(.5);
+  // Pause/camera switching must preserve the settled position, not the earlier position before braking finished.
+  const parked = JSON.parse((await telemetry.getAttribute('data-position'))!);
   await page.keyboard.press('Escape'); await expect(page.getByRole('heading', { name: 'Take your time.' })).toBeVisible();
   await page.getByRole('button', { name: 'Flight settings', exact: true }).click();
   await page.getByRole('button', { name: 'First person', exact: true }).click();
@@ -18,7 +20,7 @@ test('loads, lifts, moves, brakes, switches cameras and survives pause', async (
   await expect(telemetry).toHaveAttribute('data-flying', 'true');
   await page.waitForTimeout(500);
   const resumed = JSON.parse((await telemetry.getAttribute('data-position'))!);
-  expect(Math.abs(resumed[2] - traveled[2])).toBeLessThan(3);
+  expect(Math.hypot(...resumed.map((v: number, i: number) => v - parked[i]))).toBeLessThan(.4);
   await openSettings(page);
   await expect(page.getByRole('button', { name: 'First person', exact: true })).toHaveAttribute('aria-pressed', 'true');
   await page.getByRole('button', { name: 'Return to arrival terrace' }).click();
@@ -35,7 +37,7 @@ test('portrait/landscape resize retains position and text route works', async ({
   const after = JSON.parse((await telemetry.getAttribute('data-position'))!);
   expect(Math.hypot(...after.map((v: number, i: number) => v - before[i]))).toBeLessThan(.4);
   await openGuide(page);
-  await page.getByRole('button', { name: 'Recover municipal record' }).click();
-  await expect(page.getByText('The Oath upon Mount Hermon', { exact: true })).toBeVisible();
-  await expect(page.getByText('Quoted source · 1 Enoch 6:6', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Read the scripture tablet' }).click();
+  await expect(page.getByText('The War in Heaven', { exact: true })).toBeVisible();
+  await expect(page.getByText('Quoted source · Revelation 12:7', { exact: true })).toBeVisible();
 });

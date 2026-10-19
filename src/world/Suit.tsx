@@ -13,12 +13,12 @@ import { applyFlightClips } from './flightPose';
 import { advanceSuitRoll, createSuitRoll, speedFade } from './suitRoll';
 import { createBlasterFrame, releaseSuitBlaster, stepSuitBlaster } from './suitBlaster';
 import { createArchangelWings, stepArchangelWings } from './archangelWings';
-import { TREE_URL } from './Reclamation';
+import { angelRegalia } from './angelRegalia';
 export const SUIT_URL = '/models/suit.glb';
 /** Reload scene: forget every model the world loads, so a failed download is fetched again instead of replaying the cached error.
  * One call per file: useLoader.clear with an array clears only the cache entry for that whole array, which nothing loads. */
 export function clearWorldCache() {
-  for (const url of [SUIT_URL, TREE_URL]) useLoader.clear(GLTFLoader, url);
+  useLoader.clear(GLTFLoader, SUIT_URL);
 }
 const input = { flying: false, landing: false, paused: true, reduced: false, velocity: runtime.velocity, turn: runtime.turn };
 export default function Suit() {
@@ -29,19 +29,20 @@ export default function Suit() {
     r.root.traverse(o => {
       if (!(o instanceof SkinnedMesh) || !(o.material instanceof MeshStandardMaterial)) return;
       const m = o.material;
-      if (m.name === 'skin') { m.color.set('#e8d5b8'); m.emissive.set('#2c1d0a'); m.roughness = .48; }
-      else { m.color.set('#f4e2b8'); m.emissive.set('#4a2f0c'); m.metalness = .68; m.roughness = .28; }
+      if (m.name === 'skin') { m.color.set('#283540'); m.emissive.set('#000000'); m.roughness = .72; }
+      else { m.color.set(m.name === 'textile' ? '#222e36' : '#d4c199'); m.emissive.set('#080806'); m.metalness = .66; m.roughness = .35; }
     });
     return r;
   }, [asset]);
   const wings = useMemo(() => {
     const w = createArchangelWings();
-    (rig.joints[2] ?? rig.root).add(w.root);
+    (rig.joints[11] ?? rig.root).add(w.root);
     return w;
   }, [rig]);
   // The blaster block's per-frame inputs (suitBlaster.ts), rewritten in place each frame.
+  const regalia = useMemo(() => angelRegalia(rig.joints), [rig]);
   const blaster = useMemo(() => createBlasterFrame(rig, runtime.shooter), [rig]);
-  useEffect(() => () => { wings.root.removeFromParent(); wings.dispose(); releaseSuitBlaster(blaster); rig.dispose(); }, [rig, blaster, wings]);
+  useEffect(() => () => { wings.root.removeFromParent(); wings.dispose(); regalia.dispose(); releaseSuitBlaster(blaster); rig.dispose(); }, [rig, blaster, wings, regalia]);
   useFrame((three, dt) => {
     const state = useGame.getState(), m = motion.current, life = animation.current, mix = flight.current;
     if (m.epoch !== pose.epoch) Object.assign(m, { epoch: pose.epoch, hero: state.heroPoses ? 1 : 0 });
@@ -59,6 +60,7 @@ export default function Suit() {
     const authored = applyFlightClips(rig.joints, mix, pose, life, m.hero, state.reduced);
     // Visual only: the lift lowers or bobs the model, never the anchor the camera and physics share.
     rig.root.position.y += applySuitAnimation(rig.joints, life, pose, state.reduced, m.hero, authored);
+    regalia.step(dt, state.paused || state.reduced || !state.flying);
     stepArchangelWings(wings, state.flying, state.paused, state.reduced, pose.speed, v.y, roll, dt);
     // The blaster (arm cannon, carry and aim, whole-body shot choreography, hand hide) layers over everything, in one guarded block.
     const f = blaster, cam = three.camera as PerspectiveCamera;

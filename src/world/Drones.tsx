@@ -6,6 +6,7 @@ import { MAX_DRONES, PHASE, droneAlive, eyeCenter, mulberry32, type Vec3 } from 
 import { guarded } from '@/game/shooterFault';
 import { runtime } from '@/game/runtime';
 import { useGame } from '@/game/store';
+import { battle } from '@/game/celestialBattle';
 import { DRONE } from '@/game/droneDodge';
 import { DRONE_COLORS, buildDroneGeometry, createDroneMaterials, minWorldSize } from './droneMesh';
 // Damage reads in stages on the drone itself: broken (4 HP and under: the plate is gone, the open top glows ember, the eye pulses
@@ -39,9 +40,10 @@ export default function Drones() {
     const geo = buildDroneGeometry(), mat = createDroneMaterials();
     const flash = new InstancedBufferAttribute(new Float32Array(MAX_DRONES), 1).setUsage(DynamicDrawUsage);
     const damage = new InstancedBufferAttribute(new Float32Array(MAX_DRONES), 1).setUsage(DynamicDrawUsage);
-    geo.body.setAttribute('aFlash', flash); geo.plate.setAttribute('aFlash', flash);
-    geo.body.setAttribute('aDamage', damage); geo.plate.setAttribute('aDamage', damage);
+    for (const g of [geo.body, geo.plate, geo.wingL, geo.wingR]) g.setAttribute('aFlash', flash);
+    for (const g of [geo.body, geo.plate, geo.wingL, geo.wingR]) g.setAttribute('aDamage', damage);
     const meshes = {
+      left: instanced(geo.wingL, mat.body, false), right: instanced(geo.wingR, mat.body, false),
       body: instanced(geo.body, mat.body, false), plate: instanced(geo.plate, mat.plate, false), eye: instanced(geo.eye, mat.eye, true),
       halo: instanced(geo.halo, mat.halo, true), ring: instanced(geo.halo, mat.ring, true),
     };
@@ -50,17 +52,17 @@ export default function Drones() {
   }, []);
   useEffect(() => () => {
     parts.list.forEach(mesh => mesh.dispose());
-    parts.geo.body.dispose(); parts.geo.plate.dispose(); parts.geo.eye.dispose(); parts.geo.halo.dispose(); parts.mat.dispose();
+    parts.geo.wingL.dispose(); parts.geo.wingR.dispose(); parts.geo.body.dispose(); parts.geo.plate.dispose(); parts.geo.eye.dispose(); parts.geo.halo.dispose(); parts.mat.dispose();
   }, [parts]);
   const frame = useMemo(() => guarded('Drones', (state: RootState, _delta: number) => {
-    const f = runtime.shooter.drones, { body, plate, eye: eyes, halo, ring } = parts.meshes, flash = parts.flash.array as Float32Array;
+    const f = runtime.shooter.drones, { body, plate, left, right, eye: eyes, halo, ring } = parts.meshes, flash = parts.flash.array as Float32Array;
     const damage = parts.damage.array as Float32Array;
     const cam: Camera = state.camera, fov = (cam as PerspectiveCamera).isPerspectiveCamera ? (cam as PerspectiveCamera).fov : runtime.shooter.aim.fov;
     const h = state.gl.domElement.clientHeight || state.size.height || 1, t = runtime.shooter.clock, reduced = useGame.getState().reduced;
     const n = Math.min(f.count, MAX_DRONES);
     // Body, plate and eye stay indexed by drone (aFlash is shared by index). Halo and ring are compacted into the first slots
     // that are actually shown, so a pool with nothing to show issues no draw call.
-    body.count = plate.count = eyes.count = n;
+    body.count = plate.count = eyes.count = left.count = right.count = n;
     let hk = 0, rk = 0;
     for (let i = 0; i < n; i++) {
       const ph = f.phase[i], dead = ph === PHASE.dead, alive = droneAlive(f, i), pos = f.pos[i], kn = f.knock[i];
@@ -80,24 +82,28 @@ export default function Drones() {
       const scale = dead ? zero : one;
       place(body, i, p, q, scale);
       place(plate, i, p, q, f.broken[i] === 1 ? zero : scale);
+      const flap = reduced ? .12 : Math.sin(t * 7.5 + i * 1.8) * .28;
+      e.z += flap; q.setFromEuler(e); place(left, i, p, q, scale);
+      e.z -= flap * 2; q.setFromEuler(e); place(right, i, p, q, scale);
+      e.z += flap; q.setFromEuler(e);
       flash[i] = Math.max(f.flash[i], f.tint[i]);
       damage[i] = failing ? (reduced ? .85 : .75 + .25 * pulse) : broken ? .45 : 0;
       eyeCenter(f, i, eye);
       p.set(eye.x, eye.y, eye.z).add(shake);
       place(eyes, i, p, q, scale);
-      c.copy(phaseColor(ph)).lerp(white, Math.min(f.flash[i], .6));
+      c.copy(battle.charging === i ? tele : phaseColor(ph)).lerp(white, Math.min(f.flash[i], .6));
       // The eye: a slow pulse once broken, 1.5 Hz dropouts once failing (reduced motion: a steady dim).
       if (failing) c.multiplyScalar(reduced ? .7 : .35 + .65 * smooth(-.25, .35, pulse));
       else if (broken) c.multiplyScalar(reduced ? .8 : .75 + .25 * pulse);
       eyes.setColorAt(i, c);
       const dist = p.distanceTo(cam.position);
       if (alive && dist <= HALO_RANGE) {
-        place(halo, hk, p, cam.quaternion, s.setScalar(Math.max(.9, minWorldSize(10, dist, fov, h))));
+        place(halo, hk, p, cam.quaternion, s.setScalar(Math.max(.55, minWorldSize(6, dist, fov, h))));
         halo.setColorAt(hk++, glow.copy(c).multiplyScalar(.6));
       } else if (ph === PHASE.dying && f.flash[i] > .99 && dist <= HALO_RANGE) {
         // The pre-burst: the eye's halo swells white through the hit-stop, into the pop (only when the kill flash passed its gate).
         const u = Math.min(1, f.phaseT[i] / DYING);
-        place(halo, hk, p, cam.quaternion, s.setScalar(Math.max(.9, minWorldSize(10, dist, fov, h)) * (1 + 1.6 * u)));
+        place(halo, hk, p, cam.quaternion, s.setScalar(Math.max(.55, minWorldSize(6, dist, fov, h)) * (1 + 1.6 * u)));
         halo.setColorAt(hk++, glow.copy(white).multiplyScalar(.6 + .6 * u));
       }
       if (alive && ph === PHASE.telegraph) {
@@ -107,7 +113,7 @@ export default function Drones() {
       }
     }
     halo.count = hk; halo.visible = hk > 0; ring.count = rk; ring.visible = rk > 0;
-    for (let k = 0; k < 5; k++) parts.list[k].instanceMatrix.needsUpdate = true;
+    for (let k = 0; k < parts.list.length; k++) parts.list[k].instanceMatrix.needsUpdate = true;
     eyes.instanceColor!.needsUpdate = halo.instanceColor!.needsUpdate = ring.instanceColor!.needsUpdate = true;
     parts.flash.needsUpdate = true; parts.damage.needsUpdate = true;
   }), [parts]);

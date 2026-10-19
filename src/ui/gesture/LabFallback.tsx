@@ -12,7 +12,7 @@ export const LAB_ACTIONS: Record<LabScheme, readonly (readonly [Action, string])
   draw: [['fly-to', 'Fly to where I tap'], ['brake', 'Brake']],
   conduct: [['faster', 'Faster'], ['slower', 'Slower'], ['dash', 'Dash'], ['roll-left', 'Roll left'], ['roll-right', 'Roll right'], ['brake', 'Brake']],
   brush: [['soar', 'Soar'], ['dive', 'Dive'], ['turn-left', 'Turn left'], ['turn-right', 'Turn right'], ['whirl-left', 'Whirl left'],
-    ['whirl-right', 'Whirl right'], ['roll', 'Roll'], ['lock-burst', 'Lock and burst nearest drone'], ['brake', 'Brake']],
+    ['whirl-right', 'Whirl right'], ['roll', 'Roll'], ['lock-burst', 'Lock and burst nearest adversary'], ['brake', 'Brake']],
 };
 
 let target: Scheme | null = null, pending: Action | null = null, pendingFor: LabScheme | null = null;

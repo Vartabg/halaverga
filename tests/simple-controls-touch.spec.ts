@@ -36,7 +36,7 @@ for (const viewport of [PORTRAIT, LANDSCAPE]) {
       await openSettings(page, true);
       await expect(page.getByLabel('Auto-fire assist on touch screens')).toHaveCount(0);
       // Touch: the blaster section leads, above the fold, with one line about touch only.
-      const line = page.getByText('One thumb flies. Tap a drone to blast it.'); await expect(line).toBeVisible();
+      const line = page.getByText('One thumb flies. Tap an adversary to blast it.'); await expect(line).toBeVisible();
       const af = (await line.boundingBox())!, desk = (await page.getByTestId('controls-row').boundingBox())!; // the one Controls row: the list itself lives in the sheet
       expect(af.y).toBeLessThan(desk.y); expect(af.y + af.height).toBeLessThanOrEqual(viewport.height);
       await expect(page.getByText(/left click fires once the mouse is captured/)).toHaveCount(0);

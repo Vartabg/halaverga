@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import { openSettings, closeAndResume } from './lab-browser';
 
-test('the ruined district and default arm cannon load together and shooting works', async ({ page }) => {
+test('the sanctuary and holy-fire bracer load together and casting works', async ({ page }) => {
   const loaded = new Set<string>();
   page.on('response', r => { if (r.ok() && r.url().endsWith('.glb')) loaded.add(new URL(r.url()).pathname); });
   await page.goto('/');
@@ -18,7 +18,7 @@ test('the ruined district and default arm cannon load together and shooting work
 });
 
 // Each world model, blocked once: the scene fails, Reload scene fetches it again (not the cached error) and flight works.
-for (const model of ['/models/environment/island_tree_01.glb', '/models/suit.glb']) {
+for (const model of ['/models/suit.glb']) {
   test(`${model} download failure recovers through Reload scene`, async ({ page }) => {
     let fail = true, requests = 0;
     await page.route(`**${model}`, route => { requests++; return fail ? route.abort() : route.continue(); });
@@ -58,4 +58,5 @@ test('scene resources settle after repeated high/low quality switches', async ({
   expect(resources[3]).toEqual(resources[1]);
   expect(resources[4].geometries).toBe(resources[3].geometries);
   expect(errors).toEqual([]);
+  await test.info().attach('sanctuary-render-resources', { body: JSON.stringify(resources, null, 2), contentType: 'application/json' });
 });

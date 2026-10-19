@@ -5,7 +5,7 @@ describe('terminal table', () => {
   it('keeps the primary Watcher tablet discoverable at its authored spot', () => {
     const terminal = nearestTerminal({ x: -7, y: 21, z: 58 });
     expect(terminal?.id).toBe('municipal-memory-07');
-    expect(terminal?.location).toBe('Tablet of Semjaza');
+    expect(terminal?.location).toBe('Tablet of the Heavenly War');
     expect(terminal?.record).toBe(arrival);
   });
   it('preserves the previous five-metre proximity boundary', () => {
@@ -26,20 +26,20 @@ describe('terminal table', () => {
     }
   });
   it('names both central district zones and outer open-world regions after the Book of Enoch', () => {
-    expect(locationName({ x: 0, y: 21, z: 65 })).toBe('Threshold of Hermon');
-    expect(locationName({ x: 0, y: 4, z: 22 })).toBe('River of Fire');
-    expect(locationName({ x: 0, y: 21, z: 0 })).toBe('Bridge of the Abyss');
-    expect(locationName({ x: 30, y: 69, z: -38 })).toBe('Sanctuary of the Throne');
-    expect(locationName({ x: 0, y: 30, z: -280 })).toBe('Prison of the Seven Stars');
-    expect(locationName({ x: -300, y: 30, z: -40 })).toBe('Chasm of Dudael');
-    expect(locationName({ x: 300, y: 30, z: -40 })).toBe('Mount of Simeon');
-    expect(locationName({ x: 0, y: 20, z: 180 })).toBe('Gate of Gehenna');
+    expect(locationName({ x: 0, y: 21, z: 65 })).toBe('First Sanctuary');
+    expect(locationName({ x: 0, y: 4, z: 22 })).toBe('Abyssal Glass');
+    expect(locationName({ x: 0, y: 21, z: 0 })).toBe('Broken Causeway');
+    expect(locationName({ x: 30, y: 69, z: -38 })).toBe('High Altar');
+    expect(locationName({ x: 0, y: 30, z: -280 })).toBe('Northern Vigil');
+    expect(locationName({ x: -300, y: 30, z: -40 })).toBe('Western Vigil');
+    expect(locationName({ x: 300, y: 30, z: -40 })).toBe('Eastern Vigil');
+    expect(locationName({ x: 0, y: 20, z: 180 })).toBe('Outer Sanctuary');
   });
-  it('labels every tablet as a cited 1 Enoch quotation and marks the rest as game fiction', () => {
+  it('labels every tablet as a cited quotation and marks the rest as game fiction', () => {
     for (const { record } of TERMINALS) {
-      expect(record.kind).toMatch(/^Quoted source · 1 Enoch \d+:\d/);
+      expect(record.kind).toMatch(/^Quoted source · (1 Enoch|Revelation) \d+:\d/);
       expect(record.date).toBe(record.kind.replace('Quoted source · ', ''));
-      expect(record.note).toContain('R. H. Charles');
+      expect(record.note).toMatch(/R. H. Charles|World English Bible/);
       expect(record.note).toContain('game fiction');
       // 1 Enoch's Ophanim are holy (61:10, 71:7): never the enemy.
       expect(`${record.title} ${record.body}`).not.toMatch(/ophan/i);

@@ -40,7 +40,7 @@ export default function Shooter() {
     stepShooter(runtime.shooter, parts.sim, parts.mem, parts.world, ctx, sink);
     if (!compiled.current) {
       // Compile the pooled drone and effect programs now, so the first shot never stalls on a shader compile.
-      compiled.current = true; state.gl.compileAsync(state.scene, state.camera).catch(() => {});
+      compiled.current = true; state.gl.compile(state.scene, state.camera);
     }
   }), [parts]);
   useFrame(frame, -25);
