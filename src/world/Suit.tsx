@@ -16,6 +16,7 @@ import { createBlasterFrame, releaseSuitBlaster, stepSuitBlaster } from './suitB
 import { alignArchangelWings, createArchangelWings, stepArchangelWings } from './archangelWings';
 import { angelRegalia } from './angelRegalia';
 import { createWingClearance } from './wingClearance';
+import { beginSuitSprings, createSuitSprings, followBody, followWings, stepClothSway } from './suitSprings';
 export const SUIT_URL = '/models/angel.glb';
 export const ADVERSARY_URL = '/models/abyssal.glb';
 /** Reload scene: forget every model the world loads, so a failed download is fetched again instead of replaying the cached error.
@@ -37,13 +38,16 @@ export default function Suit() {
   }, [rig]);
   const clearance = useMemo(() => createWingClearance(wings, world, rapier), [wings, world, rapier]);
   // The blaster block's per-frame inputs (suitBlaster.ts), rewritten in place each frame.
-  const regalia = useMemo(() => angelRegalia(rig.root, rig.joints), [rig]);
+  const springs = useMemo(() => createSuitSprings(rig.root, rig.joints, wings), [rig, wings]);
+  const regalia = useMemo(() => angelRegalia(rig.root, rig.joints, springs.cloth.at, springs.hair.at), [rig, springs]);
+  const frame = useMemo(() => ({ dt: 0, paused: true, reduced: false, epoch: 0, ground: 1, command: 0 }), []);
   const blaster = useMemo(() => createBlasterFrame(rig, runtime.shooter), [rig]);
   useEffect(() => () => { wings.root.removeFromParent(); wings.dispose(); regalia.dispose(); releaseSuitBlaster(blaster); rig.dispose(); }, [rig, blaster, wings, regalia]);
   useFrame((three, dt) => {
     const state = useGame.getState(), m = motion.current, life = animation.current, mix = flight.current;
     if (m.epoch !== pose.epoch) Object.assign(m, { epoch: pose.epoch, hero: state.heroPoses ? 1 : 0 });
     if (!state.paused) advanceSuitMotion(m, state.heroPoses, dt);
+    beginSuitSprings(springs);
     input.flying = state.flying; input.landing = state.landing; input.paused = state.paused; input.reduced = state.reduced;
     advanceSuitAnimation(life, pose, input, dt);
     advanceFlightMix(mix, pose, input, dt);
@@ -64,9 +68,13 @@ export default function Suit() {
     f.flight = pose.flight; f.speed = pose.speed; f.ground = life.ground; f.fov = cam.fov ?? 65; f.height = three.size.height;
     f.camera.x = cam.position.x; f.camera.y = cam.position.y; f.camera.z = cam.position.z;
     stepSuitBlaster(f, dt);
+    // Spring follow-through, last over the body (suitSprings.ts): the pose above is the target each bone chases.
+    Object.assign(frame, { dt, paused: state.paused, reduced: state.reduced, epoch: pose.epoch, ground: life.ground, command: runtime.shooter.aim.fireHold });
+    followBody(springs, frame); stepClothSway(springs, rig.root, v, dt, state.paused, state.reduced);
     stepArchangelWings(wings, state.flying, state.paused, state.reduced, pose.speed, v.y, roll, dt, pose.brake);
     alignArchangelWings(wings, rig.root, pose.lean);
     clearance.step(v, dt, state.paused, state.reduced);
+    followWings(springs, wings, frame);
     pose.wingTuck.left = wings.tuck.left; pose.wingTuck.right = wings.tuck.right;
     pose.suitClip = mix.label; pose.suitRoll = roll;
   }, -20);
