@@ -86,8 +86,8 @@ export default function Scene({ onLoss }: { onLoss: () => void }) {
     gl={{ antialias: true, alpha: false, powerPreference: 'high-performance', stencil: false }}
     onCreated={({ gl }) => { gl.toneMapping = ACESFilmicToneMapping; gl.toneMappingExposure = 1.15; }}>
     <GraphicsRecovery onLoss={onLoss} sun={sun} />
-    <fog attach="fog" args={['#26343d', 80, 590]} />
-    <hemisphereLight args={['#aec9db', '#15151e', 1.1]} />
+    <fog attach="fog" args={['#26343d', 55, 590]} />
+    <hemisphereLight args={['#aec9db', '#15151e', .85]} />
     <directionalLight ref={sun} position={SUN_POSITION} color="#ffe7b2" intensity={2.4} castShadow={quality === 'high'}
       shadow-mapSize={[2048, 2048]} shadow-camera-left={-110} shadow-camera-right={110}
       shadow-camera-top={110} shadow-camera-bottom={-110} shadow-camera-far={380} shadow-bias={-.0002} shadow-normalBias={.09} />
