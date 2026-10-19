@@ -1,14 +1,17 @@
+import { eyeCenter } from '@/game/adversaryPose';
 import { useEffect, useMemo } from 'react';
-import { useFrame, type RootState } from '@react-three/fiber';
+import { useFrame, useLoader, type RootState } from '@react-three/fiber';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { Color, DynamicDrawUsage, Euler, InstancedBufferAttribute, InstancedMesh, Matrix4, Quaternion, Vector3,
   type BufferGeometry, type Camera, type Material, type PerspectiveCamera } from 'three';
-import { MAX_DRONES, PHASE, droneAlive, eyeCenter, mulberry32, type Vec3 } from '@/game/combat';
+import { MAX_DRONES, PHASE, droneAlive, mulberry32, type Vec3 } from '@/game/combat';
 import { guarded } from '@/game/shooterFault';
 import { runtime } from '@/game/runtime';
 import { useGame } from '@/game/store';
 import { battle } from '@/game/celestialBattle';
 import { DRONE } from '@/game/droneDodge';
 import { DRONE_COLORS, buildDroneGeometry, createDroneMaterials, minWorldSize } from './droneMesh';
+import { ADVERSARY_URL } from './Suit';
 // Damage reads in stages on the drone itself: broken (4 HP and under: the plate is gone, the open top glows ember, the eye pulses
 // slowly at 1.5 Hz), failing (2 HP and under: the glow deepens, the eye drops out at 1.5 Hz, and the drone wobbles and sags as its
 // rotors fail). Dying (the 80 ms hit-stop): the body jitters and, when the kill flash passed its gate, the eye halo swells white
@@ -36,12 +39,15 @@ const place = (mesh: InstancedMesh, i: number, at: Vector3, rot: Quaternion, sca
 const phaseColor = (ph: number) => ph === PHASE.telegraph ? tele : ph === PHASE.alert || ph === PHASE.dodge || ph === PHASE.punish ? alert : idle;
 
 export default function Drones() {
+  const asset = useLoader(GLTFLoader, ADVERSARY_URL);
   const parts = useMemo(() => {
-    const geo = buildDroneGeometry(), mat = createDroneMaterials();
+    const geo = buildDroneGeometry(asset.scene), mat = createDroneMaterials();
     const flash = new InstancedBufferAttribute(new Float32Array(MAX_DRONES), 1).setUsage(DynamicDrawUsage);
     const damage = new InstancedBufferAttribute(new Float32Array(MAX_DRONES), 1).setUsage(DynamicDrawUsage);
+    const phase = new InstancedBufferAttribute(Float32Array.from({ length: MAX_DRONES }, (_, i) => i * 1.8), 1);
     for (const g of [geo.body, geo.plate, geo.wingL, geo.wingR]) g.setAttribute('aFlash', flash);
     for (const g of [geo.body, geo.plate, geo.wingL, geo.wingR]) g.setAttribute('aDamage', damage);
+    for (const g of [geo.body, geo.plate, geo.wingL, geo.wingR]) g.setAttribute('aPhase', phase);
     const meshes = {
       left: instanced(geo.wingL, mat.body, false), right: instanced(geo.wingR, mat.body, false),
       body: instanced(geo.body, mat.body, false), plate: instanced(geo.plate, mat.plate, false), eye: instanced(geo.eye, mat.eye, true),
@@ -49,7 +55,7 @@ export default function Drones() {
     };
     meshes.halo.renderOrder = meshes.ring.renderOrder = 1;
     return { geo, mat, flash, damage, meshes, list: Object.values(meshes) };
-  }, []);
+  }, [asset]);
   useEffect(() => () => {
     parts.list.forEach(mesh => mesh.dispose());
     parts.geo.wingL.dispose(); parts.geo.wingR.dispose(); parts.geo.body.dispose(); parts.geo.plate.dispose(); parts.geo.eye.dispose(); parts.geo.halo.dispose(); parts.mat.dispose();
@@ -59,6 +65,7 @@ export default function Drones() {
     const damage = parts.damage.array as Float32Array;
     const cam: Camera = state.camera, fov = (cam as PerspectiveCamera).isPerspectiveCamera ? (cam as PerspectiveCamera).fov : runtime.shooter.aim.fov;
     const h = state.gl.domElement.clientHeight || state.size.height || 1, t = runtime.shooter.clock, reduced = useGame.getState().reduced;
+    parts.mat.clock.value = reduced ? 0 : t;
     const n = Math.min(f.count, MAX_DRONES);
     // Body, plate and eye stay indexed by drone (aFlash is shared by index). Halo and ring are compacted into the first slots
     // that are actually shown, so a pool with nothing to show issues no draw call.

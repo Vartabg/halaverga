@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { useFrame, useLoader } from '@react-three/fiber';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { MeshStandardMaterial, SkinnedMesh, type PerspectiveCamera } from 'three';
+import { type PerspectiveCamera } from 'three';
 import { presentation as pose } from '@/game/presentation';
 import { runtime } from '@/game/runtime';
 import { useGame } from '@/game/store';
@@ -14,33 +14,26 @@ import { advanceSuitRoll, createSuitRoll, speedFade } from './suitRoll';
 import { createBlasterFrame, releaseSuitBlaster, stepSuitBlaster } from './suitBlaster';
 import { createArchangelWings, stepArchangelWings } from './archangelWings';
 import { angelRegalia } from './angelRegalia';
-export const SUIT_URL = '/models/suit.glb';
+export const SUIT_URL = '/models/angel.glb';
+export const ADVERSARY_URL = '/models/abyssal.glb';
 /** Reload scene: forget every model the world loads, so a failed download is fetched again instead of replaying the cached error.
  * One call per file: useLoader.clear with an array clears only the cache entry for that whole array, which nothing loads. */
 export function clearWorldCache() {
   useLoader.clear(GLTFLoader, SUIT_URL);
+  useLoader.clear(GLTFLoader, ADVERSARY_URL);
 }
 const input = { flying: false, landing: false, paused: true, reduced: false, velocity: runtime.velocity, turn: runtime.turn };
 export default function Suit() {
   const motion = useRef({ hero: 1, epoch: -1 }), animation = useRef(createSuitAnimation()), flight = useRef(createFlightMix()), turn = useRef(createSuitRoll());
   const asset = useLoader(GLTFLoader, SUIT_URL);
-  const rig = useMemo(() => {
-    const r = buildSuitRig(asset.scene);
-    r.root.traverse(o => {
-      if (!(o instanceof SkinnedMesh) || !(o.material instanceof MeshStandardMaterial)) return;
-      const m = o.material;
-      if (m.name === 'skin') { m.color.set('#283540'); m.emissive.set('#000000'); m.roughness = .72; }
-      else { m.color.set(m.name === 'textile' ? '#222e36' : '#d4c199'); m.emissive.set('#080806'); m.metalness = .66; m.roughness = .35; }
-    });
-    return r;
-  }, [asset]);
+  const rig = useMemo(() => buildSuitRig(asset.scene), [asset]);
   const wings = useMemo(() => {
     const w = createArchangelWings();
     (rig.joints[11] ?? rig.root).add(w.root);
     return w;
   }, [rig]);
   // The blaster block's per-frame inputs (suitBlaster.ts), rewritten in place each frame.
-  const regalia = useMemo(() => angelRegalia(rig.joints), [rig]);
+  const regalia = useMemo(() => angelRegalia(rig.root, rig.joints), [rig]);
   const blaster = useMemo(() => createBlasterFrame(rig, runtime.shooter), [rig]);
   useEffect(() => () => { wings.root.removeFromParent(); wings.dispose(); regalia.dispose(); releaseSuitBlaster(blaster); rig.dispose(); }, [rig, blaster, wings, regalia]);
   useFrame((three, dt) => {

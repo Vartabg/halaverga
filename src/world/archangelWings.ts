@@ -1,5 +1,6 @@
-import { AdditiveBlending, DoubleSide, Group, Mesh, MeshBasicMaterial, MeshStandardMaterial } from 'three';
+import { Group, Mesh } from 'three';
 import { featherWing } from './featherGeometry';
+import { featherMaterial } from './featherMaterial';
 
 export type ArchangelWings = {
   root: Group;
@@ -20,29 +21,21 @@ export function createArchangelWings(): ArchangelWings {
   leftInner.add(leftOuter); rightInner.add(rightOuter);
   root.add(leftInner, rightInner);
 
-  const plumeMat = new MeshStandardMaterial({
-    vertexColors: true, color: '#eae8dd', emissive: '#3b2b10', emissiveIntensity: .16, metalness: .12, roughness: .62, side: DoubleSide,
-  });
-  const glowMat = new MeshBasicMaterial({
-    color: '#ffcf66', transparent: true, opacity: .12, blending: AdditiveBlending, depthWrite: false, side: DoubleSide,
-  });
-
-  const side = (s: number) => ({ inner: featherWing(s, false), outer: featherWing(s, true), glow: featherWing(s, true) });
+  const plume = featherMaterial();
+  const side = (s: number) => ({ inner: featherWing(s, false), outer: featherWing(s, true) });
   const L = side(-1), R = side(1);
   const meshes = [
-    new Mesh(L.inner, plumeMat), new Mesh(L.outer, plumeMat), new Mesh(L.glow, glowMat),
-    new Mesh(R.inner, plumeMat), new Mesh(R.outer, plumeMat), new Mesh(R.glow, glowMat),
+    new Mesh(L.inner, plume.material), new Mesh(L.outer, plume.material),
+    new Mesh(R.inner, plume.material), new Mesh(R.outer, plume.material),
   ];
-  meshes[0].castShadow = meshes[1].castShadow = meshes[3].castShadow = meshes[4].castShadow = true;
-  leftInner.add(meshes[0]); leftOuter.add(meshes[1], meshes[2]);
-  rightInner.add(meshes[3]); rightOuter.add(meshes[4], meshes[5]);
+  meshes.forEach(m => { m.castShadow = true; });
+  leftInner.add(meshes[0]); leftOuter.add(meshes[1]);
+  rightInner.add(meshes[2]); rightOuter.add(meshes[3]);
 
   return {
     root, leftInner, rightInner, leftOuter, rightOuter, phase: 0, unfold: 0,
     dispose() {
-      L.inner.dispose(); L.outer.dispose(); L.glow.dispose();
-      R.inner.dispose(); R.outer.dispose(); R.glow.dispose();
-      plumeMat.dispose(); glowMat.dispose();
+      L.inner.dispose(); L.outer.dispose(); R.inner.dispose(); R.outer.dispose(); plume.dispose();
     },
   };
 }

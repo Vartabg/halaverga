@@ -1,5 +1,8 @@
 # War in Heaven — verification, 2026-10-19
 
+This is the first-slice checkpoint. The later [character revision and current measurements](character-pass.md)
+supersede its character assets and resource counts.
+
 Branch: `codex/war-in-heaven`, based on `47c6205` (`codex/reload-tree`, PR #21). This record accompanies the sanctuary implementation, source notes and original procedural character additions. Production has not been promoted and PR #21 has not been merged by this task.
 
 ## Checked

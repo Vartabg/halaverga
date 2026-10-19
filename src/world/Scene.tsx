@@ -1,6 +1,7 @@
 'use client';
 import { Suspense, lazy, useEffect, useRef } from 'react';
-import { Canvas, useFrame, useThree } from '@react-three/fiber';
+import { Canvas, useFrame, useLoader, useThree } from '@react-three/fiber';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { Physics } from '@react-three/rapier';
 import { ACESFilmicToneMapping, type DirectionalLight } from 'three';
 import Sanctuary from './Sanctuary';
@@ -10,7 +11,7 @@ import Abyss from './Abyss';
 import Battle from './Battle';
 import DistrictBoundary from './DistrictBoundary';
 import Ash from './Ash';
-import Suit from './Suit';
+import Suit, { ADVERSARY_URL } from './Suit';
 import Player from '@/game/Player';
 import CameraRig from '@/game/CameraRig';
 import FlightPresentation from '@/game/FlightPresentation';
@@ -55,8 +56,13 @@ function GraphicsRecovery({ onLoss, sun }: { onLoss: () => void; sun: React.RefO
  * then). A render or load error turns the blaster off; flight continues. */
 function ShooterLayer() {
   const shooter = useGame(s => s.shooter);
-  return shooter ? <Boundary fallback={null} onError={() => shooterFault('render', null)}><Shooter /><Drones /><ShotFx /><ImpactFx /><Battle />
-    <Suspense fallback={null}><ArmCannon /></Suspense></Boundary> : null;
+  return shooter ? <ShooterAssets /> : null;
+}
+function ShooterAssets() {
+  // A missing encounter model is a reloadable world download failure. Load outside the optional casting fault boundary.
+  useLoader(GLTFLoader, ADVERSARY_URL);
+  return <Boundary fallback={null} onError={() => shooterFault('render', null)}><Shooter /><Drones /><ShotFx /><ImpactFx /><Battle />
+    <Suspense fallback={null}><ArmCannon /></Suspense></Boundary>;
 }
 /** Standard on the classic one thumb, blaster on, touch-capable device: the drone screen history alone (the tap pick reads it).
  *  A desktop that has never shown touch mounts nothing here, so its Standard stays as it was. A failure only leaves it out. */

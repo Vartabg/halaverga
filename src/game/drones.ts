@@ -1,4 +1,5 @@
-import { DRONE_HP, DRONE_RADIUS, EYE_RADIUS, MAX_DRONES, PHASE, SNAP, droneAlive, eyeCenter, flashGate, mulberry32, pushEvent,
+import { eyeCenter, adversaryFacing } from './adversaryPose';
+import { DRONE_HP, DRONE_RADIUS, EYE_RADIUS, MAX_DRONES, PHASE, SNAP, droneAlive, flashGate, mulberry32, pushEvent,
   springStep, type LookSource, type ShooterState, type Vec3 } from './combat';
 import { avoid, face, limitAccel } from './droneSteer';
 import { START } from './motion';
@@ -189,6 +190,7 @@ export function buildTargets(s: ShooterState): number {
     const t = s.targets[i], p = f.pos[i], k = f.knock[i];
     t.c.x = p.x + k.x; t.c.y = p.y + k.y; t.c.z = p.z + k.z; t.r = DRONE_RADIUS;
     eyeCenter(f, i, t.eye); t.eyeR = EYE_RADIUS; t.alive = droneAlive(f, i); t.los = f.los[i] === 1;
+    if (t.facing) adversaryFacing(f, i, t.facing);
   }
   return f.count;
 }

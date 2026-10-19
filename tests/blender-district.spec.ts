@@ -12,13 +12,14 @@ test('the sanctuary and holy-fire bracer load together and casting works', async
   await page.keyboard.down('KeyC');
   await expect.poll(async () => Number(await hud.getAttribute('data-shots'))).toBeGreaterThan(2);
   await page.keyboard.up('KeyC');
-  expect(loaded.has('/models/suit.glb')).toBe(true);
+  expect(loaded.has('/models/angel.glb')).toBe(true);
+  expect(loaded.has('/models/abyssal.glb')).toBe(true);
   expect(loaded.has('/models/arm-cannon.glb')).toBe(true);
   expect(loaded.has('/models/environment/meridian-district.glb')).toBe(false);
 });
 
 // Each world model, blocked once: the scene fails, Reload scene fetches it again (not the cached error) and flight works.
-for (const model of ['/models/suit.glb']) {
+for (const model of ['/models/angel.glb', '/models/abyssal.glb']) {
   test(`${model} download failure recovers through Reload scene`, async ({ page }) => {
     let fail = true, requests = 0;
     await page.route(`**${model}`, route => { requests++; return fail ? route.abort() : route.continue(); });

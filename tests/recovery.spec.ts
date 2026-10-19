@@ -49,7 +49,7 @@ test('touch release and orientation: input released, no pause card, the suit set
 });
 test('suit asset failure recovers through Reload scene', async ({ page }) => {
   let failSuit = true;
-  await page.route('**/models/suit.glb', route => failSuit ? route.abort() : route.continue());
+  await page.route('**/models/angel.glb', route => failSuit ? route.abort() : route.continue());
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'The world needs a moment.' })).toBeVisible();
   failSuit = false;
