@@ -2,19 +2,18 @@ import { expect, test } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import { openSettings, closeAndResume } from './lab-browser';
 
-test('the sanctuary and holy-fire bracer load together and casting works', async ({ page }) => {
+test('the sanctuary and the flaming sword load together and commands work', async ({ page }) => {
   const loaded = new Set<string>();
   page.on('response', r => { if (r.ok() && r.url().endsWith('.glb')) loaded.add(new URL(r.url()).pathname); });
   await page.goto('/');
   await page.getByRole('button', { name: 'Begin expedition' }).click();
   const hud = page.getByTestId('shooter-hud');
-  await expect(hud).toHaveAttribute('data-cannon', 'shown');
-  await page.keyboard.down('KeyC');
+  // No arm cannon: each C is one command on the reticle (docs/research/combat-texts.md).
+  for (let k = 0; k < 3; k++) { await page.keyboard.press('KeyC'); await page.waitForTimeout(650); }
   await expect.poll(async () => Number(await hud.getAttribute('data-shots'))).toBeGreaterThan(2);
-  await page.keyboard.up('KeyC');
   expect(loaded.has('/models/angel.glb')).toBe(true);
   expect(loaded.has('/models/abyssal.glb')).toBe(true);
-  expect(loaded.has('/models/arm-cannon.glb')).toBe(true);
+  expect(loaded.has('/models/arm-cannon.glb')).toBe(false);
   expect(loaded.has('/models/environment/meridian-district.glb')).toBe(false);
 });
 

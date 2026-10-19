@@ -2,11 +2,9 @@
 // (Garo 2026-09-26). Pure, allocation-free after load, touch/scene chunk only: never on the landing first load.
 import { runtime } from '../runtime';
 import { useGame } from '../store';
-import { queueAimedBurst } from './aimedShot';
-import { labAimFrame } from './screenRay';
-import { pick, tapRay } from './tapBlast';
+import { COMMAND, requestCommand } from '../commands';
+import { pick } from './tapBlast';
 
-const dir = { x: 0, y: 0, z: -1 };
 /** The drone under a screen point at time t (performance.now ms), or -1. Reads the GestureTrack history (empty: -1). */
 export const pickAt = (x: number, y: number, t: number) => pick(x, y, t, runtime.shooter.targets, runtime.shooter.drones.count);
 /**
@@ -16,8 +14,8 @@ export const pickAt = (x: number, y: number, t: number) => pick(x, y, t, runtime
  */
 export function blastAt(x: number, y: number, drone: number, n?: number): boolean {
   if (!useGame.getState().shooter) return false;
-  const s = runtime.shooter;
-  if (labAimFrame.t > 0) tapRay(labAimFrame, x, y, dir); else { dir.x = s.aim.dir.x; dir.y = s.aim.dir.y; dir.z = s.aim.dir.z; }
-  queueAimedBurst(s, dir, drone, n);
-  return true;
+  // War in Heaven: a tapped demon is rebuked (Mark 1:25); an empty tap does nothing. No aimed burst is fired.
+  void x; void y; void n;
+  if (drone >= 0) requestCommand(runtime.shooter, COMMAND.rebuke, drone);
+  return drone >= 0;
 }

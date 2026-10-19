@@ -33,7 +33,7 @@ for (const size of [{ width: 1440, height: 1000 }, { width: 640, height: 900 }])
   await page.mouse.click(cx, cy); await expect.poll(() => locked(page)).toBe(true);
   await expect(hint(page)).toHaveText('Slide to look', { timeout: 500 }); await expect(hint(page)).toHaveAttribute('data-step', '1');
   await page.mouse.move(cx + 150, cy, { steps: 15 });
-  await expect(hint(page)).toHaveText('Click to shoot', { timeout: 2000 });
+  await expect(hint(page)).toHaveText('Click: rebuke', { timeout: 2000 });
   for (let k = 0; k < 5; k++) { await page.mouse.click(cx + 150, cy); await page.waitForTimeout(200); }
   await expect.poll(() => shots(page)).toBeGreaterThanOrEqual(5);
   await expect(hint(page)).toHaveText('WASD to fly · Space lifts');
@@ -43,7 +43,7 @@ for (const size of [{ width: 1440, height: 1000 }, { width: 640, height: 900 }])
   await expect(hint(page)).toHaveCount(0);
   expect((await saved(page)).simple).toBe(4);
   await page.mouse.click(cx + 150, cy); await expect(soundNotice(page)).toBeVisible();
-  expect(await said(page)).toEqual(['Click the scene to start', 'Slide to look', 'Click to shoot', 'WASD to fly · Space lifts']);
+  expect(await said(page)).toEqual(['Click the scene to start', 'Slide to look', 'Click: rebuke', 'WASD to fly · Space lifts']);
   expect(await page.evaluate(() => {
     const el = document.querySelector('[data-testid=hint-live]'); return !el || !el.closest('[aria-hidden="true"]');
   })).toBe(true);
@@ -65,11 +65,11 @@ test('the live region exists before the first hint and sits outside every aria-h
 test('Esc mid-sequence: the step is kept and the start line returns until the pointer is captured again', async ({ page }) => {
   const errors = errorsOf(page); await seed(page, { hintProgress: { touch: 0, simple: 2, mouse: 0 } }); await begin(page, '/?trackpad=simple');
   await page.mouse.click(720, 550); await expect.poll(() => locked(page)).toBe(true);
-  await expect(hint(page)).toHaveText('Click to shoot');
+  await expect(hint(page)).toHaveText('Click: rebuke');
   await page.keyboard.press('Escape'); await expect.poll(() => locked(page)).toBe(false); await resume(page);
   await expect(hint(page)).toHaveText('Click the scene to start'); await expect(hint(page)).toHaveAttribute('data-step', '2');
   await page.mouse.click(720, 550); await expect.poll(() => locked(page)).toBe(true);
-  await expect(hint(page)).toHaveText('Click to shoot');
+  await expect(hint(page)).toHaveText('Click: rebuke');
   expect(errors).toEqual([]);
 });
 
@@ -80,7 +80,8 @@ test('actions done out of order are credited: flying and shooting during "Slide 
   await page.keyboard.down('KeyW'); await page.waitForTimeout(1500); await page.keyboard.up('KeyW');
   for (let k = 0; k < 6; k++) { await page.mouse.click(720, 550); await page.waitForTimeout(150); }
   await expect.poll(() => shots(page)).toBeGreaterThanOrEqual(5);
-  await expect(hint(page)).toHaveText('Slide to look');
+  // A click is now a command on the reticle demon; when one lands it counts as a hit, which also credits "Slide to look".
+  if (Number(await page.getByTestId('shooter-hud').getAttribute('data-hits')) === 0) await expect(hint(page)).toHaveText('Slide to look');
   // A gentle 80 px glance (about 0.24 rad) is enough, and the shoot and keys hints were already done.
   await page.mouse.move(800, 550, { steps: 10 });
   await expect(hint(page)).toHaveCount(0, { timeout: 2000 });
@@ -104,7 +105,7 @@ test('mouse mode: start, then move the mouse to look, then click to shoot', asyn
   await page.mouse.click(720, 550); await expect.poll(() => locked(page)).toBe(true);
   await expect(hint(page)).toHaveText('Move the mouse to look', { timeout: 500 });
   await page.mouse.move(870, 550, { steps: 15 });
-  await expect(hint(page)).toHaveText('Click to shoot', { timeout: 2000 });
+  await expect(hint(page)).toHaveText('Click: rebuke', { timeout: 2000 });
 });
 
 // The free cursor is the desktop default again (Garo 2026-09-24): no step hints, the bottom pill states the whole mapping.
@@ -114,10 +115,10 @@ const noHintFor = async (p: Page, ms: number) => {
 };
 test('free profile: no controls hint; the pill states the mapping', async ({ page }) => {
   const errors = errorsOf(page); await begin(page, '/?trackpad=free'); const before = await saved(page);
-  await expect(pill(page)).toHaveText('SPACE TO FLY · CLICK TO FIRE · DRAG TO LOOK');
+  await expect(pill(page)).toHaveText('SPACE TO FLY · CLICK A DEMON · DRAG TO LOOK');
   await noHintFor(page, 3000);
   await page.getByRole('button', { name: 'Lift', exact: true }).click();
-  await expect(pill(page)).toHaveText('W OR SPACE TO FLY · CLICK TO FIRE · DRAG TO LOOK');
+  await expect(pill(page)).toHaveText('W OR SPACE TO FLY · CLICK A DEMON · DRAG TO LOOK');
   await expect(hint(page)).toHaveCount(0);
   // A checkpoint save may write the default progress for the first time; nothing here advances it.
   const none = { touch: 0, simple: 0, mouse: 0 };
@@ -132,7 +133,7 @@ test('free profile, blaster off: the classic pill', async ({ page }) => {
 
 test('free profile at 325x928: the pill stays inside the viewport with no horizontal scroll', async ({ page }) => {
   await page.setViewportSize({ width: 325, height: 928 }); await begin(page, '/?trackpad=free');
-  for (const text of ['SPACE TO FLY · CLICK TO FIRE · DRAG TO LOOK', 'W OR SPACE TO FLY · CLICK TO FIRE · DRAG TO LOOK']) {
+  for (const text of ['SPACE TO FLY · CLICK A DEMON · DRAG TO LOOK', 'W OR SPACE TO FLY · CLICK A DEMON · DRAG TO LOOK']) {
     if (text.startsWith('W')) await page.getByRole('button', { name: 'Lift', exact: true }).click();
     await expect(pill(page)).toHaveText(text);
     const box = (await pill(page).boundingBox())!;
@@ -183,15 +184,15 @@ for (const viewport of [{ width: 393, height: 852 }, { width: 852, height: 393 }
     await touch.down(2, t.lookPoint); await touch.drag(2, 60, 0); await touch.up(2);
     await expect(hint(page)).toHaveText('Tap Lift off to fly', { timeout: 3000 }); await page.waitForTimeout(1000);
     await touch.down(4, centre((await t.rise.boundingBox())!)); await page.waitForTimeout(100); await touch.up(4);
-    await expect(hint(page)).toHaveText('Aim at drones · Fire to shoot', { timeout: 3000 });
+    await expect(hint(page)).toHaveText('Fire: next step', { timeout: 3000 });
     expect((await saved(page)).touch).toBe(3);
     await page.reload(); await page.getByRole('button', { name: 'Begin expedition' }).tap();
-    await expect(hint(page)).toHaveText('Aim at drones · Fire to shoot');
+    await expect(hint(page)).toHaveText('Fire: next step');
     expect(t.errors).toEqual([]); await t.context.close();
   });
   test('with auto-fire off the last step names the Fire button; a finished series shows nothing', async ({ browser }) => {
     let t = await twinTouchPage(browser, viewport, { ...V3, autoFire: false, hintProgress: { touch: 3, simple: 0, mouse: 0 } });
-    await expect(hint(t.page)).toHaveText('Hold Fire to shoot'); await t.context.close();
+    await expect(hint(t.page)).toHaveText('Fire: next step'); await t.context.close();
     t = await twinTouchPage(browser, viewport, { ...V3, hintProgress: { touch: 4, simple: 0, mouse: 0 } });
     await expect(t.page.getByTestId('shooter-hud')).toBeAttached(); await t.page.waitForTimeout(400);
     await expect(hint(t.page)).toHaveCount(0); expect(t.errors).toEqual([]); await t.context.close();

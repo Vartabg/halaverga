@@ -36,6 +36,8 @@ export type ShooterInput = {
   fire: boolean; fireSource: FireSource; aim: boolean; aimLatched: boolean;
   /** Bumped on every fire press (never reset), so a press and release inside one frame still fires once. */
   pressSerial: number; touchId: number | null; lookSource: LookSource; tapFireUntil: number; /** The current or most recent trigger hold was auto-fire's (not 'engaged': the magnet and perception ignore it). */ auto: boolean;
+  /** War in Heaven commands (banish.ts consumes them): serial bumped per request, the COMMAND kind and target (-1 = crosshair); shield: held sources (bitmask). */
+  cmd: number; cmdKind: number; cmdTarget: number; shield: number;
 };
 export type WeaponState = {
   acc: number; heat: number; spreadHeat: number; lock: number; lockT: number; sinceShot: number;
@@ -67,6 +69,8 @@ export type DroneField = {
   hp: Int8Array; broken: Uint8Array; flash: Float32Array; tint: Float32Array; lastHit: Float32Array; flashHist: Float64Array;
   knock: Vec3[]; knockV: Vec3[]; wobble: Float32Array; wobbleV: Float32Array;
   dwell: Float32Array; cooldown: Float32Array; losT: Float32Array; los: Uint8Array; unseenT: Float32Array; side: Int8Array;
+  /** 1 while banish.ts holds the demon (thrown down, bound or cast): the patrol/dodge AI leaves it alone. */
+  held: Uint8Array;
 };
 export type ShooterStats = { shots: number; hits: number; kills: number; chain: number; lastKillT: number };
 export type ShooterState = {
@@ -84,13 +88,13 @@ export function createDroneField(): DroneField {
     hp: new Int8Array(MAX_DRONES), broken: new Uint8Array(MAX_DRONES), flash: f(), tint: f(), lastHit: f().fill(-1e9),
     flashHist: new Float64Array(MAX_DRONES * 3).fill(-Infinity),
     knock: list(v3), knockV: list(v3), wobble: f(), wobbleV: f(),
-    dwell: f(), cooldown: f(), losT: f(), los: new Uint8Array(MAX_DRONES), unseenT: f(), side: new Int8Array(MAX_DRONES),
+    dwell: f(), cooldown: f(), losT: f(), los: new Uint8Array(MAX_DRONES), unseenT: f(), side: new Int8Array(MAX_DRONES), held: new Uint8Array(MAX_DRONES),
   };
 }
 export function createShooter(): ShooterState {
   return {
     clock: 0,
-    input: { fire: false, fireSource: 'none', aim: false, aimLatched: false, pressSerial: 0, touchId: null, lookSource: 'trackpad', tapFireUntil: 0, auto: false },
+    input: { fire: false, fireSource: 'none', aim: false, aimLatched: false, pressSerial: 0, touchId: null, lookSource: 'trackpad', tapFireUntil: 0, auto: false, cmd: 0, cmdKind: 0, cmdTarget: -1, shield: 0 },
     weapon: { acc: 0, heat: 0, spreadHeat: 0, lock: 0, lockT: 0, sinceShot: Infinity, handledPress: 0, pending: false, moveMul: 1, shots: 0, justOverheated: false, justVented: false },
     aim: { origin: v3(), dir: { x: 0, y: 0, z: -1 }, right: { x: 1, y: 0, z: 0 }, up: { x: 0, y: 1, z: 0 }, valid: false, fov: 65, hipFov: 65,
       point: v3(), dist: SHOT_RANGE, blocked: false, blend: 0, fireHold: 0, spreadHalf: 0, combat: false, acquired: false, target: -1 },
@@ -106,7 +110,7 @@ export function createShooter(): ShooterState {
 }
 /** Drops every held control (pause, blur, resize, lock loss, reset, context loss). Serials, stats and input.auto are kept. */
 export function resetShooterInput(s: ShooterState) {
-  const i = s.input; i.fire = false; i.fireSource = 'none'; i.aim = false; i.aimLatched = false; i.touchId = null; i.tapFireUntil = 0;
+  const i = s.input; i.fire = false; i.fireSource = 'none'; i.aim = false; i.aimLatched = false; i.touchId = null; i.tapFireUntil = 0; i.shield = 0;
 }
 /** Returns every feel channel to exact rest (setting off, unmount, fault): afterwards look, camera and pose match main bit for bit. */
 export function resetShooterFeel(s: ShooterState) {

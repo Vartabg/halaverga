@@ -6,9 +6,9 @@ import { begin, heading, resume, seed, shots, speed, telemetry } from './shooter
 // and W (in the air) or Space starts flying. Seeded with Garo's live save: the 'simple' default from before controls version 4.
 // A non-touch desktop (hasTouch false) at a full desktop size and at his 325 px Claude pane.
 const GARO = { trackpadSteering: 'simple', controlsVersion: 3, hintProgress: { touch: 0, simple: 0, mouse: 0 } };
-const GROUND = 'SPACE TO FLY · CLICK TO FIRE · DRAG TO LOOK';
+const GROUND = 'SPACE TO FLY · CLICK A DEMON · DRAG TO LOOK';
 // Hovering: W or Space flies; with a surface in reach Space lands, so the pill names only W.
-const HOVER = /^(W OR SPACE TO FLY|W TO FLY · SPACE TO LAND) · CLICK TO FIRE · DRAG TO LOOK$/;
+const HOVER = /^(W OR SPACE TO FLY|W TO FLY · SPACE TO LAND) · CLICK A DEMON · DRAG TO LOOK$/;
 const CRUISE = 'MOVE TO STEER · SCROLL FOR SPEED · CLICK TO HOVER · HOLD C TO FIRE';
 const pill = legend;
 const scene = (p: Page) => p.getByTestId('flight-surface');

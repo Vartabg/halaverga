@@ -21,7 +21,7 @@ test('Cursor is the default: the free-cursor surface, no lab surface or data-con
   await isCurrent(page, 'Cursor');
   expect(await controls(page)).toBeNull();
   expect(await controlId(page)).toBe('cursor');
-  await expect(legend(page)).toHaveText('SPACE TO FLY · CLICK TO FIRE · DRAG TO LOOK');
+  await expect(legend(page)).toHaveText('SPACE TO FLY · CLICK A DEMON · DRAG TO LOOK');
   expect(t.errors).toEqual([]); await t.context.close();
 });
 

@@ -21,7 +21,8 @@ import Boundary from '@/ui/Boundary';
 import Drones from './Drones';
 import ShotFx from './ShotFx';
 import ImpactFx from './ImpactFx';
-import ArmCannon from './ArmCannon';
+import Banishment from './Banishment';
+import FlamingSword from './FlamingSword';
 import { useGame } from '@/game/store';
 import { clearInput, runtime } from '@/game/runtime';
 import EnvironmentLight from './EnvironmentLight';
@@ -62,7 +63,7 @@ function ShooterAssets() {
   // A missing encounter model is a reloadable world download failure. Load outside the optional casting fault boundary.
   useLoader(GLTFLoader, ADVERSARY_URL);
   return <Boundary fallback={null} onError={() => shooterFault('render', null)}><Shooter /><Drones /><ShotFx /><ImpactFx /><Battle />
-    <Suspense fallback={null}><ArmCannon /></Suspense></Boundary>;
+    <Banishment /><FlamingSword /></Boundary>;
 }
 /** Standard on the classic one thumb, blaster on, touch-capable device: the drone screen history alone (the tap pick reads it).
  *  A desktop that has never shown touch mounts nothing here, so its Standard stays as it was. A failure only leaves it out. */

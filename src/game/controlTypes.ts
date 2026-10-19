@@ -34,7 +34,7 @@ export const CONTROL_TYPES: readonly ControlType[] = [
   { id: 'captured', label: 'Captured', families: ['desktop'], settings: { ...std, desktopMode: 'trackpad', trackpadSteering: 'captured' },
     line: 'Click to cruise with unlimited turning; the pointer hides.', hint: 'Esc gives the pointer back.' },
   { id: 'mouse-keys', label: 'Mouse + keys', families: ['desktop'], settings: { ...std, desktopMode: 'mouse' },
-    line: 'Click to capture the mouse, W A S D to move, click to fire.', hint: 'Esc gives the mouse back.' },
+    line: 'Click to capture the mouse, W A S D to move, click a demon.', hint: 'Esc gives the mouse back.' },
   { id: 'draw', label: 'Draw', families: both, settings: { controlLab: 'draw' },
     line: 'Draw a line to fly it. Draw a circle to turn around.' },
   { id: 'conduct', label: 'Conduct', families: both, settings: { controlLab: 'conduct' },

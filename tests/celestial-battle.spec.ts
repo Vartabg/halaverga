@@ -16,9 +16,10 @@ test('the biblical fantasy entry, accessible source distinction and battle objec
   await expect(page.getByTestId('battle-hud')).toHaveAttribute('data-ward', '3');
   await page.keyboard.press('Space');
   await expect(page.getByTestId('flight-telemetry')).toHaveAttribute('data-flying', 'true');
-  await page.keyboard.down('KeyC');
-  await expect.poll(async () => Number(await page.getByTestId('shooter-hud').getAttribute('data-shots'))).toBeGreaterThan(2);
-  await page.keyboard.up('KeyC');
+  // No bracer shots (docs/research/combat-texts.md): C is the next step on the demon under the reticle, and never fires.
+  await expect(page.getByLabel('Combat strokes')).toContainText('1 rebuke · 2 sword · 3 bind · 4 cast');
+  await page.keyboard.press('KeyC');
+  await expect(page.getByTestId('shooter-hud')).toHaveAttribute('data-shots', '0');
   expect(errors).toEqual([]);
 });
 
@@ -29,7 +30,7 @@ for (const viewport of [{ width: 393, height: 852 }, { width: 852, height: 393 }
       const page = await context.newPage(), errors: string[] = []; page.on('pageerror', e => errors.push(e.message));
       await page.emulateMedia({ reducedMotion: 'reduce' }); await page.goto('/');
       const begin = page.getByRole('button', { name: 'Begin expedition' }); await expect(begin).toBeEnabled();
-      await expect(page.getByText('Drag to fly · tap an adversary to cast.', { exact: true })).toBeVisible();
+      await expect(page.getByText('Drag to fly · tap a demon to rebuke.', { exact: true })).toBeVisible();
       const button = (await begin.boundingBox())!; expect(button.x).toBeGreaterThanOrEqual(0);
       expect(button.x + button.width).toBeLessThanOrEqual(viewport.width); expect(button.y + button.height).toBeLessThanOrEqual(viewport.height);
       await test.info().attach('entry', { body: await page.screenshot(), contentType: 'image/png' });

@@ -8,12 +8,12 @@ const CRUISE = 'MOVE TO STEER · SCROLL FOR SPEED · CLICK TO HOVER';
 describe('trackpadPill', () => {
   it('free cursor, blaster on: cruising, hovering and on the ground', () => {
     for (const flying of [true, false]) expect(pill({ cruising: true, flying })).toBe(`${CRUISE} · HOLD C TO FIRE`);
-    expect(pill({ flying: true })).toBe('W OR SPACE TO FLY · CLICK TO FIRE · DRAG TO LOOK');
-    expect(pill({ flying: false })).toBe('SPACE TO FLY · CLICK TO FIRE · DRAG TO LOOK');
+    expect(pill({ flying: true })).toBe('W OR SPACE TO FLY · CLICK A DEMON · DRAG TO LOOK');
+    expect(pill({ flying: false })).toBe('SPACE TO FLY · CLICK A DEMON · DRAG TO LOOK');
   });
   it('free cursor, blaster on, hovering with a surface in reach: Space lands, so only W flies', () => {
-    expect(pill({ flying: true, canLand: true })).toBe('W TO FLY · SPACE TO LAND · CLICK TO FIRE · DRAG TO LOOK');
-    expect(pill({ flying: false, canLand: true })).toBe('SPACE TO FLY · CLICK TO FIRE · DRAG TO LOOK');
+    expect(pill({ flying: true, canLand: true })).toBe('W TO FLY · SPACE TO LAND · CLICK A DEMON · DRAG TO LOOK');
+    expect(pill({ flying: false, canLand: true })).toBe('SPACE TO FLY · CLICK A DEMON · DRAG TO LOOK');
     expect(pill({ cruising: true, flying: true, canLand: true })).toBe(`${CRUISE} · HOLD C TO FIRE`);
     expect(pill({ shooter: false, flying: true, canLand: true })).toBe('CLICK TO FLY · DRAG TO LOOK');
   });
