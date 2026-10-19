@@ -101,7 +101,7 @@ describe('drone materials', () => {
   });
   it('dispose() disposes every material and texture', () => {
     const m = createDroneMaterials(), seen = new Set<unknown>();
-    const all = [m.body, m.plate, m.eye, m.halo, m.ring, m.haloTexture, m.ringTexture];
+    const all = [m.body, m.plate, m.eye, m.halo, m.ring, m.haloTexture, m.ringTexture, m.wings.texture];
     all.forEach(o => o.addEventListener('dispose', () => seen.add(o)));
     m.dispose();
     expect(seen.size).toBe(all.length);

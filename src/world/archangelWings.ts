@@ -1,68 +1,58 @@
-import { Group, Mesh } from 'three';
-import { featherWing } from './featherGeometry';
+import { Group, Quaternion, Vector3, type Object3D } from 'three';
+import { createAvianWing, type AvianWing } from './avianWing';
 import { featherMaterial } from './featherMaterial';
-
-export type ArchangelWings = {
-  root: Group;
-  leftInner: Group;
-  rightInner: Group;
-  leftOuter: Group;
-  rightOuter: Group;
-  phase: number;
-  unfold: number;
-  dispose: () => void;
-};
-
-export function createArchangelWings(): ArchangelWings {
-  const root = new Group(), leftInner = new Group(), rightInner = new Group(), leftOuter = new Group(), rightOuter = new Group();
-  root.position.set(0, .16, .16);
-  leftInner.position.set(-.09, .04, 0); rightInner.position.set(.09, .04, 0);
-  leftOuter.position.set(-.68, .08, .03); rightOuter.position.set(.68, .08, .03);
-  leftInner.add(leftOuter); rightInner.add(rightOuter);
-  root.add(leftInner, rightInner);
-
-  const plume = featherMaterial();
-  const side = (s: number) => ({ inner: featherWing(s, false), outer: featherWing(s, true) });
-  const L = side(-1), R = side(1);
-  const meshes = [
-    new Mesh(L.inner, plume.material), new Mesh(L.outer, plume.material),
-    new Mesh(R.inner, plume.material), new Mesh(R.outer, plume.material),
-  ];
-  meshes.forEach(m => { m.castShadow = true; });
-  leftInner.add(meshes[0]); leftOuter.add(meshes[1]);
-  rightInner.add(meshes[2]); rightOuter.add(meshes[3]);
-
-  return {
-    root, leftInner, rightInner, leftOuter, rightOuter, phase: 0, unfold: 0,
-    dispose() {
-      L.inner.dispose(); L.outer.dispose(); R.inner.dispose(); R.outer.dispose(); plume.dispose();
-    },
-  };
+import { advanceWingMotion, createWingMotion } from './wingMotion';
+const identity = new Quaternion(), q = new Quaternion(), twist = new Quaternion(), axisX = new Vector3(1, 0, 0), axisY = new Vector3(0, 1, 0), covertAxis = new Vector3(), closed = new Vector3();
+const frameInput = { flying: false, paused: false, reduced: false, speed: 0, vy: 0, roll: 0, brake: 0 };
+const parentQ = new Quaternion(), frameQ = new Quaternion(), handQ = new Quaternion(), covertQ = new Quaternion();
+export function createArchangelWings() {
+  const root = new Group(), plume = featherMaterial(), left = createAvianWing(-1, plume.material), right = createAvianWing(1, plume.material);
+  root.position.set(0, .20, .17); left.root.position.x = -.125; right.root.position.x = .125; root.add(left.root, right.root);
+  const motion = createWingMotion();
+  const w = { root, left, right, motion, dispose() { left.dispose(); right.dispose(); plume.dispose(); } };
+  poseWings(w); return w;
 }
-
-export function stepArchangelWings(
-  w: ArchangelWings,
-  flying: boolean,
-  paused: boolean,
-  reduced: boolean,
-  speed: number,
-  vy: number,
-  roll: number,
-  dt: number,
-) {
-  const step = Math.min(dt, .05), targetUnfold = flying ? 1 : 0;
-  w.unfold += (targetUnfold - w.unfold) * Math.min(1, step * 8);
-  const climb = Math.max(0, vy / 12), effort = flying ? .35 + .65 * Math.min(1, speed / 22 + climb * .7) : .15;
-  if (!paused && !reduced) w.phase += step * (flying ? 5.2 + climb * 3.4 + Math.min(1, speed / 28) * 1.8 : 1.4);
-  const wave = reduced ? 0 : Math.sin(w.phase), tipWave = reduced ? 0 : Math.sin(w.phase - .65);
-  const u = w.unfold;
-  // Folded on ground: swept back (+Y rot) and drooped down (-Z rot); spread in flight: wide dihedral with rhythmic stroke.
-  const sweep = (1 - u) * .72 + u * (.22 + wave * .38 * effort);
-  const dihedral = (1 - u) * -.58 + u * (.18 + wave * .22 * effort);
-  const tipSweep = (1 - u) * .48 + u * (.12 + tipWave * .44 * effort);
-  const tipFold = (1 - u) * -.65 + u * (.08 + tipWave * .26 * effort);
-  w.leftInner.rotation.set(.12 * u, -sweep, -dihedral - roll * .22 * u);
-  w.rightInner.rotation.set(.12 * u, sweep, dihedral - roll * .22 * u);
-  w.leftOuter.rotation.set(0, -tipSweep, -tipFold);
-  w.rightOuter.rotation.set(0, tipSweep, tipFold);
+export type ArchangelWings = ReturnType<typeof createArchangelWings>;
+function poseSide(wing: AvianWing, side: number, w: ArchangelWings) {
+  const m = w.motion, u = m.unfold, recovery = m.recovery * (1 - m.glide), bank = Math.max(-.5, Math.min(.5, m.roll));
+  const flap = m.amplitude * m.stroke, differential = side * bank * .10 * u;
+  wing.bones[0].rotation.set((1 - u) * 1.40 + u * (.06 + recovery * .28 + m.brake * .23),
+    side * ((1 - u) * -.12 + u * (-.10 + recovery * .10)), side * ((1 - u) * -.85 + u * (.12 + flap + differential)), 'ZXY');
+  wing.bones[1].rotation.set(0, side * ((1 - u) * 2.25 + u * recovery * .78), 0);
+  wing.bones[2].rotation.set(u * (recovery * .28 - m.brake * .15), side * ((1 - u) * -1.20 - u * recovery * .60), 0);
+  wing.bones[3].rotation.set(0, side * ((1 - u) * .08 + u * (.04 + m.brake * .04)), 0);
+  handQ.identity(); for (let i = 0; i < 4; i++) handQ.multiply(wing.bones[i].quaternion); handQ.invert();
+  for (let i = 0; i < 10; i++) {
+    closed.set(side * .02, -.83, .55).normalize().applyQuaternion(handQ); q.setFromUnitVectors(wing.axes[i], closed);
+    q.slerp(identity, u);
+    twist.setFromAxisAngle(wing.axes[i], side * u * (recovery * .66 + m.brake * .06)); q.multiply(twist);
+    twist.setFromAxisAngle(axisY, side * u * (i / 9 - .5) * (.045 + m.brake * .16)); wing.bones[4 + i].quaternion.copy(q).premultiply(twist);
+  }
+  covertQ.copy(wing.bones[3].quaternion).multiply(handQ);
+  covertAxis.set(side * .4, 0, 1).normalize(); closed.set(side * .02, -.83, .55).normalize().applyQuaternion(covertQ);
+  wing.bones[16].quaternion.setFromUnitVectors(covertAxis, closed).slerp(identity, u);
+  covertQ.copy(wing.bones[2].quaternion).multiply(wing.bones[3].quaternion).multiply(handQ);
+  for (let i = 0; i < 14; i++) {
+    closed.set(side * .03, -.92, .30).normalize().applyQuaternion(covertQ);
+    wing.bones[17 + i].quaternion.setFromUnitVectors(wing.axes[10 + i], closed).slerp(identity, u);
+  }
+  for (let i = 0; i < 75; i++) {
+    closed.set(side * .03, -.92, .30).normalize().applyQuaternion(covertQ);
+    wing.bones[31 + i].quaternion.setFromUnitVectors(wing.axes[24 + i], closed).slerp(identity, u);
+  }
+  closed.set(side * .54, -.015, -.21).normalize();
+  wing.bones[15].quaternion.setFromAxisAngle(closed, -side * (1 - u) * 1.2);
+  wing.bones[14].rotation.set(0, 0, side * u * (.06 + m.brake * .48 + (1 - m.glide) * .12));
+}
+function poseWings(w: ArchangelWings) { poseSide(w.left, -1, w); poseSide(w.right, 1, w); }
+/** Read the final character frame. Counter the flight lean so a prone body cannot turn lifting surfaces into vertical signs. */
+export function alignArchangelWings(w: ArchangelWings, body: Object3D, lean: number) {
+  if (!w.root.parent) return;
+  body.getWorldQuaternion(frameQ); q.setFromAxisAngle(axisX, -lean); frameQ.multiply(q);
+  w.root.parent.getWorldQuaternion(parentQ); w.root.quaternion.copy(parentQ.invert()).multiply(frameQ);
+}
+export function stepArchangelWings(w: ArchangelWings, flying: boolean, paused: boolean, reduced: boolean, speed: number, vy: number, roll: number, dt: number, brake = 0) {
+  if (paused) return;
+  Object.assign(frameInput, { flying, paused, reduced, speed, vy, roll, brake });
+  advanceWingMotion(w.motion, frameInput, dt); poseWings(w);
 }

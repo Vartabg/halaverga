@@ -18,7 +18,7 @@ for(const [title,kind,position,target]of[
  for(const[c,i,p]of[['#ffe3b4',3,[-3,4,-3]],['#bbcfff',4,[3,2,3]]]){const l=new T.DirectionalLight(c,i);l.position.set(...p);scene.add(l)}
  if(kind==='hero'||kind==='face'){
   const rig=buildSuitRig(hero.scene),w=createArchangelWings();rig.joints[11].add(w.root);angelRegalia(rig.root,rig.joints);
-  w.unfold=1;stepArchangelWings(w,true,true,true,0,0,0,0);scene.add(rig.root);
+  w.motion.unfold=1;stepArchangelWings(w,true,false,true,0,0,0,0);scene.add(rig.root);
  }else{const o=demon.scene.clone(true);o.traverse(m=>{if(m.isMesh){m.material=m.material.clone();m.material.side=T.DoubleSide;if(m.material.name==='Ember eyes'){m.material.emissive.set('#ff4b08');m.material.emissiveIntensity=2}}});scene.add(o)}
  const camera=new T.PerspectiveCamera(kind.includes('ace')?32:38,480/560,.05,30);camera.position.set(...position);camera.lookAt(...target);renderer.render(scene,camera);
 }

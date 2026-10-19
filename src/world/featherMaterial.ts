@@ -1,6 +1,6 @@
 import { DataTexture, DoubleSide, LinearMipmapLinearFilter, MeshStandardMaterial, RepeatWrapping, RGBAFormat, Vector2 } from 'three';
 
-/** Original microstructure: shallow diagonal barbs meeting at the rachis. Shared by all four feather batches. */
+/** Original microstructure: shallow diagonal barbs meeting at the rachis. Shared by both skinned wings. */
 export function featherMaterial() {
   const width = 128, height = 256, data = new Uint8Array(width * height * 4);
   for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
@@ -10,7 +10,7 @@ export function featherMaterial() {
   const texture = new DataTexture(data, width, height, RGBAFormat);
   texture.wrapS = texture.wrapT = RepeatWrapping; texture.generateMipmaps = true;
   texture.minFilter = LinearMipmapLinearFilter; texture.needsUpdate = true;
-  const material = new MeshStandardMaterial({ color: '#f4f1e7', vertexColors: true, roughness: .71, metalness: 0,
+  const material = new MeshStandardMaterial({ color: '#ddd7c9', vertexColors: true, roughness: .71, metalness: 0,
     normalMap: texture, normalScale: new Vector2(.22, .22), side: DoubleSide });
   return { material, dispose() { material.dispose(); texture.dispose(); } };
 }

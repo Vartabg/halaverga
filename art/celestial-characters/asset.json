@@ -1,11 +1,11 @@
 {
   "angel": {
     "bytes": 2256012,
-    "sha256": "c6cd9cab682e14beb1e33abd771ce9fdd96a366bb782e1447c346374cb85365d"
+    "sha256": "1a9d8d0b0d8d743bf07b69a9ea2a78e1b231c28f3695481586cee4764fcbc52b"
   },
   "abyssal": {
-    "bytes": 546900,
-    "sha256": "c90279f6fb8b2a2758a17f8dcefdac0a564385f0edbe53c98b1c23146a6ca3b7"
+    "bytes": 546776,
+    "sha256": "b85007c716be878e3d0dac29fdf391e2d45cb021bea2dc3b22152fe754e3a999"
   },
   "Warrior \u2014 fitted regalia": {
     "vertices": 40226,
@@ -24,11 +24,11 @@
     "triangles": 336
   },
   "wingL": {
-    "vertices": 1070,
-    "triangles": 1920
+    "vertices": 1074,
+    "triangles": 1888
   },
   "wingR": {
-    "vertices": 1070,
-    "triangles": 1920
+    "vertices": 1074,
+    "triangles": 1888
   }
 }

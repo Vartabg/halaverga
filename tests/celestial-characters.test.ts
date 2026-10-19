@@ -30,11 +30,11 @@ describe('the actual celestial assets', () => {
     expect(triangles).toBeGreaterThan(50_000); expect(triangles).toBeLessThanOrEqual(80_000);
     expect(batches).toBeLessThanOrEqual(9); rig.dispose();
   });
-  it('keeps all four layered feather batches below 30000 triangles and releases their maps with the regalia', () => {
+  it('keeps both skinned feather batches below 30000 triangles and releases their maps with the regalia', () => {
     const rig = buildSuitRig(hero.scene), w = createArchangelWings(), r = angelRegalia(rig.root, rig.joints);
     let tris = 0, meshes = 0; const disposed = new Set<unknown>();
     w.root.traverse(o => { if (o instanceof Mesh) { meshes++; tris += (o.geometry.index?.count ?? o.geometry.attributes.position.count) / 3; } });
-    expect(meshes).toBe(4); expect(tris).toBeLessThan(30000); expect(tris).toBeGreaterThan(20000);
+    expect(meshes).toBe(2); expect(tris).toBeLessThan(30000); expect(tris).toBeGreaterThan(20000);
     const maps = new Set<unknown>(); rig.root.traverse(o => { if (o instanceof Mesh && !Array.isArray(o.material) && 'normalMap' in o.material) {
       for (const t of [o.material.normalMap, 'roughnessMap' in o.material ? o.material.roughnessMap : null]) {
         if (t && typeof t === 'object' && 'addEventListener' in t) { maps.add(t); (t as import('three').Texture).addEventListener('dispose', () => disposed.add(t)); }

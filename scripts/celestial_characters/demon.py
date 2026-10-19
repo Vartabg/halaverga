@@ -4,6 +4,7 @@ import bpy
 from mathutils import Vector
 from mesh import material, surface, join, tube, sphere, mesh, paint, export
 import demon_face
+import demon_wing
 
 
 def build(root, sources):
@@ -59,39 +60,6 @@ def build(root, sources):
     for j in range(8):
         plate_parts.append(tube('Dorsal scute',[(0,.14,.47-j*.07),(0,.21,.48-j*.07),(0,.27,.44-j*.07)],[.040,.026,.001],bone,8))
     body_parts.append(tube('Whip tail', [(0,.12,-.12),(0,.29,-.30),(.12,.45,-.48),(.26,.46,-.56),(.34,.36,-.52),(.36,.29,-.43)], [.055,.047,.033,.022,.013,.001], flesh, 10))
-    # Membranes span a bent upper limb and five curved finger struts, with scalloped trailing edges.
-    def wing(side):
-        pieces=[]
-        wrist=Vector((.82,.10,.56))
-        tips=[Vector(p) for p in [(1.99,.16,.87),(1.93,.20,.21),(1.54,.23,-.28),(.97,.20,-.44),(.36,.12,-.21)]]
-        root=Vector((.20,.08,.36))
-        pieces.append(tube('Wing upper limb', [root,(.49,.07,.68),wrist], [.075,.057,.040], bone, 10))
-        for tip in tips[:-1]:
-            points=[wrist.lerp(tip,i/12)+Vector((0,-.035*sin(i/12*pi),.04*sin(i/12*pi))) for i in range(13)]
-            pieces.append(tube('Wing finger', points, [.029*(1-i/13)**.7 for i in range(13)], bone, 7))
-        # Each membrane panel has real depth curvature and fine branching tension creases.
-        for a,b in zip(tips[:-1],tips[1:]):
-            verts,faces=[],[]
-            for j in range(13):
-                t=j/12
-                for i in range(13):
-                    u=i/12
-                    edge=a.lerp(b,u).lerp(wrist,.19*sin(u*pi))
-                    p=wrist.lerp(edge,t)
-                    p.y += .10*sin(u*pi)*sin(t*pi)+.008*sin(u*31+t*8)*t
-                    verts.append(p)
-                    if i<12 and j<12:
-                        k=j*13+i
-                        faces.append((k,k+1,k+14,k+13))
-            pieces.append(mesh('Tensioned membrane',verts,faces,membrane))
-        out=join(pieces,'wingL' if side<0 else 'wingR')
-        # Blender export Y up converts (x,y,z) to (x,z,-y). Keep game front at -Z.
-        for v in out.data.vertices:
-            v.co.x *= side
-            v.co.y *= -1
-        if side>0:
-            out.data.flip_normals()
-        return out
     body=join(body_parts,'body')
     plate=join(plate_parts,'plate')
     for obj in [body,plate]:
@@ -103,7 +71,7 @@ def build(root, sources):
         eyes.append(sphere('eye', (s*.046,.24,.737), (.023,.010,.009), ember, 12, 8))
     eyes=join(eyes,'eye')
     # Runtime positions this emissive pair at eyeCenter; all other parts are origin-centred.
-    left,right=wing(-1),wing(1)
+    left,right=demon_wing.make(-1,bone,membrane),demon_wing.make(1,bone,membrane)
     def tone(p):
         n=.70+.14*sin(p.x*51+sin(p.z*41))*sin(p.z*63+p.y*17)
         return (n,n*.88,n*.82)

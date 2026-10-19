@@ -1,5 +1,6 @@
 import { BufferGeometry, Float32BufferAttribute, Mesh, MeshStandardMaterial, PlaneGeometry, type Object3D } from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { membraneWeights } from './membraneRig';
 import { EYE_FORWARD, EYE_UP } from '@/game/combat';
 
 /** Baked anatomy and curved wing fingers from the original Blender asset. Four pooled batches, no per-creature material clones. */
@@ -26,5 +27,15 @@ export function makeDemonGeometry(source: Object3D) {
     if (!out) throw new Error(`Adversary ${name} has no surface.`);
     return out;
   };
-  return { body: part('body'), plate: part('plate'), wingL: part('wingL'), wingR: part('wingR'), eye: part('eye'), halo: new PlaneGeometry(1, 1) };
+  const parts = { body: part('body'), plate: part('plate'), wingL: part('wingL'), wingR: part('wingR'), eye: part('eye'), halo: new PlaneGeometry(1, 1) };
+  const weights: number[] = [0, 0, 0, 0];
+  for (const [name, g] of Object.entries(parts)) {
+    if (!['body', 'plate', 'wingL', 'wingR'].includes(name)) continue;
+    const p = g.attributes.position, a = new Float32Array(p.count * 4), side = new Float32Array(p.count);
+    if (name.startsWith('wing')) for (let i = 0; i < p.count; i++) {
+      membraneWeights(p.getX(i), p.getY(i), weights); a.set(weights, i * 4); side[i] = name === 'wingL' ? -1 : 1;
+    }
+    g.setAttribute('aWingWeights', new Float32BufferAttribute(a, 4)); g.setAttribute('aWingSide', new Float32BufferAttribute(side, 1));
+  }
+  return parts;
 }

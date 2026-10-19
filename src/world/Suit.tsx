@@ -12,7 +12,7 @@ import { advanceFlightMix, createFlightMix } from './flightMix';
 import { applyFlightClips } from './flightPose';
 import { advanceSuitRoll, createSuitRoll, speedFade } from './suitRoll';
 import { createBlasterFrame, releaseSuitBlaster, stepSuitBlaster } from './suitBlaster';
-import { createArchangelWings, stepArchangelWings } from './archangelWings';
+import { alignArchangelWings, createArchangelWings, stepArchangelWings } from './archangelWings';
 import { angelRegalia } from './angelRegalia';
 export const SUIT_URL = '/models/angel.glb';
 export const ADVERSARY_URL = '/models/abyssal.glb';
@@ -54,13 +54,14 @@ export default function Suit() {
     // Visual only: the lift lowers or bobs the model, never the anchor the camera and physics share.
     rig.root.position.y += applySuitAnimation(rig.joints, life, pose, state.reduced, m.hero, authored);
     regalia.step(dt, state.paused || state.reduced || !state.flying);
-    stepArchangelWings(wings, state.flying, state.paused, state.reduced, pose.speed, v.y, roll, dt);
     // The blaster (arm cannon, carry and aim, whole-body shot choreography, hand hide) layers over everything, in one guarded block.
     const f = blaster, cam = three.camera as PerspectiveCamera;
     f.on = state.shooter; f.third = state.camera === 'third'; f.paused = state.paused; f.reduced = state.reduced; f.epoch = pose.epoch;
     f.flight = pose.flight; f.speed = pose.speed; f.ground = life.ground; f.fov = cam.fov ?? 65; f.height = three.size.height;
     f.camera.x = cam.position.x; f.camera.y = cam.position.y; f.camera.z = cam.position.z;
     stepSuitBlaster(f, dt);
+    stepArchangelWings(wings, state.flying, state.paused, state.reduced, pose.speed, v.y, roll, dt, pose.brake);
+    alignArchangelWings(wings, rig.root, pose.lean);
     pose.suitClip = mix.label; pose.suitRoll = roll;
   }, -20);
   return <primitive object={rig.root} dispose={null} />;

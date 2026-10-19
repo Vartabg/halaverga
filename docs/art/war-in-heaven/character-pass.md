@@ -1,5 +1,8 @@
 # Character revision — 2026-10-19
 
+This is the character-foundation checkpoint. The later [wing refinement](wing-refinement.md)
+supersedes its wing geometry, animation and resource measurements.
+
 Garo rejected the first sanctuary slice's characters as incomplete and basic. This pass
 replaces the actual runtime character assets. The screenshots below are rendered from
 those assets in Chrome; no generated concept image substitutes for game geometry.
