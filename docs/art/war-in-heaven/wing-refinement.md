@@ -5,6 +5,9 @@ current action. The character revision remains the foundation; this pass changes
 wing structure, attachment, feather layout and motion. The body/camera/flight
 controller remain authoritative.
 
+The subsequent [obstacle-aware folding pass](wing-clearance.md) now handles flight
+clearance near stone and supersedes the obstacle-tucking limitation below.
+
 ![Six runtime states](wing-states.png)
 
 [Motion study](wing-motion.mp4) · [Recorded gameplay](wing-gameplay.mp4)

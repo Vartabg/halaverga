@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { useFrame, useLoader } from '@react-three/fiber';
+import { useRapier } from '@react-three/rapier';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { type PerspectiveCamera } from 'three';
 import { presentation as pose } from '@/game/presentation';
@@ -14,6 +15,7 @@ import { advanceSuitRoll, createSuitRoll, speedFade } from './suitRoll';
 import { createBlasterFrame, releaseSuitBlaster, stepSuitBlaster } from './suitBlaster';
 import { alignArchangelWings, createArchangelWings, stepArchangelWings } from './archangelWings';
 import { angelRegalia } from './angelRegalia';
+import { createWingClearance } from './wingClearance';
 export const SUIT_URL = '/models/angel.glb';
 export const ADVERSARY_URL = '/models/abyssal.glb';
 /** Reload scene: forget every model the world loads, so a failed download is fetched again instead of replaying the cached error.
@@ -24,6 +26,7 @@ export function clearWorldCache() {
 }
 const input = { flying: false, landing: false, paused: true, reduced: false, velocity: runtime.velocity, turn: runtime.turn };
 export default function Suit() {
+  const { world, rapier } = useRapier();
   const motion = useRef({ hero: 1, epoch: -1 }), animation = useRef(createSuitAnimation()), flight = useRef(createFlightMix()), turn = useRef(createSuitRoll());
   const asset = useLoader(GLTFLoader, SUIT_URL);
   const rig = useMemo(() => buildSuitRig(asset.scene), [asset]);
@@ -32,6 +35,7 @@ export default function Suit() {
     (rig.joints[11] ?? rig.root).add(w.root);
     return w;
   }, [rig]);
+  const clearance = useMemo(() => createWingClearance(wings, world, rapier), [wings, world, rapier]);
   // The blaster block's per-frame inputs (suitBlaster.ts), rewritten in place each frame.
   const regalia = useMemo(() => angelRegalia(rig.root, rig.joints), [rig]);
   const blaster = useMemo(() => createBlasterFrame(rig, runtime.shooter), [rig]);
@@ -62,6 +66,8 @@ export default function Suit() {
     stepSuitBlaster(f, dt);
     stepArchangelWings(wings, state.flying, state.paused, state.reduced, pose.speed, v.y, roll, dt, pose.brake);
     alignArchangelWings(wings, rig.root, pose.lean);
+    clearance.step(v, dt, state.paused, state.reduced);
+    pose.wingTuck.left = wings.tuck.left; pose.wingTuck.right = wings.tuck.right;
     pose.suitClip = mix.label; pose.suitRoll = roll;
   }, -20);
   return <primitive object={rig.root} dispose={null} />;

@@ -8,43 +8,47 @@ const parentQ = new Quaternion(), frameQ = new Quaternion(), handQ = new Quatern
 export function createArchangelWings() {
   const root = new Group(), plume = featherMaterial(), left = createAvianWing(-1, plume.material), right = createAvianWing(1, plume.material);
   root.position.set(0, .20, .17); left.root.position.x = -.125; right.root.position.x = .125; root.add(left.root, right.root);
-  const motion = createWingMotion();
-  const w = { root, left, right, motion, dispose() { left.dispose(); right.dispose(); plume.dispose(); } };
+  const motion = createWingMotion(), tuck = { left: 0, right: 0 };
+  const w = { root, left, right, motion, tuck, dispose() { left.dispose(); right.dispose(); plume.dispose(); } };
   poseWings(w); return w;
 }
 export type ArchangelWings = ReturnType<typeof createArchangelWings>;
-function poseSide(wing: AvianWing, side: number, w: ArchangelWings) {
-  const m = w.motion, u = m.unfold, recovery = m.recovery * (1 - m.glide), bank = Math.max(-.5, Math.min(.5, m.roll));
+function poseSide(wing: AvianWing, side: number, w: ArchangelWings, tuck: number) {
+  const m = w.motion, folded = m.unfold * tuck, ground = 1 - m.unfold, u = m.unfold * (1 - tuck);
+  const alongBack = folded / Math.max(.00001, 1 - u), recovery = m.recovery * (1 - m.glide), bank = Math.max(-.5, Math.min(.5, m.roll));
   const flap = m.amplitude * m.stroke, differential = side * bank * .10 * u;
-  wing.bones[0].rotation.set((1 - u) * 1.40 + u * (.06 + recovery * .28 + m.brake * .23),
-    side * ((1 - u) * -.12 + u * (-.10 + recovery * .10)), side * ((1 - u) * -.85 + u * (.12 + flap + differential)), 'ZXY');
-  wing.bones[1].rotation.set(0, side * ((1 - u) * 2.25 + u * recovery * .78), 0);
-  wing.bones[2].rotation.set(u * (recovery * .28 - m.brake * .15), side * ((1 - u) * -1.20 - u * recovery * .60), 0);
+  wing.bones[0].rotation.set(ground * 1.40 + folded * .12 + u * (.06 + recovery * .28 + m.brake * .23),
+    side * (ground * -.12 - folded * 1.40 + u * (-.10 + recovery * .10)), side * (ground * -.85 - folded * .04 + u * (.12 + flap + differential)), 'ZXY');
+  wing.bones[1].rotation.set(0, side * (ground * 2.25 + folded * 2.10 + u * recovery * .78), 0);
+  wing.bones[2].rotation.set(u * (recovery * .28 - m.brake * .15), side * (-ground * 1.20 - folded * 1.45 - u * recovery * .60), 0);
   wing.bones[3].rotation.set(0, side * ((1 - u) * .08 + u * (.04 + m.brake * .04)), 0);
   handQ.identity(); for (let i = 0; i < 4; i++) handQ.multiply(wing.bones[i].quaternion); handQ.invert();
   for (let i = 0; i < 10; i++) {
-    closed.set(side * .02, -.83, .55).normalize().applyQuaternion(handQ); q.setFromUnitVectors(wing.axes[i], closed);
+    closed.set(side * .02, -.83 + alongBack * .75, .55 + alongBack * .45).normalize().applyQuaternion(handQ); q.setFromUnitVectors(wing.axes[i], closed);
     q.slerp(identity, u);
     twist.setFromAxisAngle(wing.axes[i], side * u * (recovery * .66 + m.brake * .06)); q.multiply(twist);
     twist.setFromAxisAngle(axisY, side * u * (i / 9 - .5) * (.045 + m.brake * .16)); wing.bones[4 + i].quaternion.copy(q).premultiply(twist);
   }
   covertQ.copy(wing.bones[3].quaternion).multiply(handQ);
-  covertAxis.set(side * .4, 0, 1).normalize(); closed.set(side * .02, -.83, .55).normalize().applyQuaternion(covertQ);
+  covertAxis.set(side * .4, 0, 1).normalize(); closed.set(side * .02, -.83 + alongBack * .75, .55 + alongBack * .45).normalize().applyQuaternion(covertQ);
   wing.bones[16].quaternion.setFromUnitVectors(covertAxis, closed).slerp(identity, u);
   covertQ.copy(wing.bones[2].quaternion).multiply(wing.bones[3].quaternion).multiply(handQ);
   for (let i = 0; i < 14; i++) {
-    closed.set(side * .03, -.92, .30).normalize().applyQuaternion(covertQ);
+    closed.set(side * .03, -.92 + alongBack * .84, .30 + alongBack * .70).normalize().applyQuaternion(covertQ);
     wing.bones[17 + i].quaternion.setFromUnitVectors(wing.axes[10 + i], closed).slerp(identity, u);
   }
   for (let i = 0; i < 75; i++) {
-    closed.set(side * .03, -.92, .30).normalize().applyQuaternion(covertQ);
+    closed.set(side * .03, -.92 + alongBack * .84, .30 + alongBack * .70).normalize().applyQuaternion(covertQ);
     wing.bones[31 + i].quaternion.setFromUnitVectors(wing.axes[24 + i], closed).slerp(identity, u);
   }
   closed.set(side * .54, -.015, -.21).normalize();
   wing.bones[15].quaternion.setFromAxisAngle(closed, -side * (1 - u) * 1.2);
   wing.bones[14].rotation.set(0, 0, side * u * (.06 + m.brake * .48 + (1 - m.glide) * .12));
 }
-function poseWings(w: ArchangelWings) { poseSide(w.left, -1, w); poseSide(w.right, 1, w); }
+export function poseArchangelWing(w: ArchangelWings, side: number, tuck = side < 0 ? w.tuck.left : w.tuck.right) {
+  poseSide(side < 0 ? w.left : w.right, side, w, tuck);
+}
+function poseWings(w: ArchangelWings) { poseArchangelWing(w, -1); poseArchangelWing(w, 1); }
 /** Read the final character frame. Counter the flight lean so a prone body cannot turn lifting surfaces into vertical signs. */
 export function alignArchangelWings(w: ArchangelWings, body: Object3D, lean: number) {
   if (!w.root.parent) return;
