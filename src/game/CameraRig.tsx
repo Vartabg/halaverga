@@ -8,7 +8,7 @@ import { baseFovStep, boomFor, CAM, fovFor, hipFovFor, shortWeight } from './cam
 import { useGame } from './store';
 import { boomBlocks } from './boomFilter';
 import { strike } from './strike';
-import { clearCombatSight } from './combatSight';
+import { clearCombatSight, createCombatSight } from './combatSight';
 import { createCombatCamera, stepCombatCamera, rememberCombatPilot, combatCameraReadout as readout } from './combatCamera';
 const rotation = new Euler(0, 0, 0, 'YXZ'), q = new Quaternion(), desired = new Vector3(), dir = new Vector3(), head = new Vector3();
 const shakeEuler = new Euler(0, 0, 0, 'YXZ'), shake = new Quaternion(), axis = new Vector3();
@@ -20,7 +20,7 @@ const identity = { x: 0, y: 0, z: 0, w: 1 };
 export default function CameraRig() {
   const { world, rapier } = useRapier();
   const initialized = useRef(false), epoch = useRef(-1), marker = useRef<Mesh>(null);
-  const combat = useRef(createCombatCamera());
+  const combat = useRef(createCombatCamera()), clearance = useRef(createCombatSight());
   const sight = useMemo(() => new rapier.Ray({ x: 0, y: 0, z: 0 }, { x: 0, y: 0, z: -1 }), [rapier]);
   const boom = useRef(new Vector3()), probe = useMemo(() => new rapier.Ball(.28), [rapier]);
   useFrame(({ camera, invalidate, gl, size }, dt) => {
@@ -56,7 +56,8 @@ export default function CameraRig() {
       const hit = world.castShape(head, identity, dir, probe, .04, length, false, undefined, undefined, undefined, undefined, boomBlocks);
       if (hit) boom.current.setLength(Math.max(0, hit.time_of_impact - .08));
     }
-    if (frame.tracking && strike.phase === 1) clearCombatSight(world, sight, head, boom.current, strike.aim);
+    if (snap || !frame.tracking || strike.phase !== 1) { clearance.current.distance = Infinity; clearance.current.hold = 0; }
+    if (frame.tracking && strike.phase === 1) clearCombatSight(world, sight, head, boom.current, strike.aim, clearance.current, elapsed);
     // Both camera and suit consume the same interpolated anchor. Only the boom eases.
     camera.position.copy(head).add(boom.current); camera.quaternion.copy(q);
     runtime.cameraDistance = camera.position.distanceTo(pose.position);

@@ -1,19 +1,43 @@
-// Keep the attack target's sightline clear as well as the camera boom. A shoulder view can cut behind a pillar even when the
-// angel has a clear strike path. Shorten that view before publishing it to enemy perception / targeting.
+// CameraRig owns the view. This query only shortens its boom when a pillar hides the attack target.
 import type RAPIER from '@dimforge/rapier3d-compat';
 import { ONLY_FIXED, SHOT_GROUPS, type Vec3 } from './combat';
-const direction: Vec3 = { x: 0, y: 0, z: 0 };
-export function clearCombatSight(world: RAPIER.World, ray: RAPIER.Ray, head: Vec3, boom: Vec3, target: Vec3) {
-  const bx = boom.x, by = boom.y, bz = boom.z;
-  for (let n = 0; n < 6; n++) {
-    const scale = n === 5 ? .08 : 1 - n * .2;
-    ray.origin.x = head.x + bx * scale; ray.origin.y = head.y + by * scale; ray.origin.z = head.z + bz * scale;
-    direction.x = target.x - ray.origin.x; direction.y = target.y - ray.origin.y; direction.z = target.z - ray.origin.z;
-    const distance = Math.hypot(direction.x, direction.y, direction.z);
-    if (distance < .5) return;
-    ray.dir.x = direction.x / distance; ray.dir.y = direction.y / distance; ray.dir.z = direction.z / distance;
-    if (!world.castRay(ray, distance - .5, true, ONLY_FIXED, SHOT_GROUPS)) {
-      boom.x = bx * scale; boom.y = by * scale; boom.z = bz * scale; return;
+export const createCombatSight = () => ({ distance: Infinity, hold: 0 });
+function clear(world: RAPIER.World, ray: RAPIER.Ray, head: Vec3, boom: Vec3, target: Vec3, scale: number) {
+  ray.origin.x = head.x + boom.x * scale; ray.origin.y = head.y + boom.y * scale; ray.origin.z = head.z + boom.z * scale;
+  const x = target.x - ray.origin.x, y = target.y - ray.origin.y, z = target.z - ray.origin.z, distance = Math.hypot(x, y, z);
+  if (distance < .5) return true;
+  ray.dir.x = x / distance; ray.dir.y = y / distance; ray.dir.z = z / distance;
+  return !world.castRay(ray, distance - .5, true, ONLY_FIXED, SHOT_GROUPS);
+}
+/** Retract immediately, find the obstruction edge accurately, then hold briefly before easing back out. No 20% zoom steps. */
+export function clearCombatSight(world: RAPIER.World, ray: RAPIER.Ray, head: Vec3, boom: Vec3, target: Vec3,
+  state = createCombatSight(), elapsed = 1 / 60) {
+  const length = Math.hypot(boom.x, boom.y, boom.z), dt = Math.max(0, Math.min(.05, elapsed));
+  if (length < .01) { state.distance = length; return; }
+  let scale = 1;
+  if (!clear(world, ray, head, boom, target, 1)) {
+    for (let n = 1; n <= 5; n++) {
+      const candidate = n === 5 ? .08 : 1 - n * .2;
+      if (!clear(world, ray, head, boom, target, candidate)) continue;
+      let lo = candidate, hi = 1 - (n - 1) * .2;
+      for (let k = 0; k < 6; k++) {
+        const mid = (lo + hi) / 2;
+        if (clear(world, ray, head, boom, target, mid)) lo = mid; else hi = mid;
+      }
+      const padded = Math.max(.01, lo - .04 / length);
+      scale = clear(world, ray, head, boom, target, padded) ? padded : lo; break;
     }
   }
+  const safe = length * scale;
+  if (safe < state.distance - .001) { state.distance = safe; state.hold = .12; }
+  else {
+    state.hold = Math.max(0, state.hold - dt);
+    if (state.hold === 0) state.distance = Math.min(safe, state.distance + 8 * dt);
+  }
+  let distance = Math.min(safe, state.distance);
+  // A held radius may be obstructed after a turn even when the longer candidate is clear. Visibility wins over the release hold.
+  if (distance < safe && !clear(world, ray, head, boom, target, distance / length)) {
+    distance = safe; state.distance = safe; state.hold = .12;
+  }
+  boom.x *= distance / length; boom.y *= distance / length; boom.z *= distance / length;
 }
