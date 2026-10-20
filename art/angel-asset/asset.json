@@ -1,0 +1,75 @@
+{
+  "bytes": 2378376,
+  "sha256": "65b4dbd88fb7b0048292a747f66476d235bf1f9e6ae87d6a0511c7100dd2047d",
+  "triangles": 28456,
+  "vertices": 25333,
+  "materials": [
+    "Angel brows",
+    "Angel eyes",
+    "Angel skin",
+    "Angel hair",
+    "Ivory tunic",
+    "Angel hands",
+    "Gold harness"
+  ],
+  "textures": {
+    "Angel brows": [
+      "angel-brows-base.jpg"
+    ],
+    "Angel eyes": [
+      "angel-eyes-base.jpg"
+    ],
+    "Angel skin": [
+      "angel-skin-base.jpg",
+      "angel-skin-orm.jpg",
+      "angel-skin-normal.jpg"
+    ],
+    "Angel hair": [
+      "angel-hair-base.jpg",
+      "angel-hair-normal.jpg"
+    ],
+    "Ivory tunic": [
+      "ivory-tunic-base.jpg",
+      "ivory-tunic-orm.jpg",
+      "ivory-tunic-normal.jpg"
+    ],
+    "Angel hands": [
+      "angel-hands-base.jpg",
+      "angel-hands-orm.jpg",
+      "angel-hands-normal.jpg"
+    ],
+    "Gold harness": [
+      "gold-harness-base.jpg",
+      "gold-harness-orm.jpg",
+      "gold-harness-normal.jpg"
+    ]
+  },
+  "scale": 1.1074,
+  "clips": {
+    "idle": {
+      "source": "ual1/Idle_Loop",
+      "seconds": 2.5,
+      "frames": 76
+    },
+    "swordIdle": {
+      "source": "ual1/Sword_Idle",
+      "seconds": 1.667,
+      "frames": 51
+    },
+    "slash": {
+      "source": "ual1/Sword_Attack",
+      "seconds": 1.533,
+      "frames": 47
+    },
+    "rebuke": {
+      "source": "ual1/Spell_Simple_Shoot",
+      "seconds": 0.5,
+      "frames": 16
+    },
+    "cast": {
+      "source": "ual2/OverhandThrow",
+      "seconds": 1.333,
+      "frames": 41
+    }
+  }
+}

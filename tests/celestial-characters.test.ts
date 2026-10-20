@@ -1,7 +1,7 @@
 import { eyeCenter } from '../src/game/adversaryPose';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { Box3, Euler, Mesh, SkinnedMesh, Vector3 } from 'three';
+import { Box3, DataTexture, Euler, Mesh, SkinnedMesh, Vector3 } from 'three';
 import { createShooter, EYE_FORWARD, EYE_UP, type DroneTarget } from '../src/game/combat';
 import { buildTargets } from '../src/game/drones';
 import { hitDrones } from '../src/game/shotMath';
@@ -17,6 +17,7 @@ beforeAll(async () => { [hero, demon] = await Promise.all([loadSuit('angel'), lo
 
 describe('the actual celestial assets', () => {
   it('delivers the warrior within its 2.5 MB / 80000 triangle budget on the original 21-bone flight contract', () => {
+    // 2026-10-20: the Quaternius CC0 angel (scripts/angel_asset) replaced the 78,000-triangle procedural warrior; it is lighter.
     expect(readFileSync(new URL('../public/models/angel.glb', import.meta.url)).length).toBeLessThan(2_500_000);
     const rig = buildSuitRig(hero.scene); let triangles = 0, batches = 0;
     expect(rig.joints.map(j => j.name)).toEqual(BONE_NAMES);
@@ -27,10 +28,10 @@ describe('the actual celestial assets', () => {
         expect(a.getX(i) + a.getY(i) + a.getZ(i) + a.getW(i)).toBeCloseTo(1, 5);
       }
     } });
-    expect(triangles).toBeGreaterThan(50_000); expect(triangles).toBeLessThanOrEqual(80_000);
+    expect(triangles).toBeGreaterThan(20_000); expect(triangles).toBeLessThanOrEqual(80_000);
     expect(batches).toBeLessThanOrEqual(9); rig.dispose();
   });
-  it('keeps both skinned feather batches below 30000 triangles and releases their maps with the regalia', () => {
+  it('keeps both skinned feather batches below 30000 triangles and releases the maps the regalia made', () => {
     const rig = buildSuitRig(hero.scene), w = createArchangelWings(), r = angelRegalia(rig.root, rig.joints);
     let tris = 0, meshes = 0; const disposed = new Set<unknown>();
     w.root.traverse(o => { if (o instanceof Mesh) { meshes++; tris += (o.geometry.index?.count ?? o.geometry.attributes.position.count) / 3; } });
@@ -40,7 +41,10 @@ describe('the actual celestial assets', () => {
         if (t && typeof t === 'object' && 'addEventListener' in t) { maps.add(t); (t as import('three').Texture).addEventListener('dispose', () => disposed.add(t)); }
       }
     } });
-    r.dispose(); w.dispose(); rig.dispose(); expect(disposed.size).toBe(maps.size); expect(maps.size).toBe(3);
+    // The regalia's procedural surface maps are its own to release; the GLB's painted maps belong to the loader cache.
+    const made = [...maps].filter(t => t instanceof DataTexture);
+    r.dispose(); w.dispose(); rig.dispose(); expect(maps.size).toBeGreaterThan(made.length);
+    for (const t of made) expect(disposed.has(t)).toBe(true);
   });
   it('casts with the new fitted model without losing its anatomical skin treatment or breaking the muzzle', async () => {
     const assets = await loadAssets(), h = createHarness({ ...assets, suit: hero.scene }, 'hover');
