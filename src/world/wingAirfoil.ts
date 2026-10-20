@@ -1,8 +1,11 @@
 import { BufferGeometry, Float32BufferAttribute } from 'three';
 import { smooth } from './wingMotion';
+import { FEATHER, RACHIS, atlasU } from './featherAtlas';
+/** The bed samples an always-opaque atlas texel (a covert's rachis), so the feather material's alpha test never cuts it. */
+const SOLID = [atlasU(FEATHER.covert, RACHIS[FEATHER.covert]), .5] as const;
 /** A continuous, cambered feather bed closes the elbow/wrist seams beneath the overlapping plumage. */
 export function wingAirfoil(side: number) {
-  const p: number[] = [], uv: number[] = [], c: number[] = [], joints: number[] = [], weights: number[] = [], indices: number[] = [];
+  const p: number[] = [], uv: number[] = [], thin: number[] = [], c: number[] = [], joints: number[] = [], weights: number[] = [], indices: number[] = [];
   const rows = 22, cols = 16;
   for (let j = 0; j <= rows; j++) for (let i = 0; i <= cols; i++) {
     const x = j / rows * 1.44, a = i / cols * Math.PI * 2, v = .5 + .5 * Math.cos(a);
@@ -10,7 +13,7 @@ export function wingAirfoil(side: number) {
     const chord = (.15 + .045 * Math.sin(x / 1.44 * Math.PI)) * (1 - .25 * smooth(1.06, 1.44, x));
     const thickness = .050 * (1 - .78 * smooth(0, 1.44, x));
     p.push(side * x, Math.sin(v * Math.PI) * .018 + Math.sin(a) * thickness, lead + v * chord);
-    uv.push(j / rows, v); const tone = Math.sin(a) > 0 ? .87 : .76; c.push(tone, tone * .99, tone * .95);
+    uv.push(SOLID[0], SOLID[1]); thin.push(.15); const tone = Math.sin(a) > 0 ? .87 : .76; c.push(tone, tone * .99, tone * .95);
     const fore = smooth(.35, .63, x), hand = smooth(.95, 1.25, x), trailing = smooth(.05, .36, v), shares: Record<number, number> = {};
     const add = (bone: number, w: number) => { shares[bone] = (shares[bone] ?? 0) + w; };
     add(0, (1 - fore) * trailing); add(15, fore * (1 - hand) * trailing); add(16, fore * hand * trailing);
@@ -25,6 +28,6 @@ export function wingAirfoil(side: number) {
     }
   }
   const g = new BufferGeometry(); g.setAttribute('position', new Float32BufferAttribute(p, 3)); g.setAttribute('color', new Float32BufferAttribute(c, 3));
-  g.setAttribute('uv', new Float32BufferAttribute(uv, 2)); g.setAttribute('skinIndex', new Float32BufferAttribute(joints, 4));
+  g.setAttribute('uv', new Float32BufferAttribute(uv, 2)); g.setAttribute('aThin', new Float32BufferAttribute(thin, 1)); g.setAttribute('skinIndex', new Float32BufferAttribute(joints, 4));
   g.setAttribute('skinWeight', new Float32BufferAttribute(weights, 4)); g.setIndex(indices); g.computeVertexNormals(); return g;
 }

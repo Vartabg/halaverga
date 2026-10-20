@@ -5,9 +5,11 @@ import { advanceWingMotion, createWingMotion } from './wingMotion';
 const identity = new Quaternion(), q = new Quaternion(), twist = new Quaternion(), axisX = new Vector3(1, 0, 0), axisY = new Vector3(0, 1, 0), covertAxis = new Vector3(), closed = new Vector3();
 const frameInput = { flying: false, paused: false, reduced: false, speed: 0, vy: 0, roll: 0, brake: 0 };
 const parentQ = new Quaternion(), frameQ = new Quaternion(), handQ = new Quaternion(), covertQ = new Quaternion();
+export const WING_SCALE = .8;
 export function createArchangelWings() {
   const root = new Group(), plume = featherMaterial(), left = createAvianWing(-1, plume.material), right = createAvianWing(1, plume.material);
-  root.position.set(0, .20, .17); left.root.position.x = -.125; right.root.position.x = .125; root.add(left.root, right.root);
+  // Span about twice the angel's height (Garo: the wings read too massive at 2.6x).
+  root.position.set(0, .20, .17); root.scale.setScalar(WING_SCALE); left.root.position.x = -.125; right.root.position.x = .125; root.add(left.root, right.root);
   const motion = createWingMotion(), tuck = { left: 0, right: 0 };
   const w = { root, left, right, motion, tuck, dispose() { left.dispose(); right.dispose(); plume.dispose(); } };
   poseWings(w); return w;
@@ -26,8 +28,10 @@ function poseSide(wing: AvianWing, side: number, w: ArchangelWings, tuck: number
   for (let i = 0; i < 10; i++) {
     closed.set(side * .02, -.83 + alongBack * .75, .55 + alongBack * .45).normalize().applyQuaternion(handQ); q.setFromUnitVectors(wing.axes[i], closed);
     q.slerp(identity, u);
-    twist.setFromAxisAngle(wing.axes[i], side * u * (recovery * .66 + m.brake * .06)); q.multiply(twist);
-    twist.setFromAxisAngle(axisY, side * u * (i / 9 - .5) * (.045 + m.brake * .16)); wing.bones[4 + i].quaternion.copy(q).premultiply(twist);
+    const ripple = m.flutterGain * .05 * Math.sin(m.flutter * (19 + i * 1.7) + i * 2.1);
+    twist.setFromAxisAngle(wing.axes[i], side * u * (recovery * .66 + m.brake * .06 + ripple)); q.multiply(twist);
+    // Slotted fingers when slow, closed in a glide.
+    twist.setFromAxisAngle(axisY, side * u * (i / 9 - .5) * (.08 + (1 - m.glide) * .26 + m.brake * .22)); wing.bones[4 + i].quaternion.copy(q).premultiply(twist);
   }
   covertQ.copy(wing.bones[3].quaternion).multiply(handQ);
   covertAxis.set(side * .4, 0, 1).normalize(); closed.set(side * .02, -.83 + alongBack * .75, .55 + alongBack * .45).normalize().applyQuaternion(covertQ);
@@ -36,6 +40,7 @@ function poseSide(wing: AvianWing, side: number, w: ArchangelWings, tuck: number
   for (let i = 0; i < 14; i++) {
     closed.set(side * .03, -.92 + alongBack * .84, .30 + alongBack * .70).normalize().applyQuaternion(covertQ);
     wing.bones[17 + i].quaternion.setFromUnitVectors(wing.axes[10 + i], closed).slerp(identity, u);
+    if (m.flutterGain > 0) wing.bones[17 + i].quaternion.multiply(twist.setFromAxisAngle(wing.axes[10 + i], side * u * m.flutterGain * .035 * Math.sin(m.flutter * (23 + i * 1.3) + i * 1.7)));
   }
   for (let i = 0; i < 75; i++) {
     closed.set(side * .03, -.92 + alongBack * .84, .30 + alongBack * .70).normalize().applyQuaternion(covertQ);
@@ -43,7 +48,7 @@ function poseSide(wing: AvianWing, side: number, w: ArchangelWings, tuck: number
   }
   closed.set(side * .54, -.015, -.21).normalize();
   wing.bones[15].quaternion.setFromAxisAngle(closed, -side * (1 - u) * 1.2);
-  wing.bones[14].rotation.set(0, 0, side * u * (.06 + m.brake * .48 + (1 - m.glide) * .12));
+  wing.bones[14].rotation.set(0, 0, side * u * (.02 + m.brake * .5 + (1 - m.glide) * .04)); // the alula lies flush until a flare
 }
 export function poseArchangelWing(w: ArchangelWings, side: number, tuck = side < 0 ? w.tuck.left : w.tuck.right) {
   poseSide(side < 0 ? w.left : w.right, side, w, tuck);

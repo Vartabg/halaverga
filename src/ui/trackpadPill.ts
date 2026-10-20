@@ -12,7 +12,7 @@ const START = 'CLICK TO FLY · DRAG TO LOOK';
  */
 export function trackpadPill({ steering, shooter, cruising, flying, canLand = false }: PillEnv): string | null {
   if (steering === 'free') {
-    if (cruising) return shooter ? `${CRUISE} · HOLD C TO FIRE` : CRUISE;
+    if (cruising) return shooter ? `${CRUISE} · C TO REBUKE` : CRUISE;
     if (!shooter) return START;
     if (flying && canLand) return 'W TO FLY · SPACE TO LAND · CLICK A DEMON · DRAG TO LOOK';
     return flying ? 'W OR SPACE TO FLY · CLICK A DEMON · DRAG TO LOOK' : 'SPACE TO FLY · CLICK A DEMON · DRAG TO LOOK';

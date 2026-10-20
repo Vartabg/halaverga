@@ -9,7 +9,7 @@ const GARO = { trackpadSteering: 'simple', controlsVersion: 3, hintProgress: { t
 const GROUND = 'SPACE TO FLY · CLICK A DEMON · DRAG TO LOOK';
 // Hovering: W or Space flies; with a surface in reach Space lands, so the pill names only W.
 const HOVER = /^(W OR SPACE TO FLY|W TO FLY · SPACE TO LAND) · CLICK A DEMON · DRAG TO LOOK$/;
-const CRUISE = 'MOVE TO STEER · SCROLL FOR SPEED · CLICK TO HOVER · HOLD C TO FIRE';
+const CRUISE = 'MOVE TO STEER · SCROLL FOR SPEED · CLICK TO HOVER · C TO REBUKE';
 const pill = legend;
 const scene = (p: Page) => p.getByTestId('flight-surface');
 const locked = (p: Page) => p.evaluate(() => !!document.pointerLockElement);
