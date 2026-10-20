@@ -2,15 +2,25 @@
 import { useEffect, useState } from 'react';
 import { battle, BATTLE, resetBattle } from '@/game/celestialBattle';
 import { runtime } from '@/game/runtime';
-import { banish, resetBanish, REBUKE_LINE, type Cue } from '@/game/banish';
+import { banish, MODE, REBUKE_LINE, type Cue } from '@/game/banishState';
 import { useGame } from '@/game/store';
 import { pause, resume } from './useInput';
 import Modal from './Modal';
 import styles from './BattleHud.module.css';
 
 const CUES: Record<Cue, string> = { '': '', far: 'Too far · fly closer', notDown: 'Strike it down before you bind it', notBound: 'Circle it to bind it first', noTarget: '' };
+/** The next move for the demon last engaged, by its state: touch wording, then keyboard/mouse wording. */
+const NEXT: Record<number, [string, string]> = {
+  [-1]: ['Tap a demon to rebuke it', 'Aim at a demon · click to rebuke'],
+  [MODE.free]: ['Tap a demon to rebuke it', 'Aim at a demon · click to rebuke'],
+  [MODE.staggered]: ['Swipe through it · strike!', 'Click again · strike!'],
+  [MODE.down]: ['Circle it · bind it in chains', 'Click · bind it in chains'],
+  [MODE.bound]: ['Flick down · cast it into the abyss', 'Click · cast it into the abyss'],
+  [MODE.cast]: ['', ''],
+};
+const nextStep = () => { const i = banish.last; return i >= 0 && runtime.shooter.targets[i]?.alive ? banish.mode[i] : -1; };
 const sample = () => ({ ward: battle.ward, kills: battle.banished, status: battle.status, hurt: battle.hurt > 0, charging: battle.charging >= 0,
-  rebuke: banish.clock - banish.rebukeT < REBUKE_LINE, fx: banish.fxSerial, modes: banish.mode.join(''), cue: (banish.clock - banish.cueT < 1.4 ? banish.cue : '') as Cue });
+  next: nextStep(), rebuke: banish.clock - banish.rebukeT < REBUKE_LINE, fx: banish.fxSerial, modes: banish.mode.join(''), cue: (banish.clock - banish.cueT < 1.4 ? banish.cue : '') as Cue });
 export default function BattleHud() {
   const [readout, setReadout] = useState(sample), paused = useGame(s => s.paused);
   useEffect(() => {
@@ -18,7 +28,7 @@ export default function BattleHud() {
       if (s.status === 'fallen' && !useGame.getState().paused) pause(); };
     const id = setInterval(tick, 100); return () => clearInterval(id);
   }, []);
-  const retry = () => { resetBattle(runtime.shooter.stats.kills); resetBanish(banish, runtime.shooter); runtime.reset = true; setReadout(sample()); resume(); };
+  const retry = () => { resetBattle(runtime.shooter.stats.kills); banish.resetRequested = true; runtime.reset = true; setReadout(sample()); resume(); };
   if (readout.status === 'fallen') return <Modal title="Your ward is broken" onClose={retry}>
     <p>The host has driven you back. Your sanctuary remains. Regroup, take wing, and try again.</p>
     <button className={styles.retry} onClick={retry}>Regroup at the sanctuary</button>
@@ -36,6 +46,8 @@ export default function BattleHud() {
     {readout.charging && <p className={styles.warning} role="status">Fiery dart · raise the shield or keep moving</p>}
     {readout.rebuke && <p className={styles.rebuke} role="status">“May the Lord rebuke you!” <cite>Jude 9</cite></p>}
     {CUES[readout.cue] && <p className={styles.cue} role="status">{CUES[readout.cue]}</p>}
+    {readout.status === 'battle' && NEXT[readout.next]?.[0] && <p className={styles.next} role="status" data-testid="next-move">
+      <span className={styles.coarse}>{NEXT[readout.next][0]}</span><span className={styles.fine}>{NEXT[readout.next][1]}</span></p>}
     {readout.status === 'battle' && <p className={styles.legend} aria-label="Combat strokes">
       <span className={styles.coarse}>Tap a demon: rebuke · swipe: sword · circle: bind · flick down: cast · hold a 2nd finger: shield</span>
       <span className={styles.fine}>Click or C: next step · 1 rebuke · 2 sword · 3 bind · 4 cast · hold V: shield</span></p>}

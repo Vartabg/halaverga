@@ -4,6 +4,7 @@ import { COMMAND, requestCommand, SHIELD } from '../src/game/commands';
 import { createDroneSim, buildTargets } from '../src/game/drones';
 import { BANISH, MODE, createBanish, resetBanish, stepBanish } from '../src/game/banish';
 import { resetBattle, battle, shielded } from '../src/game/celestialBattle';
+import { cancelStrike, strike } from '../src/game/strike';
 
 function setup() {
   const s = createShooter(); createDroneSim(s); buildTargets(s);
@@ -11,15 +12,20 @@ function setup() {
   const b = createBanish(); resetBanish(b, s); resetBattle(0);
   const near = { ...s.drones.pos[0], z: s.drones.pos[0].z + 10 }, far = { ...s.drones.pos[0], z: s.drones.pos[0].z + 200 };
   const act = (kind: number, at = near) => { requestCommand(s, kind, 0); stepBanish(b, s, at, 1 / 60); };
-  return { s, b, near, far, act };
+  // The sword dives (strike.ts): the blow lands when the angel reaches the demon.
+  const blow = (kind: number = COMMAND.sword) => { act(kind); expect(strike.phase).toBe(1); stepBanish(b, s, { ...s.targets[0].c }, 1 / 60); };
+  cancelStrike();
+  return { s, b, near, far, act, blow };
 }
 describe('textual banishment loop', () => {
   it('rebuke staggers, the sword throws down, the chain binds and the cast seals it into the abyss', () => {
-    const { s, b, near, act } = setup();
+    const { s, b, near, act, blow } = setup();
     act(COMMAND.rebuke);
     expect(b.mode[0]).toBe(MODE.staggered); expect(b.resist[0]).toBe(BANISH.resistance - 1); expect(b.rebukeT).toBe(b.clock);
-    act(COMMAND.sword); expect(b.resist[0]).toBe(1);
-    act(COMMAND.sword);
+    act(COMMAND.sword); expect(b.resist[0]).toBe(BANISH.resistance - 1); // diving, not yet struck
+    stepBanish(b, s, { ...s.targets[0].c }, 1 / 60); expect(b.resist[0]).toBe(1); expect(strike.phase).toBe(2);
+    expect(s.camFx.trauma).toBeGreaterThan(0);
+    blow();
     expect(b.mode[0]).toBe(MODE.down); expect(s.drones.held[0]).toBe(1);
     act(COMMAND.bind); expect(b.mode[0]).toBe(MODE.bound);
     act(COMMAND.flick); expect(b.mode[0]).toBe(MODE.cast);
@@ -33,9 +39,9 @@ describe('textual banishment loop', () => {
     act(COMMAND.cast); expect(b.cue).toBe('notDown');
   });
   it('a flick on a free demon is a sword stroke; a thrown-down demon recovers unless bound', () => {
-    const { s, b, near, act } = setup();
-    act(COMMAND.flick); expect(b.resist[0]).toBe(BANISH.resistance - BANISH.swordHurt);
-    act(COMMAND.sword); act(COMMAND.sword); expect(b.mode[0]).toBe(MODE.down);
+    const { s, b, near, blow } = setup();
+    blow(COMMAND.flick); expect(b.resist[0]).toBe(BANISH.resistance - BANISH.swordHurt);
+    blow(); blow(); expect(b.mode[0]).toBe(MODE.down);
     for (let t = 0; t < BANISH.downTime + .1; t += 1 / 30) stepBanish(b, s, near, 1 / 30);
     expect(b.mode[0]).toBe(MODE.free); expect(b.resist[0]).toBe(BANISH.recover); expect(s.drones.held[0]).toBe(0);
   });

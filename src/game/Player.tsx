@@ -20,7 +20,7 @@ import { sweepTurn } from './turnSweep';
 import { moveMode } from './combat';
 import { aimVelocity } from './aimMotion';
 import { levelFlight, probeBelow, touchBlockedStep, touchLandStep, LAND_WINDOW } from './touchFlight';
-import { gestureBase, gestureBefore, gestureOffset, gestureVelocity } from './gesture/applyGesture';
+import { gestureBase, gestureBefore, gestureOffset, gestureVelocity } from './gesture/applyGesture'; import { cancelStrike, strike, strikeVelocity } from './strike';
 import { clearGesture, gesture } from './gesture/bus';
 import { createGestureCtx } from './gestureCtx';
 const direction = new Vector3(), baseScratch = { x: 0, y: 0, z: 0 };
@@ -77,8 +77,7 @@ export default function Player() {
     // The lab scheme steps first (its request, lift or land, and its turn rates), so readIntent sees this step's gesture intent.
     const p = b.translation(); gesture.reduced = state.reduced; gestureBefore(dt, p, gctx, runtime);
     const intent = readIntent();
-    const k = runtime.keys;
-    const pointerFlight = runtime.thumb.active || runtime.trackpad.active;
+    const k = runtime.keys, pointerFlight = runtime.thumb.active || runtime.trackpad.active;
     applyEdgeTurns(dt, state); // cursor and twin look rest (edgeTurn.ts)
     thumbTurn(dt); // classic one thumb: main 7945430's edge hold, 1.5 rad/s, direct (Garo 2026-09-26)
     // Blaster on: arrows get a fine first step and the ADS gain (arrowLook). Off: main's exact lines, bit for bit.
@@ -90,6 +89,7 @@ export default function Player() {
     // A new Draw stroke also cancels a landing: Draw steers by velocity, which the intent does not show.
     if (runtime.landGoal && (moving(intent) || (gesture.live && gesture.velocityOn))) { runtime.landGoal = null; useGame.setState({ landing: false }); }
     let flying = state.flying;
+    if (strike.phase && !flying) runtime.lift = true; // a sword strike from the ground takes off first (strike.ts)
     if (runtime.lift || (pointerFlight && moving(intent) && !flying)) {
       runtime.lift = false;
       if (!flying) { flying = true; liftTime.current = .4; runtime.velocity.y = 6; useGame.setState({ flying: true }); }
@@ -117,7 +117,7 @@ export default function Player() {
     let v = runtime.landGoal ? landingVelocity(p, runtime.landGoal)
       : mode === 2 ? aimVelocity(vb, intent, runtime.yaw, fp, flying, dt)
       : advanceVelocity(vb, intent, runtime.yaw, fp, flying, surge, dt);
-    gestureVelocity(v, runtime.landGoal, flying);
+    gestureVelocity(v, runtime.landGoal, flying); if (runtime.landGoal) cancelStrike(); else if (flying) strikeVelocity(v, p, dt, state.reduced);
     if (liftTime.current > 0) { v.y = 6; liftTime.current -= dt; }
     gestureOffset(v, flying && !runtime.landGoal);
     const from = { ...runtime.velocity }, chosen = v;

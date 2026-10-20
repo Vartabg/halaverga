@@ -5,32 +5,18 @@
 import { PHASE, droneAlive, flashGate, type ShooterState, type Vec3 } from './combat';
 import { COMMAND } from './commands';
 import { battle, BATTLE } from './celestialBattle';
+import { addTrauma, kick, punchFov } from './cameraFx';
+import { STRIKE, aimStrike, beginStrike, cancelStrike, landStrike, strike as dive } from './strike';
 
-export const BANISH = { resistance: 6, rebukeRange: 70, swordReach: 22, bindRange: 70, castRange: 90, stagger: 1.6,
-  rebukeCool: .55, swordCool: .3, bindCool: .35, rebukeHurt: 1, swordHurt: 2, staggerBonus: 2, downDrop: 3.5, downTime: 8,
-  recover: 3, castTime: 1.1, castDepth: 24, aimSlack: .08 } as const;
-export const MODE = { free: 0, staggered: 1, down: 2, bound: 3, cast: 4 } as const;
-/** Effect kinds the renderer and HUD read from the ring. */
-export const FX = { rebuke: 1, sword: 2, bind: 3, cast: 4, seal: 5, quench: 6, down: 7 } as const;
-export type Cue = '' | 'far' | 'notDown' | 'notBound' | 'noTarget';
-export type BanishFx = { serial: number; kind: number; t: number; drone: number; from: Vec3; to: Vec3 };
-const RING = 12, MAX = 8;
-const v3 = (): Vec3 => ({ x: 0, y: 0, z: 0 });
-export function createBanish() {
-  return { mode: new Uint8Array(MAX), resist: new Int8Array(MAX).fill(BANISH.resistance), timer: new Float32Array(MAX),
-    base: Array.from({ length: MAX }, v3), cool: 0, handled: 0, clock: 0, cue: '' as Cue, cueT: -1e9, rebukeT: -1e9, quenched: 0, last: -1,
-    fx: Array.from({ length: RING }, () => ({ serial: 0, kind: 0, t: 0, drone: -1, from: v3(), to: v3() })), fxSerial: 0 };
-}
-export type BanishState = ReturnType<typeof createBanish>;
-export const banish = createBanish();
-
+export { BANISH, MODE, FX, REBUKE_LINE, createBanish, banish, type BanishFx, type BanishState, type Cue } from './banishState';
+import { BANISH, MODE, FX, type BanishState, type Cue } from './banishState';
 /** Clears every demon's state (regroup, unmount). Pending commands are dropped, not replayed. */
 export function resetBanish(b: BanishState, s: ShooterState) {
-  b.mode.fill(0); b.resist.fill(BANISH.resistance); b.timer.fill(0); b.cool = 0; b.handled = s.input.cmd; b.cue = ''; b.last = -1;
+  b.mode.fill(0); b.resist.fill(BANISH.resistance); b.timer.fill(0); b.cool = 0; b.handled = s.input.cmd; b.cue = ''; b.last = -1; b.resetRequested = false;
   b.quenched = battle.quenched; s.drones.held.fill(0);
 }
 function emit(b: BanishState, kind: number, drone: number, from: Vec3, to: Vec3) {
-  const e = b.fx[b.fxSerial % RING];
+  const e = b.fx[b.fxSerial % b.fx.length];
   e.serial = ++b.fxSerial; e.kind = kind; e.t = b.clock; e.drone = drone;
   e.from.x = from.x; e.from.y = from.y; e.from.z = from.z; e.to.x = to.x; e.to.y = to.y; e.to.z = to.z;
 }
@@ -47,8 +33,9 @@ function offAxis(s: ShooterState, i: number) {
 /** The demon a reticle command means: the one under the crosshair, else the last one struck while it stays within 30 degrees
  * (a thrown-down demon drops below the reticle), else -1. */
 export function reticleTarget(b: BanishState, s: ShooterState) {
-  const i = crosshairTarget(s);
-  return i >= 0 ? i : offAxis(s, b.last) < .52 ? b.last : -1;
+  const i = crosshairTarget(s), last = b.last, held = last >= 0 && (b.mode[last] === MODE.down || b.mode[last] === MODE.bound);
+  // A thrown-down or bound demon stays the target well off-centre (it fell below the reticle, or the dive carried past it).
+  return i >= 0 ? i : offAxis(s, last) < (held ? 1.2 : .52) ? last : -1;
 }
 /** The live, visible demon nearest the crosshair ray (within its silhouette plus a little slack), or -1. */
 export function crosshairTarget(s: ShooterState) {
@@ -101,6 +88,7 @@ function apply(b: BanishState, s: ShooterState, player: Vec3, kind: number, targ
   // A flick down casts a bound demon; on any other it is a sword stroke.
   if (kind === COMMAND.flick) kind = m === MODE.bound ? COMMAND.cast : COMMAND.sword;
   if (kind === COMMAND.rebuke) {
+    if (b.cool > 0) return; // only a rebuke waits on the rebuke before it; any other step may follow at once
     if (d > BANISH.rebukeRange || !s.targets[i].los) { cue(b, 'far'); return; }
     if (m <= MODE.staggered) { b.mode[i] = MODE.staggered; b.timer[i] = BANISH.stagger; b.resist[i] -= BANISH.rebukeHurt; }
     strike(s, i, player, 9); interrupt(s, i); b.cool = BANISH.rebukeCool; b.rebukeT = b.clock;
@@ -108,13 +96,14 @@ function apply(b: BanishState, s: ShooterState, player: Vec3, kind: number, targ
   } else if (kind === COMMAND.sword) {
     if (m >= MODE.down) { cue(b, m === MODE.down ? 'notBound' : ''); return; }
     if (d > BANISH.swordReach) { cue(b, 'far'); return; }
-    b.resist[i] -= BANISH.swordHurt + (m === MODE.staggered ? BANISH.staggerBonus : 0);
-    strike(s, i, player, 5); b.cool = BANISH.swordCool;
-    emit(b, FX.sword, i, player, p);
+    if (dive.phase === 1) return; // one dive at a time; a new strike may chain out of the carry
+    // The angel dives at the demon (strike.ts); the blow lands on contact, in stepBanish.
+    beginStrike(i, p, d); s.weapon.sinceShot = 0; punchFov(s.camFx, 'kill', 9); // the launch widens the view: speed you can feel
+    return;
   } else if (kind === COMMAND.bind) {
     if (m !== MODE.down) { cue(b, m === MODE.bound ? 'notBound' : 'notDown'); return; }
     if (d > BANISH.bindRange) { cue(b, 'far'); return; }
-    b.mode[i] = MODE.bound; b.timer[i] = 0; b.cool = BANISH.bindCool;
+    b.mode[i] = MODE.bound; b.timer[i] = 0;
     emit(b, FX.bind, i, player, p);
     return;
   } else if (kind === COMMAND.cast) {
@@ -128,13 +117,30 @@ function apply(b: BanishState, s: ShooterState, player: Vec3, kind: number, targ
 }
 const ease = (from: number, to: number, rate: number, dt: number) => to + (from - to) * Math.exp(-rate * dt);
 
+/** The sword connects at the end of a dive: the blow, a shove along the dive, a freeze and a camera jolt. */
+function landBlow(b: BanishState, s: ShooterState, i: number, player: Vec3) {
+  const f = s.drones, m = b.mode[i];
+  b.resist[i] -= BANISH.swordHurt + (m === MODE.staggered ? BANISH.staggerBonus : 0);
+  strike(s, i, player, 9);
+  f.knockV[i].x += dive.dir.x * 10; f.knockV[i].y += dive.dir.y * 10; f.knockV[i].z += dive.dir.z * 10;
+  addTrauma(s.camFx, .5); punchFov(s.camFx, 'kill', 6); kick(s.camFx, 1.6, 0);
+  const finish = b.resist[i] <= 0 && b.mode[i] <= MODE.staggered;
+  landStrike(!finish); emit(b, FX.sword, i, player, f.pos[i]);
+  if (finish) throwDown(b, s, i);
+}
 /** One frame: consumes a new command, then advances each demon's stagger, fall, chain and casting. */
 export function stepBanish(b: BanishState, s: ShooterState, player: Vec3, dt: number) {
   dt = Math.min(.05, Math.max(0, dt)); b.clock += dt; b.cool = Math.max(0, b.cool - dt);
   const input = s.input, f = s.drones;
+  if (b.resetRequested) resetBanish(b, s);
   if (input.cmd !== b.handled) {
     b.handled = input.cmd; s.stats.shots++; // every command issued counts as one attempt (the hints and the HUD read it)
-    if (b.cool <= 0 || input.cmdTarget >= 0 && input.cmdKind !== COMMAND.rebuke) apply(b, s, player, input.cmdKind, input.cmdTarget);
+    apply(b, s, player, input.cmdKind, input.cmdTarget);
+  }
+  if (dive.phase === 1 && dive.target >= 0) {
+    const i = dive.target;
+    if (!droneAlive(f, i) || b.mode[i] >= MODE.down) cancelStrike();
+    else { const c = s.targets[i].c; aimStrike(c); if (dist(player, c) < STRIKE.contact) landBlow(b, s, i, player); }
   }
   if (battle.quenched !== b.quenched) { b.quenched = battle.quenched; emit(b, FX.quench, -1, player, player); }
   for (let i = 0; i < f.count; i++) {
@@ -157,6 +163,4 @@ export function stepBanish(b: BanishState, s: ShooterState, player: Vec3, dt: nu
     }
   }
 }
-/** Seconds the rebuke line stays on screen. */
-export const REBUKE_LINE = 1.6;
 export const banishGoal = BATTLE.goal;

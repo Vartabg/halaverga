@@ -9,3 +9,5 @@
 .legend{position:absolute;z-index:var(--z-hud);top:max(64px,calc(env(safe-area-inset-top) + 56px));left:50%;transform:translateX(-50%);margin:0;max-width:min(92vw,560px);text-align:center;color:#e9dfc8cc;font-size:11px;line-height:1.4;pointer-events:none;text-shadow:0 1px 2px #000}
 .fine{display:none}@media(hover:hover) and (pointer:fine){.fine{display:inline}.coarse{display:none}}
 @media(max-width:600px){.rebuke{font-size:17px}.legend{font-size:10px}}
+.next{position:absolute;z-index:var(--z-hud);bottom:max(150px,calc(env(safe-area-inset-bottom) + 136px));left:50%;transform:translateX(-50%);margin:0;white-space:nowrap;padding:9px 16px;border:1px solid #e9c77a;background:#141b22e6;color:#fff3d6;font:600 15px/1.2 system-ui;letter-spacing:.02em;box-shadow:0 0 22px #e9b65a40;pointer-events:none}
+@media(max-height:500px){.next{bottom:72px;font-size:13px;padding:7px 12px}}
