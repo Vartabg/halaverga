@@ -15,6 +15,7 @@ import { createStepContext, stepShooter, type AudioSink } from './shooterStep';
 import { autoFire, resetAutoFire } from './autoFire';
 import { banish, resetBanish, stepBanish } from './banish';
 import { commandKeyDown, commandKeyUp } from './commandKeys';
+import { updateFlowPaths } from './combatFlow';
 // The suit blaster's frame loop (scene chunk): priority -25, after the flight presentation (-30) and before the suit (-20) and
 // the camera rig (-10), which publishes the camera ray this step reads one frame later. Mounted only while the setting is on.
 const options: PlayOptions = { pan: 0, gain: 1, chain: 0 };
@@ -48,7 +49,7 @@ export default function Shooter() {
     if (input.pressSerial !== lastPress) { lastPress = input.pressSerial; if (!game.paused) requestCommand(runtime.shooter, COMMAND.context); }
     input.fire = false; input.fireSource = 'none'; runtime.shooter.weapon.handledPress = input.pressSerial; runtime.shooter.weapon.pending = false;
     stepShooter(runtime.shooter, parts.sim, parts.mem, parts.world, ctx, sink);
-    if (!game.paused) stepBanish(banish, runtime.shooter, p, delta);
+    if (!game.paused) { updateFlowPaths(runtime.shooter, p, parts.world.lineClear, state.size); stepBanish(banish, runtime.shooter, p, delta); }
     if (!compiled.current) {
       // Compile the pooled drone and effect programs now, so the first shot never stalls on a shader compile.
       compiled.current = true; state.gl.compile(state.scene, state.camera);

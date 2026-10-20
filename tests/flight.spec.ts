@@ -10,7 +10,7 @@ test('loads, lifts, moves, brakes, switches cameras and survives pause', async (
   await page.keyboard.down('KeyW'); await page.waitForTimeout(1000); await page.keyboard.up('KeyW');
   const traveled = JSON.parse((await telemetry.getAttribute('data-position'))!);
   expect(traveled[2]).toBeLessThan(64);
-  await page.waitForTimeout(1300); expect(Number(await telemetry.getAttribute('data-speed'))).toBeLessThan(.5);
+  await page.keyboard.press('KeyB'); await page.waitForTimeout(1300); expect(Number(await telemetry.getAttribute('data-speed'))).toBeLessThan(.5);
   // Pause/camera switching must preserve the settled position, not the earlier position before braking finished.
   const parked = JSON.parse((await telemetry.getAttribute('data-position'))!);
   await page.keyboard.press('Escape'); await expect(page.getByRole('heading', { name: 'Take your time.' })).toBeVisible();
@@ -30,7 +30,7 @@ test('loads, lifts, moves, brakes, switches cameras and survives pause', async (
 test('portrait/landscape resize retains position and text route works', async ({ page }) => {
   await page.setViewportSize({ width: 393, height: 852 });
   await page.goto('/?shooter=0'); await page.getByRole('button', { name: 'Begin expedition' }).click();
-  await page.keyboard.press('Space'); await page.waitForTimeout(800);
+  await page.keyboard.press('Space'); await page.waitForTimeout(800); await page.keyboard.press('KeyB'); await page.waitForTimeout(1000);
   const telemetry = page.getByTestId('flight-telemetry');
   const before = JSON.parse((await telemetry.getAttribute('data-position'))!);
   await page.setViewportSize({ width: 852, height: 393 }); await page.waitForTimeout(500);

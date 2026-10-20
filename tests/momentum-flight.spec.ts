@@ -1,0 +1,32 @@
+import { expect, test } from '@playwright/test';
+import { seed } from './shooter-browser';
+
+test('bank speed in a dive, pull into a climb, coast, then deliberately brake', async ({ page }) => {
+  test.setTimeout(90000);
+  const errors: string[] = []; page.on('pageerror', e => errors.push(e.message));
+  await seed(page, { controlsVersion: 6, desktopMode: 'trackpad', trackpadSteering: 'simple', shooter: false });
+  await page.goto('/?shooter=0'); await page.getByRole('button', { name: 'Begin expedition' }).click();
+  await page.keyboard.press('Space');
+  const telemetry = page.getByTestId('flight-telemetry');
+  const speed = () => telemetry.getAttribute('data-speed').then(Number);
+  const y = async () => JSON.parse((await telemetry.getAttribute('data-position'))!)[1] as number;
+  await page.keyboard.down('KeyR'); await page.waitForTimeout(4500); await page.keyboard.up('KeyR');
+  await page.keyboard.press('KeyB'); await expect.poll(speed).toBeLessThan(.5);
+  const high = await y(); expect(high).toBeGreaterThan(65);
+  await page.keyboard.down('KeyW'); await page.keyboard.press('Shift'); await page.waitForTimeout(1000);
+  const levelSpeed = await speed();
+  await page.keyboard.down('ArrowDown'); await page.waitForTimeout(600); await page.keyboard.up('ArrowDown');
+  await page.waitForTimeout(1200);
+  const diveSpeed = await speed(), bottom = await y();
+  expect(diveSpeed).toBeGreaterThan(levelSpeed + 10); expect(bottom).toBeLessThan(high - 12);
+  await page.screenshot({ path: test.info().outputPath('dive.png') });
+  await page.keyboard.down('ArrowUp'); await page.waitForTimeout(1300); await page.keyboard.up('ArrowUp');
+  const turnY = await y(), entryClimbSpeed = await speed(); await page.waitForTimeout(650);
+  const climbSpeed = await speed(); expect(await y()).toBeGreaterThan(turnY + 3); expect(climbSpeed).toBeLessThan(entryClimbSpeed - 3);
+  await page.screenshot({ path: test.info().outputPath('climb.png') });
+  await page.keyboard.up('KeyW'); const released = await speed(); await page.waitForTimeout(350);
+  expect(await speed()).toBeGreaterThan(released * .6);
+  await page.getByRole('button', { name: 'Brake to hover' }).click(); await expect.poll(speed).toBeLessThan(.5);
+  console.log('BROWSER ENERGY', JSON.stringify({ high, levelSpeed, diveSpeed, bottom, entryClimbSpeed, climbSpeed }));
+  expect(errors).toEqual([]);
+});

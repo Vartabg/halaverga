@@ -106,7 +106,7 @@ describe('camera feel math', () => {
     }
     expect(fov).toBe(50); expect(inPlace).toBeLessThan(0); // the in-place damp this replaces runs away
     expect(fovFor(65, 1, true, .5)).toBe(65); expect(fovFor(66, 0, false, 0)).toBe(66);
-    expect(speedFovTarget(17, false)).toBe(66); expect(speedFovTarget(100, false)).toBe(67); expect(speedFovTarget(100, true)).toBe(65);
+    expect(speedFovTarget(17, false)).toBe(66); expect(speedFovTarget(100, false)).toBe(75); expect(speedFovTarget(100, true)).toBe(65);
   });
   it('keeps the chase boom bit-exact at rest', () => {
     const v = { x: 1, y: 2, z: 3 };

@@ -34,13 +34,17 @@ for (const viewport of [{ width: 1440, height: 900 }, { width: 325, height: 928 
     expect(await scene(page).evaluate(e => getComputedStyle(e).cursor)).not.toBe('none');
     expect(await page.evaluate(() => document.documentElement.dataset.playing ?? null)).toBeNull();
 
-    // A clean click is exactly one shot, never a pointer lock, never a takeoff.
+    // An empty-sky click is exactly one command, never a pointer lock or takeoff.
+    // Clicking a reachable demon now deliberately launches a sword attack (covered by combat-flow.spec.ts).
+    await page.keyboard.down('ArrowUp'); await page.waitForTimeout(1300); await page.keyboard.up('ArrowUp');
     await page.mouse.move(a.x, a.y); await page.mouse.click(a.x, a.y);
     await expect.poll(() => shots(page)).toBe(1);
     await settle(page); expect(await shots(page)).toBe(1);
     expect(await locked(page)).toBe(false);
     await expect(telemetry(page)).toHaveAttribute('data-flying', 'false');
     await expect(scene(page)).toHaveAttribute('data-trackpad-active', 'false');
+
+    await page.keyboard.down('ArrowDown'); await page.waitForTimeout(1300); await page.keyboard.up('ArrowDown');
 
     // Space lifts and cruises.
     await page.keyboard.press('Space');

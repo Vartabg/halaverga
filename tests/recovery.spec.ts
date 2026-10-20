@@ -10,7 +10,7 @@ test('landing can be cancelled and then completed', async ({ page }) => {
   const telemetry = page.getByTestId('flight-telemetry');
   await expect(telemetry).toHaveAttribute('data-flying', 'true');
   await expect(page.getByRole('button', { name: 'Land', exact: true })).toBeVisible();
-  await page.waitForTimeout(600); await page.getByRole('button', { name: 'Land', exact: true }).click();
+  await page.keyboard.press('KeyB'); await page.waitForTimeout(1000); await page.getByRole('button', { name: 'Land', exact: true }).click();
   await expect(telemetry).toHaveAttribute('data-flying', 'false', { timeout: 10000 });
 });
 test('graphics loss preserves the field guide and reloads the scene', async ({ page }) => {

@@ -6,17 +6,21 @@ import { foldFeather } from './wingFold';
 const identity = new Quaternion(), q = new Quaternion(), twist = new Quaternion(), axisX = new Vector3(1, 0, 0), axisY = new Vector3(0, 1, 0), covertAxis = new Vector3(), closed = new Vector3();
 const frameInput = { flying: false, paused: false, reduced: false, speed: 0, vy: 0, roll: 0, brake: 0 };
 const face = new Vector3(), parentQ = new Quaternion(), frameQ = new Quaternion(), handQ = new Quaternion(), covertQ = new Quaternion();
+/** Each complete skin/rig scales together at its own root, so clearance uses its actual world bounds. Span about twice the
+ * angel's height (Garo: the wings read too massive at 2.6x). Codex proposed .62 for a compact combat silhouette; .8 is the size
+ * Garo last reviewed, pending his choice. */
 export const WING_SCALE = .8;
 export function createArchangelWings() {
   const root = new Group(), plume = featherMaterial(), left = createAvianWing(-1, plume.material), right = createAvianWing(1, plume.material);
-  // Span about twice the angel's height (Garo: the wings read too massive at 2.6x).
-  root.position.set(0, .20, .17); root.scale.setScalar(WING_SCALE); left.root.position.x = -.125; right.root.position.x = .125; root.add(left.root, right.root);
+  root.position.set(0, .20, .17); left.root.position.x = -.125; right.root.position.x = .125; root.add(left.root, right.root);
+  left.root.scale.setScalar(WING_SCALE); right.root.scale.setScalar(WING_SCALE);
   const motion = createWingMotion(), tuck = { left: 0, right: 0 };
-  const w = { root, left, right, motion, tuck, dispose() { left.dispose(); right.dispose(); plume.dispose(); } };
+  const w = { root, left, right, motion, tuck, strikeFold: 0, dispose() { left.dispose(); right.dispose(); plume.dispose(); } };
   poseWings(w); return w;
 }
 export type ArchangelWings = ReturnType<typeof createArchangelWings>;
 function poseSide(wing: AvianWing, side: number, w: ArchangelWings, tuck: number) {
+  tuck = Math.max(tuck, w.strikeFold);
   const m = w.motion, folded = m.unfold * tuck, ground = 1 - m.unfold, u = m.unfold * (1 - tuck);
   const alongBack = folded / Math.max(.00001, 1 - u), recovery = m.recovery * (1 - m.glide), bank = Math.max(-.5, Math.min(.5, m.roll));
   const flap = m.amplitude * m.stroke, differential = side * bank * .10 * u;
@@ -68,8 +72,10 @@ export function alignArchangelWings(w: ArchangelWings, body: Object3D, lean: num
   body.getWorldQuaternion(frameQ); q.setFromAxisAngle(axisX, -lean); frameQ.multiply(q);
   w.root.parent.getWorldQuaternion(parentQ); w.root.quaternion.copy(parentQ.invert()).multiply(frameQ);
 }
-export function stepArchangelWings(w: ArchangelWings, flying: boolean, paused: boolean, reduced: boolean, speed: number, vy: number, roll: number, dt: number, brake = 0) {
+export function stepArchangelWings(w: ArchangelWings, flying: boolean, paused: boolean, reduced: boolean, speed: number, vy: number, roll: number, dt: number, brake = 0, striking = false) {
   if (paused) return;
+  const goal = striking ? .72 : 0;
+  w.strikeFold = reduced ? goal : goal + (w.strikeFold - goal) * Math.exp(-(striking ? 22 : 5) * Math.max(0, Math.min(.1, dt)));
   Object.assign(frameInput, { flying, paused, reduced, speed, vy, roll, brake });
   advanceWingMotion(w.motion, frameInput, dt); poseWings(w);
 }

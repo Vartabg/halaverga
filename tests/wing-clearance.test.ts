@@ -53,7 +53,7 @@ describe('wings make room for actual solid geometry', () => {
   it('tucks only the near wing beside a wall, then waits and reopens smoothly', () => {
     const f = fixture();
     try {
-      const wall = f.stone(1.65, 10, 0, .12, 6, 6); f.world.step(); f.step();
+      const wall = f.stone(1.05, 10, 0, .12, 6, 6); f.world.step(); f.step();
       expect(f.w.tuck.right).toBeGreaterThan(.4); expect(f.w.tuck.left).toBeLessThan(.001); surfaceClear(f);
       const folded = f.w.tuck.right; f.world.removeCollider(wall, true); f.world.step();
       f.step(.15); expect(f.w.tuck.right).toBeGreaterThan(folded * .95);
@@ -90,7 +90,7 @@ describe('wings make room for actual solid geometry', () => {
   it('handles a sudden turn into a nearby wall without waiting for the closing animation', () => {
     const f = fixture();
     try {
-      f.stone(0, 10, -1.7, 5, 6, .1); f.world.step(); f.step();
+      f.stone(0, 10, -1.05, 5, 6, .1); f.world.step(); f.step();
       expect(f.w.tuck.left + f.w.tuck.right).toBeLessThan(.001);
       f.body.rotation.y = Math.PI / 2; f.clearance.step(still, 1 / 60); surfaceClear(f);
       expect(f.w.tuck.right).toBeGreaterThan(.4);
@@ -99,7 +99,7 @@ describe('wings make room for actual solid geometry', () => {
   it('freezes all tucking state while paused and respects reduced motion without removing clearance', () => {
     const f = fixture();
     try {
-      f.stone(1.65, 10, 0, .12, 6, 6); f.world.step();
+      f.stone(1.05, 10, 0, .12, 6, 6); f.world.step();
       f.clearance.step(still, 1 / 60, false, true); const saved = JSON.stringify([f.w.tuck, f.clearance.states]);
       expect(f.w.tuck.right).toBeGreaterThan(.4); surfaceClear(f);
       f.body.position.x = -5; for (let i = 0; i < 60; i++) f.clearance.step(still, 1 / 60, true);
@@ -126,7 +126,7 @@ describe('wings make room for actual solid geometry', () => {
       const player = f.world.createRigidBody(RAPIER.RigidBodyDesc.kinematicPositionBased());
       f.world.createCollider(RAPIER.ColliderDesc.ball(2), player); f.world.step(); f.step();
       expect(f.w.tuck.left + f.w.tuck.right).toBeLessThan(.001);
-      f.stone(1.65, 10, 0, .02, 5, 5).setCollisionGroups(FRAME_GROUPS); f.world.step(); f.step();
+      f.stone(1.05, 10, 0, .02, 5, 5).setCollisionGroups(FRAME_GROUPS); f.world.step(); f.step();
       expect(f.w.tuck.right).toBeGreaterThan(.4);
     } finally { f.free(); }
   });

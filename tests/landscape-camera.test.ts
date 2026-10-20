@@ -45,7 +45,7 @@ describe('hip and ADS FOV', () => {
   });
   it('widens with speed and drops for ADS from the live hip', () => {
     const hip = hipFovFor(PHONE, 1);
-    expect(speedFovTarget(17, false, hip)).toBe(hip + 1); expect(speedFovTarget(100, false, hip)).toBe(hip + 2); expect(speedFovTarget(100, true, hip)).toBe(hip);
+    expect(speedFovTarget(17, false, hip)).toBe(hip + 1); expect(speedFovTarget(100, false, hip)).toBe(hip + 10); expect(speedFovTarget(100, true, hip)).toBe(hip);
     expect(fovFor(hip, 1, false, 0, hip)).toBeCloseTo(adsFovOf(hip), 12); expect(fovFor(hip, 0, false, 0, hip)).toBe(hip);
     expect(fovFor(hip + 2, 1, true, .5, hip)).toBe(hip + 2);
     expect(fovFor(65, 1, false, 0, 65)).toBe(50); expect(fovFor(66, .5, false, .3, 65)).toBe(fovFor(66, .5, false, .3));

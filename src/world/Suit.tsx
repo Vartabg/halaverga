@@ -18,6 +18,7 @@ import { angelRegalia } from './angelRegalia';
 import { createWingClearance } from './wingClearance';
 import { bindAngelClips } from './angelClips';
 import { createAngelMotion, stepAngelMotion } from './angelMotion';
+import { strike } from '@/game/strike';
 import { cannonLink } from './cannonContract';
 import { beginSuitSprings, createSuitSprings, followBody, followWings, stepClothSway } from './suitSprings';
 export const SUIT_URL = '/models/angel.glb';
@@ -79,7 +80,7 @@ export default function Suit() {
     // Spring follow-through, last over the body (suitSprings.ts): the pose above is the target each bone chases.
     Object.assign(frame, { dt, paused: state.paused, reduced: state.reduced, epoch: pose.epoch, ground: life.ground, command: runtime.shooter.aim.fireHold });
     followBody(springs, frame); stepClothSway(springs, rig.root, v, dt, state.paused, state.reduced);
-    stepArchangelWings(wings, state.flying, state.paused, state.reduced, pose.speed, v.y, roll, dt, pose.brake);
+    stepArchangelWings(wings, state.flying, state.paused, state.reduced, pose.speed, v.y, roll, dt, pose.brake, strike.phase === 1);
     alignArchangelWings(wings, rig.root, pose.lean);
     clearance.step(v, dt, state.paused, state.reduced);
     followWings(springs, wings, frame);

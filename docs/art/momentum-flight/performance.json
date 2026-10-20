@@ -1,0 +1,50 @@
+{
+  "base": "3fe9c67",
+  "date": "2026-10-20",
+  "host": "Mac14,6 arm64",
+  "os": "macOS 27.0.1",
+  "browser": "Chrome 155.0.8059.85",
+  "renderer": "ANGLE Metal per Playwright configuration",
+  "powerState": "not recorded",
+  "physicalIPhone": false,
+  "workload": "tests/perf-sample.spec.ts: 16 seconds of W flight with alternating .6-second turns and command presses",
+  "quality": "default high, DPR capped at 1.5",
+  "desktopViewport": [
+    1440,
+    1000
+  ],
+  "phoneViewport": [
+    852,
+    393
+  ],
+  "phoneDeviceScaleFactor": 3,
+  "phoneCpuThrottle": 4,
+  "samples": {
+    "desktop": {
+      "seconds": 17,
+      "samples": 1011,
+      "p50Ms": 16.7,
+      "p95Ms": 17.8,
+      "stalls": 1,
+      "resources": {
+        "drawCalls": 25,
+        "triangles": 294622,
+        "geometries": 39,
+        "textures": 26
+      }
+    },
+    "phone-throttled": {
+      "seconds": 18,
+      "samples": 1047,
+      "p50Ms": 16.7,
+      "p95Ms": 17.8,
+      "stalls": 5,
+      "resources": {
+        "drawCalls": 26,
+        "triangles": 294624,
+        "geometries": 41,
+        "textures": 26
+      }
+    }
+  }
+}
