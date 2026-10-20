@@ -33,17 +33,23 @@ for (const size of [{ width: 1440, height: 1000 }, { width: 640, height: 900 }])
   await page.mouse.click(cx, cy); await expect.poll(() => locked(page)).toBe(true);
   await expect(hint(page)).toHaveText('Slide to look', { timeout: 500 }); await expect(hint(page)).toHaveAttribute('data-step', '1');
   await page.mouse.move(cx + 150, cy, { steps: 15 });
-  await expect(hint(page)).toHaveText('Click: rebuke', { timeout: 2000 });
+  await expect(hint(page)).toHaveText('Click: strike', { timeout: 2000 });
   for (let k = 0; k < 5; k++) { await page.mouse.click(cx + 150, cy); await page.waitForTimeout(200); }
   await expect.poll(() => shots(page)).toBeGreaterThanOrEqual(5);
-  await expect(hint(page)).toHaveText('WASD to fly · Space lifts');
-  // The sound notice (sound is off on a fresh save) waits while a hint speaks.
-  await expect(soundNotice(page)).toHaveCount(0);
-  await page.waitForTimeout(1100); await page.keyboard.down('KeyW'); await page.waitForTimeout(400); await page.keyboard.up('KeyW');
+  // Chain combat: a click launches a strike at the nearest visible demon ahead, which flies the angel (crediting the movement step)
+  // and hides the hint during the dive. Either way the series completes; press W only if it is still asking for it.
+  const progress = async () => (await saved(page))?.simple;
+  await expect.poll(async () => await progress() === 4 || (await hint(page).count() > 0 && await hint(page).textContent() === 'WASD to fly · Space lifts'),
+    { timeout: 10000 }).toBe(true);
+  if (await progress() !== 4) {
+    // The sound notice (sound is off on a fresh save) waits while a hint speaks.
+    await expect(soundNotice(page)).toHaveCount(0);
+    await page.waitForTimeout(1100); await page.keyboard.down('KeyW'); await page.waitForTimeout(400); await page.keyboard.up('KeyW');
+  }
+  await expect.poll(progress, { timeout: 10000 }).toBe(4);
   await expect(hint(page)).toHaveCount(0);
-  expect((await saved(page)).simple).toBe(4);
   await page.mouse.click(cx + 150, cy); await expect(soundNotice(page)).toBeVisible();
-  expect(await said(page)).toEqual(['Click the scene to start', 'Slide to look', 'Click: rebuke', 'WASD to fly · Space lifts']);
+  expect((await said(page)).slice(0, 3)).toEqual(['Click the scene to start', 'Slide to look', 'Click: strike']);
   expect(await page.evaluate(() => {
     const el = document.querySelector('[data-testid=hint-live]'); return !el || !el.closest('[aria-hidden="true"]');
   })).toBe(true);
@@ -65,11 +71,11 @@ test('the live region exists before the first hint and sits outside every aria-h
 test('Esc mid-sequence: the step is kept and the start line returns until the pointer is captured again', async ({ page }) => {
   const errors = errorsOf(page); await seed(page, { hintProgress: { touch: 0, simple: 2, mouse: 0 } }); await begin(page, '/?trackpad=simple');
   await page.mouse.click(720, 550); await expect.poll(() => locked(page)).toBe(true);
-  await expect(hint(page)).toHaveText('Click: rebuke');
+  await expect(hint(page)).toHaveText('Click: strike');
   await page.keyboard.press('Escape'); await expect.poll(() => locked(page)).toBe(false); await resume(page);
   await expect(hint(page)).toHaveText('Click the scene to start'); await expect(hint(page)).toHaveAttribute('data-step', '2');
   await page.mouse.click(720, 550); await expect.poll(() => locked(page)).toBe(true);
-  await expect(hint(page)).toHaveText('Click: rebuke');
+  await expect(hint(page)).toHaveText('Click: strike');
   expect(errors).toEqual([]);
 });
 
@@ -105,7 +111,7 @@ test('mouse mode: start, then move the mouse to look, then click to shoot', asyn
   await page.mouse.click(720, 550); await expect.poll(() => locked(page)).toBe(true);
   await expect(hint(page)).toHaveText('Move the mouse to look', { timeout: 500 });
   await page.mouse.move(870, 550, { steps: 15 });
-  await expect(hint(page)).toHaveText('Click: rebuke', { timeout: 2000 });
+  await expect(hint(page)).toHaveText('Click: strike', { timeout: 2000 });
 });
 
 // The free cursor is the desktop default again (Garo 2026-09-24): no step hints, the bottom pill states the whole mapping.

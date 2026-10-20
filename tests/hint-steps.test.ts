@@ -57,8 +57,8 @@ describe('hintText', () => {
     for (const autoFire of [true, false]) expect(hintText('touch', 3, { autoFire, captured: false, shooter: false })).toBe('Hold Descend to land');
   });
   it('keeps the desktop and line copy', () => {
-    const simple = ['Click the scene to start', 'Slide to look', 'Click: rebuke', 'WASD to fly · Space lifts'];
-    const mouse = ['Click the scene to start', 'Move the mouse to look', 'Click: rebuke', 'WASD to fly · Space lifts'];
+    const simple = ['Click the scene to start', 'Slide to look', 'Click: strike', 'WASD to fly · Space lifts'];
+    const mouse = ['Click the scene to start', 'Move the mouse to look', 'Click: strike', 'WASD to fly · Space lifts'];
     for (let k = 1; k < 4; k++) { expect(hintText('simple', k, cap)).toBe(simple[k]); expect(hintText('mouse', k, cap)).toBe(mouse[k]); }
     expect(hintText('simple', 0, on)).toBe(simple[0]); expect(hintText('mouse', 0, on)).toBe(mouse[0]);
     expect(hintText('tap', 0, on)).toBe('Tap pad: Fire and Aim toggle');
