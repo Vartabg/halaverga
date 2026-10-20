@@ -7,6 +7,9 @@ import { presentation as pose, CHASE_HEAD } from './presentation';
 import { baseFovStep, boomFor, CAM, fovFor, hipFovFor, shortWeight } from './cameraFx';
 import { useGame } from './store';
 import { boomBlocks } from './boomFilter';
+import { strike } from './strike';
+import { clearCombatSight } from './combatSight';
+import { createCombatCamera, stepCombatCamera, rememberCombatPilot, combatCameraReadout as readout } from './combatCamera';
 const rotation = new Euler(0, 0, 0, 'YXZ'), q = new Quaternion(), desired = new Vector3(), dir = new Vector3(), head = new Vector3();
 const shakeEuler = new Euler(0, 0, 0, 'YXZ'), shake = new Quaternion(), axis = new Vector3();
 // Speed-widened FOV, damped on its own so the ADS drop and shot punches never compound into the damp. Synced to c.fov on init.
@@ -17,6 +20,8 @@ const identity = { x: 0, y: 0, z: 0, w: 1 };
 export default function CameraRig() {
   const { world, rapier } = useRapier();
   const initialized = useRef(false), epoch = useRef(-1), marker = useRef<Mesh>(null);
+  const combat = useRef(createCombatCamera());
+  const sight = useMemo(() => new rapier.Ray({ x: 0, y: 0, z: 0 }, { x: 0, y: 0, z: -1 }), [rapier]);
   const boom = useRef(new Vector3()), probe = useMemo(() => new rapier.Ball(.28), [rapier]);
   useFrame(({ camera, invalidate, gl, size }, dt) => {
     const state = useGame.getState();
@@ -28,20 +33,30 @@ export default function CameraRig() {
     if (state.paused && initialized.current && !resized) return;
     const elapsed = state.paused ? 0 : Math.min(dt, .05), shooter = runtime.shooter, fx = shooter.camFx, aim = shooter.aim, reduced = state.reduced;
     const blend = reduced ? 0 : aim.blend;
+    const frame = stepCombatCamera(combat.current, { yaw: pose.viewYaw, pitch: pose.viewPitch, pilotYaw: runtime.yaw, pilotPitch: runtime.pitch,
+      epoch: runtime.poseEpoch, enabled: state.shooter && state.camera === 'third' && !runtime.landGoal, reduced,
+      phase: strike.phase, target: strike.target, aim: strike.aim, hero: pose.position, aspect, dt: elapsed });
+    if (frame.tracking) { runtime.yaw = frame.yaw; runtime.pitch = frame.pitch; }
+    rememberCombatPilot(frame, runtime.yaw, runtime.pitch);
     // Recoil kick joins the view; an idle kick adds nothing (adding a literal 0 could turn -0 into +0).
-    rotation.set(fx.kickP === 0 ? pose.viewPitch : pose.viewPitch + fx.kickP, fx.kickY === 0 ? pose.viewYaw : pose.viewYaw + fx.kickY, 0);
+    rotation.set(fx.kickP === 0 ? frame.pitch : frame.pitch + fx.kickP, fx.kickY === 0 ? frame.yaw : frame.yaw + fx.kickY, 0);
     q.setFromEuler(rotation);
     head.copy(pose.position); head.y += CHASE_HEAD;
     if (state.camera === 'third') boomFor(blend, aspect, desired, w); else desired.set(0, 0, 0);
-    desired.applyQuaternion(q);
+    desired.multiplyScalar(frame.scale).applyQuaternion(q);
     const snap = state.reduced || !initialized.current || epoch.current !== runtime.poseEpoch || resized;
-    boom.current.lerp(desired, snap ? 1 : 1 - Math.exp(-12 * elapsed));
+    if (!snap && frame.weight > .001 && desired.length() > .01) {
+      // Orientation is already damped by the combat planner: orbit with it, never lerp a chord through the angel.
+      const distance = boom.current.length() + (desired.length() - boom.current.length()) * (1 - Math.exp(-12 * elapsed));
+      boom.current.copy(desired).setLength(distance);
+    } else boom.current.lerp(desired, snap ? 1 : 1 - Math.exp(-12 * elapsed));
     const length = boom.current.length();
     if (length > .05) {
       dir.copy(boom.current).divideScalar(length);
       const hit = world.castShape(head, identity, dir, probe, .04, length, false, undefined, undefined, undefined, undefined, boomBlocks);
       if (hit) boom.current.setLength(Math.max(0, hit.time_of_impact - .08));
     }
+    if (frame.tracking && strike.phase === 1) clearCombatSight(world, sight, head, boom.current, strike.aim);
     // Both camera and suit consume the same interpolated anchor. Only the boom eases.
     camera.position.copy(head).add(boom.current); camera.quaternion.copy(q);
     runtime.cameraDistance = camera.position.distanceTo(pose.position);
@@ -61,6 +76,17 @@ export default function CameraRig() {
       aim.hipFov = hip;
       persp.updateProjectionMatrix();
       aim.fov = persp.fov;
+    }
+    readout.target = strike.target; readout.phase = strike.phase; readout.age = frame.age; readout.weight = frame.weight; readout.manual = frame.manual;
+    readout.yaw = frame.yaw; readout.pitch = frame.pitch;
+    const half = Math.tan(aim.fov * Math.PI / 360);
+    for (let n = 0; n < 2; n++) {
+      const point = n === 0 ? pose.position : strike.aim;
+      const x = point.x - aim.origin.x, y = point.y + (n === 0 ? .65 : 0) - aim.origin.y, z = point.z - aim.origin.z;
+      const depth = x * aim.dir.x + y * aim.dir.y + z * aim.dir.z;
+      const nx = depth > 0 ? (x * aim.right.x + y * aim.right.y + z * aim.right.z) / (depth * half * aspect) : 99;
+      const ny = depth > 0 ? (x * aim.up.x + y * aim.up.y + z * aim.up.z) / (depth * half) : 99;
+      if (n === 0) { readout.heroX = nx; readout.heroY = ny; } else { readout.targetX = nx; readout.targetY = ny; }
     }
     initialized.current = true; epoch.current = runtime.poseEpoch; lastW = w; lastHip = hip;
     if (marker.current) {

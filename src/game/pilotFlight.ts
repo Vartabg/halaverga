@@ -19,8 +19,10 @@ export function pilotVelocity(v: Vec, intent: Intent, yaw: number, pitch: number
   if (live && !active) flightFeel.brake = false;
   active = live;
   if (flightFeel.brake) cancelStrike();
-  const looking = runtime.thumb.active || runtime.trackpad.held || ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].some(k => runtime.keys.has(k));
-  if (strike.phase === 1 && !looking && !useGame.getState().reduced) strikeLook(runtime, runtime.position, strike.aim, dt);
+  const game = useGame.getState();
+  // Third-person framing belongs to CameraRig; keep the prior first-person launch assist without adding an orbit or pullback.
+  if (game.camera === 'first' && strike.phase === 1 && !game.reduced && !runtime.thumb.active && !runtime.trackpad.held && !runtime.keyHold.yawSign && !runtime.keyHold.pitchSign)
+    strikeLook(runtime, runtime.position, strike.aim, dt);
   if (gesture.scheme !== 'off') {
     carve(v, yaw, dt, flying && !runtime.landGoal && !runtime.thumb.active && (live || surge || gesture.live), runtime.poseEpoch);
     return advanceVelocity(v, intent, yaw, pitch, flying, surge, dt);

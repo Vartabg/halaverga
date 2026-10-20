@@ -18,6 +18,13 @@ for (const { touch, viewport } of [{ touch: false, viewport: { width: 1440, heig
       }
     }
     const hud = page.getByTestId('battle-hud'), target = page.getByTestId('combat-target');
+    await page.evaluate(() => {
+      const w = window as typeof window & { cameraFrames: Record<string, number>[]; cameraTimer: number };
+      w.cameraFrames = []; w.cameraTimer = window.setInterval(() => {
+        const data = document.querySelector('[data-testid="combat-target"]')?.getAttribute('data-camera');
+        if (data) w.cameraFrames.push(JSON.parse(data));
+      }, 20);
+    });
     let peak = 0, engaged = false;
     for (let n = 0; n < 100 && peak < 3; n++) {
       if (engaged || await target.locator('i').isVisible()) {
@@ -40,8 +47,25 @@ for (const { touch, viewport } of [{ touch: false, viewport: { width: 1440, heig
       peak = Math.max(peak, Number(await hud.getAttribute('data-combo')));
     }
     await page.screenshot({ path: test.info().outputPath('chain.png') });
+    const frames = await page.evaluate(() => {
+      const w = window as typeof window & { cameraFrames: Record<string, number>[]; cameraTimer: number };
+      clearInterval(w.cameraTimer); return w.cameraFrames;
+    });
+    const tracked = frames.filter(f => f.phase === 1 && f.age > .18 && f.manual === 0 && f.weight > .5);
+    expect(tracked.length).toBeGreaterThan(8);
+    const visible = (x: number, y: number) => Math.abs(x) < .95 && Math.abs(y) < .95;
+    const targetInFrame = tracked.filter(f => visible(f.targetX, f.targetY)).length / tracked.length;
+    const heroInFrame = tracked.filter(f => visible(f.heroX, f.heroY)).length / tracked.length;
+    console.log('COMBAT FRAMING', { viewport, samples: tracked.length, targetInFrame, heroInFrame });
+    await test.info().attach('combat-camera-frames', { body: JSON.stringify(frames), contentType: 'application/json' });
     expect(peak).toBeGreaterThanOrEqual(3);
     await expect.poll(async () => Number(await hud.getAttribute('data-banished')), { timeout: 8000 }).toBeGreaterThanOrEqual(3);
+    expect(targetInFrame).toBeGreaterThanOrEqual(.85); expect(heroInFrame).toBeGreaterThanOrEqual(.95);
+    await page.keyboard.down('ArrowLeft'); await page.waitForTimeout(120); await page.keyboard.up('ArrowLeft');
+    await expect.poll(async () => JSON.parse((await target.getAttribute('data-camera'))!).manual).toBeGreaterThan(.2);
+    await page.keyboard.press('KeyB');
+    await expect.poll(async () => JSON.parse((await target.getAttribute('data-camera'))!).weight).toBeLessThan(.01);
+    expect(JSON.parse((await target.getAttribute('data-camera'))!).phase).toBe(0);
     expect(errors).toEqual([]);
   } finally { await context.close(); }
 });
