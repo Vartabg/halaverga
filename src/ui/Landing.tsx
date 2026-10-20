@@ -18,9 +18,9 @@ export default function Landing({ started, failed, ready, zoomNote, note, onEnte
       {failed && <div className={styles.recovery} role="alert"><h2>The world needs a moment.</h2><p>Your field guide remains available. Reload the scene to continue from your saved landing.</p>{note && <p>{note}</p>}<button className={styles.primary} onClick={onRetry}>Reload scene</button></div>}
       {!off && <section className={styles.intro} aria-label="Begin expedition">
         <p className={styles.eyebrow}><span className={styles.statusDot} /> CHAPTER I <span>/</span> THE BREACH</p>
-        <p className={styles.introCopy}>Take wing against the abyssal host.<br />Banish eight adversaries. Seal the breach.</p>
+        <p className={styles.introCopy}>Dive. Climb. Strike.<br />Banish eight demons. Seal the breach.</p>
         <button className={styles.primary} disabled={!ready} onClick={onEnter}>{ready ? 'Begin expedition' : 'Calling your angel…'}<span aria-hidden="true">↗</span></button>
-        <p className={styles.introHint} role="status">{note || (zoomNote ? 'Pinch out to normal size, then tap Begin.' : ready ? <><span className={styles.fineHint}>Space to take wing · C to rebuke.</span><span className={styles.coarseHint}>Drag to fly · tap a demon to rebuke.</span></> : 'Raising the sanctuary above the abyss.')}</p>
+        <p className={styles.introHint} role="status">{note || (zoomNote ? 'Pinch out to normal size, then tap Begin.' : ready ? <><span className={styles.fineHint}>Space to take wing · C to rebuke.</span><span className={styles.coarseHint}>Drag to fly · tap a demon to rebuke.</span></> : 'Raising the sanctuary.')}</p>
         {children}
       </section>}</div>
     {!started && <footer className={styles.introFooter}><span>REVELATION XII <small>WAR IN HEAVEN</small><b>—</b> THE BREACH <small>FIRST SANCTUARY</small></span><span>ANGELS / ABYSSAL HOST <i>01</i></span></footer>}

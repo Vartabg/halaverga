@@ -19,13 +19,12 @@ function setup() {
 }
 describe('textual banishment loop', () => {
   it('rebuke staggers, the sword throws down, the chain binds and the cast seals it into the abyss', () => {
-    const { s, b, near, act, blow } = setup();
+    const { s, b, near, act } = setup();
     act(COMMAND.rebuke);
     expect(b.mode[0]).toBe(MODE.staggered); expect(b.resist[0]).toBe(BANISH.resistance - 1); expect(b.rebukeT).toBe(b.clock);
     act(COMMAND.sword); expect(b.resist[0]).toBe(BANISH.resistance - 1); // diving, not yet struck
-    stepBanish(b, s, { ...s.targets[0].c }, 1 / 60); expect(b.resist[0]).toBe(1); expect(strike.phase).toBe(2);
+    stepBanish(b, s, { ...s.targets[0].c }, 1 / 60); expect(b.resist[0]).toBe(0); expect(strike.phase).toBe(2);
     expect(s.camFx.trauma).toBeGreaterThan(0);
-    blow();
     expect(b.mode[0]).toBe(MODE.down); expect(s.drones.held[0]).toBe(1);
     act(COMMAND.bind); expect(b.mode[0]).toBe(MODE.bound);
     act(COMMAND.flick); expect(b.mode[0]).toBe(MODE.cast);

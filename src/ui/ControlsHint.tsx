@@ -1,3 +1,4 @@
+import FlightFeel from './FlightFeel';
 import { useEffect, useRef, useState } from 'react';
 import { HINT_STEPS, persistGame, useGame, type HintSeries } from '@/game/store';
 import { runtime } from '@/game/runtime';
@@ -99,5 +100,5 @@ export default function ControlsHint({ coarse }: { coarse: boolean }) {
   // mount and on each change, so the live region exists empty first and the first hint is announced too.
   useEffect(() => { setSaid(text ?? ''); useGame.setState({ coach: text === null ? null : { text, track, step } }); }, [text, track, step]);
   useEffect(() => () => useGame.setState({ coach: null }), []);
-  return <div className="sr-only" aria-live="polite" data-testid="hint-live">{said}</div>;
+  return <><FlightFeel /><div className="sr-only" aria-live="polite" data-testid="hint-live">{said}</div></>;
 }

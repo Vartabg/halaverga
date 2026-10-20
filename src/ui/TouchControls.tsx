@@ -1,3 +1,4 @@
+import { flightFeel } from '@/game/flightFeel';
 import type { PointerEvent } from 'react';
 import { useRef } from 'react';
 import { useGame } from '@/game/store';
@@ -40,6 +41,7 @@ export default function TouchControls() {
     if (isDesktop(e)) desktop.end(e); else scheme.end(e);
   };
   const cancel = (e: PointerEvent<HTMLDivElement>) => {
+    if (e.type === 'pointercancel') { flightFeel.brake = true; flightFeel.serial++; } // OS interruption brakes; a normal release glides
     if (!isDesktop(e)) { scheme.cancel(e); return; }
     if (e.type === 'lostpointercapture') desktop.lostCapture(); else desktop.cancel();
   };
