@@ -1,7 +1,7 @@
 import type { Vec3 } from './combat';
 import { WORLD } from './motion';
 // Patrol loops for the abyssal host: a figure-eight wobble (y at twice the rate) on a horizontal ellipse.
-// Every path clears the city solids by >= 5.7 m and the building route by >= 5 m (tests/drone-patrol.test.ts).
+// The sanctuary's low/mid combat band supports portrait fights; real scene collision and route clearances are tested.
 export type Patrol = { id: string; c: Vec3; r: Vec3; omega: number; phase: number };
 export const PATROLS: readonly Patrol[] = [
   // Tutorial drone: c moved (-3, 0, -3) to stay inside the 25 deg spawn cone (23.3 deg) and 5.7 m off the departure route.
@@ -9,11 +9,11 @@ export const PATROLS: readonly Patrol[] = [
   // Starting values: 13.4 m from solids, 7.2 m from the route, 3.0 m/s peak.
   { id: 'terrace-wing', c: { x: -9, y: 28, z: 40 }, r: { x: 5, y: 1, z: 4 }, omega: .55, phase: 1.7 },
   // Starting values: 12.0 m from solids, 6.8 m from the route, 3.4 m/s peak.
-  { id: 'canal-mid', c: { x: -6, y: 16, z: 24 }, r: { x: 4, y: 1.5, z: 6 }, omega: .5, phase: 3.1 },
+  { id: 'canal-mid', c: { x: -6, y: 26, z: 24 }, r: { x: 4, y: 1.5, z: 6 }, omega: .5, phase: 3.1 },
   // omega .7 -> .75 lifts the peak from 2.52 to 2.70 m/s; 8.4 m from solids.
-  { id: 'viaduct-gap', c: { x: 0, y: 21, z: -1 }, r: { x: 3, y: 1, z: 2.5 }, omega: .75, phase: .6 },
-  // c.y 70 -> 75: the route's ascent -> roof leg runs at y 69 through the ring (1 m at y 70); now 12.7-14.7 m above the roof.
-  { id: 'tower-orbit', c: { x: 36, y: 75, z: -38 }, r: { x: 18, y: 1, z: 18 }, omega: .18, phase: 2.2 },
+  { id: 'viaduct-gap', c: { x: 0, y: 30, z: -1 }, r: { x: 3, y: 1, z: 2.5 }, omega: .75, phase: .6 },
+  // Former high tower loop now joins the fighting band; the marked high landing remains an optional traversal space.
+  { id: 'tower-orbit', c: { x: -12, y: 36, z: -35 }, r: { x: 8, y: 1, z: 8 }, omega: .34, phase: 2.2 },
   // Open-world patrols (utilising MAX_DRONES = 8): the north canal avenue and the west/east basins outside the central ridges.
   { id: 'north-avenue', c: { x: 0, y: 42, z: -85 }, r: { x: 12, y: 1.5, z: 14 }, omega: .24, phase: .9 },
   { id: 'west-basin', c: { x: -18, y: 45, z: -53 }, r: { x: 4, y: 1.4, z: 10 }, omega: .26, phase: 2.6 },

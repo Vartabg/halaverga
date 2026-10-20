@@ -21,7 +21,7 @@ export function flowTarget(b: BanishState, s: ShooterState, player: Vec3) {
   let best = -1, score = Infinity;
   for (let i = 0; i < s.drones.count; i++) {
     const t = s.targets[i];
-    if (!flowPaths[i] || (!chaining && !flowVisible[i]) || !t.alive || !t.los || !droneAlive(s.drones, i) || b.mode[i] >= MODE.down) continue;
+    if (b.guardTime[i] > 0 || !flowPaths[i] || (!chaining && !flowVisible[i]) || !t.alive || !t.los || !droneAlive(s.drones, i) || b.mode[i] >= MODE.down) continue;
     const x = t.c.x - player.x, y = t.c.y - player.y, z = t.c.z - player.z;
     const d = Math.hypot(x, y, z);
     if (d > BANISH.swordReach || d < .01) continue;

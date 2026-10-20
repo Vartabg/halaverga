@@ -1,29 +1,19 @@
-import { beforeAll, describe, expect, it } from 'vitest';
-import { Euler, Quaternion, Vector3 } from 'three';
-import { makeCity } from '../src/world/cityData';
-import { makeField } from '../src/world/fieldData';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import RAPIER from '@dimforge/rapier3d-compat';
+import { makeSanctuary } from '../src/world/sanctuaryData';
+
 import { START, WORLD } from '../src/game/motion';
 import { BUILDING_ROUTE } from '../src/game/navigation';
 import { forwardOf, type Vec3 } from '../src/game/combat';
 import { PATROLS, flyInStart, patrolPeakSpeed, patrolPosition } from '../src/game/dronePatrols';
-type Box = { c: Vector3; h: Vector3; inv: Quaternion };
-let boxes: Box[];
-beforeAll(() => {
-  const city = makeCity(), field = makeField();
-  city.geometry.dispose(); field.geometries.forEach(g => g.dispose());
-  boxes = [...city.solids, ...field.solids].map(s => ({ c: new Vector3(...s.position), h: new Vector3(...s.size),
-    inv: new Quaternion().setFromEuler(new Euler(...s.rotation)).invert() }));
+let world: RAPIER.World;
+beforeAll(async () => {
+  await RAPIER.init(); const scene = makeSanctuary(); world = new RAPIER.World({ x: 0, y: 0, z: 0 });
+  world.createCollider(RAPIER.ColliderDesc.trimesh(scene.vertices, scene.indices)); world.step(); scene.geometry.dispose();
 });
-const local = new Vector3();
-/** Distance from p to the nearest solid OBB: into the box frame, then clamp to the half-extents. */
 function solidDistance(p: Vec3) {
-  let best = Infinity;
-  for (const b of boxes) {
-    local.set(p.x, p.y, p.z).sub(b.c).applyQuaternion(b.inv);
-    const dx = Math.max(0, Math.abs(local.x) - b.h.x), dy = Math.max(0, Math.abs(local.y) - b.h.y), dz = Math.max(0, Math.abs(local.z) - b.h.z);
-    best = Math.min(best, Math.hypot(dx, dy, dz));
-  }
-  return best;
+  const hit = world.projectPoint(p, true);
+  return hit ? Math.hypot(p.x - hit.point.x, p.y - hit.point.y, p.z - hit.point.z) : Infinity;
 }
 function routeDistance(p: Vec3) {
   let best = Infinity;
@@ -34,6 +24,7 @@ function routeDistance(p: Vec3) {
   }
   return best;
 }
+afterAll(() => world?.free());
 const samples = (p: typeof PATROLS[number]) => Array.from({ length: 720 }, (_, n) => patrolPosition(p, n / 720 * 2 * Math.PI / p.omega, { x: 0, y: 0, z: 0 }));
 const view = forwardOf(0, -.12, { x: 0, y: 0, z: 0 });
 const coneDeg = (q: Vec3) => {
@@ -63,6 +54,9 @@ describe('drone patrol paths', () => {
     expect(route, 'route clearance').toBeGreaterThanOrEqual(5);
     const peak = patrolPeakSpeed(p);
     expect(peak).toBeGreaterThanOrEqual(2.5); expect(peak).toBeLessThanOrEqual(5.5);
+  });
+  it('keeps every combat patrol in the portrait fighting band rather than pulling chains to the ceiling', () => {
+    for (const p of PATROLS) for (const at of samples(p)) { expect(at.y).toBeGreaterThan(23); expect(at.y).toBeLessThan(47); }
   });
   it('measures peak speed numerically, matching finite differences', () => {
     for (const p of PATROLS) {

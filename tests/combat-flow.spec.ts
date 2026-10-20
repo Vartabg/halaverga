@@ -29,8 +29,19 @@ for (const { touch, viewport } of [{ touch: false, viewport: { width: 1440, heig
       }, 20);
     });
     let peak = 0, engaged = false, captured = false, manualChecked = false;
-    for (let n = 0; n < 100 && peak < 3; n++) {
-      if (engaged || (await target.locator('i').isVisible() && await target.getAttribute('data-edge') === 'false')) {
+    for (let n = 0; n < 180 && (peak < 3 || Number(await hud.getAttribute('data-banished')) < 3); n++) {
+      if (engaged && !await target.isVisible() && JSON.parse((await target.getAttribute('data-camera'))!).phase === 0) {
+        await page.keyboard.press('KeyB'); await page.keyboard.down('KeyV');
+        const t = page.getByTestId('flight-telemetry'), p = JSON.parse((await t.getAttribute('data-position'))!);
+        const yaw = Number(await t.getAttribute('data-heading')), pitch = Number(await t.getAttribute('data-pitch'));
+        const x = -p[0], y = 35 - p[1], z = -40 - p[2], desired = Math.atan2(-x, -z);
+        const dy = Math.atan2(Math.sin(desired - yaw), Math.cos(desired - yaw)), dp = Math.atan2(y, Math.hypot(x, z)) - pitch;
+        const h = Math.abs(dy) > .1 ? dy > 0 ? 'ArrowLeft' : 'ArrowRight' : null;
+        const v = Math.abs(dp) > .1 ? dp > 0 ? 'ArrowUp' : 'ArrowDown' : null;
+        if (h) await page.keyboard.down(h); if (v) await page.keyboard.down(v);
+        await page.waitForTimeout(160); if (h) await page.keyboard.up(h); if (v) await page.keyboard.up(v);
+        if (Math.abs(dy) + Math.abs(dp) < .4) { await page.keyboard.down('KeyW'); await page.waitForTimeout(400); await page.keyboard.up('KeyW'); }
+      } else if (engaged || (await target.locator('i').isVisible() && await target.getAttribute('data-edge') === 'false')) {
         engaged = true;
         if (touch && n > 0) await page.getByRole('button', { name: 'Strike next demon' }).tap();
         else if (touch) {

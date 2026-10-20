@@ -11,7 +11,8 @@ import { battle } from '@/game/celestialBattle';
 import { presentation } from '@/game/presentation';
 import { runtime } from '@/game/runtime';
 import { useGame } from '@/game/store';
-import { audioBus } from '@/ui/audioBus';
+import { combatAudio } from '@/ui/combatAudio';
+import { castDuration, isElite } from '@/game/encounter';
 
 const GOLD = new Color('#ffd27a'), FIRE = new Color('#ff7a2a'), CRIMSON = new Color('#ff3b1f'), PALE = new Color('#f4ecd8');
 const m4 = new Matrix4(), q = new Quaternion(), tilt = new Quaternion(), at = new Vector3(), sc = new Vector3(), c = new Color();
@@ -24,11 +25,11 @@ function pool(geometry: BufferGeometry, n: number) {
   mesh.instanceColor!.setUsage(DynamicDrawUsage); mesh.count = 0; return mesh;
 }
 type Slot = { kind: number; t: number; from: Vec3; to: Vec3; drone: number };
-const ACTIVE = 6, LIFE: Record<number, number> = { [FX.rebuke]: .55, [FX.sword]: .38, [FX.seal]: .9, [FX.bind]: .5, [FX.down]: .5, [FX.cast]: .4 };
+const ACTIVE = 12, LIFE: Record<number, number> = { [FX.rebuke]: .55, [FX.sword]: .48, [FX.armor]: .7, [FX.seal]: 1.4, [FX.bind]: .5, [FX.down]: .5, [FX.cast]: .4 };
 
 export default function Banishment() {
   const parts = useMemo(() => ({
-    rings: pool(new TorusGeometry(1, .07, 6, 40), ACTIVE * 2),
+    rings: pool(new TorusGeometry(1, .07, 6, 40), ACTIVE * 3),
     arcs: pool(new RingGeometry(1.5, 2.1, 28, 1, 0, Math.PI * 1.15), ACTIVE),
     chains: pool(new TorusGeometry(1.25, .06, 5, 28), MAX_DRONES * 2),
     lines: pool(new CylinderGeometry(.05, .05, 1, 5, 1, true), MAX_DRONES),
@@ -42,8 +43,7 @@ export default function Banishment() {
     const b = banish, s = runtime.shooter, now = b.clock, reduced = useGame.getState().reduced;
     for (let n = Math.max(parts.seen.last + 1, b.fxSerial - b.fx.length + 1); n <= b.fxSerial; n++) {
       const e = b.fx[(n - 1) % b.fx.length];
-      if (e.kind === FX.sword) { audioBus.play('kill', { gain: .8, chain: banish.combo }); audioBus.play('steel', { gain: .35 }); }
-      if (e.kind === FX.seal) audioBus.play('blocked', { gain: .35 });
+      combatAudio(e.kind, isElite(e.drone), banish.combo, b.guardTime[e.drone] > 0);
       if (e.kind === FX.quench) { parts.quench = e.t; continue; }
       const slot = parts.slots[parts.next++ % ACTIVE];
       slot.kind = e.kind; slot.t = e.t; slot.drone = e.drone; Object.assign(slot.from, e.from); Object.assign(slot.to, e.to);
@@ -60,17 +60,18 @@ export default function Banishment() {
         at.set(slot.from.x + (target.x - slot.from.x) * k, slot.from.y + 1.2 + (target.y - slot.from.y - 1.2) * k, slot.from.z + (target.z - slot.from.z) * k);
         sc.setScalar(k < 1 ? .5 + k : 1.5 + (age - .2) * 7);
         parts.rings.setMatrixAt(rings, m4.compose(at, camera.quaternion, sc)); parts.rings.setColorAt(rings++, c.copy(GOLD).multiplyScalar(fade * 1.6));
-      } else if (slot.kind === FX.sword) {
+      } else if (slot.kind === FX.sword || slot.kind === FX.armor) {
         const target = slot.to;
         at.set(target.x, target.y, target.z); tilt.setFromAxisAngle(look.set(0, 0, 1), (reduced ? 0 : u * 2.4) - .6 + slot.t * 7 % 3);
-        q.copy(camera.quaternion).multiply(tilt); sc.setScalar(1 + u * .4);
-        parts.arcs.setMatrixAt(arcs, m4.compose(at, q, sc)); parts.arcs.setColorAt(arcs++, c.copy(FIRE).multiplyScalar(fade * 2));
+        q.copy(camera.quaternion).multiply(tilt); sc.setScalar(reduced ? 1.1 : 1 + u * .6);
+        parts.arcs.setMatrixAt(arcs, m4.compose(at, q, sc)); parts.arcs.setColorAt(arcs++, c.copy(slot.kind === FX.armor ? GOLD : FIRE).multiplyScalar(fade * 1.7));
       } else if (slot.kind === FX.seal || slot.kind === FX.cast || slot.kind === FX.bind || slot.kind === FX.down) {
         // The abyss closing (crimson to gold, flat), a bind flash, or the pale ring of a demon thrown down.
         const p = slot.kind === FX.seal ? slot.to : slot.drone >= 0 ? s.targets[slot.drone].c : slot.to;
-        at.set(p.x, p.y, p.z); q.setFromAxisAngle(X, Math.PI / 2);
-        sc.setScalar(slot.kind === FX.seal ? 1 + u * 9 : 1.2 + u * 2.5);
-        const tint = slot.kind === FX.seal ? c.copy(CRIMSON).lerp(GOLD, u) : slot.kind === FX.down ? c.copy(PALE) : c.copy(GOLD);
+        at.set(p.x, p.y, p.z);
+        if (slot.kind === FX.seal) q.copy(camera.quaternion); else q.setFromAxisAngle(X, Math.PI / 2);
+        sc.setScalar(reduced ? 1.8 : slot.kind === FX.seal ? Math.max(.03, 2.6 * (1 - u) ** 2) : 1.2 + u * 2.5);
+        const tint = slot.kind === FX.seal ? c.copy(GOLD).lerp(PALE, u) : slot.kind === FX.down ? c.copy(PALE) : c.copy(GOLD);
         parts.rings.setMatrixAt(rings, m4.compose(at, q, sc)); parts.rings.setColorAt(rings++, tint.multiplyScalar(fade * 1.5));
       }
     }
@@ -89,6 +90,13 @@ export default function Banishment() {
       for (const a of [.6, -.6]) {
         q.setFromAxisAngle(Y, now * (reduced ? 0 : .6) + i).multiply(tilt.setFromAxisAngle(X, Math.PI / 2 + a)); sc.setScalar(1);
         parts.chains.setMatrixAt(chains, m4.compose(at, q, sc)); parts.chains.setColorAt(chains++, c.copy(GOLD).multiplyScalar(1.3));
+      }
+      if (m === MODE.cast) {
+        const origin = b.base[i], progress = Math.min(1, b.timer[i] / castDuration(i));
+        at.set(origin.x, origin.y, origin.z); q.copy(camera.quaternion);
+        sc.setScalar(reduced ? 1.8 : 1.8 + .4 * Math.sin(Math.PI * progress));
+        parts.rings.setMatrixAt(rings, m4.compose(at, q, sc));
+        parts.rings.setColorAt(rings++, c.copy(CRIMSON).lerp(GOLD, progress).multiplyScalar(.6));
       }
       const depth = Math.max(2, p.y);
       at.set(p.x, p.y - depth / 2, p.z); sc.set(1, depth, 1);

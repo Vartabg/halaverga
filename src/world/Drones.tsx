@@ -1,3 +1,4 @@
+import EliteGuard from './EliteGuard';
 import { eyeCenter } from '@/game/adversaryPose';
 import { useEffect, useMemo } from 'react';
 import { useFrame, useLoader, type RootState } from '@react-three/fiber';
@@ -145,5 +146,5 @@ export default function Drones() {
     parts.flash.needsUpdate = true; parts.damage.needsUpdate = true;
   }), [parts]);
   useFrame(frame, -5);
-  return <group><primitive object={parts.actors.group} dispose={null} />{parts.list.map((mesh, i) => <primitive key={i} object={mesh} dispose={null} />)}</group>;
+  return <group><EliteGuard /><primitive object={parts.actors.group} dispose={null} />{parts.list.map((mesh, i) => <primitive key={i} object={mesh} dispose={null} />)}</group>;
 }

@@ -7,11 +7,12 @@ import { useGame } from '@/game/store';
 import { pause, resume } from './useInput';
 import Modal from './Modal';
 import CombatTarget from './CombatTarget';
+import EliteHud from './EliteHud';
 import { COMMAND, requestCommand } from '@/game/commands';
 import { unlockBlasterAudio } from './audioUnlock';
 import styles from './BattleHud.module.css';
 
-const CUES: Record<Cue, string> = { '': '', far: 'Too far · fly closer', notDown: 'Strike it down before you bind it', notBound: 'This demon is already being banished', noTarget: '' };
+const CUES: Record<Cue, string> = { '': '', far: 'Too far · fly closer', notDown: 'Strike it down before you bind it', notBound: 'This demon is already being banished', noTarget: '', guarded: 'Warden resisting · evade, shield or chain away' };
 /** The next move for the demon last engaged, by its state: touch wording, then keyboard/mouse wording. */
 const NEXT: Record<number, [string, string]> = {
   [-1]: ['Tap a demon · strike through it', 'Face the host · click to strike'],
@@ -38,10 +39,10 @@ export default function BattleHud() {
   </Modal>;
   if (paused) return null;
   return <>
-    <CombatTarget />
+    <CombatTarget /><EliteHud />
     {readout.status === 'battle' && <button className={styles.attack} aria-label="Strike next demon" onPointerDown={e => e.stopPropagation()} onPointerUp={e => e.stopPropagation()}
       onClick={e => { e.stopPropagation(); unlockBlasterAudio(); requestCommand(runtime.shooter, COMMAND.context); }}>{readout.combo > 0 ? 'Chain' : 'Strike'}</button>}
-    <aside className={styles.mission} data-testid="battle-hud" data-combo={readout.combo} data-ward={readout.ward} data-banished={readout.kills} data-status={readout.status} data-banish-fx={readout.fx} data-modes={readout.modes} aria-label="Battle objective">
+    <aside className={styles.mission} data-testid="battle-hud" data-combo={readout.combo} data-ward={readout.ward} data-banished={readout.kills} data-status={readout.status} data-banish-fx={readout.fx} data-modes={readout.modes} data-armor={banish.armor.join('')} aria-label="Battle objective">
       <span className={styles.chapter}>{readout.combo > 1 ? `${readout.combo} STRIKE CHAIN` : 'I / THE BREACH'}</span>
       <strong>{readout.status === 'victory' ? 'The gate is secured' : 'Banish the abyssal host'}</strong>
       <span>{readout.status === 'victory' ? 'Victory · continue your flight' : `${Math.min(BATTLE.goal, readout.kills)} / ${BATTLE.goal} banished${readout.combo > 1 ? ` · ${readout.combo} hit chain` : ''}`}</span>
@@ -52,9 +53,9 @@ export default function BattleHud() {
     {readout.charging && <p className={styles.warning} role="status">Fiery dart · raise the shield or keep moving</p>}
     {readout.rebuke && <p className={styles.rebuke} role="status">“May the Lord rebuke you!” <cite>Jude 9</cite></p>}
     {CUES[readout.cue] && <p className={styles.cue} role="status">{CUES[readout.cue]}</p>}
-    {readout.status === 'battle' && readout.combo === 0 && NEXT[readout.next]?.[0] && <p className={styles.next} role="status" data-testid="next-move">
+    {readout.status === 'battle' && readout.combo === 0 && readout.kills === 0 && readout.fx === 0 && NEXT[readout.next]?.[0] && <p className={styles.next} role="status" data-testid="next-move">
       <span className={styles.coarse}>{NEXT[readout.next][0]}</span><span className={styles.fine}>{NEXT[readout.next][1]}</span></p>}
-    {readout.status === 'battle' && <p className={styles.legend} aria-label="Combat strokes">
+    {readout.status === 'battle' && readout.fx === 0 && <p className={styles.legend} aria-label="Combat strokes">
       <span className={styles.coarse}>Tap a demon: strike · Chain: next demon · hold a 2nd finger: shield</span>
       <span className={styles.fine}>Click or C: strike / chain · 1: rebuke · hold V: shield</span></p>}
     {readout.hurt && <div className={styles.hurt} aria-hidden="true" />}

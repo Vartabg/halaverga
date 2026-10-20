@@ -50,3 +50,16 @@ it('converges consistently at 30, 60 and 120 Hz', () => {
   });
   for (const s of results) { expect(s.yaw).toBeCloseTo(results[0].yaw, 4); expect(s.scale).toBeCloseTo(results[0].scale, 3); }
 });
+it('holds an elite portal through bound/cast states and latches manual, movement or Brake exits', async () => {
+  const { createFinisherFocus, stepFinisherFocus } = await import('../src/game/combatCamera');
+  const base = { last: 5, mode: 3, phase: 0, brake: false, steering: false, manual: false };
+  for (const exit of [{ brake: true }, { steering: true }, { manual: true }]) {
+    const s = createFinisherFocus(); expect(stepFinisherFocus(s, base)).toBe(5);
+    expect(stepFinisherFocus(s, { ...base, mode: 4 })).toBe(5);
+    expect(stepFinisherFocus(s, { ...base, ...exit })).toBe(-1);
+    expect(stepFinisherFocus(s, base)).toBe(-1);
+    stepFinisherFocus(s, { ...base, mode: 0 }); expect(stepFinisherFocus(s, base)).toBe(5);
+  }
+  expect(stepFinisherFocus(createFinisherFocus(), { ...base, last: 0 })).toBe(-1);
+  expect(stepFinisherFocus(createFinisherFocus(), { ...base, phase: 1 })).toBe(-1);
+});

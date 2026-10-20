@@ -11,10 +11,12 @@ import { STRIKE, aimStrike, beginStrike, cancelStrike, landStrike, strike as div
 export { BANISH, MODE, FX, REBUKE_LINE, createBanish, banish, type BanishFx, type BanishState, type Cue } from './banishState';
 import { BANISH, MODE, FX, type BanishState, type Cue } from './banishState';
 import { flowPaths, flowTarget } from './combatFlow';
+import { armorFor, bindDuration, castDuration, isElite } from './encounter';
+import { absorbEliteStrike, stepEliteGuards } from './eliteCombat';
 /** Clears every demon's state (regroup, unmount). Pending commands are dropped, not replayed. */
 export function resetBanish(b: BanishState, s: ShooterState) {
   b.mode.fill(0); b.resist.fill(BANISH.resistance); b.timer.fill(0); b.cool = 0; b.handled = s.input.cmd; b.cue = ''; b.last = -1; b.resetRequested = false;
-  b.combo = 0; b.comboUntil = 0; cancelStrike();
+  b.combo = 0; b.comboUntil = 0; b.guardTime.fill(0); b.retaliate.fill(0); b.armor.forEach((_, i) => { b.armor[i] = armorFor(i); }); cancelStrike();
   b.quenched = battle.quenched; s.drones.held.fill(0);
 }
 function emit(b: BanishState, kind: number, drone: number, from: Vec3, to: Vec3) {
@@ -82,9 +84,10 @@ function apply(b: BanishState, s: ShooterState, player: Vec3, kind: number, targ
     if (b.cool > 0) return; // only a rebuke waits on the rebuke before it; any other step may follow at once
     if (d > BANISH.rebukeRange || !s.targets[i].los) { cue(b, 'far'); return; }
     if (m <= MODE.staggered) { b.mode[i] = MODE.staggered; b.timer[i] = BANISH.stagger; b.resist[i] -= BANISH.rebukeHurt; }
-    strike(s, i, player, 9); interrupt(s, i); b.cool = BANISH.rebukeCool; b.rebukeT = b.clock;
+    strike(s, i, player, 9); interrupt(s, i); b.guardTime[i] = 0; b.retaliate[i] = 0; f.held[i] = 0; b.cool = BANISH.rebukeCool; b.rebukeT = b.clock;
     emit(b, FX.rebuke, i, player, p);
   } else if (kind === COMMAND.sword) {
+    if (b.guardTime[i] > 0) { cue(b, 'guarded'); return; }
     if (m >= MODE.down) { cue(b, m === MODE.down ? 'notBound' : ''); return; }
     if (d > BANISH.swordReach) { cue(b, 'far'); return; }
     if (dive.phase === 1 || dive.freeze > 0 || dive.phase === 2 && dive.t < .09) {
@@ -113,13 +116,19 @@ const ease = (from: number, to: number, rate: number, dt: number) => to + (from 
 /** The sword connects at the end of a dive: the blow, a shove along the dive, a freeze and a camera jolt. */
 function landBlow(b: BanishState, s: ShooterState, i: number, player: Vec3) {
   const f = s.drones;
-  b.resist[i] = 0; // A physical sword hit completes the ordinary demon encounter; rebuke remains an optional interrupt.
+  const guarded = absorbEliteStrike(b, s, i);
+  if (!guarded) b.resist[i] = 0; // Lesser demons retain the fast finisher; elite armor gets a real exchange.
   b.combo = b.clock <= b.comboUntil ? b.combo + 1 : 1; b.comboUntil = b.clock + 4;
   strike(s, i, player, 9);
   f.knockV[i].x += dive.dir.x * 10; f.knockV[i].y += dive.dir.y * 10; f.knockV[i].z += dive.dir.z * 10;
   addTrauma(s.camFx, .5); punchFov(s.camFx, 'kill', 6); kick(s.camFx, 1.6, 0);
-  landStrike(); emit(b, FX.sword, i, player, f.pos[i]);
-  interrupt(s, i); f.held[i] = 1; b.mode[i] = MODE.bound; b.timer[i] = -.18;
+  landStrike(guarded || !isElite(i)); emit(b, FX.sword, i, player, f.pos[i]);
+  interrupt(s, i);
+  if (guarded) {
+    dive.carrySpeed = 24; dive.dir.x *= -1; dive.dir.y *= -1; dive.dir.z *= -1;
+    emit(b, FX.armor, i, player, f.pos[i]); return;
+  }
+  f.held[i] = 1; b.mode[i] = MODE.bound; b.timer[i] = -bindDuration(i);
   Object.assign(b.base[i], f.pos[i]); emit(b, FX.bind, i, player, f.pos[i]);
 }
 /** One frame: consumes a new command, then advances each demon's stagger, fall, chain and casting. */
@@ -127,6 +136,7 @@ export function stepBanish(b: BanishState, s: ShooterState, player: Vec3, dt: nu
   dt = Math.min(.05, Math.max(0, dt)); b.clock += dt; b.cool = Math.max(0, b.cool - dt);
   const input = s.input, f = s.drones;
   if (b.resetRequested) resetBanish(b, s);
+  stepEliteGuards(b, s, player, dt);
   if (b.clock > b.comboUntil) b.combo = 0;
   if (dive.queued) {
     dive.queueTime -= dt;
@@ -159,12 +169,12 @@ export function stepBanish(b: BanishState, s: ShooterState, player: Vec3, dt: nu
       f.tiltX[i] = ease(f.tiltX[i], .85, 6, dt);
       if (m === MODE.down && (b.timer[i] -= dt) <= 0) { b.mode[i] = MODE.free; b.resist[i] = BANISH.recover; f.held[i] = 0; }
     } else if (m === MODE.cast) {
-      const u = (b.timer[i] += dt) / BANISH.castTime;
-      p.x = base.x; p.y = base.y - BANISH.castDepth * u * u; p.z = base.z;
+      const u = (b.timer[i] += dt) / castDuration(i);
+      p.x = base.x; p.y = base.y - Math.max(BANISH.castDepth, base.y + 6) * u * u; p.z = base.z;
       if (u >= 1) {
         b.mode[i] = MODE.free; b.resist[i] = BANISH.resistance; f.held[i] = 0;
         f.phase[i] = PHASE.dying; f.phaseT[i] = 0; s.stats.kills++; s.stats.lastKillT = s.clock;
-        emit(b, FX.seal, i, base, p);
+        b.armor[i] = armorFor(i); emit(b, FX.seal, i, base, base);
       }
     }
   }

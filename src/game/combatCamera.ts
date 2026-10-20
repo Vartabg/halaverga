@@ -1,5 +1,7 @@
 // Combat framing requests live here; CameraRig is the only camera writer. Plain state, no React or per-frame allocations.
 import type { Vec3 } from './combat';
+import { MODE } from './banishState';
+import { isElite } from './encounter';
 const angle = (a: number, b: number) => Math.atan2(Math.sin(b - a), Math.cos(b - a));
 const clamp = (v: number, n: number) => Math.max(-n, Math.min(n, v));
 export function createCombatCamera() {
@@ -50,4 +52,15 @@ export function stepCombatCamera(s: CombatCamera, i: CombatCameraInput) {
 }
 /** CameraRig records the heading it handed to flight, so only subsequent pilot changes trigger manual override. */
 export function rememberCombatPilot(s: CombatCamera, yaw: number, pitch: number) { s.pilotYaw = yaw; s.pilotPitch = pitch; }
-export const combatCameraReadout = { target: -1, phase: 0, age: 0, weight: 0, manual: 0, yaw: 0, pitch: 0, heroX: 0, heroY: 0, targetX: 0, targetY: 0 };
+export const combatCameraReadout = { target: -1, phase: 0, age: 0, weight: 0, manual: 0, yaw: 0, pitch: 0, heroX: 0, heroY: 0, targetX: 0, targetY: 0, finisher: -1 };
+
+export const createFinisherFocus = () => ({ target: -1, active: false, cancelled: false });
+/** Keep the opening, rather than a falling victim, in view. A deliberate exit cancels this finisher's framing until it ends. */
+export function stepFinisherFocus(s: ReturnType<typeof createFinisherFocus>, i: { last: number; mode: number; phase: number; brake: boolean; steering: boolean; manual: boolean }) {
+  const target = isElite(i.last) && (i.mode === MODE.bound || i.mode === MODE.cast) ? i.last : -1;
+  if (target !== s.target) { s.target = target; s.cancelled = false; s.active = false; }
+  if (target < 0) { s.active = false; return -1; }
+  if (i.brake || i.steering || s.active && i.manual || i.phase === 1) s.cancelled = true;
+  s.active = !s.cancelled && !i.manual && i.phase === 0;
+  return s.active ? target : -1;
+}
