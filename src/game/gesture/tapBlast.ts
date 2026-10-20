@@ -21,12 +21,12 @@ const scoreOf = (s: TrackSample, px: number, py: number) => Math.hypot(px - s.x,
  * The drone the tap picks, or -1. Candidates are targets with alive && los right now; each is scored at time t and at
  * t - GHOST_MS, and the smallest d / R_eff that is <= 1 wins.
  */
-export function pick(px: number, py: number, t: number, targets: readonly DroneTarget[], count: number, tr: DroneTrack = droneTrack): number {
+export function pick(px: number, py: number, t: number, targets: readonly DroneTarget[], count: number, tr: DroneTrack = droneTrack, excluded?: Uint8Array): number {
   let best = -1, bestScore = Infinity, ghost = false;
   const n = Math.min(count, targets.length, TRACK_DRONES);
   for (let i = 0; i < n; i++) {
     const g = targets[i];
-    if (!g.alive || !g.los) continue;
+    if (!g.alive || !g.los || (excluded && excluded[i] >= 2)) continue;
     const a = trackAt(tr, i, t, now) ? scoreOf(now, px, py) : Infinity;
     const b = trackAt(tr, i, t - GHOST_MS, past) ? scoreOf(past, px, py) : Infinity;
     const s = Math.min(a, b);

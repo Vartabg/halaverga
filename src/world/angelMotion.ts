@@ -29,6 +29,7 @@ function trigger(m: AngelMotion, clips: AngelClips) {
     newest = Math.max(newest, e.serial);
     const name = GESTURES[e.kind];
     if (!name || !clips[name]) continue;
+    if (name !== 'slash' && (strike.phase !== 0 || m.act === 'slash')) continue; // automatic chains cannot replace the contact cut with a ritual pose.
     // Contact during the dive releases the raised sword into the cut; a stroke out of nowhere starts at the raised blade.
     if (name === 'slash') { if (m.act === 'slash') m.actT = Math.max(m.actT, SLASH.raised); else begin(m, 'slash', SLASH.raised); }
     else begin(m, name);

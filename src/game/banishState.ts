@@ -14,7 +14,7 @@ const RING = 12, MAX = 8;
 const v3 = (): Vec3 => ({ x: 0, y: 0, z: 0 });
 export function createBanish() {
   return { mode: new Uint8Array(MAX), resist: new Int8Array(MAX).fill(BANISH.resistance), timer: new Float32Array(MAX),
-    base: Array.from({ length: MAX }, v3), cool: 0, handled: 0, clock: 0, cue: '' as Cue, cueT: -1e9, rebukeT: -1e9, quenched: 0, last: -1, resetRequested: false,
+    combo: 0, comboUntil: 0, base: Array.from({ length: MAX }, v3), cool: 0, handled: 0, clock: 0, cue: '' as Cue, cueT: -1e9, rebukeT: -1e9, quenched: 0, last: -1, resetRequested: false,
     fx: Array.from({ length: RING }, () => ({ serial: 0, kind: 0, t: 0, drone: -1, from: v3(), to: v3() })), fxSerial: 0 };
 }
 export type BanishState = ReturnType<typeof createBanish>;

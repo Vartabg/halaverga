@@ -11,6 +11,7 @@ import { battle } from '@/game/celestialBattle';
 import { presentation } from '@/game/presentation';
 import { runtime } from '@/game/runtime';
 import { useGame } from '@/game/store';
+import { audioBus } from '@/ui/audioBus';
 
 const GOLD = new Color('#ffd27a'), FIRE = new Color('#ff7a2a'), CRIMSON = new Color('#ff3b1f'), PALE = new Color('#f4ecd8');
 const m4 = new Matrix4(), q = new Quaternion(), tilt = new Quaternion(), at = new Vector3(), sc = new Vector3(), c = new Color();
@@ -41,6 +42,8 @@ export default function Banishment() {
     const b = banish, s = runtime.shooter, now = b.clock, reduced = useGame.getState().reduced;
     for (let n = Math.max(parts.seen.last + 1, b.fxSerial - b.fx.length + 1); n <= b.fxSerial; n++) {
       const e = b.fx[(n - 1) % b.fx.length];
+      if (e.kind === FX.sword) { audioBus.play('kill', { gain: .8, chain: banish.combo }); audioBus.play('steel', { gain: .35 }); }
+      if (e.kind === FX.seal) audioBus.play('blocked', { gain: .35 });
       if (e.kind === FX.quench) { parts.quench = e.t; continue; }
       const slot = parts.slots[parts.next++ % ACTIVE];
       slot.kind = e.kind; slot.t = e.t; slot.drone = e.drone; Object.assign(slot.from, e.from); Object.assign(slot.to, e.to);
@@ -58,7 +61,7 @@ export default function Banishment() {
         sc.setScalar(k < 1 ? .5 + k : 1.5 + (age - .2) * 7);
         parts.rings.setMatrixAt(rings, m4.compose(at, camera.quaternion, sc)); parts.rings.setColorAt(rings++, c.copy(GOLD).multiplyScalar(fade * 1.6));
       } else if (slot.kind === FX.sword) {
-        const target = slot.drone >= 0 ? s.targets[slot.drone].c : slot.to;
+        const target = slot.to;
         at.set(target.x, target.y, target.z); tilt.setFromAxisAngle(look.set(0, 0, 1), (reduced ? 0 : u * 2.4) - .6 + slot.t * 7 % 3);
         q.copy(camera.quaternion).multiply(tilt); sc.setScalar(1 + u * .4);
         parts.arcs.setMatrixAt(arcs, m4.compose(at, q, sc)); parts.arcs.setColorAt(arcs++, c.copy(FIRE).multiplyScalar(fade * 2));

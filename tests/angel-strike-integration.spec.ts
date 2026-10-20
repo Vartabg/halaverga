@@ -22,9 +22,6 @@ test('the CC0 angel dives into a live demon and continues the banishment loop', 
   await expect.poll(async () => Number(await telemetry.getAttribute('data-speed')), { timeout: 5000 }).toBeGreaterThan(40);
   await page.screenshot({ path: test.info().outputPath('compact-wing-dive.png') });
   await expect.poll(async () => Number(await hud.getAttribute('data-banish-fx')), { timeout: 5000 }).toBeGreaterThan(before);
-  await expect.poll(async () => { await page.keyboard.press('KeyC'); return (await hud.getAttribute('data-modes')) ?? ''; },
-    { timeout: 30000, intervals: [300] }).toMatch(/[23]/);
-  await expect.poll(async () => { await page.keyboard.press('KeyC'); return Number(await hud.getAttribute('data-banished')); },
-    { timeout: 15000, intervals: [250] }).toBeGreaterThan(0);
+  await expect.poll(async () => Number(await hud.getAttribute('data-banished')), { timeout: 10000 }).toBeGreaterThan(0);
   await page.keyboard.up('KeyV'); expect(errors).toEqual([]);
 });

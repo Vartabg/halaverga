@@ -2,11 +2,12 @@
 // lands on contact with a short freeze, and the angel carries its speed out the far side before the pilot's flight takes over.
 // banish.ts starts and lands strikes; Player.tsx asks strikeVelocity for the step's velocity. Pure: plain {x,y,z}, no allocation.
 import type { Vec3 } from './combat';
+import { strikeArc } from './strikeArc';
 
 /** The dive covers any reach in about DIVE seconds (a long one is a zip across the arena), between minSpeed and maxSpeed m/s. */
 export const STRIKE = { minSpeed: 55, maxSpeed: 130, dive: .42, maxTime: 1, contact: 3.4, carry: .28, exitSpeed: 34, freeze: .045 } as const;
 /** phase 0 idle, 1 diving at the target, 2 carrying through after the blow (or a miss). */
-export const strike = { phase: 0, t: 0, primed: false, entry: { x: 0, y: 0, z: 0 }, entrySpeed: 0, target: -1, landed: false, halt: false, freeze: 0, carrySpeed: 34, speed: STRIKE.minSpeed as number, aim: { x: 0, y: 0, z: 0 }, dir: { x: 0, y: 0, z: -1 } };
+export const strike = { queued: false, queueTarget: -1, queueTime: 0, phase: 0, t: 0, primed: false, entry: { x: 0, y: 0, z: 0 }, entrySpeed: 0, target: -1, landed: false, halt: false, freeze: 0, carrySpeed: 34, speed: STRIKE.minSpeed as number, aim: { x: 0, y: 0, z: 0 }, dir: { x: 0, y: 0, z: -1 } };
 
 export function beginStrike(target: number, at: Vec3, distance = 0) {
   strike.phase = 1; strike.t = 0; strike.primed = false; strike.target = target; strike.landed = false; strike.halt = false; strike.freeze = 0;
@@ -20,7 +21,7 @@ export function landStrike(carry = true) {
   strike.phase = 2; strike.t = 0; strike.landed = true; strike.halt = !carry; strike.freeze = STRIKE.freeze;
   strike.carrySpeed = Math.max(STRIKE.exitSpeed, Math.min(90, strike.speed * .85));
 }
-export function cancelStrike() { strike.phase = 0; strike.target = -1; strike.freeze = 0; }
+export function cancelStrike() { strike.phase = 0; strike.target = -1; strike.freeze = 0; strike.queued = false; }
 
 /**
  * Overrides the step's velocity while a strike runs and returns true; false when idle. The flight safety still runs afterwards,
@@ -42,11 +43,8 @@ export function strikeVelocity(v: Vec3, p: Vec3, dt: number, reduced: boolean, s
     }
     const u = Math.min(1, strike.t / .14), blend = u * u * (3 - 2 * u);
     const speed = strike.entrySpeed + (strike.speed - strike.entrySpeed) * blend;
-    const x0 = strike.entry.x * (1 - blend) + strike.dir.x * blend;
-    const y0 = strike.entry.y * (1 - blend) + strike.dir.y * blend;
-    const z0 = strike.entry.z * (1 - blend) + strike.dir.z * blend, n = Math.hypot(x0, y0, z0) || 1;
-    v.x = x0 / n * speed; v.y = y0 / n * speed; v.z = z0 / n * speed;
-    if (strike.t > STRIKE.maxTime) { strike.phase = 2; strike.t = 0; strike.carrySpeed = Math.min(90, strike.speed * .85); }
+    strikeArc(v, strike.entry, strike.dir, blend, speed);
+    if (strike.t > STRIKE.maxTime) { strike.queued = false; strike.phase = 2; strike.t = 0; strike.carrySpeed = Math.min(90, strike.speed * .85); }
     return true;
   }
   // A finishing blow brakes to a hover over the fallen demon, so it stays in view to bind.

@@ -10,7 +10,7 @@ const save = (patch: Patch) => { useGame.setState(patch); persistGame(); };
 // Two thumbs shows Fire and the auto-fire assist; one thumb (the default) has neither: tap an adversary to blast it.
 const COARSE_NOTE = { twin: 'The suit fires when the crosshair rests on an adversary. The Fire button is always there too.',
   classic: 'One thumb flies. Tap an adversary to blast it.' };
-const FINE_NOTE = 'No weapon fires: a click or C takes the next step on the demon under the centre reticle (rebuke, then the sword up close, then bind and cast). Keys 1 to 4 choose a step; hold V for the shield. On touch screens, a finger that lands on a demon draws the command: tap, swipe, circle, flick down. Reduced camera motion also removes zoom, shake and flashes.';
+const FINE_NOTE = 'Click or C launches a sword strike toward a visible demon ahead. Press again during the dive to queue another strike. Binding and banishment follow a hit automatically. On touch screens, tap or swipe successive demons. Key 1 rebukes; hold V or a second finger for the shield. Reduced camera motion removes zoom, shake and flashes.';
 export default function ShooterSettings({ coarse }: { coarse: boolean }) {
   const shooter = useGame(s => s.shooter), autoFire = useGame(s => s.autoFire), scheme = useGame(s => s.touchScheme);
   return <fieldset><legend>Holy fire</legend>

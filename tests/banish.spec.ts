@@ -21,14 +21,8 @@ test('rebuke, sword, bind and cast banish a demon while the shield holds', async
   expect(found).toBe(true);
   await expect(page.getByText('“May the Lord rebuke you!”')).toBeVisible();
   await test.info().attach('rebuke', { body: await page.screenshot(), contentType: 'image/png' });
-  // Close in and keep taking the next step.
-  // C keeps rebuking at range (Mark 1:25) and takes the sword up close, until the demon is thrown down.
-  await expect.poll(async () => {
-    await page.keyboard.press('KeyC'); return (await hud(page).getAttribute('data-modes')) ?? '';
-  }, { timeout: 30000, intervals: [300] }).toMatch(/[23]/);
-  await test.info().attach('thrown-down', { body: await page.screenshot(), contentType: 'image/png' });
-  await expect.poll(async () => { await page.keyboard.press('KeyC'); return Number(await hud(page).getAttribute('data-banished')); },
-    { timeout: 15000, intervals: [250] }).toBeGreaterThan(0);
+  await page.keyboard.press('KeyC');
+  await expect.poll(async () => Number(await hud(page).getAttribute('data-banished')), { timeout: 10000 }).toBeGreaterThan(0);
   await test.info().attach('sealed', { body: await page.screenshot(), contentType: 'image/png' });
   await page.keyboard.up('KeyV');
   await expect(page.getByTestId('shooter-hud')).toHaveAttribute('data-kills', /[1-9]/);

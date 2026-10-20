@@ -20,7 +20,7 @@ import { markAt } from './gesture/tapMark';
 const held = new Set<number>();
 /** War in Heaven: a finger that lands on a demon draws a stroke (combatStroke.ts) and never reaches the flight thumbs. */
 const stroke = createStroke();
-const STROKE_COMMAND = { tap: COMMAND.rebuke, swipe: COMMAND.sword, circle: COMMAND.bind, flick: COMMAND.flick } as const;
+const STROKE_COMMAND = { tap: COMMAND.context, swipe: COMMAND.sword, circle: COMMAND.sword, flick: COMMAND.flick } as const;
 /** A held second finger that stays put raises the shield of faith (Ephesians 6:16); sliding it moves or looks as before. */
 const SHIELD_SLOP = 24;
 export function useClassicThumbs(surface: RefObject<HTMLDivElement | null>) {
@@ -111,7 +111,7 @@ export function useClassicThumbs(surface: RefObject<HTMLDivElement | null>) {
     const lift = gate.up(e.pointerId, e.clientX, e.clientY, e.timeStamp, window.innerWidth, window.innerHeight);
     if (lift.kind === 'ignored') return;
     release(e);
-    if (lift.blast) command(lift.blast.x, lift.blast.y, COMMAND.rebuke, lift.blast.drone);
+    if (lift.blast) command(lift.blast.x, lift.blast.y, COMMAND.context, lift.blast.drone);
     // A thumb lift is an activation gesture: it is what unlocks blaster audio on a phone.
     unlockBlasterAudio();
   };
