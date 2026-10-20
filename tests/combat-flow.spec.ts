@@ -8,6 +8,15 @@ for (const { touch, viewport } of [{ touch: false, viewport: { width: 1440, heig
     await seed(page, CLASSIC); await page.goto('/'); await page.getByRole('button', { name: 'Begin expedition' }).click();
     if (touch) await page.getByRole('button', { name: 'Lift', exact: true }).tap(); else await page.keyboard.press('Space');
     await page.waitForTimeout(600); await page.keyboard.press('KeyB'); await page.keyboard.down('KeyV');
+    if (touch) {
+      const attack = await page.getByRole('button', { name: 'Strike next demon' }).boundingBox();
+      for (const name of ['Land', 'Brake to hover']) {
+        const other = await page.getByRole('button', { name, exact: true }).boundingBox();
+        expect(attack).not.toBeNull(); expect(other).not.toBeNull();
+        const overlap = attack!.x < other!.x + other!.width && attack!.x + attack!.width > other!.x && attack!.y < other!.y + other!.height && attack!.y + attack!.height > other!.y;
+        expect(overlap, `Strike must be separate from ${name}`).toBe(false);
+      }
+    }
     const hud = page.getByTestId('battle-hud'), target = page.getByTestId('combat-target');
     let peak = 0, engaged = false;
     for (let n = 0; n < 100 && peak < 3; n++) {
