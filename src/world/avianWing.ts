@@ -24,6 +24,7 @@ export function createAvianWing(side: number, material: Material) {
   const geometry = featherWing(side), mesh = new SkinnedMesh(geometry, material), skeleton = new Skeleton(bones);
   root.add(mesh); root.updateMatrixWorld(true); mesh.bind(skeleton); mesh.castShadow = mesh.receiveShadow = true;
   mesh.boundingSphere = new Sphere(new Vector3(0, 0, 0), 3.3);
-  return { root, bones, axes, mesh, dispose() { geometry.dispose(); skeleton.dispose(); } };
+  const rest = bones.map(b => b.position.clone());
+  return { root, bones, axes, rest, mesh, dispose() { geometry.dispose(); skeleton.dispose(); } };
 }
 export type AvianWing = ReturnType<typeof createAvianWing>;

@@ -2,9 +2,10 @@ import { Group, Quaternion, Vector3, type Object3D } from 'three';
 import { createAvianWing, type AvianWing } from './avianWing';
 import { featherMaterial } from './featherMaterial';
 import { advanceWingMotion, createWingMotion } from './wingMotion';
+import { foldFeather } from './wingFold';
 const identity = new Quaternion(), q = new Quaternion(), twist = new Quaternion(), axisX = new Vector3(1, 0, 0), axisY = new Vector3(0, 1, 0), covertAxis = new Vector3(), closed = new Vector3();
 const frameInput = { flying: false, paused: false, reduced: false, speed: 0, vy: 0, roll: 0, brake: 0 };
-const parentQ = new Quaternion(), frameQ = new Quaternion(), handQ = new Quaternion(), covertQ = new Quaternion();
+const face = new Vector3(), parentQ = new Quaternion(), frameQ = new Quaternion(), handQ = new Quaternion(), covertQ = new Quaternion();
 export const WING_SCALE = .8;
 export function createArchangelWings() {
   const root = new Group(), plume = featherMaterial(), left = createAvianWing(-1, plume.material), right = createAvianWing(1, plume.material);
@@ -19,14 +20,18 @@ function poseSide(wing: AvianWing, side: number, w: ArchangelWings, tuck: number
   const m = w.motion, folded = m.unfold * tuck, ground = 1 - m.unfold, u = m.unfold * (1 - tuck);
   const alongBack = folded / Math.max(.00001, 1 - u), recovery = m.recovery * (1 - m.glide), bank = Math.max(-.5, Math.min(.5, m.roll));
   const flap = m.amplitude * m.stroke, differential = side * bank * .10 * u;
-  wing.bones[0].rotation.set(ground * 1.40 + folded * .12 + u * (.06 + recovery * .28 + m.brake * .23),
-    side * (ground * -.12 - folded * 1.40 + u * (-.10 + recovery * .10)), side * (ground * -.85 - folded * .04 + u * (.12 + flap + differential)), 'ZXY');
-  wing.bones[1].rotation.set(0, side * (ground * 2.25 + folded * 2.10 + u * recovery * .78), 0);
-  wing.bones[2].rotation.set(u * (recovery * .28 - m.brake * .15), side * (-ground * 1.20 - folded * 1.45 - u * recovery * .60), 0);
-  wing.bones[3].rotation.set(0, side * ((1 - u) * .08 + u * (.04 + m.brake * .04)), 0);
+  // Grounded, the joints are solved (wrist high on the shoulder blade, hand down the back, every upper face turned to the back),
+  // so the folded wing lies as a flat stack instead of flaring.
+  wing.bones[0].rotation.set(ground * 1.786 + folded * .12 + u * (.06 + recovery * .28 + m.brake * .23),
+    side * (ground * .954 - folded * 1.40 + u * (-.10 + recovery * .10)), side * (ground * -2.115 - folded * .04 + u * (.12 + flap + differential)), 'ZXY');
+  wing.bones[1].rotation.set(0, side * (ground * 2.156 + folded * 2.10 + u * recovery * .78), 0);
+  wing.bones[2].rotation.set(u * (recovery * .28 - m.brake * .15) - ground * .031, side * (-ground * 2.416 - folded * 1.45 - u * recovery * .60), 0);
+  wing.bones[3].rotation.set(0, side * ((1 - u) * .08 - ground * .073 + u * (.04 + m.brake * .04)), 0);
   handQ.identity(); for (let i = 0; i < 4; i++) handQ.multiply(wing.bones[i].quaternion); handQ.invert();
+  // Folded feathers show their upper face to the back (+z); tucked in flight it turns up, the feather lying flat along the back.
+  const faceAt = (local: Quaternion) => face.set(0, alongBack, 1 - alongBack).normalize().applyQuaternion(local);
   for (let i = 0; i < 10; i++) {
-    closed.set(side * .02, -.83 + alongBack * .75, .55 + alongBack * .45).normalize().applyQuaternion(handQ); q.setFromUnitVectors(wing.axes[i], closed);
+    closed.set(side * (-.07 + .09 * alongBack), -.99 + .91 * alongBack, .10 + .90 * alongBack).normalize().applyQuaternion(handQ); foldFeather(q, wing.axes[i], closed, faceAt(handQ));
     q.slerp(identity, u);
     const ripple = m.flutterGain * .05 * Math.sin(m.flutter * (19 + i * 1.7) + i * 2.1);
     twist.setFromAxisAngle(wing.axes[i], side * u * (recovery * .66 + m.brake * .06 + ripple)); q.multiply(twist);
@@ -34,17 +39,20 @@ function poseSide(wing: AvianWing, side: number, w: ArchangelWings, tuck: number
     twist.setFromAxisAngle(axisY, side * u * (i / 9 - .5) * (.08 + (1 - m.glide) * .26 + m.brake * .22)); wing.bones[4 + i].quaternion.copy(q).premultiply(twist);
   }
   covertQ.copy(wing.bones[3].quaternion).multiply(handQ);
-  covertAxis.set(side * .4, 0, 1).normalize(); closed.set(side * .02, -.83 + alongBack * .75, .55 + alongBack * .45).normalize().applyQuaternion(covertQ);
-  wing.bones[16].quaternion.setFromUnitVectors(covertAxis, closed).slerp(identity, u);
+  // Folded, the hand-covert block runs down the hand (its feathers point toward the spine); tucked in flight it lies back.
+  covertAxis.set(side * (.4 + .6 * ground), 0, 1 - .75 * ground).normalize(); closed.set(side * (-.07 + .09 * alongBack), -.99 + .91 * alongBack, .10 + .90 * alongBack).normalize().applyQuaternion(covertQ);
+  foldFeather(wing.bones[16].quaternion, covertAxis, closed, faceAt(covertQ)).slerp(identity, u);
   covertQ.copy(wing.bones[2].quaternion).multiply(wing.bones[3].quaternion).multiply(handQ);
   for (let i = 0; i < 14; i++) {
-    closed.set(side * .03, -.92 + alongBack * .84, .30 + alongBack * .70).normalize().applyQuaternion(covertQ);
-    wing.bones[17 + i].quaternion.setFromUnitVectors(wing.axes[10 + i], closed).slerp(identity, u);
+    closed.set(side * (-.02 + .05 * alongBack), -.985 + .905 * alongBack, .16 + .84 * alongBack).normalize().applyQuaternion(covertQ);
+    foldFeather(wing.bones[17 + i].quaternion, wing.axes[10 + i], closed, faceAt(covertQ)).slerp(identity, u);
     if (m.flutterGain > 0) wing.bones[17 + i].quaternion.multiply(twist.setFromAxisAngle(wing.axes[10 + i], side * u * m.flutterGain * .035 * Math.sin(m.flutter * (23 + i * 1.3) + i * 1.7)));
   }
+  // Folded, the covert rows draw in toward the forearm (their chord offset shrinks), so no fringe shows past the arms.
   for (let i = 0; i < 75; i++) {
-    closed.set(side * .03, -.92 + alongBack * .84, .30 + alongBack * .70).normalize().applyQuaternion(covertQ);
-    wing.bones[31 + i].quaternion.setFromUnitVectors(wing.axes[24 + i], closed).slerp(identity, u);
+    const bone = wing.bones[31 + i], at = wing.rest[31 + i]; bone.position.set(at.x, at.y, at.z * (1 - .6 * ground));
+    closed.set(side * (-.02 + .05 * alongBack), -.985 + .905 * alongBack, .16 + .84 * alongBack).normalize().applyQuaternion(covertQ);
+    foldFeather(wing.bones[31 + i].quaternion, wing.axes[24 + i], closed, faceAt(covertQ)).slerp(identity, u);
   }
   closed.set(side * .54, -.015, -.21).normalize();
   wing.bones[15].quaternion.setFromAxisAngle(closed, -side * (1 - u) * 1.2);

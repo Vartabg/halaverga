@@ -1,8 +1,8 @@
 import { BufferGeometry, Float32BufferAttribute } from 'three';
 import { smooth } from './wingMotion';
 import { FEATHER, RACHIS, atlasU } from './featherAtlas';
-/** The bed samples an always-opaque atlas texel (a covert's rachis), so the feather material's alpha test never cuts it. */
-const SOLID = [atlasU(FEATHER.covert, RACHIS[FEATHER.covert]), .5] as const;
+/** The bed samples an opaque mid-vane covert texel, so the alpha test never cuts it and it reads as plumage where it shows. */
+const SOLID = [atlasU(FEATHER.covert, RACHIS[FEATHER.covert] * .55), .55] as const;
 /** A continuous, cambered feather bed closes the elbow/wrist seams beneath the overlapping plumage. */
 export function wingAirfoil(side: number) {
   const p: number[] = [], uv: number[] = [], thin: number[] = [], c: number[] = [], joints: number[] = [], weights: number[] = [], indices: number[] = [];
@@ -13,7 +13,7 @@ export function wingAirfoil(side: number) {
     const chord = (.15 + .045 * Math.sin(x / 1.44 * Math.PI)) * (1 - .25 * smooth(1.06, 1.44, x));
     const thickness = .050 * (1 - .78 * smooth(0, 1.44, x));
     p.push(side * x, Math.sin(v * Math.PI) * .018 + Math.sin(a) * thickness, lead + v * chord);
-    uv.push(SOLID[0], SOLID[1]); thin.push(.15); const tone = Math.sin(a) > 0 ? .87 : .76; c.push(tone, tone * .99, tone * .95);
+    uv.push(SOLID[0], SOLID[1]); thin.push(.15); const tone = Math.sin(a) > 0 ? .9 : .82; c.push(tone, tone * .992, tone * .972);
     const fore = smooth(.35, .63, x), hand = smooth(.95, 1.25, x), trailing = smooth(.05, .36, v), shares: Record<number, number> = {};
     const add = (bone: number, w: number) => { shares[bone] = (shares[bone] ?? 0) + w; };
     add(0, (1 - fore) * trailing); add(15, fore * (1 - hand) * trailing); add(16, fore * hand * trailing);

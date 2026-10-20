@@ -6,8 +6,9 @@ import { FEATHER } from './featherAtlas';
 export const AVIAN_JOINTS = [[0, 0, 0], [.48, .015, .16], [1.02, 0, -.05], [1.30, -.01, .025]] as const;
 export const secondaryRoot = (i: number) => new Vector3(.47 + i / 13 * .57, .012, .16 - i / 13 * .21);
 export const secondaryTip = (i: number) => { const u = i / 13; return new Vector3(.39 + u * .78, -.012, .70 + .30 * Math.sin(Math.PI * .9 * u) + .12 * u); };
-export function covertRoot(i: number, row: number, top: boolean) { const u = i / 14; return new Vector3(.43 + u * .65, (top ? 1 : -1) * (.049 - row * .008), .13 - u * .20 + row * .13); }
-export function covertTip(i: number, row: number, top: boolean) { const a = covertRoot(i, row, top); return new Vector3(a.x + .035, (top ? 1 : -1) * .032, a.z + .27 + row * .045); }
+/** Upper coverts ride clear of the wing bed (it never pokes through them, spread or folded); under-coverts sit closer. */
+export function covertRoot(i: number, row: number, top: boolean) { const u = i / 14; return new Vector3(.43 + u * .65, top ? .072 - row * .008 : -(.049 - row * .008), .13 - u * .20 + row * .13); }
+export function covertTip(i: number, row: number, top: boolean) { const a = covertRoot(i, row, top); return new Vector3(a.x + .035, top ? .045 : -.032, a.z + .27 + row * .045); }
 export const primaryRoot = (i: number) => new Vector3(1.39 - i / 9 * .31, .006, .080 - i / 9 * .105);
 export const primaryTip = (i: number) => new Vector3(2.30 - i / 9 * 1.17, -.012 - i / 9 * .015, .18 + i / 9 * .95);
 /** Leading-edge line of the wing bed (wingAirfoil), where the marginal coverts sit. */
