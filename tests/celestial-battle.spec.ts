@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test';
 
 test('the biblical fantasy entry, accessible source distinction and battle objective agree', async ({ page }) => {
   const errors: string[] = []; page.on('pageerror', e => errors.push(e.message));
+  const models = new Set<string>(); page.on('response', r => { if (r.ok() && r.url().endsWith('.glb')) models.add(new URL(r.url()).pathname); });
   await page.goto('/');
   await expect(page).toHaveTitle('Halaverga — War in Heaven');
   await expect(page.getByRole('heading', { name: 'Heaven at war.' })).toBeVisible();
@@ -18,8 +19,14 @@ test('the biblical fantasy entry, accessible source distinction and battle objec
   await expect(page.getByTestId('flight-telemetry')).toHaveAttribute('data-flying', 'true');
   // No bracer shots (docs/research/combat-texts.md): C is the next step on the demon under the reticle, and never fires.
   await expect(page.getByLabel('Combat strokes')).toContainText('Click or C: strike / chain');
+  // Once the press has been processed (every command counts as one attempt), the bracer has not fired: the weapon never heated,
+  // no arm cannon is mounted, and its model was never downloaded.
+  const hud = page.getByTestId('shooter-hud');
   await page.keyboard.press('KeyC');
-  await expect(page.getByTestId('shooter-hud')).toHaveAttribute('data-shots', '0');
+  await expect.poll(async () => Number(await hud.getAttribute('data-shots'))).toBeGreaterThan(0);
+  await page.waitForTimeout(300);
+  await expect(hud).toHaveAttribute('data-heat', '0'); await expect(hud).toHaveAttribute('data-cannon', 'none');
+  expect(models.has('/models/arm-cannon.glb')).toBe(false);
   expect(errors).toEqual([]);
 });
 
