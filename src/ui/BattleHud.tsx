@@ -4,6 +4,7 @@ import { battle, BATTLE, resetBattle } from '@/game/celestialBattle';
 import { runtime } from '@/game/runtime';
 import { banish, MODE, REBUKE_LINE, type Cue } from '@/game/banishState';
 import { useGame } from '@/game/store';
+import { counterState } from '@/game/counterState';
 import { pause, resume } from './useInput';
 import Modal from './Modal';
 import CombatTarget from './CombatTarget';
@@ -23,7 +24,7 @@ const NEXT: Record<number, [string, string]> = {
 };
 const nextStep = () => { const i = banish.last; return i >= 0 && runtime.shooter.targets[i]?.alive ? banish.mode[i] : -1; };
 const sample = () => ({ ward: battle.ward, kills: battle.banished, status: battle.status, hurt: battle.hurt > 0, charging: battle.charging >= 0,
-  combo: banish.combo, next: nextStep(), rebuke: banish.clock - banish.rebukeT < REBUKE_LINE, fx: banish.fxSerial, modes: banish.mode.join(''), cue: (banish.clock - banish.cueT < 1.4 ? banish.cue : '') as Cue });
+  combo: banish.combo, next: nextStep(), rebuke: banish.clock - banish.rebukeT < REBUKE_LINE, fx: banish.fxSerial, modes: banish.mode.join(''), counter: counterState.open, slow: counterState.scale < .98, counters: counterState.serial, cue: (banish.clock - banish.cueT < 1.4 ? banish.cue : '') as Cue });
 export default function BattleHud() {
   const [readout, setReadout] = useState(sample), paused = useGame(s => s.paused);
   useEffect(() => {
@@ -41,7 +42,7 @@ export default function BattleHud() {
     <CombatTarget />
     {readout.status === 'battle' && <button className={styles.attack} aria-label="Strike next demon" onPointerDown={e => e.stopPropagation()} onPointerUp={e => e.stopPropagation()}
       onClick={e => { e.stopPropagation(); unlockBlasterAudio(); requestCommand(runtime.shooter, COMMAND.context); }}>{readout.combo > 0 ? 'Chain' : 'Strike'}</button>}
-    <aside className={styles.mission} data-testid="battle-hud" data-combo={readout.combo} data-ward={readout.ward} data-banished={readout.kills} data-status={readout.status} data-banish-fx={readout.fx} data-modes={readout.modes} aria-label="Battle objective">
+    <aside className={styles.mission} data-testid="battle-hud" data-combo={readout.combo} data-ward={readout.ward} data-banished={readout.kills} data-status={readout.status} data-banish-fx={readout.fx} data-modes={readout.modes} data-counters={readout.counters} aria-label="Battle objective">
       <span className={styles.chapter}>{readout.combo > 1 ? `${readout.combo} STRIKE CHAIN` : 'I / THE BREACH'}</span>
       <strong>{readout.status === 'victory' ? 'The gate is secured' : 'Banish the abyssal host'}</strong>
       <span>{readout.status === 'victory' ? 'Victory · continue your flight' : `${Math.min(BATTLE.goal, readout.kills)} / ${BATTLE.goal} banished${readout.combo > 1 ? ` · ${readout.combo} hit chain` : ''}`}</span>
@@ -49,7 +50,9 @@ export default function BattleHud() {
         {[0, 1, 2].map(i => <i key={i} data-lit={readout.ward > i} />)}<span>WARD</span>
       </div>
     </aside>
-    {readout.charging && <p className={styles.warning} role="status">Fiery dart · raise the shield or keep moving</p>}
+    {readout.slow && <div className={styles.slow} aria-hidden="true" />}
+    {readout.counter && <p className={styles.counter} role="status" data-testid="counter-prompt"><span className={styles.coarse}>Tap · counter!</span><span className={styles.fine}>Click · counter!</span></p>}
+    {readout.charging && !readout.counter && <p className={styles.warning} role="status">Fiery dart · raise the shield or keep moving</p>}
     {readout.rebuke && <p className={styles.rebuke} role="status">“May the Lord rebuke you!” <cite>Jude 9</cite></p>}
     {CUES[readout.cue] && <p className={styles.cue} role="status">{CUES[readout.cue]}</p>}
     {readout.status === 'battle' && readout.combo === 0 && NEXT[readout.next]?.[0] && <p className={styles.next} role="status" data-testid="next-move">

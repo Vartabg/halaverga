@@ -1,7 +1,8 @@
 import { PHASE, type ShooterState, type Vec3 } from './combat';
 
 export const BATTLE = { goal: 8, ward: 3, bolts: 12, speed: 19, windup: .9, cadence: 4.8, range: 65, grace: 2.5 } as const;
-type Bolt = { live: boolean; age: number; p: Vec3; v: Vec3 };
+/** src: the demon that threw it (a counter dives back at it). */
+type Bolt = { live: boolean; age: number; p: Vec3; v: Vec3; src: number };
 export type BattleState = {
   status: 'battle' | 'victory' | 'fallen'; ward: number; banished: number; baseline: number;
   clock: number; nextAttack: number; charging: number; charge: number; invulnerable: number; hurt: number; bolts: Bolt[];
@@ -11,7 +12,7 @@ const v = (): Vec3 => ({ x: 0, y: 0, z: 0 });
 export function createBattle(kills = 0): BattleState {
   return { status: 'battle', ward: BATTLE.ward, banished: 0, baseline: kills, clock: 0, nextAttack: 5,
     charging: -1, charge: 0, invulnerable: 0, hurt: 0, quenched: 0,
-    bolts: Array.from({ length: BATTLE.bolts }, () => ({ live: false, age: 0, p: v(), v: v() })) };
+    bolts: Array.from({ length: BATTLE.bolts }, () => ({ live: false, age: 0, p: v(), v: v(), src: -1 })) };
 }
 export const battle = createBattle();
 export function resetBattle(kills = 0) { Object.assign(battle, createBattle(kills)); }
@@ -61,7 +62,7 @@ export function stepBattle(b: BattleState, s: ShooterState, player: Vec3, dt: nu
       const len = Math.hypot(player.x - p.x, player.y - p.y, player.z - p.z) || 1;
       toPlayer.x = (player.x - p.x) / len; toPlayer.y = (player.y - p.y) / len; toPlayer.z = (player.z - p.z) / len;
       Object.assign(bolt.p, p); bolt.v.x = toPlayer.x * BATTLE.speed; bolt.v.y = toPlayer.y * BATTLE.speed; bolt.v.z = toPlayer.z * BATTLE.speed;
-      bolt.live = true; bolt.age = 0;
+      bolt.live = true; bolt.age = 0; bolt.src = i;
     }
     b.charging = -1; b.nextAttack = b.clock + BATTLE.cadence; return;
   }

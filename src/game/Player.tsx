@@ -3,6 +3,7 @@ import { RigidBody, CapsuleCollider, useRapier, useBeforePhysicsStep, type Rapie
 import { useThree } from '@react-three/fiber';
 import { Vector3 } from 'three';
 import { useGame, persistGame } from './store';
+import { counterState } from './counterState';
 import { runtime, readIntent, clearInput, arrowLook } from './runtime';
 import { boundMovement, flightTarget, landingVelocity, moving, setVec, START, FOOT } from './motion';
 import { presentation } from './presentation';
@@ -49,7 +50,8 @@ export default function Player() {
   useBeforePhysicsStep(() => {
     const b = body.current, col = collider.current, c = controller.current;
     const state = useGame.getState(); if (!b || !col || !c || state.paused) return;
-    const dt = 1 / 60;
+    // Slow motion scales movement only; look and turning keep real time (bulletTime.ts).
+    const look = 1 / 60, dt = look * counterState.scale;
     if (brakeEpoch.current !== runtime.trackpad.brakeEpoch) { liftTime.current = 0; brakeEpoch.current = runtime.trackpad.brakeEpoch; }
     if (!safety.current) safety.current = new FlightSafety(world, rapier, col);
     const safe = safety.current;
@@ -75,16 +77,16 @@ export default function Player() {
     if (touchBlockedStep({ world, rapier, collider: col, safe, position: current, flying: state.flying, clearance: runtime.clearance.active,
       vy: runtime.velocity.y, dt })) landingStall.current = 0;
     // The lab scheme steps first (its request, lift or land, and its turn rates), so readIntent sees this step's gesture intent.
-    const p = b.translation(); gesture.reduced = state.reduced; gestureBefore(dt, p, gctx, runtime);
+    const p = b.translation(); gesture.reduced = state.reduced; gestureBefore(look, p, gctx, runtime);
     const intent = readIntent();
     const k = runtime.keys, pointerFlight = runtime.thumb.active || runtime.trackpad.active;
-    applyEdgeTurns(dt, state); // cursor and twin look rest (edgeTurn.ts)
-    thumbTurn(dt); // classic one thumb: main 7945430's edge hold, 1.5 rad/s, direct (Garo 2026-09-26)
+    applyEdgeTurns(look, state); // cursor and twin look rest (edgeTurn.ts)
+    thumbTurn(look); // classic one thumb: main 7945430's edge hold, 1.5 rad/s, direct (Garo 2026-09-26)
     // Blaster on: arrows get a fine first step and the ADS gain (arrowLook). Off: main's exact lines, bit for bit.
-    if (state.shooter) arrowLook(dt);
+    if (state.shooter) arrowLook(look);
     else {
-      runtime.yaw += (Number(k.has('ArrowLeft')) - Number(k.has('ArrowRight'))) * dt * 1.5;
-      runtime.pitch = Math.max(-1.3, Math.min(1.25, runtime.pitch + (Number(k.has('ArrowUp')) - Number(k.has('ArrowDown'))) * dt * 1.2));
+      runtime.yaw += (Number(k.has('ArrowLeft')) - Number(k.has('ArrowRight'))) * look * 1.5;
+      runtime.pitch = Math.max(-1.3, Math.min(1.25, runtime.pitch + (Number(k.has('ArrowUp')) - Number(k.has('ArrowDown'))) * look * 1.2));
     }
     // A new Draw stroke also cancels a landing: Draw steers by velocity, which the intent does not show.
     if (runtime.landGoal && (moving(intent) || (gesture.live && gesture.velocityOn))) { runtime.landGoal = null; useGame.setState({ landing: false }); }

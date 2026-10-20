@@ -3,6 +3,7 @@ import { useFrame } from '@react-three/fiber';
 import { useRapier } from '@react-three/rapier';
 import { AdditiveBlending, InstancedMesh, Matrix4, MeshBasicMaterial, Quaternion, SphereGeometry, Vector3 } from 'three';
 import { battle, BATTLE, resetBattle, stepBattle } from '@/game/celestialBattle';
+import { gameDt } from '@/game/bulletTime';
 import { runtime } from '@/game/runtime';
 import { useGame } from '@/game/store';
 import { createShooterWorld, shotSegmentClear } from '@/game/shotResolve';
@@ -20,7 +21,7 @@ export default function Battle() {
   useEffect(() => { resetBattle(runtime.shooter.stats.kills); return () => { mesh.geometry.dispose(); (mesh.material as MeshBasicMaterial).dispose(); mesh.dispose(); }; }, [mesh]);
   useFrame((_, dt) => {
     const s = useGame.getState();
-    stepBattle(battle, runtime.shooter, runtime.position, dt, !s.paused && s.flying, ray.lineClear, clearSegment);
+    stepBattle(battle, runtime.shooter, runtime.position, gameDt(dt), !s.paused && s.flying, ray.lineClear, clearSegment);
     let n = 0;
     for (const bolt of battle.bolts) {
       if (!bolt.live) continue;

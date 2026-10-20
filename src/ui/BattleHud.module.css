@@ -16,3 +16,6 @@
 .attack{display:none;position:absolute;z-index:var(--z-hud);right:max(18px,env(safe-area-inset-right));bottom:max(190px,calc(env(safe-area-inset-bottom) + 180px));width:64px;height:64px;border:2px solid #eed6a0;border-radius:50%;background:#19232cf2;color:#fff3d6;font:600 14px/1 system-ui;touch-action:manipulation}.attack:active{background:#6a5030}.attack:focus-visible{outline:3px solid #fff;outline-offset:4px}@media(pointer:coarse){.attack{display:block}}
 
 @media(max-height:500px){.attack{bottom:max(110px,calc(env(safe-area-inset-bottom) + 100px))}}
+.counter{position:absolute;z-index:var(--z-hud);top:38%;left:50%;transform:translateX(-50%);margin:0;white-space:nowrap;padding:10px 20px;border:2px solid #ffe08a;border-radius:6px;background:#1a1408e8;color:#fff1c8;font:800 20px/1.1 system-ui;letter-spacing:.08em;text-transform:uppercase;box-shadow:0 0 26px #ffcf5a80;pointer-events:none}
+.slow{position:absolute;inset:0;z-index:var(--z-hud);pointer-events:none;box-shadow:inset 0 0 160px 40px #0b1220c0;background:radial-gradient(ellipse at center,transparent 55%,#2a1d0838 100%)}
+@media(max-width:600px){.counter{font-size:17px}}
