@@ -12,7 +12,7 @@ GOLD = np.array([.96, .75, .36])
 # The packs tint hair and brows from vertex colours; without them the maps are near white.
 HAIR = np.array([.36, .22, .12])
 BROW = np.array([.20, .12, .07])
-# Longest side per material and map, in pixels.
+# Longest side of each material's colour map, in pixels; its normal and roughness maps get half (phone GPU memory).
 SIZES = {'MI_Superhero_Male': 1024, 'MI_Peasant': 1024, 'MI_Ranger': 1024, 'MI_Regular_Male': 512,
          'MI_Hair_2': 512, 'MI_Hair_1': 256, 'MI_Eyes': 256}
 NAMES = {'MI_Superhero_Male': 'Angel skin', 'MI_Regular_Male': 'Angel hands', 'MI_Peasant': 'Ivory tunic',
@@ -77,7 +77,7 @@ def process(materials, folder):
             if not w:
                 print(f'ANGEL_ASSET skipped missing {role} map of {m.name}')
                 continue
-            size = SIZES[source]
+            size = SIZES[source] if role == 'base' else max(256, SIZES[source]//2)
             out = bpy.data.images.new(f'{NAMES[source]} {role}', size, size*h//w, alpha=False)
             img.scale(size, size*h//w)
             px = np.array(img.pixels[:], dtype=np.float32).reshape(size*h//w, size, 4)
