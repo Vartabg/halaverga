@@ -12,6 +12,8 @@ import { battle } from '@/game/celestialBattle';
 import { DRONE } from '@/game/droneDodge';
 import { DRONE_COLORS, buildDroneGeometry, createDroneMaterials, minWorldSize } from './droneMesh';
 import { ADVERSARY_URL } from './Suit';
+import { createDemonActors, type DemonPose } from './demonActors';
+import { banish, MODE } from '@/game/banishState';
 // Damage reads in stages on the drone itself: broken (4 HP and under: the plate is gone, the open top glows ember, the eye pulses
 // slowly at 1.5 Hz), failing (2 HP and under: the glow deepens, the eye drops out at 1.5 Hz, and the body wobbles and sags as its
 // wing power fades). Dying (the 80 ms hit-stop): the body jitters and, when the kill flash passed its gate, the eye halo swells white
@@ -42,6 +44,7 @@ export default function Drones() {
   const asset = useLoader(GLTFLoader, ADVERSARY_URL);
   const parts = useMemo(() => {
     const geo = buildDroneGeometry(asset.scene), mat = createDroneMaterials();
+    const actors = createDemonActors(asset.scene, asset.animations);
     const flash = new InstancedBufferAttribute(new Float32Array(MAX_DRONES), 1).setUsage(DynamicDrawUsage);
     const damage = new InstancedBufferAttribute(new Float32Array(MAX_DRONES), 1).setUsage(DynamicDrawUsage);
     const phase = new InstancedBufferAttribute(Float32Array.from({ length: MAX_DRONES }, (_, i) => i * 1.8), 1);
@@ -54,10 +57,10 @@ export default function Drones() {
       halo: instanced(geo.halo, mat.halo, true), ring: instanced(geo.halo, mat.ring, true),
     };
     meshes.halo.renderOrder = meshes.ring.renderOrder = 1;
-    return { geo, mat, flash, damage, meshes, lastPositions: new Float64Array(MAX_DRONES * 3), airspeed: new Float32Array(MAX_DRONES), list: Object.values(meshes) };
+    return { geo, mat, actors, actorPose: { time: 0, charging: false, hit: 0, down: false, reduced: false, damage: 0 } as DemonPose, flash, damage, meshes, lastPositions: new Float64Array(MAX_DRONES * 3), airspeed: new Float32Array(MAX_DRONES), list: Object.values(meshes) };
   }, [asset]);
   useEffect(() => () => {
-    parts.list.forEach(mesh => mesh.dispose());
+    parts.actors.dispose(); parts.list.forEach(mesh => mesh.dispose());
     parts.geo.wingL.dispose(); parts.geo.wingR.dispose(); parts.geo.body.dispose(); parts.geo.plate.dispose(); parts.geo.eye.dispose(); parts.geo.halo.dispose(); parts.mat.dispose();
   }, [parts]);
   const frame = useMemo(() => guarded('Drones', (state: RootState, delta: number) => {
@@ -70,7 +73,8 @@ export default function Drones() {
     const n = Math.min(f.count, MAX_DRONES);
     // Body, plate and eye stay indexed by drone (aFlash is shared by index). Halo and ring are compacted into the first slots
     // that are actually shown, so a pool with nothing to show issues no draw call.
-    body.count = plate.count = eyes.count = left.count = right.count = n;
+    body.count = plate.count = 0; eyes.count = left.count = right.count = n;
+    for (let i = n; i < MAX_DRONES; i++) parts.actors.actors[i].root.visible = false;
     let hk = 0, rk = 0;
     for (let i = 0; i < n; i++) {
       const ph = f.phase[i], dead = ph === PHASE.dead, alive = droneAlive(f, i), pos = f.pos[i], kn = f.knock[i];
@@ -99,9 +103,21 @@ export default function Drones() {
       place(left, i, p, q, scale); place(right, i, p, q, scale);
       flash[i] = Math.max(f.flash[i], f.tint[i]);
       damage[i] = failing ? (reduced ? .85 : .75 + .25 * pulse) : broken ? .45 : 0;
+      Object.assign(parts.actorPose, { time: t, charging: battle.charging === i, hit: flash[i],
+        down: banish.mode[i] === MODE.down || banish.mode[i] === MODE.bound || banish.mode[i] === MODE.cast,
+        reduced, damage: damage[i] });
+      parts.actors.step(i, p, q, !dead, parts.actorPose);
+      // The collar is the breakable plate on the sculpted model.
+      const collar = parts.actors.actors[i].plate; if (collar) collar.visible = f.broken[i] !== 1;
+      if (!dead) {
+        left.setMatrixAt(i, parts.actors.actors[i].wingMatrix); right.setMatrixAt(i, parts.actors.actors[i].wingMatrix);
+      }
       eyeCenter(f, i, eye);
       p.set(eye.x, eye.y, eye.z).add(shake);
       place(eyes, i, p, q, scale);
+      if (!dead && parts.actorPose.down) {
+        eyes.setMatrixAt(i, parts.actors.actors[i].eyeMatrix); p.setFromMatrixPosition(parts.actors.actors[i].eyeMatrix);
+      }
       c.copy(battle.charging === i ? tele : phaseColor(ph)).lerp(white, Math.min(f.flash[i], .6));
       // The eye: a slow pulse once broken, 1.5 Hz dropouts once failing (reduced motion: a steady dim).
       if (failing) c.multiplyScalar(reduced ? .7 : .35 + .65 * smooth(-.25, .35, pulse));
@@ -129,5 +145,5 @@ export default function Drones() {
     parts.flash.needsUpdate = true; parts.damage.needsUpdate = true;
   }), [parts]);
   useFrame(frame, -5);
-  return <group>{parts.list.map((mesh, i) => <primitive key={i} object={mesh} dispose={null} />)}</group>;
+  return <group><primitive object={parts.actors.group} dispose={null} />{parts.list.map((mesh, i) => <primitive key={i} object={mesh} dispose={null} />)}</group>;
 }

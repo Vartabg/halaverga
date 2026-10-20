@@ -1,0 +1,14 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Halaverga · Compare demons</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#111820;color:#eee5d3;font:17px/1.5 system-ui,sans-serif}main{max-width:900px;margin:auto;padding:24px 18px}h1{font-size:28px;line-height:1.2;margin:8px 0}p{color:#c4cbd0}button,a{font:inherit}nav{display:flex;gap:10px;margin:20px 0;position:sticky;top:0;background:#111820;padding:12px 0;z-index:1}button{padding:12px 18px;color:#eee5d3;background:#243443;border:2px solid #8093a3;border-radius:10px;cursor:pointer}button[aria-pressed=true]{border-color:#e2c48d;background:#4c3c23}button:focus-visible,a:focus-visible{outline:3px solid #fff;outline-offset:4px}.pictures{display:grid;grid-template-columns:1fr 1fr;gap:10px}figure{margin:0}img{width:100%;height:auto;display:block}figcaption{font-size:14px;color:#c4cbd0;padding:8px}a{color:#f7d994}a.play{display:inline-block;margin:20px 0;padding:14px 20px;border:1px solid #e2c48d;border-radius:10px;text-decoration:none}small{display:block;color:#c4cbd0}.pictures img{border-radius:8px}@media(max-width:550px){.pictures{grid-template-columns:1fr}figure:first-child{order:2}}
+</style><main>
+<small>HALAVERGA / CHARACTER PROTOTYPE</small><h1>Compare the demons</h1>
+<p>The same angel and combat rules. A new sculpted body with painted materials, a 21-bone rig and idle, flight, charge, hit and collapse motion.</p>
+<nav aria-label="Choose demon version"><button type="button" aria-pressed="true" id="new">New demon</button><button type="button" aria-pressed="false" id="old">Previous demon</button></nav>
+<div class="pictures" aria-live="polite"><figure><img id="body" src="/demon-new-body.png" alt="New demon, whole body with membrane wings"><figcaption>Actual game model · body and wings</figcaption></figure><figure><img id="face" src="/demon-new-face.png" alt="New demon, face and painted sculpt detail"><figcaption>Actual game model · close-up</figcaption></figure></div>
+<a class="play" href="/">Play with the new demons →</a><small>Phone layouts checked in Chrome emulation. Physical iPhone Safari performance still needs your playtest.</small>
+<p><small>Body: Quaternius Bestiary, QAL v1.0. Animation: Quaternius Universal Animation Libraries, CC0. Existing membrane wings retained. <a href="https://quaternius.com/license.html">Model licence</a>.</small></p>
+</main><script>
+for(const version of ['new','old'])document.getElementById(version).addEventListener('click',()=>{for(const v of ['new','old'])document.getElementById(v).setAttribute('aria-pressed',String(v===version));for(const part of ['body','face']){const image=document.getElementById(part);image.src='/demon-'+version+'-'+part+'.png';image.alt=(version==='new'?'New':'Previous')+' demon, '+(part==='body'?'whole body with membrane wings':'face detail')}});
+</script></html>

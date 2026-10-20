@@ -1,0 +1,18 @@
+{
+  "bytes": 2024328,
+  "sha256": "98a1acdba4c7eea7718a3eb5118849a884cd0391de90145d3496f29ba1803c75",
+  "bodyTriangles": 11691,
+  "scale": 1.1251652514887922,
+  "sourceHead": [
+    7.450594807778543e-09,
+    -0.06990610063076019,
+    1.3758361339569092
+  ],
+  "clips": {
+    "idle": "ual1/Idle_Loop",
+    "flight": "ual2/NinjaJump_Idle_Loop",
+    "charge": "ual1/Spell_Simple_Shoot",
+    "hit": "ual1/Hit_Chest",
+    "down": "ual1/Death01"
+  }
+}
