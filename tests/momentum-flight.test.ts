@@ -31,18 +31,21 @@ describe('energy flight', () => {
     const reverse = momentumVelocity(start, thrust, Math.PI, 0, true, true, 1 / 60);
     expect(reverse.z).toBeLessThan(-47); expect(Number.isFinite(reverse.x)).toBe(true);
   });
-  it('coasts when released and brakes deliberately to a hover', () => {
-    const start = { x: 0, y: 0, z: -40 };
-    const glide = fly(start, 0, 1, 60, 0, false, idle);
-    expect(speed(glide.v)).toBeGreaterThan(27);
-    const stop = fly(start, 0, 1, 60, 0, true, idle);
-    expect(speed(stop.v)).toBeLessThan(.15);
-    expect(speed(fly(stop.v, 0, 1, 60, 0, true, idle).v)).toBe(0);
+  it('release smoothly settles every travel axis into hover without an extra brake', () => {
+    for (const start of [{ x: 0, y: 0, z: -40 }, { x: 0, y: -60, z: -60 }, { x: 30, y: 45, z: 12 }]) {
+      const first = momentumVelocity(start, idle, 0, -.8, true, true, 1 / 60);
+      expect(speed(first)).toBeGreaterThan(speed(start) * .8); expect(speed(first)).toBeLessThan(speed(start));
+      for (const hz of [30, 60, 120]) {
+        const stop = fly(start, -.8, .5, hz, 0, false, idle); expect(speed(stop.v)).toBeLessThan(.25);
+        expect(speed(fly(stop.v, 1, 1, hz, 2, false, idle).v)).toBe(0);
+      }
+      expect(speed(fly(start, 0, .2, 60, 0, true, idle).v)).toBeLessThan(speed(fly(start, 0, .2, 60, 0, false, idle).v));
+    }
   });
-  it('coasting still spends energy uphill and gains it downhill; powered Rise remains usable', () => {
-    const uphill = { x: 0, y: 25, z: -25 }, downhill = { x: 0, y: -25, z: -25 };
-    expect(Math.hypot(...Object.values(fly(uphill, 0, .5, 60, 0, false, idle).v))).toBeLessThan(30);
-    expect(Math.hypot(...Object.values(fly(downhill, 0, .5, 60, 0, false, idle).v))).toBeGreaterThan(35);
+  it('never adds falling acceleration after release and keeps powered Rise usable', () => {
+    const start = { x: 0, y: -60, z: -60 }; let v = start, travel = 0;
+    for (let k = 0; k < 120; k++) { const next = momentumVelocity(v, idle, 0, -1, true, true, 1 / 60); expect(speed(next)).toBeLessThanOrEqual(speed(v)); travel += speed(next) / 60; v = next; }
+    expect(travel).toBeLessThan(7.2); expect(speed(v)).toBe(0);
     const rise = fly({ x: 0, y: 0, z: 0 }, 0, 3, 60, 0, false, { forward: 0, strafe: 0, vertical: 1 });
     expect(rise.height).toBeGreaterThan(35);
   });

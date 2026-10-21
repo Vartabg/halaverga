@@ -36,9 +36,9 @@ export const HINT_TEXT = {
   mouse: ['Click the scene to start', 'Move the mouse to look', 'Click: strike', 'WASD to fly · Space lifts'],
   tap: 'Tap pad: Fire and Aim toggle',
   line: 'C: next step',
-  classic: 'Drag to fly · tap a demon',
+  classic: 'Drag to look · hold Fly',
   /** Classic one thumb with the blaster off, or tap controls: no drone to tap, so just the drag. */
-  drag: 'Drag to fly',
+  drag: 'Drag to look · hold Fly',
 };
 
 export type HintTextOptions = { autoFire: boolean; captured: boolean; shooter?: boolean };

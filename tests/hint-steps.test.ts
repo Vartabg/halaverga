@@ -63,8 +63,8 @@ describe('hintText', () => {
     expect(hintText('simple', 0, on)).toBe(simple[0]); expect(hintText('mouse', 0, on)).toBe(mouse[0]);
     expect(hintText('tap', 0, on)).toBe('Tap pad: Fire and Aim toggle');
     expect(hintText('line', 0, on)).toBe('C: next step');
-    expect(hintText('classic', 0, on)).toBe('Drag to fly · tap a demon');
-    expect(hintText('drag', 0, on)).toBe('Drag to fly'); expect(HINT_TEXT.drag).toBe('Drag to fly');
+    expect(hintText('classic', 0, on)).toBe('Drag to look · hold Fly');
+    expect(hintText('drag', 0, on)).toBe('Drag to look · hold Fly'); expect(HINT_TEXT.drag).toBe('Drag to look · hold Fly');
     expect(hintText('none', 0, on)).toBeNull();
   });
   it('shows nothing once a series is done', () => {

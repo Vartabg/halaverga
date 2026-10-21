@@ -27,7 +27,7 @@ export default function TouchSettings() {
   const edgeRest = useGame(s => s.edgeRest), reduced = useGame(s => s.reduced);
   const twin = scheme !== 'classic';
   return <fieldset data-testid="touch-settings"><legend>Touch controls</legend>
-    {!twin && <p className={styles.muted}>Hold to fly, slide to steer, hold near an edge to keep turning, let go to hover. Tap an adversary to blast it.</p>}
+    {!twin && <p className={styles.muted}>Drag the scene to look while hovering. Hold Fly to move; drag that button to steer. Release Fly to hover. Tap a demon to strike.</p>}
     {twin && <>
       <p className={styles.muted}>Left thumb moves, right thumb looks. Rise and Descend change height.</p>
       <Range label="Look sensitivity" value={touchLook} min={.5} max={2} step={.05} shown={`${touchLook.toFixed(2)}x`}

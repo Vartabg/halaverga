@@ -98,7 +98,7 @@ export default function Player() {
       else useGame.setState({ message: 'Aim at a nearby flat rooftop or terrace to land.' });
     }
     // PR #12: the one-finger 'simple' trackpad profile looks without thrusting; every other gesture still surges.
-    const gestureThrust = runtime.thumb.active || (runtime.trackpad.active && state.trackpadSteering !== 'simple');
+    const gestureThrust = runtime.thumb.active && !!(runtime.thumb.throttle || runtime.thumb.strafe) || (runtime.trackpad.active && state.trackpadSteering !== 'simple');
     // Shooting never touches flight speed: mode 2 (ADS hover) only for a held Q or Aim; firing keeps whatever the flight was doing.
     const mode = state.shooter ? moveMode(runtime.shooter) : 0, surge = runtime.surge || gestureThrust || runtime.stick.boost || gesture.surge;
     // Limits (plan 2026-09-28): near a wall, the sky, the water or a solid face a pressed suit turns toward open air; the pilot's own turn

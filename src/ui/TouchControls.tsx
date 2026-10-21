@@ -41,7 +41,7 @@ export default function TouchControls() {
     if (isDesktop(e)) desktop.end(e); else scheme.end(e);
   };
   const cancel = (e: PointerEvent<HTMLDivElement>) => {
-    if (e.type === 'pointercancel') { flightFeel.brake = true; flightFeel.serial++; } // OS interruption brakes; a normal release glides
+    if (e.type === 'pointercancel') { flightFeel.brake = true; flightFeel.serial++; } // OS interruption brakes; normal release settles into hover
     if (!isDesktop(e)) { scheme.cancel(e); return; }
     if (e.type === 'lostpointercapture') desktop.lostCapture(); else desktop.cancel();
   };

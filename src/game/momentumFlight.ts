@@ -2,7 +2,7 @@
 // The character controller, collision slides and bounds remain downstream in Player. All rates are per second.
 import { advanceVelocity, flightTarget, moving, type Intent, type Vec } from './motion';
 export const FLIGHT = { cruise: 22, boost: 34, gravity: 26, thrust: 30, turnRate: 2.8, lateral: 100,
-  drag: .016, quadratic: .0006, glideDrag: .26, maxGlide: 72, overspeedDrag: .9, brake: 6 } as const;
+  drag: .016, quadratic: .0006, hover: 12, maxGlide: 72, overspeedDrag: .9, brake: 16 } as const;
 const clamp = (x: number, a: number, b: number) => Math.max(a, Math.min(b, x));
 /** Rotate toward demand on the unit sphere, preserving speed even in a broad turn. Opposite headings have a stable turn axis. */
 function steer(v: Vec, d: Vec, speed: number, dt: number) {
@@ -28,8 +28,8 @@ export function momentumVelocity(v: Vec, i: Intent, yaw: number, pitch: number, 
   const count = Math.max(1, Math.ceil(total * 120)), dt = total / count;
   for (let k = 0; k < count; k++) {
     const speed = Math.hypot(result.x, result.y, result.z);
-    if (brake || !active && speed < 3) {
-      const factor = Math.exp(-(brake ? FLIGHT.brake : 2.5) * dt);
+    if (brake || !active) {
+      const factor = Math.exp(-(brake ? FLIGHT.brake : FLIGHT.hover) * dt);
       result.x *= factor; result.y *= factor; result.z *= factor;
       if (Math.hypot(result.x, result.y, result.z) < .04) result.x = result.y = result.z = 0;
       continue;
@@ -39,7 +39,7 @@ export function momentumVelocity(v: Vec, i: Intent, yaw: number, pitch: number, 
       + FLIGHT.gravity * Math.max(0, i.vertical) * Math.max(0, dir.y) : 0;
     // A dive stores height as speed. Pulling up spends that speed; powered lift keeps low-speed flight forgiving.
     const gravity = -FLIGHT.gravity * dir.y * Math.min(1, speed / 8);
-    const drag = FLIGHT.drag * speed + FLIGHT.quadratic * speed * speed + (!active ? FLIGHT.glideDrag * speed : 0);
+    const drag = FLIGHT.drag * speed + FLIGHT.quadratic * speed * speed;
     const overspeed = Math.max(0, speed - FLIGHT.maxGlide) * FLIGHT.overspeedDrag;
     const next = Math.max(0, speed + (thrust + gravity - drag - overspeed) * dt);
     result.x = dir.x * next; result.y = dir.y * next; result.z = dir.z * next;

@@ -8,13 +8,7 @@ import { useGame } from '@/game/store';
 import styles from './Experience.module.css';
 import { unlockBlasterAudio } from './audioUnlock';
 import { markAt } from './gesture/tapMark';
-// "One thumb (classic)", the phone default again (Garo 2026-09-26): main 7945430's adaptive thumbs, verbatim. Hold anywhere to
-// lift and cruise, slide to aim, drag farther for speed, hold near an edge to keep turning, release to hover; a second contact is
-// left move / right look; a third blocks. Shooting sits on top and never enters the flight model: a quick tap (TAP_MS, TAP_SLOP_TOUCH)
-// on a drone fires the Lab's aimed burst (tapFire.ts). A second finger is a tap until it holds TAP_MS or
-// slides TAP_SLOP_TOUCH: a quick lift blasts while the first thumb flies on untouched; otherwise it joins the thumbs where it is
-// (main's move/look handoff, at most 250 ms late). Every second finger is held that way (thumbGate.ts), so a tap that misses a drone
-// never stalls the flying thumb. No Fire or Aim button, no auto-fire.
+// Phone scene drags only look. The separate held Fly button owns thrust; demon contacts still own strikes.
 /** Fingers down on the classic surface, across mounts: pause and resume remount the controls (Experience keys them by pause state), so
  *  a finger still down at the next mount is known here and takes a fresh grip on its first move (limits plan S8). Cleared by any lift. */
 const held = new Set<number>();
@@ -34,7 +28,7 @@ export function useClassicThumbs(surface: RefObject<HTMLDivElement | null>) {
   const gate = gateRef.current, controls = gate.thumbs;
   const sync = () => {
     const c = controls, output = c.output;
-    Object.assign(runtime.thumb, { active: c.active, throttle: output.forward, strafe: output.strafe, edgeTurn: output.edgeTurn, edgePitch: output.edgePitch, bank: 0 });
+    Object.assign(runtime.thumb, { active: c.active, throttle: 0, strafe: 0, edgeTurn: output.edgeTurn, edgePitch: output.edgePitch, bank: 0 });
     if (surface.current) surface.current.dataset.controlMode = c.mode;
     const points = [...c.contacts.values()];
     const still = points.length >= 2 && points.slice(1).some(p => Math.hypot(p.x - p.originX, p.y - p.originY) <= SHIELD_SLOP);
@@ -83,7 +77,7 @@ export function useClassicThumbs(surface: RefObject<HTMLDivElement | null>) {
     expired();
     if (stale.current.has(e.pointerId)) return;
     // A stale non-primary contact after cancellation/rotation cannot restart flight.
-    if (!controls.contacts.size && !e.isPrimary) return;
+    if (!controls.contacts.size && !e.isPrimary && !runtime.stick.forward) return;
     runtime.shooter.input.lookSource = 'touch';
     const drone = droneAt(e);
     e.currentTarget.setPointerCapture(e.pointerId);

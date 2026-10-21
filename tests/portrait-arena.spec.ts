@@ -27,7 +27,7 @@ for (const viewport of [{ width: 393, height: 852 }, { width: 852, height: 393 }
     const box = await elite.boundingBox(); expect(box).not.toBeNull();
     expect(box!.x).toBeGreaterThanOrEqual(0); expect(box!.x + box!.width).toBeLessThanOrEqual(viewport.width);
     expect(await elite.evaluate(el => getComputedStyle(el).pointerEvents)).toBe('none');
-    for (const name of ['Pause expedition', 'Brake to hover', 'Land', 'Strike next demon']) {
+    for (const name of ['Pause expedition', 'Hold to fly', 'Brake to hover', 'Land', 'Strike next demon']) {
       const control = await page.getByRole('button', { name, exact: true }).boundingBox(); expect(control).not.toBeNull();
       const overlap = box!.x < control!.x + control!.width && box!.x + box!.width > control!.x && box!.y < control!.y + control!.height && box!.y + box!.height > control!.y;
       expect(overlap, `Warden instructions must leave ${name} readable`).toBe(false);

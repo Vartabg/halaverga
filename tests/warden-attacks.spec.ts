@@ -3,15 +3,17 @@ import { CLASSIC, seed } from './shooter-browser';
 type View = { width: number; height: number };
 async function steerTo(page: Page, point: number[], stop: number) {
   const t = page.getByTestId('flight-telemetry');
-  for (let n = 0; n < 85; n++) {
+  for (let n = 0; n < 160; n++) {
     const p = JSON.parse((await t.getAttribute('data-position'))!), yaw = Number(await t.getAttribute('data-heading')), pitch = Number(await t.getAttribute('data-pitch'));
     const x = point[0] - p[0], y = point[1] - p[1], z = point[2] - p[2]; if (Math.hypot(x, y, z) < stop) break;
     const dy = Math.atan2(Math.sin(Math.atan2(-x, -z) - yaw), Math.cos(Math.atan2(-x, -z) - yaw)), dp = Math.atan2(y, Math.hypot(x, z)) - pitch;
     const h = Math.abs(dy) > .08 ? dy > 0 ? 'ArrowLeft' : 'ArrowRight' : null, v = Math.abs(dp) > .08 ? dp > 0 ? 'ArrowUp' : 'ArrowDown' : null;
-    if (h) await page.keyboard.down(h); if (v) await page.keyboard.down(v); if (Math.abs(dy) + Math.abs(dp) < .35) await page.keyboard.down('KeyW');
-    await page.waitForTimeout(110); if (h) await page.keyboard.up(h); if (v) await page.keyboard.up(v); await page.keyboard.up('KeyW');
+    if (h) await page.keyboard.down(h); if (v) await page.keyboard.down(v); await page.keyboard.down('KeyW');
+    await page.waitForTimeout(110); if (h) await page.keyboard.up(h); if (v) await page.keyboard.up(v);
   }
-  await page.keyboard.press('KeyB');
+  await page.keyboard.up('KeyW'); await page.keyboard.press('KeyB');
+  const end = JSON.parse((await t.getAttribute('data-position'))!);
+  expect(Math.hypot(...end.map((n: number, i: number) => n - point[i])), 'the real held-flight approach reaches its waypoint').toBeLessThan(stop + 4);
 }
 for (const id of [5, 7]) test(`arena pursuit follows real flight input for warden${id}`, async ({ browser }) => {
   test.setTimeout(90000); const view = { width: 393, height: 852 };

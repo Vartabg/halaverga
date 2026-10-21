@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { seed } from './shooter-browser';
 
-test('bank speed in a dive, pull into a climb, coast, then deliberately brake', async ({ page }) => {
+test('bank speed in a dive, pull into a climb, then release into hover', async ({ page }) => {
   test.setTimeout(90000);
   const errors: string[] = []; page.on('pageerror', e => errors.push(e.message));
   await seed(page, { controlsVersion: 6, desktopMode: 'trackpad', trackpadSteering: 'simple', shooter: false });
@@ -24,8 +24,10 @@ test('bank speed in a dive, pull into a climb, coast, then deliberately brake', 
   const turnY = await y(), entryClimbSpeed = await speed(); await page.waitForTimeout(650);
   const climbSpeed = await speed(); expect(await y()).toBeGreaterThan(turnY + 3); expect(climbSpeed).toBeLessThan(entryClimbSpeed - 3);
   await page.screenshot({ path: test.info().outputPath('climb.png') });
-  await page.keyboard.up('KeyW'); const released = await speed(); await page.waitForTimeout(350);
-  expect(await speed()).toBeGreaterThan(released * .6);
+  await page.keyboard.up('KeyW'); await page.waitForTimeout(650);
+  expect(await speed()).toBeLessThan(.5);
+  const parked = await y(); await page.keyboard.down('ArrowRight'); await page.waitForTimeout(600); await page.keyboard.up('ArrowRight');
+  expect(Math.abs(await y() - parked)).toBeLessThan(.1);
   await page.getByRole('button', { name: 'Brake to hover' }).click(); await expect.poll(speed).toBeLessThan(.5);
   console.log('BROWSER ENERGY', JSON.stringify({ high, levelSpeed, diveSpeed, bottom, entryClimbSpeed, climbSpeed }));
   expect(errors).toEqual([]);

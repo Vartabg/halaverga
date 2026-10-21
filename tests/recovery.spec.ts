@@ -31,8 +31,10 @@ test('touch release and orientation: input released, no pause card, the suit set
   const cdp = await context.newCDPSession(page), telemetry = page.getByTestId('flight-telemetry');
   const speed = async () => Number(await telemetry.getAttribute('data-speed'));
   const drag = async () => {
-    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: 90, y: 650, id: 1 }] });
-    await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: 90, y: 580, id: 1 }] });
+    const b = (await page.getByRole('button', { name: 'Hold to fly', exact: true }).boundingBox())!;
+    const p = { id: 1, x: b.x + b.width / 2, y: b.y + b.height / 2 };
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [p] });
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ ...p, y: p.y - 40 }] });
     await page.waitForTimeout(750); expect(await speed()).toBeGreaterThan(3);
   };
   await drag();
