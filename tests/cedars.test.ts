@@ -1,11 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { CEDAR, CEDAR_TIERS, makeCedars } from '../src/world/cedarData';
+import { CEDAR, CEDAR_TIERS, HERO_CEDARS, makeCedars } from '../src/world/cedarData';
 
 describe('cedars of Lebanon (pre-Flood dressing)', () => {
   it('is deterministic and keeps snow on the top tier', () => {
     expect(makeCedars()).toEqual(makeCedars());
     expect(CEDAR_TIERS.length).toBeGreaterThanOrEqual(3);
     expect(CEDAR.snowY).toBeGreaterThan(CEDAR_TIERS[CEDAR_TIERS.length - 1].y);
+  });
+  it('plants hero cedars tall enough to enter the arrival frame', () => {
+    expect(HERO_CEDARS.length).toBe(4);
+    for (const c of HERO_CEDARS) expect(c.scale).toBeGreaterThanOrEqual(1.8);
+    expect(makeCedars().slice(0, 4)).toEqual(HERO_CEDARS);
   });
   it('stands clear of the route corridor and on the banks', () => {
     for (const c of makeCedars()) {

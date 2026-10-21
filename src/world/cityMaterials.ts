@@ -32,10 +32,11 @@ export function useCityMaterials() {
           float tier = smoothstep(.72, .94, abs(sin(vWeather.y * 1.35)));
           float weather = .82 + .18 * sin(vWeather.y * .22 + vWeather.x * .13 + vWeather.z * .17);
           diffuseColor.rgb *= weather * (1. - streak * .22 - tier * .18);
-          // Laid stone of Hermon: course lines cut every ~3 m darken the wall, and first light warms the low courses near the
-          // ground, fading with height so only the foot of the wall reads dawn-lit.
+          // Laid stone of Hermon: course lines cut every ~3 m darken the wall, each course shifts tint slightly (no two courses
+          // read as one flat slab), and first light warms the low courses near the ground, fading with height.
           float chisel = pow(abs(sin(vWeather.y * 2.1 + vWeather.x * .13 + vWeather.z * .17)), 2.);
-          diffuseColor.rgb *= 1. - .12 * chisel;
+          float course = sin(vWeather.y * 2.1 + vWeather.x * .13 + vWeather.z * .17) > 0. ? 1. : .92;
+          diffuseColor.rgb *= (1. - .18 * chisel) * mix(.94, 1.05, course);
           diffuseColor.rgb += vec3(.30, .17, .05) * chisel * (1. - smoothstep(6., 26., vWeather.y));
           ${calm ? 'diffuseColor.rgb *= 1. - .35 * (1. - smoothstep(0., 4., vWeather.y)) * vec3(.5, .75, .85);' : ''}
         `);
