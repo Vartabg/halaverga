@@ -32,23 +32,24 @@ export function useCityMaterials() {
           float tier = smoothstep(.72, .94, abs(sin(vWeather.y * 1.35)));
           float weather = .82 + .18 * sin(vWeather.y * .22 + vWeather.x * .13 + vWeather.z * .17);
           diffuseColor.rgb *= weather * (1. - streak * .22 - tier * .18);
-          // The chisel of Dudael: course lines carved every ~3 m darken the wall, and molten bronze bleeds low in the joints (1
-          // Enoch 10:4, the fountain of flame in Dudael), fading with the first floors so only the waterline reads forged.
+          // Laid stone of Hermon: course lines cut every ~3 m darken the wall, and first light warms the low courses near the
+          // ground, fading with height so only the foot of the wall reads dawn-lit.
           float chisel = pow(abs(sin(vWeather.y * 2.1 + vWeather.x * .13 + vWeather.z * .17)), 2.);
-          float emberVein = pow(max(0., sin(vWeather.x * 1.7 - vWeather.y * .9 + vWeather.z * 1.3)), 18.) * (1. - smoothstep(0., 16., vWeather.y));
           diffuseColor.rgb *= 1. - .12 * chisel;
-          diffuseColor.rgb += (vec3(.42, .16, .03) * emberVein + vec3(.30, .17, .05) * chisel * (1. - smoothstep(6., 26., vWeather.y)));
+          diffuseColor.rgb += vec3(.30, .17, .05) * chisel * (1. - smoothstep(6., 26., vWeather.y));
           ${calm ? 'diffuseColor.rgb *= 1. - .35 * (1. - smoothstep(0., 4., vWeather.y)) * vec3(.5, .75, .85);' : ''}
         `);
       };
       return material;
     };
     const stone = concrete(false), calm = concrete(true);
-    const glass = new MeshStandardMaterial({ vertexColors: true, roughness: .22, metalness: .82, envMapIntensity: 1.5 });
+    // No glass in the days of Jared: this group is dark polished basalt, rough and non-metal, so old glass-mapped faces read as stone.
+    const glass = new MeshStandardMaterial({ vertexColors: true, roughness: .85, metalness: .05, envMapIntensity: .4 });
     glass.onBeforeCompile = shader => {
       shader.fragmentShader = shader.fragmentShader.replace('#include <color_fragment>',
-        '#include <color_fragment>\ndiffuseColor.rgb = mix(diffuseColor.rgb, vec3(.78, .54, .24), .68);');
+        '#include <color_fragment>\ndiffuseColor.rgb = mix(diffuseColor.rgb, vec3(.16, .14, .13), .68);');
     };
+    // Worked bronze (Gen 4:22: bronze work is pre-Flood) for crowns and fittings, not steel.
     const metal = new MeshStandardMaterial({ vertexColors: true, roughness: .42, metalness: .76 });
     metal.onBeforeCompile = shader => {
       shader.fragmentShader = shader.fragmentShader.replace('#include <color_fragment>',
