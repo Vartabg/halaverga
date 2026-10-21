@@ -48,10 +48,12 @@ describe('far ruins generator', () => {
       t.parts.forEach((part, i) => { if (i) expect(t.parts.slice(0, i).some(host => overlap(part, host))).toBe(true); });
     }
   });
-  it('is ruins, not buildings: stumps, bare skeletons, burned shells, fallen sections and rubble heaps (Garo, 2026-10-06)', () => {
+  it('is stone ranges, not a modern skyline: solid courses, no steel and no window walls (Garo, 2026-10-21)', () => {
     const ruins = (r: string) => sky.towers.filter(t => t.ruin === r).length, parts = (k: string) => sky.towers.filter(t => t.parts.some(p => p.kind === k)).length;
     for (const r of ['stump', 'skeleton', 'shell', 'fallen', 'mound']) expect(ruins(r)).toBeGreaterThan(15);
-    for (const k of ['stub', 'rebar', 'rubble', 'column', 'floor', 'beam', 'wall', 'fallen', 'slab']) expect(parts(k)).toBeGreaterThanOrEqual(10);
+    expect(parts('body')).toBe(sky.towers.length);
+    expect(parts('slab')).toBeGreaterThanOrEqual(10);
+    for (const k of ['stub', 'rebar', 'column', 'floor', 'beam', 'wall']) expect(parts(k)).toBe(0);
     const tops = sky.towers.map(t => t.top).sort((a, b) => a - b);
     expect(tops[tops.length >> 1]).toBeLessThan(40); // most of the city is knee-high to what it was
     for (const t of sky.towers) if (t.top > 70) expect(['skeleton', 'shell']).toContain(t.ruin); // only gutted shapes still rise
@@ -99,9 +101,10 @@ describe('far ruins generator', () => {
     let last = -1; for (const x of [.01, .05, .18, .5, 1, 4]) { const v = acesFilmic(grey(x))[1]; expect(v).toBeGreaterThan(last); last = v; }
     expect(acesFilmic(grey(100))[0]).toBeGreaterThan(.97); expect(acesFilmic(grey(0))[0]).toBeLessThan(.001);
   });
-  it('draws the foot as wet rock, dawn-water mist and snow, empty burned windows, and lets the dawn haze take every peak', () => {
+  it('draws the foot as wet rock, dawn-water mist and snow, and lets the dawn haze take every peak', () => {
     const mesh = readFileSync('src/world/Skyline.tsx', 'utf8');
-    for (const part of ['FOOT_SEA', 'SNOW', 'aSeed', 'aWall', 'SOOT', 'RUST', 'hole', 'plume', 'bleed', 'pow(f, 1.3)']) expect(mesh).toContain(part);
+    for (const part of ['FOOT_SEA', 'SNOW', 'pow(f, 1.3)']) expect(mesh).toContain(part);
+    for (const gone of ['hole', 'plume', 'bleed', 'aWall', 'RUST']) expect(mesh).not.toContain(gone);
     expect(mesh).not.toMatch(/mix\(diffuseColor\.rgb, \$\{glslVec3\(HAZE\)\}/); // the foot no longer mists toward the sky haze
   });
   it('keeps the canal vista open and flanks it with clusters of tall skeletons and shells', () => {
