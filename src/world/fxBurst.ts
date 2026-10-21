@@ -1,14 +1,14 @@
 // The kill: what a drone's death spawns into the effect pools, as one recipe (ImpactFx.tsx owns the pools and the frame loop).
 // Pure spawning into preallocated pools; seeded randomness from the caller's generator; no three.
 import type { Vec3 } from '@/game/combat';
-import { ASH } from './atmospherePalette';
+import { DRIFT } from './atmospherePalette';
 import { CURVE_FLAT, CURVE_HOLD, PLUME, killSparkCount, lobeDir, shardGain, shardK, sparkParams, spawnPuff, spawnSpark, type Puffs, type Sparks } from './fxPools';
 import { FX } from './fxMaterials';
 
 export type BurstPools = { add: Puffs; alpha: Puffs; rings: Puffs; sparks: Sparks };
 export type AddDebris = (c: Vec3, speed0: number, speed1: number, up: number, scale: number, hot: number) => void;
-/** The ash wind (m/s): kill smoke drifts with the falling ash. */
-export const WIND: Vec3 = { x: ASH.wind[0], y: 0, z: ASH.wind[1] };
+/** The dawn wind (m/s): kill smoke drifts with the falling motes. */
+export const WIND: Vec3 = { x: DRIFT.wind[0], y: 0, z: DRIFT.wind[1] };
 /** Lingering smoke: three dark puffs that climb slowly, spread and thin over 2.6 s, so the drone's absence is felt after the fire. */
 export const LINGER = { count: 3, life: 2.6, rise: .55, s0: 1.8, s1: 5.6, alpha: .72, spread: 1.2 } as const;
 /** The shockwave: a ground-plane ring that races out 1.2 -> 7.5 m in .34 s, white-hot to orange, then gone. */

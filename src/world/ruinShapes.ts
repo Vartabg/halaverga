@@ -1,7 +1,7 @@
 import { box } from './skylineDamage';
 import type { Rng, Spec } from './skylineParts';
 
-/** What is left of a tower after 2033 (Garo, 2026-10-06: ruins, not buildings that still stand). Every shape is boxes in the tower's
+/** The broken watch towers of the summit terraces. Every shape is boxes in the tower's
  * own frame, y up from the foot (the water is at local y 3.1). Every part after the first starts inside a part before it, so nothing
  * floats. Drawn from the tower's own `look` stream only, so changing a ruin never moves the skyline. Pure, Node-safe. */
 export type Ruin = 'stump' | 'skeleton' | 'shell' | 'fallen' | 'mound';

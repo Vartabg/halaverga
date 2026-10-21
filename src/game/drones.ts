@@ -4,7 +4,7 @@ import { avoid, face, limitAccel } from './droneSteer';
 import { START } from './motion';
 import { PATROLS, flyInStart, patrolPosition } from './dronePatrols';
 import { DRONE, advanceDodge, dodgeDwell, ease, lean, startTelegraph } from './droneDodge';
-// Rogue 2033 security drones: passive (they never fire). They patrol, notice the player, telegraph, dodge, flinch and break apart.
+// Fallen Watcher sentinels: passive (they never fire). They patrol, notice the player, telegraph, dodge, flinch and break apart.
 // Pure and allocation-free per frame. This module and droneDodge.ts are the only writers of s.drones.
 export { DRONE };
 export type DroneSim = { rng: () => number; time: number; dodger: number; prev: Vec3[]; vel: Vec3[]; cam: Vec3; camSpeed: number; camSet: boolean; flyStart: Vec3[]; flyEnd: Vec3[]; flyDur: Float32Array; respawnAt: Float32Array };

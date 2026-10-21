@@ -93,15 +93,15 @@ describe('far ruins generator', () => {
   });
   it('knows the sea\'s colour on screen: the tower feet mist toward it, and ACES twins three\'s curve', () => {
     const enc = (x: number) => Math.round(255 * (x <= .0031308 ? 12.92 * x : 1.055 * x ** (1 / 2.4) - .055));
-    const [r, g, b] = SEA_BODY.map(enc); // the abyssal sea at near-normal incidence: #251412, dark obsidian-wine
-    expect(Math.abs(r - 37)).toBeLessThanOrEqual(3); expect(Math.abs(g - 20)).toBeLessThanOrEqual(3); expect(Math.abs(b - 18)).toBeLessThanOrEqual(3);
+    const [r, g, b] = SEA_BODY.map(enc); // the dawn water at near-normal incidence: deep blue, brighter in blue than red
+    expect(Math.abs(r - 11)).toBeLessThanOrEqual(3); expect(Math.abs(g - 22)).toBeLessThanOrEqual(3); expect(Math.abs(b - 31)).toBeLessThanOrEqual(3);
     const grey = (x: number): Rgb => [x, x, x];
     let last = -1; for (const x of [.01, .05, .18, .5, 1, 4]) { const v = acesFilmic(grey(x))[1]; expect(v).toBeGreaterThan(last); last = v; }
     expect(acesFilmic(grey(100))[0]).toBeGreaterThan(.97); expect(acesFilmic(grey(0))[0]).toBeLessThan(.001);
   });
-  it('draws the foot as wet concrete, poisoned-sea mist and scum, empty burned windows, and lets the ash haze take every ruin', () => {
+  it('draws the foot as wet rock, dawn-water mist and snow, empty burned windows, and lets the dawn haze take every peak', () => {
     const mesh = readFileSync('src/world/Skyline.tsx', 'utf8');
-    for (const part of ['FOOT_SEA', 'SCUM', 'aSeed', 'aWall', 'SOOT', 'RUST', 'hole', 'plume', 'bleed', 'pow(f, 1.3)']) expect(mesh).toContain(part);
+    for (const part of ['FOOT_SEA', 'SNOW', 'aSeed', 'aWall', 'SOOT', 'RUST', 'hole', 'plume', 'bleed', 'pow(f, 1.3)']) expect(mesh).toContain(part);
     expect(mesh).not.toMatch(/mix\(diffuseColor\.rgb, \$\{glslVec3\(HAZE\)\}/); // the foot no longer mists toward the sky haze
   });
   it('keeps the canal vista open and flanks it with clusters of tall skeletons and shells', () => {

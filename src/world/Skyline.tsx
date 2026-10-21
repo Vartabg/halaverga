@@ -13,7 +13,7 @@ const vec3 FOOT_HAZE = ${glslVec3(HAZE)};
 const vec3 FOOT_LOW = ${glslVec3(SKY.low)};
 const vec3 SOOT = ${glslVec3(SKYLINE.soot)};
 const vec3 RUST = ${glslVec3(SKYLINE.rust)};
-const vec3 SCUM = ${glslVec3(SKYLINE.foam)};
+const vec3 SNOW = ${glslVec3(SKYLINE.foam)};
 float hash(vec2 p) { return fract(52.9829189 * fract(dot(p, vec2(.06711056, .00583715)))); }
 `;
 
@@ -35,7 +35,7 @@ export function skylineMaterial() {
       float cosI = clamp(toBase.y / length(toBase), 0., 1.);
       vec3 sea = mix(FOOT_SEA, mix(FOOT_HAZE, FOOT_LOW, smoothstep(0., .17, cosI)), min(.025 + .55 * pow(1. - cosI, 4.), .8));
       diffuseColor.rgb = mix(diffuseColor.rgb, sea, exp(-yy * .25) * .7);
-      diffuseColor.rgb = mix(diffuseColor.rgb, SCUM, (1. - smoothstep(.05, .7, yy)) * .45);
+      diffuseColor.rgb = mix(diffuseColor.rgb, SNOW, (1. - smoothstep(.05, .7, yy)) * .45);
       vec3 face = normalize(cross(dFdx(vSky), dFdy(vSky)));
       vec2 bay = vec2(dot(vSky.xz, vec2(-face.z, face.x)) / (2.1 + 1.4 * seed), vSky.y / (5.2 + 1.8 * fract(seed * 7.31))), cell = floor(bay), fr = fract(bay);
       float pane = smoothstep(.22, .32, fr.x) * (1. - smoothstep(.68, .78, fr.x)) * smoothstep(.08, .18, fr.y) * (1. - smoothstep(.82, .92, fr.y));

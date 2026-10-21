@@ -9,7 +9,7 @@ import { makePuffs, makeSparks, puffFrame, puffU, spawnPuff, type Puffs } from '
 import { LINGER, SHOCK, WIND, spawnKillBurst, spawnPreBurst } from '../src/world/fxBurst';
 import { SCORCH, damageStage, spawnImpact, trailDrone } from '../src/world/fxImpacts';
 import { FX } from '../src/world/fxMaterials';
-import { ASH } from '../src/world/atmospherePalette';
+import { DRIFT } from '../src/world/atmospherePalette';
 import { VOICES, live } from '../src/ui/blasterVoices';
 
 const v = (x = 0, y = 0, z = 0): Vec3 => ({ x, y, z }), UP = v(0, 1, 0);
@@ -89,11 +89,11 @@ describe('the kill', () => {
   it('the pre-burst is one short swell (80 ms, the hit-stop)', () => {
     const p = pools(); spawnPreBurst(p, 5, v(), 1); expect(spawned(p.add)).toBe(1); expect(p.add.d[1]).toBeCloseTo(.08, 9);
   });
-  it('the smoke that stays is darker than the ash overcast and drifts on the ash wind for 2.6 s', () => {
+  it('the smoke that stays is darker than the dawn haze and drifts on the dawn wind for 2.6 s', () => {
     const lum = (c: { r: number; g: number; b: number }) => .2126 * c.r + .7152 * c.g + .0722 * c.b;
-    const ash = { r: 0, g: 0, b: 0 }; const n = parseInt(ASH.color.slice(1), 16); ash.r = (n >> 16) / 255; ash.g = (n >> 8 & 255) / 255; ash.b = (n & 255) / 255;
+    const ash = { r: 0, g: 0, b: 0 }; const n = parseInt(DRIFT.color.slice(1), 16); ash.r = (n >> 16) / 255; ash.g = (n >> 8 & 255) / 255; ash.b = (n & 255) / 255;
     expect(lum(FX.ash)).toBeLessThan(lum({ r: ash.r ** 2.2, g: ash.g ** 2.2, b: ash.b ** 2.2 }) / 3);
-    expect(WIND.x).toBe(ASH.wind[0]); expect(WIND.z).toBe(ASH.wind[1]); expect(LINGER.life).toBeGreaterThanOrEqual(2.5);
+    expect(WIND.x).toBe(DRIFT.wind[0]); expect(WIND.z).toBe(DRIFT.wind[1]); expect(LINGER.life).toBeGreaterThanOrEqual(2.5);
   });
 });
 

@@ -1,6 +1,6 @@
 import type { Triple } from './kit';
 export type Plant = { position: Triple; scale: Triple; yaw: number; tilt?: number };
-/** Dead trees on the banks, bare since the light went (2033). The rooftop trees and the facade vines are gone with the roofs. */
+/** Cedar snags on the banks below the summit. */
 const treeSites = [
   [-22, 2.1, 34, 4.6], [22, 2.1, 16, 5.6], [-25, 2.1, -16, 5.1], [25, 2.1, -13, 4.4],
   [-50, 2.1, 44, 2.3], [58, 2.1, 49, 3], [-80, 2.1, -10, 2], [86, 2.1, -15, 2.4],

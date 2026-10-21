@@ -5,7 +5,7 @@ import type { LimitCue } from './limitCue';
 //    that (15 m cruise, 30 m surge), so the nearest face is plainly there at 25 m surge and 15 m cruise. The review measured 0-2% of
 //    pixels visibly changed at those distances with the old curve (20/40 m, smoothstep of the whole range).
 //  - The floor and the sky face show only while the limit cue for them is on (closing on them by time, or the ceiling near): the
-//    floor plane is the flying floor at 1.7 m, so a skim of the flooded boulevard at 3 m used to wash the whole street in grid.
+//    floor plane is the flying floor at 1.7 m, so a skim of the descent route at 3 m used to wash the whole street in grid.
 //  - The nearest face is brightest; the others stay at 45%.
 export type FaceKind = 'wall' | 'ceiling' | 'floor';
 export const FACE_MAX = .8, OTHER = .45, EASE_S = .3;
