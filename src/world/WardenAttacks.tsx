@@ -7,6 +7,7 @@ import { WA, WARDEN } from '@/game/banishState';
 import { runtime } from '@/game/runtime';
 import { useGame } from '@/game/store';
 import { wardenAudio } from '@/ui/combatAudio';
+import { attackTelegraph } from './wardenTelegraphs';
 const matrix = new Matrix4(), q = new Quaternion(), at = new Vector3(), scale = new Vector3(), direction = new Vector3();
 const up = new Vector3(0, 1, 0), red = new Color('#f36f56'), gold = new Color('#ffe3a0'), amber = new Color('#efb76b');
 function pool(geometry: ConeGeometry | TorusGeometry, count: number) {
@@ -17,7 +18,7 @@ function pool(geometry: ConeGeometry | TorusGeometry, count: number) {
 }
 /** Three pooled draws: committed lanes, readable incoming darts, and the exposed enemy's shrinking counter ring. */
 export default function WardenAttacks() {
-  const parts = useMemo(() => ({ arrows: pool(new ConeGeometry(.45, 1.4, 4), 20), bolts: pool(new ConeGeometry(.35, 1.6, 7), 6),
+  const parts = useMemo(() => ({ arrows: pool(new ConeGeometry(.45, 1.4, 4), 48), bolts: pool(new ConeGeometry(.35, 1.6, 7), 6),
     rings: pool(new TorusGeometry(1, .065, 5, 40), 8), phases: new Uint8Array(8), serial: 0 }), []);
   const list = useMemo(() => [parts.arrows, parts.bolts, parts.rings], [parts]);
   useEffect(() => () => { list.forEach(m => { m.geometry.dispose(); (m.material as MeshBasicMaterial).dispose(); m.dispose(); }); }, [list]);
@@ -25,10 +26,10 @@ export default function WardenAttacks() {
     const w = banish.wardens, f = runtime.shooter.drones, game = useGame.getState();
     let arrows = 0, rings = 0, bolts = 0;
     for (const i of ELITES) {
-      const phase = w.phase[i], p = f.pos[i], aim = w.aim[i], tell = i === 5 ? WARDEN.rushTell : WARDEN.volleyTell;
+      const phase = w.phase[i], p = f.pos[i], aim = w.aim[i], tell = w.tell[i] || 1, move = w.move[i];
       if (phase !== parts.phases[i] && game.started && !game.paused) {
         if (phase === WA.tell) wardenAudio('tell');
-        if (phase === WA.rush || phase === WA.volley) wardenAudio('launch');
+        if (phase === WA.rush || phase === WA.volley || phase === WA.sweep || phase === WA.fan) wardenAudio('launch');
       }
       parts.phases[i] = phase;
       if (!phase) continue;
@@ -37,15 +38,8 @@ export default function WardenAttacks() {
       const radius = opening ? 1.5 + w.open[i] / WARDEN.recover : phase === WA.tell ? 3 - Math.min(1, w.time[i] / tell) : 2;
       scale.setScalar(game.reduced ? 2.3 : radius);
       parts.rings.setMatrixAt(rings, matrix.compose(at, q, scale)); parts.rings.setColorAt(rings++, color);
-      if (phase === WA.tell || phase === WA.rush) {
-        const from = i === 5 ? w.start[i] : p;
-        direction.set(aim.x - from.x, aim.y - from.y, aim.z - from.z).normalize(); q.setFromUnitVectors(up, direction);
-        for (let n = 1; n <= 7; n++) {
-          const u = n / 8; at.set(from.x + (aim.x - from.x) * u, from.y + (aim.y - from.y) * u, from.z + (aim.z - from.z) * u);
-          scale.setScalar(i === 5 ? 1.25 : .8);
-          parts.arrows.setMatrixAt(arrows, matrix.compose(at, q, scale)); parts.arrows.setColorAt(arrows++, color);
-        }
-      }
+      if (phase === WA.tell || phase === WA.rush || phase === WA.sweep || phase === WA.fan)
+        arrows = attackTelegraph(parts.arrows, arrows, move, move === WA.rush ? w.start[i] : p, aim, color);
       if (opening) {
         for (let n = 0; n < 3; n++) {
           at.set(p.x + (n - 1) * .8, p.y + 3.4, p.z); q.identity(); scale.setScalar(.75);

@@ -5,14 +5,20 @@ import { MODE, resetBanish } from '../src/game/banish';
 import { requestCommand, COMMAND } from '../src/game/commands';
 import { cancelStrike, strike } from '../src/game/strike';
 import { flowTarget, flowVisible, updateFlowPaths } from '../src/game/combatFlow';
-it('a real dodge earns a one-contact counter that shatters both armor layers and binds the lancer', () => {
+import { flightFeel } from '../src/game/flightFeel';
+it('two defended attacks and actual counters break one layer each, then bind and banish the lancer', () => {
   const { b, w, i, player, step, tick, contact, s } = wardenSetup(); step(); tick(WARDEN.lock + .03); player.x = 12;
   tick(1.6); expect(w.phase[i]).toBe(WA.recover); expect(w.open[i]).toBeGreaterThan(0); expect(b.armor[i]).toBe(2);
-  contact(); expect(w.counters).toBe(1); expect(b.armor[i]).toBe(0); expect(b.mode[i]).toBe(MODE.bound);
-  tick(3.5); expect(s.stats.kills).toBe(1); expect(w.counters).toBe(1);
+  contact(); expect(w.counters).toBe(1); expect(b.armor[i]).toBe(1); expect(b.mode[i]).toBe(MODE.staggered); expect(s.stats.kills).toBe(0);
+  s.input.shield = 1; tick(.6); expect(w.move[i]).toBe(WA.sweep);
+  for (let n = 0; n < 180 && w.phase[i] !== WA.recover; n++) step();
+  expect(w.open[i]).toBeGreaterThan(0); flightFeel.brake = true; contact(); expect(flightFeel.brake).toBe(false);
+  expect(w.counters).toBe(2); expect(b.armor[i]).toBe(0); expect(b.mode[i]).toBe(MODE.bound);
+  tick(3.5); expect(s.stats.kills).toBe(1); expect(w.counters).toBe(2);
 });
 it('a launched punish retains its earned opening through travel, but cancelling it removes the reservation', () => {
   const { b, w, i, player, s, step } = wardenSetup();
+  b.armor[i] = 1;
   w.phase[i] = WA.recover; w.active = i; w.open[i] = .01;
   requestCommand(s, COMMAND.sword, i); step(); expect(strike.phase).toBe(1); expect(w.pending).toBe(i);
   w.open[i] = 0; step(); expect(w.pending).toBe(i);

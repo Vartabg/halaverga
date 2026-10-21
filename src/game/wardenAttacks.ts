@@ -8,6 +8,9 @@ import { aimWardenRush, stepWardenRush } from './wardenRush';
 import { stepWardenBolts, stepWardenVolley } from './wardenVolley';
 import { wardenPath } from './wardenMath';
 import { flowVisible } from './combatFlow';
+import { chooseWardenMove } from './wardenTactics';
+import { stepWardenSweep } from './wardenSweep';
+import { aimWardenFan, stepWardenFan } from './wardenFan';
 
 export function interruptWarden(b: BanishState, s: ShooterState, i: number) {
   const w = b.wardens; w.phase[i] = WA.idle; w.open[i] = w.engage[i] = 0; w.cool[i] = WARDEN.cooldown;
@@ -68,19 +71,24 @@ export function stepWardenAttacks(b: BanishState, s: ShooterState, player: Vec3,
       w.duel = i; battle.nextAttack = Math.max(battle.nextAttack, battle.clock + 1);
       if (battle.bolts.some(o => o.live)) { w.gate[i] = 15; continue; }
       w.active = w.duel = i; w.phase[i] = WA.tell; w.time[i] = 0; w.hit[i] = w.shots[i] = 0; w.open[i] = 0;
+      chooseWardenMove(w, i, d, b.armor[i]);
       b.retaliate[i] = 0; f.held[i] = 1;
       if (i === 5) aimWardenRush(w, s, i, player); else Object.assign(w.aim[i], player);
     } else {
       w.time[i] += dt;
       if (phase === WA.tell) {
         if (w.time[i] < WARDEN.lock) {
-          if (i === 5) aimWardenRush(w, s, i, player); else Object.assign(w.aim[i], player);
+          if (i === 5) aimWardenRush(w, s, i, player);
+          else if (w.move[i] === WA.fan) aimWardenFan(w, s, i, player, dt);
+          else Object.assign(w.aim[i], player);
         }
-        if (w.time[i] >= (i === 5 ? WARDEN.rushTell : WARDEN.volleyTell)) {
-          w.phase[i] = i === 5 ? WA.rush : WA.volley; w.time[i] = 0;
+        if (w.time[i] >= w.tell[i]) {
+          w.phase[i] = w.move[i]; w.time[i] = 0;
         }
       } else if (phase === WA.rush) stepWardenRush(w, s, i, player, dt);
       else if (phase === WA.volley) stepWardenVolley(w, s, i);
+      else if (phase === WA.sweep) stepWardenSweep(w, s, i, player);
+      else if (phase === WA.fan) stepWardenFan(w, s, i);
       else if (phase === WA.recover) {
         w.open[i] = Math.max(0, w.open[i] - dt);
         if (w.time[i] >= WARDEN.recover && w.pending !== i) interruptWarden(b, s, i);
@@ -89,7 +97,7 @@ export function stepWardenAttacks(b: BanishState, s: ShooterState, player: Vec3,
     const active = w.phase[i];
     if (active) {
       f.held[i] = 1;
-      const p = f.pos[i], target = active === WA.rush ? w.aim[i] : player;
+      const p = f.pos[i], target = active === WA.recover ? player : w.aim[i];
       f.yaw[i] = Math.atan2(p.x - target.x, p.z - target.z);
       b.guardTime[i] = active === WA.recover ? 0 : .15;
       // Keep normal darts from beginning another attack during an elite's visible turn.

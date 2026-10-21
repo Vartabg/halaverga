@@ -36,6 +36,6 @@ export function stepWardenBolts(w: Wardens, s: ShooterState, player: Vec3, dt: n
 }
 export function stepWardenVolley(w: Wardens, s: ShooterState, i: number) {
   if (w.phase[i] !== WA.volley) return;
-  if (w.shots[i] < 3 && w.time[i] >= w.shots[i] * WARDEN.boltGap) fireWardenBolt(w, s, i);
+  if (w.shots[i] < 3 && w.time[i] >= w.shots[i] * (WARDEN.boltGap - (w.fierce[i] ? .04 : 0))) fireWardenBolt(w, s, i);
   if (w.shots[i] === 3 && !w.bolts.some(o => o.live && o.src === i)) exposeWarden(w, i);
 }

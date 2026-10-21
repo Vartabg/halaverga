@@ -4,7 +4,7 @@ import type { Vec3 } from './combat';
 import { armorFor } from './encounter';
 import { createWardens } from './wardenState';
 
-export const WA = { idle: 0, tell: 1, rush: 2, volley: 3, recover: 4 } as const;
+export const WA = { idle: 0, tell: 1, rush: 2, volley: 3, recover: 4, sweep: 5, fan: 6 } as const;
 export const WARDEN = { range: 52, rushTell: 1.25, volleyTell: 1.35, lock: .55, rushSpeed: 52, boltSpeed: 24,
   recover: 2.4, cooldown: 3.8, parry: .28, boltGap: .32, radius: 2.8 } as const;
 export const wardenName = (i: number) => i === 5 ? 'Rift lancer' : 'Cinder cantor';

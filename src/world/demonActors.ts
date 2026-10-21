@@ -2,18 +2,24 @@ import { Color, Euler, Group, Matrix4, MeshStandardMaterial, Quaternion, Skinned
 import { EYE_FORWARD, EYE_UP, MAX_DRONES } from '../game/combat';
 import { bindAngelClips, blendAngelClip, clipTime, FULL, UPPER_BODY } from './angelClips';
 import { buildSuitRig } from './suitRig';
-import { WA } from '@/game/banishState';
+import { WA, banish } from '@/game/banishState';
 
 const ember = new Color('#ff591c');
 export type DemonPose = { time: number; charging: boolean; hit: number; down: boolean; reduced: boolean; damage: number; attack?: number; attackTime?: number; rusher?: boolean };
 const poseEuler = new Euler(), poseQ = new Quaternion();
-function attackPose(joints: readonly Object3D[], state: DemonPose) {
+function attackPose(joints: readonly Object3D[], state: DemonPose, move: number) {
   const phase = state.attack ?? 0, time = state.attackTime ?? 0;
   if (!phase || state.down) return;
   const w = state.reduced ? .55 : phase === WA.tell ? Math.min(1, time / .25) : 1;
   const rotate = (i: number, x: number, y = 0, z = 0) => { poseQ.setFromEuler(poseEuler.set(x, y, z)); joints[i].quaternion.slerp(poseQ, w); };
   if (phase === WA.recover) { rotate(11, .22); rotate(2, .15, 0, -.5); rotate(3, .15, 0, .5); rotate(6, 1.1); rotate(7, 1.1); }
-  else if (state.rusher) {
+  else if (move === WA.sweep) {
+    const cut = phase === WA.sweep ? Math.min(1, time / .2) : 0;
+    rotate(11, .1, -.55 + cut * 1.1); rotate(2, 1.4, -.6 + cut * 1.3, -.7); rotate(3, .5, .2, .35);
+    rotate(6, .8); rotate(7, 1.0);
+  } else if (move === WA.fan) {
+    rotate(11, -.2); rotate(2, 1.2, -.7, -.9); rotate(3, 1.2, .7, .9); rotate(6, .4); rotate(7, .4);
+  } else if (state.rusher) {
     rotate(11, .2); rotate(2, phase === WA.rush ? 1.5 : .5, -.2, -.2); rotate(3, phase === WA.rush ? 1.5 : 2.0, .2, .2);
     rotate(6, phase === WA.rush ? .2 : 1.2); rotate(7, phase === WA.rush ? .2 : 1.4);
   } else {
@@ -52,7 +58,7 @@ export function createDemonActors(source: Object3D, animations: AnimationClip[])
     blendAngelClip(a.joints, clips.flight, clipTime(clips.flight, time * .7, true), .3, FULL, hip);
     if (state.charging) blendAngelClip(a.joints, clips.charge, .18, .85, UPPER_BODY);
     if (state.hit > 0) blendAngelClip(a.joints, clips.hit, .12, Math.min(.8, state.hit), UPPER_BODY);
-    attackPose(a.joints, state);
+    attackPose(a.joints, state, banish.wardens.move[index]);
     if (state.down) {
       a.downTime = Math.min(2.4, a.downTime + Math.max(0, Math.min(.05, state.time - a.lastTime)));
       blendAngelClip(a.joints, clips.down, state.reduced ? 2.2 : a.downTime, 1, FULL);

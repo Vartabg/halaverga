@@ -89,7 +89,26 @@ for (const view of [{ width: 393, height: 852 }, { width: 852, height: 393 }]) f
       }
       await expect(elite).toHaveAttribute('data-opening', 'true'); expect(Number(await hud.getAttribute('data-ward'))).toBe(wards);
       await page.screenshot({ path: test.info().outputPath('opening.png') });
-      await tapOpening(page, view); await expect(elite).toHaveAttribute('data-counters', '1'); await expect(elite).toHaveAttribute('data-mode', '3');
+      await tapOpening(page, view); await expect(elite).toHaveAttribute('data-counters', '1'); await expect(elite).toHaveAttribute('data-armor', '1');
+      await page.keyboard.press('KeyB');
+      // Keep the real world and player input: no injected combat state or teleport to manufacture the second move.
+      if (id === 5) await page.keyboard.down('KeyV');
+      await expect(elite).toHaveAttribute('data-turn', '2', { timeout: 12000 });
+      await expect(elite).toHaveAttribute('data-move', id === 5 ? '5' : '6');
+      await expect(elite).toHaveAttribute('data-fierce', 'true');
+      await page.screenshot({ path: test.info().outputPath('second-telegraph.png') });
+      if (id === 5) {
+        await page.keyboard.up('KeyV');
+        await expect.poll(async () => await elite.getAttribute('data-parry-window'), { intervals: [16], timeout: 8000 }).toBe('true');
+        await hold('Raise shield'); await expect(elite).toHaveAttribute('data-opening', 'true'); await lift();
+      } else {
+        // Splitfire answers repeated sideways evades: hover inside its committed central gap.
+        await page.getByRole('button', { name: 'Brake to hover', exact: true }).tap();
+        await expect(elite).toHaveAttribute('data-opening', 'true', { timeout: 8000 });
+      }
+      expect(Number(await hud.getAttribute('data-ward'))).toBe(wards);
+      await page.screenshot({ path: test.info().outputPath('second-opening.png') });
+      await tapOpening(page, view); await expect(elite).toHaveAttribute('data-counters', '2'); await expect(elite).toHaveAttribute('data-mode', '3');
       const cue = page.getByTestId('combat-target');
       await expect.poll(async () => JSON.parse((await cue.getAttribute('data-camera'))!).finisher).toBe(id);
       await expect.poll(async () => Number(await page.getByTestId('flight-telemetry').getAttribute('data-speed'))).toBeLessThan(2);

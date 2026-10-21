@@ -5,6 +5,7 @@ export function exposeWarden(w: Wardens, i: number, parry = false) {
   w.phase[i] = WA.recover; w.time[i] = 0;
   w.open[i] = w.hit[i] ? 0 : WARDEN.recover;
   if (w.open[i] > 0) {
+    w.defense[i] = parry ? 2 : 1;
     if (parry) w.parries++; else w.dodges++;
     w.last = i; w.result = parry ? 'parry' : 'dodge'; w.serial++;
   }
