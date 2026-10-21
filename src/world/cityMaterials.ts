@@ -55,7 +55,7 @@ export function useCityMaterials() {
     };
     const ground = new MeshStandardMaterial({ vertexColors: true, map: maps[3], normalMap: maps[4],
       roughness: .92, metalness: .15, normalScale: new Vector2(.9, .9) });
-    // Scorched volcanic obsidian and brimstone rock of the Chasm of Dudael.
+    // Dark summit rock of Mount Hermon, dawn-lit at the edges.
     ground.onBeforeCompile = shader => {
       shader.fragmentShader = shader.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
         float luma = dot(diffuseColor.rgb, vec3(.2126, .7152, .0722));

@@ -6,15 +6,15 @@ import { pickMood } from './skylineDamage';
 import { bakeTower, type Buffers, type Part } from './skylineParts';
 import { pickRuin, ruinSpecs, type Ruin } from './ruinShapes';
 
-/** The distant ruins: what is left of a modern city's towers standing in the poisoned sea in three hazy layers, outside the flyable
- * box, world-fixed (no anchoring, no per-frame code, no colliders). Seeded, so every run and every device builds the same ruins. The
- * layout (where a tower stood, how big, how tall it was) comes from one stream; what is left of it from the tower's own. Node-safe. */
+/** The distant Hermon ranges: neighbouring peaks and watch towers in three hazy layers, outside the flyable box, world-fixed (no
+ * anchoring, no per-frame code, no colliders). Seeded, so every run and every device builds the same ranges. The layout (where a
+ * peak stood, how big, how tall it was) comes from one stream; its shape from its own. Node-safe. */
 export type Tower = { layer: number; x: number; z: number; w: number; d: number; yaw: number; lean: number; top: number; foot: [number, number]; parts: Part[]; ruin: Ruin };
 /** Height range of a layer's original roofs above the water, and its landmarks' cap. A ruin keeps a fraction of it. */
 const HEIGHTS: [number, number][] = [[45, 95], [55, 115], [65, 135]];
 const LANDMARK = 140, CORNER = 90, CENTER_Z = (WORLD.minZ + WORLD.maxZ) / 2;
-/** Canal vista: layers 1 and 2 keep this half width clear on the canal axis (x 0) north of the district, so the default view ends in
- * open water dissolving into the ash haze. A cluster of tall skeletons and shells flanks it on the left and a smaller one on the right. */
+/** Valley vista: layers 1 and 2 keep this half width clear on the valley axis (x 0) north of the summit, so the default view ends in
+ * open water dissolving into the dawn haze. A cluster of tall peaks flanks it on the left and a smaller one on the right. */
 export const VISTA = 30;
 const CLUSTERS = { left: { from: -130, to: -60, height: [105, 135] }, right: { from: 60, to: 110, height: [85, 110] } };
 

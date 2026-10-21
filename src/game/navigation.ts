@@ -27,7 +27,7 @@ export interface Terminal { id: string; position: Vec; radius: number; location:
 // Every record body is a verbatim 1 Enoch quotation (kind names the verses); the shared note marks everything around it as game fiction.
 const sourceNote = arrival.note;
 export const TERMINALS: Terminal[] = [
-  { id: 'municipal-memory-07', position: { x: -7, y: 21, z: 58 }, radius: 5, location: 'Tablet of Semjaza', record: arrival },
+  { id: 'hermon-oath-01', position: { x: -7, y: 21, z: 58 }, radius: 5, location: 'Tablet of Semjaza', record: arrival },
   { id: 'north-core-12', position: { x: 0, y: 12, z: -260 }, radius: 8, location: 'Tablet of the Seven Stars', record: {
     id: 'north-core-12', locationId: 'halaverga-north-core-12', title: 'The Prison of the Burning Stars', kind: 'Quoted source · 1 Enoch 21:3, 6',
     place: 'Northern Abyss · Prison of the Seven Stars', date: '1 Enoch 21:3, 6',
@@ -60,9 +60,9 @@ export function locationName(p: Vec, terminal = nearestTerminal(p)): string {
   if (terminal) return terminal.location;
   if (p.z < -208) return 'Prison of the Seven Stars';
   if (p.z > 128) return 'Gate of Gehenna';
-  if (p.x < -225) return 'Chasm of Dudael';
+  if (p.x < -225) return 'Western Cleft';
   if (p.x > 225) return 'Mount of Simeon';
-  return p.y > 50 ? 'Sanctuary of the Throne' : p.y < 6 ? 'River of Fire' : p.z < 15 ? 'Bridge of the Abyss' : 'Threshold of Hermon';
+  return p.y > 50 ? 'Sanctuary of the Throne' : p.y < 6 ? 'Dawn Waters' : p.z < 15 ? 'Bridge of the Abyss' : 'Threshold of Hermon';
 }
 export function boundaryDistance(p: Vec) {
   return Math.min(p.x - WORLD.minX, WORLD.maxX - p.x, p.z - WORLD.minZ, WORLD.maxZ - p.z, WORLD.ceiling - p.y);

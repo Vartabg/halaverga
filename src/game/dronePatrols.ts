@@ -1,6 +1,6 @@
 import type { Vec3 } from './combat';
 import { WORLD } from './motion';
-// Patrol loops for the rogue 2033 security drones: a figure-eight wobble (y at twice the rate) on a horizontal ellipse.
+// Patrol loops for the Fallen Watcher sentinels: a figure-eight wobble (y at twice the rate) on a horizontal ellipse.
 // Every path clears the city solids by >= 5.7 m and the building route by >= 5 m (tests/drone-patrol.test.ts).
 export type Patrol = { id: string; c: Vec3; r: Vec3; omega: number; phase: number };
 export const PATROLS: readonly Patrol[] = [

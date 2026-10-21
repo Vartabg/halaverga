@@ -8,7 +8,7 @@ import RuinField from './RuinField';
 import DistrictBoundary from './DistrictBoundary';
 import { Sky, Water } from './Atmosphere';
 import Skyline from './Skyline';
-import Ash from './Ash';
+import Drift from './Drift';
 import Suit from './Suit';
 import Player from '@/game/Player';
 import CameraRig from '@/game/CameraRig';
@@ -50,7 +50,7 @@ function GraphicsRecovery({ onLoss, sun }: { onLoss: () => void; sun: React.RefO
   });
   return null;
 }
-/** The suit blaster, its arm cannon and the rogue drones, mounted only while the setting is on (so arm-cannon.glb is fetched only
+/** The blaster, its arm cannon and the Watcher sentinels, mounted only while the setting is on (so arm-cannon.glb is fetched only
  * then). A render or load error turns the blaster off; flight continues. */
 function ShooterLayer() {
   const shooter = useGame(s => s.shooter);
@@ -73,7 +73,7 @@ function LabLayer() {
 }
 export default function Scene({ onLoss }: { onLoss: () => void }) {
   const paused = useGame(s => s.paused), quality = useGame(s => s.quality), sun = useRef<DirectionalLight>(null);
-  return <Canvas aria-label="Three-dimensional flooded city. Text description and keyboard controls are available in the field guide."
+  return <Canvas aria-label="Three-dimensional Mount Hermon at dawn. Text description and keyboard controls are available in the field guide."
     role="img" frameloop="demand" dpr={quality === 'high' ? [1, 1.5] : 1} shadows={quality === 'high' ? 'percentage' : false}
     camera={{ position: [0, 24, 72], fov: 65, near: .1, far: 650 }}
     gl={{ antialias: true, alpha: false, powerPreference: 'high-performance', stencil: false }}
@@ -84,7 +84,7 @@ export default function Scene({ onLoss }: { onLoss: () => void }) {
     <directionalLight ref={sun} position={SUN_POSITION} color={SUN_COLOR} intensity={SUN_INTENSITY} castShadow={quality === 'high'}
       shadow-mapSize={[2048, 2048]} shadow-camera-left={-110} shadow-camera-right={110}
       shadow-camera-top={110} shadow-camera-bottom={-110} shadow-camera-far={380} shadow-bias={-.0002} shadow-normalBias={.09} />
-    <EnvironmentLight /><Sky /><Water /><Skyline /><Ash />
+    <EnvironmentLight /><Sky /><Water /><Skyline /><Drift />
     <Suspense fallback={null}>
       <Physics paused={paused} timeStep={1 / 60} updatePriority={-50} gravity={[0, -22, 0]}>
         <City /><RuinField /><DistrictBoundary /><Player /><FlightPresentation /><Suit /><CameraRig />

@@ -32,10 +32,10 @@ void main() {
 }`;
 
 /** Display-referred: the colours below are what appear on screen (toneMapped is off, colorspace_fragment only encodes sRGB). The
- * direction is taken from the camera, not the origin, so the horizon is at eye level whatever the height. The ash ceiling is a flat
+ * direction is taken from the camera, not the origin, so the horizon is at eye level whatever the height. The dawn ceiling is a flat
  * layer read in four taps of a baked texture: the billow, a coarse read for its thickness, the weather map (heavier banks) and an edge
- * roughness read. It covers almost all of the sky: thin parts are a lighter grey-brown, thick parts sag dark, and the whole layer
- * dissolves into the haze toward the horizon. Where the sun is, the thin cloud brightens into a dull smear; there is no disc. */
+ * roughness read. Thin parts are dawn-lit, thick parts sit in violet shade, and the whole layer dissolves into the haze toward the
+ * horizon. Overhead the stars still show through the clear parts, fading toward the risen sun and the horizon: the Watchers at dawn. */
 export const domeFragment = /* glsl */`
 varying vec3 vWorld;
 uniform vec3 uSun;
@@ -53,6 +53,16 @@ const vec2 CLOUD_OFFSET = vec2(${num(CLOUD.offset[0])}, ${num(CLOUD.offset[1])})
 ${skyBaseGlsl}
 /* Interleaved gradient noise: a cheap screen-space dither, one fract chain, no sin. */
 float dither(vec2 p) { return fract(52.9829189 * fract(dot(p, vec2(.06711056, .00583715)))); }
+/* Stars still fading at dawn: a sparse 3D cell hash on the view direction. Bright only high overhead, gone under cloud, gone
+ * toward the risen sun and at the horizon. One hash, no loops. */
+float stars(vec3 dir, float clear, float q) {
+  vec3 cell = floor(dir * 180.);
+  vec3 p3 = fract(cell * vec3(.1031, .1030, .0973));
+  p3 += dot(p3, p3.yxz + 33.33);
+  float h = fract((p3.x + p3.y) * p3.z);
+  float point = smoothstep(.997, 1., h);
+  return point * clear * smoothstep(.25, .65, dir.y) * (1. - exp(-q * 7.) * .85);
+}
 void main() {
   vec3 dir = normalize(vWorld - cameraPosition);
   float h = max(dir.y, 0.);
@@ -72,6 +82,7 @@ void main() {
   cloud = mix(cloud, SKY_HAZE, exp(-h * 7.) * .75);
   col = mix(col, cloud, dens * .96);
   col = mix(col, GLOW, exp(-q * ${num(SUN_GLOW.rate)}) * ${num(SUN_GLOW.weight)} * (1. - dens * .6));
+  col += vec3(.9, .93, 1.) * stars(dir, 1. - dens, q) * .35;
   gl_FragColor = vec4(col, 1.);
   #include <colorspace_fragment>
   gl_FragColor.rgb += (dither(gl_FragCoord.xy) - .5) / 255.;

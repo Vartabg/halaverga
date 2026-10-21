@@ -1,4 +1,4 @@
-import { WATER_BODY, WATER_RUST, WATER_SCUM, WATER_SICK, glslRgb, glslVec3 } from './atmospherePalette';
+import { WATER_BODY, WATER_CREST, WATER_GLOW, WATER_MIST, glslRgb, glslVec3 } from './atmospherePalette';
 import { skyBaseGlsl } from './skyShader';
 
 export const waterVertex = /* glsl */`
@@ -12,11 +12,11 @@ void main() {
   #include <fog_vertex>
 }`;
 
-/** The poisoned sea. The body (oily olive with sick yellow-green and rust patches, slow heavy ripples, a dirty wake) is
- * scene-referred and tone mapped like the city. The mirror of the sky is the sky itself, display-referred, so at a grazing angle the
- * water meets the dome exactly. On top, in display space: oil slicks that shift colour with the angle (a thin film), and pale scum
- * blotches. There is no sun glint: there is no sun. The far end is the scene fog. Ripples and the film fade out when they are finer
- * than a pixel, so the far water is calm instead of a moire. The noise is a sine-free hash (stable on phone GPUs). */
+/** The water below the summit at dawn. The body (deep dawn blue with valley mist and warm first-light patches, slow ripples, a
+ * bright wake) is scene-referred and tone mapped like the ranges. The mirror of the sky is the sky itself, display-referred, so at
+ * a grazing angle the water meets the dome exactly. On top, in display space: a dawn sheen that shifts colour with the angle, and
+ * pale crest blotches. The far end is the scene fog. Ripples and the sheen fade out when they are finer than a pixel, so the far
+ * water is calm instead of a moire. The noise is a sine-free hash (stable on phone GPUs). */
 export const waterFragment = /* glsl */`
 #include <fog_pars_fragment>
 varying vec3 vWorld;
@@ -39,11 +39,11 @@ void main() {
   vec3 view = normalize(cameraPosition - vWorld), reflected = reflect(-view, n);
   float fresnel = .02 + .55 * pow(1. - max(dot(n, view), 0.), 4.);
   vec2 drift = vec2(time * .05, time * .02), q = p * mat2(.8, .6, -.6, .8);  // q: the second octave of each noise turned 37 degrees, so no two octaves share a grid
-  float sick = smoothstep(.45, .8, vnoise(p * .016 + drift * .1) * .65 + vnoise(q * .05) * .35);
-  float rust = smoothstep(.55, .85, vnoise(p * .028 + 17.3 - drift * .08));
-  vec3 body = mix(${glslRgb(WATER_BODY)}, ${glslRgb(WATER_SICK)}, sick * .9);
-  body = mix(body, ${glslRgb(WATER_RUST)}, rust * .85);
-  body += vec3(.011, .005, .0015) * (sin(a) * fa + sin(b) * fb) * .5;  // crossing ember waves
+  float mist = smoothstep(.45, .8, vnoise(p * .016 + drift * .1) * .65 + vnoise(q * .05) * .35);
+  float glow = smoothstep(.55, .85, vnoise(p * .028 + 17.3 - drift * .08));
+  vec3 body = mix(${glslRgb(WATER_BODY)}, ${glslRgb(WATER_MIST)}, mist * .9);
+  body = mix(body, ${glslRgb(WATER_GLOW)}, glow * .85);
+  body += vec3(.011, .005, .0015) * (sin(a) * fa + sin(b) * fb) * .5;  // crossing dawn waves
   float wd = length(p - wake);
   body += vec3(.14, .09, .03) * wakeStrength * exp(-wd * .28) * pow(max(0., sin(wd * 5. - time * 7.)), 6.);
   gl_FragColor = vec4(body, 1.);
@@ -57,9 +57,9 @@ void main() {
   float sheen = .18 + .32 * (1. - max(dot(view, n), 0.));
   gl_FragColor.rgb = mix(gl_FragColor.rgb, gl_FragColor.rgb * (.65 + .75 * irid), slick * fine * sheen);
   float raft = smoothstep(.5, .72, vnoise(p * .02 + 5.)), grain = vnoise(p * .09 + 41.) * .5 + vnoise(q * .25) * .35 + vnoise(p * .7) * .15;
-  float scum = smoothstep(.55, .85, grain) * raft * fine;
-  gl_FragColor.rgb = mix(gl_FragColor.rgb, ${glslVec3(WATER_SCUM)} * .9, scum * .34);
-  // Wind lanes: long faint streaks across the body so the open sea reads as a surface, not a flat green plane.
+  float crest = smoothstep(.55, .85, grain) * raft * fine;
+  gl_FragColor.rgb = mix(gl_FragColor.rgb, ${glslVec3(WATER_CREST)} * .9, crest * .34);
+  // Wind lanes: long faint streaks across the body so the open water reads as a surface, not a flat plane.
   gl_FragColor.rgb *= 1. + .05 * (vnoise(p * vec2(.015, .11) + drift * .3) - .5) * fine;
   #include <colorspace_fragment>
   #include <fog_fragment>

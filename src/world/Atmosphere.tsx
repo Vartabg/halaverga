@@ -8,7 +8,7 @@ import { waterFragment, waterVertex } from './waterShader';
 export { Sky } from './Sky';
 
 /** The sea. The plane follows the camera on x and z (the ripple phases use world position, so they do not slide), so its edge is
- * never in view; it takes the scene fog, so it ends in the same haze as the city and the skyline. */
+ * never in view; it takes the scene fog, so it ends in the same haze as the ranges and the skyline. */
 export function Water() {
   const material = useRef<ShaderMaterial>(null), mesh = useRef<Mesh>(null);
   const uniforms = useMemo(() => UniformsUtils.merge([UniformsLib.fog,

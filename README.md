@@ -1,6 +1,6 @@
 # Halaverga · Return to Earth
 
-A browser flight study through Meridian, a fictional modern hillside city damaged in 2033 and visited in 2113. Assisted free flight, water skimming, cancellable landing, first/third person, touch and keyboard controls, and one clearly fictional municipal record.
+A browser flight study over Mount Hermon at dawn, in the days of Jared — the Watchers' descent (1 Enoch 6). Assisted free flight, water skimming, cancellable landing, first/third person, touch and keyboard controls, and one quoted tablet record (1 Enoch 6:6, word for word).
 
 The reconciled version combines the Blender district and storm atmosphere with the current shooting, controls, Envoy suit, open-world flight, pause interface and voting. Branch choices and verification are recorded in [the version reconciliation](docs/integration/2026-10-09-reconciled-versions.md).
 
