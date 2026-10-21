@@ -18,11 +18,11 @@ export default function Landing({ started, failed, ready, zoomNote, note, onEnte
       {failed && <div className={styles.recovery} role="alert"><h2>The world needs a moment.</h2><p>Your field guide remains available. Reload the scene to continue from your saved landing.</p>{note && <p>{note}</p>}<button className={styles.primary} onClick={onRetry}>Reload scene</button></div>}
       {!off && <section className={styles.intro} aria-label="Begin expedition">
         <p className={styles.eyebrow}><span className={styles.statusDot} /> COVENANT 001 <span>/</span> MOUNT HERMON</p>
-        <p className={styles.introCopy}>Two hundred Watchers swore an oath on Hermon.<br />Descend on wings at first light.</p>
+        <p className={styles.introCopy}>Two hundred Watchers swore an oath on Hermon.<br />The flight is a later level.</p>
         <button className={styles.primary} disabled={!ready} onClick={onEnter}>{ready ? 'Begin expedition' : 'Preparing your suit…'}<span aria-hidden="true">↗</span></button>
         <p className={styles.introHint} role="status">{note || (zoomNote ? 'Pinch out to normal size, then tap Begin.' : ready ? 'Explore freely. Leave whenever you like.' : 'Building the district and collision map.')}</p>
         {children}
       </section>}</div>
-    {!started && <footer className={styles.introFooter}><span>1 ENOCH <small>THE WATCHERS</small><b>—</b> HERMON <small>AT DAWN</small></span><span>CELESTIAL FLIGHT STUDY <i>01</i></span></footer>}
+    {!started && <footer className={styles.introFooter}><span>1 ENOCH <small>THE WATCHERS</small><b>—</b> HERMON <small>AT DAWN</small></span><span>ON FOOT <small>FIRST</small></span></footer>}
   </>;
 }
