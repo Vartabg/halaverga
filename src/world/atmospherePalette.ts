@@ -49,12 +49,13 @@ export const skyDirection = (az: number, el: number): Rgb => {
   const a = az * Math.PI / 180, e = el * Math.PI / 180;
   return [Math.sin(a) * Math.cos(e), Math.sin(e), -Math.cos(a) * Math.cos(e)];
 };
-/** Fog is three's linear smoothstep on view depth, applied after tone mapping, so the colour is exactly what appears on screen.
- * Clear summit air at dawn: it starts farther out and has swallowed everything by 580 m, inside the camera far plane (650). */
-export const FOG = { color: HAZE, near: 50, far: 580 };
-/** The distant Hermon ranges: three layers of neighbouring peaks and watch towers outside the flyable box. `gaps` are metres from
- * the box edge to the nearest footprint on the [north, east and west, south] sides. Tints are display hex before fog, as [lit,
- * shaded]: dawn-lit rock and violet shade. `rust` is first light on the rock, `soot` the shadowed face, `foam` snow at the crest. */
+/** Fog is three's linear smoothstep on view depth, applied after tone mapping, so the colour is exactly what appears on screen. Thick
+ * chasm mist (Dudael field pass 2026-10-21: pulled back so the field reads from afar instead of materialising out of the haze): it
+ * starts at 65 m and has swallowed everything by 540 m, well inside the camera far plane (650). */
+export const FOG = { color: HAZE, near: 65, far: 540 };
+/** The distant Watcher monoliths: three layers standing in the abyssal sea outside the flyable box. `gaps` are metres from the box edge
+ * to the nearest footprint on the [north, east and west, south] sides. Tints are display hex before fog, as [lit, shaded]: carved
+ * bronze-basalt and scorched obsidian. `rust` is molten bronze veins, `soot` charred obsidian, `foam` brimstone crust at the waterline. */
 export const SKYLINE = {
   seed: 2033, rust: '#d99a5f', soot: '#1c1a24', foam: '#ece7db',
   gaps: [[110, 120, 200], [170, 180, 260], [240, 250, 330]] as [number, number, number][],

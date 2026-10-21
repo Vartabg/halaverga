@@ -60,12 +60,12 @@ describe('sky palette', () => {
     expect(FOG.far).toBeLessThan(650);
     expect(HEMISPHERE.intensity).toBe(2.2);
   });
-  it('fogs with clear summit air, fully by 580 m, inside the camera far plane', () => {
+  it('fogs thick with ash, fully by 540 m, inside the camera far plane (2026-10-21: pulled back so the field reads from afar)', () => {
     const factor = (depth: number) => { const t = Math.min(1, Math.max(0, (depth - FOG.near) / (FOG.far - FOG.near))); return t * t * (3 - 2 * t); };
-    expect(FOG.near).toBe(50); expect(FOG.far).toBe(580);
-    expect(factor(50)).toBe(0);
-    for (const depth of [580, 650]) expect(factor(depth)).toBe(1);
-    expect(factor(150)).toBeGreaterThan(.05); expect(factor(300)).toBeGreaterThan(.35); expect(factor(450)).toBeGreaterThan(.75);
+    expect(FOG.near).toBe(65); expect(FOG.far).toBe(540);
+    expect(factor(65)).toBe(0);
+    for (const depth of [540, 620, 650]) expect(factor(depth)).toBe(1);
+    expect(factor(220)).toBeGreaterThan(.2); expect(factor(340)).toBeGreaterThan(.5); expect(factor(460)).toBeGreaterThan(.85);
   });
   it('writes colours as linear GLSL literals', () => {
     expect(glslVec3('#ffffff')).toBe('vec3(1.000000, 1.000000, 1.000000)');
