@@ -1,10 +1,26 @@
-import { Color, Group, Matrix4, MeshStandardMaterial, Quaternion, SkinnedMesh, Vector3, type AnimationClip, type Object3D } from 'three';
+import { Color, Euler, Group, Matrix4, MeshStandardMaterial, Quaternion, SkinnedMesh, Vector3, type AnimationClip, type Object3D } from 'three';
 import { EYE_FORWARD, EYE_UP, MAX_DRONES } from '../game/combat';
 import { bindAngelClips, blendAngelClip, clipTime, FULL, UPPER_BODY } from './angelClips';
 import { buildSuitRig } from './suitRig';
+import { WA } from '@/game/banishState';
 
 const ember = new Color('#ff591c');
-export type DemonPose = { time: number; charging: boolean; hit: number; down: boolean; reduced: boolean; damage: number };
+export type DemonPose = { time: number; charging: boolean; hit: number; down: boolean; reduced: boolean; damage: number; attack?: number; attackTime?: number; rusher?: boolean };
+const poseEuler = new Euler(), poseQ = new Quaternion();
+function attackPose(joints: readonly Object3D[], state: DemonPose) {
+  const phase = state.attack ?? 0, time = state.attackTime ?? 0;
+  if (!phase || state.down) return;
+  const w = state.reduced ? .55 : phase === WA.tell ? Math.min(1, time / .25) : 1;
+  const rotate = (i: number, x: number, y = 0, z = 0) => { poseQ.setFromEuler(poseEuler.set(x, y, z)); joints[i].quaternion.slerp(poseQ, w); };
+  if (phase === WA.recover) { rotate(11, .22); rotate(2, .15, 0, -.5); rotate(3, .15, 0, .5); rotate(6, 1.1); rotate(7, 1.1); }
+  else if (state.rusher) {
+    rotate(11, .2); rotate(2, phase === WA.rush ? 1.5 : .5, -.2, -.2); rotate(3, phase === WA.rush ? 1.5 : 2.0, .2, .2);
+    rotate(6, phase === WA.rush ? .2 : 1.2); rotate(7, phase === WA.rush ? .2 : 1.4);
+  } else {
+    rotate(11, -.15); rotate(2, phase === WA.volley ? 1.7 : 2.4, -.25, -.4); rotate(3, phase === WA.volley ? 1.7 : 2.4, .25, .4);
+    rotate(6, .3); rotate(7, .3);
+  }
+}
 /** Eight small 21-bone rigs share geometry inputs and cached maps. No camera or gameplay writes. */
 export function createDemonActors(source: Object3D, animations: AnimationClip[]) {
   const clips = bindAngelClips(animations), hip = new Vector3();
@@ -36,6 +52,7 @@ export function createDemonActors(source: Object3D, animations: AnimationClip[])
     blendAngelClip(a.joints, clips.flight, clipTime(clips.flight, time * .7, true), .3, FULL, hip);
     if (state.charging) blendAngelClip(a.joints, clips.charge, .18, .85, UPPER_BODY);
     if (state.hit > 0) blendAngelClip(a.joints, clips.hit, .12, Math.min(.8, state.hit), UPPER_BODY);
+    attackPose(a.joints, state);
     if (state.down) {
       a.downTime = Math.min(2.4, a.downTime + Math.max(0, Math.min(.05, state.time - a.lastTime)));
       blendAngelClip(a.joints, clips.down, state.reduced ? 2.2 : a.downTime, 1, FULL);

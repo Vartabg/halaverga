@@ -1,4 +1,6 @@
 import EliteGuard from './EliteGuard';
+import WardenAttacks from './WardenAttacks';
+import { WA } from '@/game/banishState';
 import { eyeCenter } from '@/game/adversaryPose';
 import { useEffect, useMemo } from 'react';
 import { useFrame, useLoader, type RootState } from '@react-three/fiber';
@@ -104,7 +106,7 @@ export default function Drones() {
       place(left, i, p, q, scale); place(right, i, p, q, scale);
       flash[i] = Math.max(f.flash[i], f.tint[i]);
       damage[i] = failing ? (reduced ? .85 : .75 + .25 * pulse) : broken ? .45 : 0;
-      Object.assign(parts.actorPose, { time: t, charging: battle.charging === i, hit: flash[i],
+      Object.assign(parts.actorPose, { time: t, charging: battle.charging === i, hit: flash[i], attack: banish.wardens.phase[i], attackTime: banish.wardens.time[i], rusher: i === 5,
         down: banish.mode[i] === MODE.down || banish.mode[i] === MODE.bound || banish.mode[i] === MODE.cast,
         reduced, damage: damage[i] });
       parts.actors.step(i, p, q, !dead, parts.actorPose);
@@ -119,7 +121,7 @@ export default function Drones() {
       if (!dead && parts.actorPose.down) {
         eyes.setMatrixAt(i, parts.actors.actors[i].eyeMatrix); p.setFromMatrixPosition(parts.actors.actors[i].eyeMatrix);
       }
-      c.copy(battle.charging === i ? tele : phaseColor(ph)).lerp(white, Math.min(f.flash[i], .6));
+      c.copy(battle.charging === i || banish.wardens.phase[i] === WA.tell ? tele : phaseColor(ph)).lerp(white, Math.min(f.flash[i], .6));
       // The eye: a slow pulse once broken, 1.5 Hz dropouts once failing (reduced motion: a steady dim).
       if (failing) c.multiplyScalar(reduced ? .7 : .35 + .65 * smooth(-.25, .35, pulse));
       else if (broken) c.multiplyScalar(reduced ? .8 : .75 + .25 * pulse);
@@ -146,5 +148,5 @@ export default function Drones() {
     parts.flash.needsUpdate = true; parts.damage.needsUpdate = true;
   }), [parts]);
   useFrame(frame, -5);
-  return <group><EliteGuard /><primitive object={parts.actors.group} dispose={null} />{parts.list.map((mesh, i) => <primitive key={i} object={mesh} dispose={null} />)}</group>;
+  return <group><EliteGuard /><WardenAttacks /><primitive object={parts.actors.group} dispose={null} />{parts.list.map((mesh, i) => <primitive key={i} object={mesh} dispose={null} />)}</group>;
 }

@@ -13,11 +13,15 @@ import { BANISH, MODE, FX, type BanishState, type Cue } from './banishState';
 import { flowPaths, flowTarget } from './combatFlow';
 import { armorFor, bindDuration, castDuration, isElite } from './encounter';
 import { absorbEliteStrike, stepEliteGuards } from './eliteCombat';
+import { resetWardens } from './wardenState';
+import { interruptWarden } from './wardenAttacks';
+import { reserveWardenCounter } from './wardenCounter';
 /** Clears every demon's state (regroup, unmount). Pending commands are dropped, not replayed. */
 export function resetBanish(b: BanishState, s: ShooterState) {
   b.mode.fill(0); b.resist.fill(BANISH.resistance); b.timer.fill(0); b.cool = 0; b.handled = s.input.cmd; b.cue = ''; b.last = -1; b.resetRequested = false;
   b.combo = 0; b.comboUntil = 0; b.guardTime.fill(0); b.retaliate.fill(0); b.armor.forEach((_, i) => { b.armor[i] = armorFor(i); }); cancelStrike();
   b.quenched = battle.quenched; s.drones.held.fill(0);
+  resetWardens(b.wardens);
 }
 function emit(b: BanishState, kind: number, drone: number, from: Vec3, to: Vec3) {
   const e = b.fx[b.fxSerial % b.fx.length];
@@ -73,7 +77,7 @@ function throwDown(b: BanishState, s: ShooterState, i: number) {
   emit(b, FX.down, i, p, base);
 }
 function apply(b: BanishState, s: ShooterState, player: Vec3, kind: number, target: number) {
-  const i = target >= 0 ? target : flowTarget(b, s, player);
+  const i = target >= 0 ? target : flowTarget(b, s, player, kind === COMMAND.rebuke);
   if (i < 0 || !s.targets[i]?.los || !flowPaths[i] || !droneAlive(s.drones, i)) { cue(b, 'noTarget'); return; }
   const f = s.drones, p = f.pos[i], d = dist(p, player), m = b.mode[i];
   if (kind === COMMAND.context) kind = contextKind(b, i, d);
@@ -85,6 +89,7 @@ function apply(b: BanishState, s: ShooterState, player: Vec3, kind: number, targ
     if (d > BANISH.rebukeRange || !s.targets[i].los) { cue(b, 'far'); return; }
     if (m <= MODE.staggered) { b.mode[i] = MODE.staggered; b.timer[i] = BANISH.stagger; b.resist[i] -= BANISH.rebukeHurt; }
     strike(s, i, player, 9); interrupt(s, i); b.guardTime[i] = 0; b.retaliate[i] = 0; f.held[i] = 0; b.cool = BANISH.rebukeCool; b.rebukeT = b.clock;
+    if (isElite(i)) interruptWarden(b, s, i);
     emit(b, FX.rebuke, i, player, p);
   } else if (kind === COMMAND.sword) {
     if (b.guardTime[i] > 0) { cue(b, 'guarded'); return; }
@@ -95,6 +100,7 @@ function apply(b: BanishState, s: ShooterState, player: Vec3, kind: number, targ
     }
     // The angel dives at the demon (strike.ts); the blow lands on contact, in stepBanish.
     beginStrike(i, p, d); s.weapon.sinceShot = 0; punchFov(s.camFx, 'kill', 9); // the launch widens the view: speed you can feel
+    reserveWardenCounter(b.wardens, i);
     return;
   } else if (kind === COMMAND.bind) {
     if (m !== MODE.down) { cue(b, m === MODE.bound ? 'notBound' : 'notDown'); return; }

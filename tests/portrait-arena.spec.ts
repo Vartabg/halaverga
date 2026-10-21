@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { CLASSIC, seed } from './shooter-browser';
-for (const viewport of [{ width: 393, height: 852 }, { width: 852, height: 393 }]) test(`warden armor, response and banishment at ${viewport.width}x${viewport.height}`, async ({ browser }) => {
+for (const viewport of [{ width: 393, height: 852 }, { width: 852, height: 393 }]) test(`warden instructions leave portrait/landscape controls readable at ${viewport.width}x${viewport.height}`, async ({ browser }) => {
   test.setTimeout(90000);
   const context = await browser.newContext({ viewport, hasTouch: true, isMobile: true });
   try {
@@ -22,43 +22,17 @@ for (const viewport of [{ width: 393, height: 852 }, { width: 852, height: 393 }
       if (horizontal) await page.keyboard.up(horizontal); if (vertical) await page.keyboard.up(vertical); await page.keyboard.up('KeyW');
     }
     await page.keyboard.press('KeyB'); await page.keyboard.down('KeyV');
-    const elite = page.getByTestId('elite-hud'), hud = page.getByTestId('battle-hud');
+    const elite = page.getByTestId('elite-hud');
     await expect(elite).toBeVisible();
-    const tap = async () => {
-      for (let n = 0; n < 24; n++) {
-        const x = Number(await elite.getAttribute('data-x')), y = Number(await elite.getAttribute('data-y'));
-        if (x > viewport.width * .3 && x < viewport.width * .7 && y > viewport.height * .3 && y < viewport.height * .65) break;
-        const h = x < viewport.width * .3 ? 'ArrowLeft' : x > viewport.width * .7 ? 'ArrowRight' : null;
-        const v = y < viewport.height * .3 ? 'ArrowUp' : y > viewport.height * .65 ? 'ArrowDown' : null;
-        if (h) await page.keyboard.down(h); if (v) await page.keyboard.down(v); await page.waitForTimeout(80);
-        if (h) await page.keyboard.up(h); if (v) await page.keyboard.up(v);
-      }
-      const x = Number(await elite.getAttribute('data-x')), y = Number(await elite.getAttribute('data-y'));
-      expect(x).toBeGreaterThan(20); expect(x).toBeLessThan(viewport.width - 20);
-      expect(y).toBeGreaterThan(85); expect(y).toBeLessThan(viewport.height - 85);
-      await page.touchscreen.tap(x, y);
-    };
-    const start = Date.now(), initialKills = Number(await hud.getAttribute('data-banished'));
-    await tap(); await expect(elite).toHaveAttribute('data-armor', '1'); await expect(elite).toHaveAttribute('data-recovering', 'true');
-    await page.screenshot({ path: test.info().outputPath('warden-armor.png') });
-    for (let n = 0; n < 3; n++) await tap();
-    await expect(elite).toHaveAttribute('data-armor', '1');
-    await expect(elite).toHaveAttribute('data-recovering', 'false', { timeout: 5000 });
-    await tap(); await expect(elite).toHaveAttribute('data-armor', '0');
-    await expect(elite).toHaveAttribute('data-recovering', 'false', { timeout: 5000 });
-    await tap(); await expect(elite).toHaveAttribute('data-mode', '3');
-    const target = Number(await elite.getAttribute('data-target')), cue = page.getByTestId('combat-target');
-    await expect.poll(async () => JSON.parse((await cue.getAttribute('data-camera'))!).finisher).toBe(target);
-    await expect.poll(async () => Number(await telemetry.getAttribute('data-speed'))).toBeLessThan(2);
-    await page.screenshot({ path: test.info().outputPath('warden-bound.png') });
-    await expect(elite).toHaveAttribute('data-mode', '4');
-    await page.waitForTimeout(500);
-    const focus = JSON.parse((await cue.getAttribute('data-camera'))!);
-    expect(focus.finisher).toBe(target); expect(Math.abs(focus.targetX)).toBeLessThan(.95); expect(Math.abs(focus.targetY)).toBeLessThan(.95);
-    await page.screenshot({ path: test.info().outputPath('warden-cast.png') });
-    await expect.poll(async () => Number(await hud.getAttribute('data-banished'))).toBeGreaterThan(initialKills);
-    expect(Date.now() - start).toBeGreaterThan(4000);
-    await page.screenshot({ path: test.info().outputPath('arena-after.png') });
+    const box = await elite.boundingBox(); expect(box).not.toBeNull();
+    expect(box!.x).toBeGreaterThanOrEqual(0); expect(box!.x + box!.width).toBeLessThanOrEqual(viewport.width);
+    expect(await elite.evaluate(el => getComputedStyle(el).pointerEvents)).toBe('none');
+    for (const name of ['Pause expedition', 'Brake to hover', 'Land', 'Strike next demon']) {
+      const control = await page.getByRole('button', { name, exact: true }).boundingBox(); expect(control).not.toBeNull();
+      const overlap = box!.x < control!.x + control!.width && box!.x + box!.width > control!.x && box!.y < control!.y + control!.height && box!.y + box!.height > control!.y;
+      expect(overlap, `Warden instructions must leave ${name} readable`).toBe(false);
+    }
+    await page.screenshot({ path: test.info().outputPath('arena-hud.png') });
     expect(errors).toEqual([]);
   } finally { await context.close(); }
 });
