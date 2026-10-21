@@ -8,6 +8,8 @@ import Sanctuary from './Sanctuary';
 import ThroneWitness from './ThroneWitness';
 import CelestialVault from './CelestialVault';
 import Abyss from './Abyss';
+import BreachRoutes from './BreachRoutes';
+import BreachAftermath from './BreachAftermath';
 import Battle from './Battle';
 import DistrictBoundary from './DistrictBoundary';
 import Ash from './Ash';
@@ -92,7 +94,7 @@ export default function Scene({ onLoss }: { onLoss: () => void }) {
     <directionalLight ref={sun} position={SUN_POSITION} color="#ffe7b2" intensity={2.4} castShadow={quality === 'high'}
       shadow-mapSize={[2048, 2048]} shadow-camera-left={-110} shadow-camera-right={110}
       shadow-camera-top={110} shadow-camera-bottom={-110} shadow-camera-far={380} shadow-bias={-.0002} shadow-normalBias={.09} />
-    <EnvironmentLight /><ThroneWitness /><CelestialVault /><Abyss /><Ash />
+    <EnvironmentLight /><ThroneWitness /><CelestialVault /><Abyss /><BreachRoutes /><BreachAftermath /><Ash />
     <directionalLight position={[40, 65, -110]} color="#97c7ed" intensity={1.4} />
     <Suspense fallback={null}>
       <Physics paused={paused} timeStep={1 / 60} updatePriority={-50} gravity={[0, -22, 0]}>

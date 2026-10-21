@@ -12,7 +12,7 @@ function attackPose(joints: readonly Object3D[], state: DemonPose, move: number)
   if (!phase || state.down) return;
   const w = state.reduced ? .55 : phase === WA.tell ? Math.min(1, time / .25) : 1;
   const rotate = (i: number, x: number, y = 0, z = 0) => { poseQ.setFromEuler(poseEuler.set(x, y, z)); joints[i].quaternion.slerp(poseQ, w); };
-  if (phase === WA.recover) { rotate(11, .22); rotate(2, .15, 0, -.5); rotate(3, .15, 0, .5); rotate(6, 1.1); rotate(7, 1.1); }
+  if (phase === WA.recover) { rotate(11, .48); rotate(2, .1, 0, -.65); rotate(3, .1, 0, .65); rotate(6, 1.35); rotate(7, .9); }
   else if (move === WA.sweep) {
     const cut = phase === WA.sweep ? Math.min(1, time / .2) : 0;
     rotate(11, .1, -.55 + cut * 1.1); rotate(2, 1.4, -.6 + cut * 1.3, -.7); rotate(3, .5, .2, .35);
@@ -66,7 +66,7 @@ export function createDemonActors(source: Object3D, animations: AnimationClip[])
     } else a.downTime = 0;
     a.lastTime = state.time;
     // Keep the head's weak point inside its existing combat sphere; pelvis translation stays visual-only and tiny.
-    a.joints[0].position.set(0, 0, 0);
+    a.joints[0].position.set(0, state.reduced ? 0 : -.22 * Math.min(1, state.hit), 0);
     for (const m of a.materials) {
       m.emissive.copy(ember).multiplyScalar(state.damage * .28 + state.hit * .5);
       m.emissiveIntensity = 1;

@@ -17,7 +17,9 @@ function setup(i = 5) {
   const near = { x: 0, y: 40, z: 10 };
   const tick = (seconds: number, at = near) => { for (let n = 0; n < Math.ceil(seconds * 60); n++) { battle.clock += 1 / 60; stepBanish(b, s, at, 1 / 60); } };
   const contact = () => { cancelStrike(); requestCommand(s, COMMAND.sword, i); stepBanish(b, s, near, 1 / 60);
-    expect(strike.phase).toBe(1); strikeVelocity({ x: 0, y: 0, z: -40 }, near, .05, false); stepBanish(b, s, s.targets[i].c, 1 / 60); };
+    expect([1, 2]).toContain(strike.phase);
+    if (strike.phase === 1) { strikeVelocity({ x: 0, y: 0, z: -40 }, near, .05, false); stepBanish(b, s, s.targets[i].c, 1 / 60); }
+    expect(strike.landed).toBe(true); };
   return { s, b, near, tick, contact, i };
 }
 it('gives a warden two armor exchanges, a visible retaliation, then the longer bind/cast finish', () => {
@@ -26,8 +28,10 @@ it('gives a warden two armor exchanges, a visible retaliation, then the longer b
   expect(s.drones.held[i]).toBe(1); expect(strike.dir.z).toBeGreaterThan(0); expect(strike.carrySpeed).toBe(24); expect(b.fx.some(e => e.kind === FX.armor)).toBe(true);
   tick(.5); expect(s.drones.held[i]).toBe(1); expect(b.wardens.phase[i]).toBe(WA.tell); expect(battle.charging).toBe(-1);
   requestCommand(s, COMMAND.rebuke, i); stepBanish(b, s, near, 1 / 60);
-  contact(); expect(b.armor[i]).toBe(0); expect(s.drones.broken[i]).toBe(1); expect(b.mode[i]).toBe(MODE.staggered);
-  tick(ELITE.exchange + .1); contact(); expect(b.mode[i]).toBe(MODE.bound);
+  contact(); expect(b.armor[i]).toBe(1); expect(s.drones.broken[i]).toBe(0); expect(b.cue).toBe('guarded');
+  b.mode[i] = MODE.free; b.guardTime[i] = 0; b.retaliate[i] = 0;
+  b.wardens.phase[i] = WA.recover; b.wardens.time[i] = 0; b.wardens.open[i] = 2; // Actual defense is covered in warden-counter.test.
+  contact(); expect(b.armor[i]).toBe(0); expect(b.mode[i]).toBe(MODE.bound);
   tick(ELITE.bind + .1); expect(b.mode[i]).toBe(MODE.cast);
   tick(1.2); expect(s.stats.kills).toBe(0);
   tick(castDuration(i)); expect(s.stats.kills).toBe(1); expect(s.drones.pos[i].y).toBeLessThan(0);

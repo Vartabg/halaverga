@@ -1,6 +1,7 @@
 import { useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { BackSide, Mesh, ShaderMaterial } from 'three';
+import { BackSide, DoubleSide, Mesh, ShaderMaterial } from 'three';
+import { sealedGround } from './BreachAftermath';
 import { useGame } from '@/game/store';
 import { battle } from '@/game/celestialBattle';
 
@@ -25,7 +26,7 @@ export default function CelestialVault() {
   useFrame((_, dt) => {
     const { paused, reduced } = useGame.getState();
     if (crown.current && !paused && !reduced) crown.current.rotation.z += Math.min(dt, .04) * .025;
-    if (veil.current) { veil.current.uniforms.uWon.value = battle.status === 'victory' ? 1 : 0;
+    if (veil.current) { veil.current.uniforms.uWon.value = battle.status === 'victory' ? 1 : sealedGround.count * .22;
       if (!paused && !reduced) veil.current.uniforms.time.value += Math.min(dt, .04); }
   });
   return <group>
@@ -35,7 +36,7 @@ export default function CelestialVault() {
     {/* A gate of light, not a portrait of God. The encounter seals its crimson breach. */}
     <mesh position={[0, 34, -148]}>
       <circleGeometry args={[29, 80]} />
-      <shaderMaterial ref={veil} transparent depthWrite={false} toneMapped={false}
+      <shaderMaterial ref={veil} side={DoubleSide} transparent depthWrite={false} toneMapped={false}
         uniforms={{ uWon: { value: 0 }, time: { value: 0 } }} vertexShader={`varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`}
         fragmentShader={`varying vec2 vUv;uniform float uWon;uniform float time;
           void main(){vec2 p=(vUv-.5)*2.;float r=length(p);float angle=atan(p.y,p.x);

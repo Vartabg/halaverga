@@ -1,6 +1,7 @@
 import type { ShooterState, Vec3 } from './combat';
 import { NAV, type Wardens } from './wardenState';
 import { findWardenRoute, moveWarden, PURSUIT } from './wardenSteering';
+import { wardenElevation } from './breachRoutes';
 const goal: Vec3 = { x: 0, y: 0, z: 0 };
 export function stopWardenNavigation(w: Wardens, i: number) {
   w.navMode[i] = NAV.none; const v = w.navVelocity[i]; v.x = v.y = v.z = 0;
@@ -21,7 +22,7 @@ export function stepWardenNavigation(w: Wardens, s: ShooterState, i: number, pla
     const leadZ = i === 5 ? Math.max(-6, Math.min(6, (player.z - w.previous.z) / dt * .25)) : 0;
     goal.x = player.x + leadX + (x * c + z * sn) / d * radius;
     goal.z = player.z + leadZ + (z * c - x * sn) / d * radius;
-    goal.y = player.y + (i === 5 ? .5 : 3 + side * 1.5);
+    goal.y = wardenElevation(i, w.turns[i], player.y);
     w.navMode[i] = findWardenRoute(p, goal, w.navHome[i], player, side, w.navGoal[i]) ? mode : NAV.blocked;
     w.navTime[i] = PURSUIT.replan;
   }

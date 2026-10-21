@@ -3,12 +3,12 @@ import RAPIER from '@dimforge/rapier3d-compat';
 import { makeSanctuary } from '../src/world/sanctuaryData';
 import { PATROLS, patrolPosition } from '../src/game/dronePatrols';
 beforeAll(() => RAPIER.init());
-it('leaves a 90 m wide, 165 m long fighting volume open, with escape room above and beside the hero', () => {
+it('leaves the central 60 m combat nave open between the useful perimeter routes', () => {
   const scene = makeSanctuary(), world = new RAPIER.World({ x: 0, y: 0, z: 0 });
   try {
     world.createCollider(RAPIER.ColliderDesc.trimesh(scene.vertices, scene.indices)); world.step();
     const ball = new RAPIER.Ball(2), q = { x: 0, y: 0, z: 0, w: 1 };
-    for (const x of [-45, -30, -15, 0, 15, 30, 45]) for (const y of [25, 35, 45, 54]) for (let z = 40; z >= -125; z -= 5)
+    for (const x of [-30, -15, 0, 15, 30]) for (const y of [25, 35, 45, 54]) for (let z = 40; z >= -125; z -= 5)
       expect(world.intersectionWithShape({ x, y, z }, q, ball), `air at ${x},${y},${z}`).toBeNull();
     console.log('ARENA TRIANGLES', scene.indices.length / 3);
   } finally { world.free(); scene.geometry.dispose(); }

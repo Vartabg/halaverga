@@ -122,15 +122,18 @@ const ease = (from: number, to: number, rate: number, dt: number) => to + (from 
 /** The sword connects at the end of a dive: the blow, a shove along the dive, a freeze and a camera jolt. */
 function landBlow(b: BanishState, s: ShooterState, i: number, player: Vec3) {
   const f = s.drones;
+  const armor = b.armor[i];
   const guarded = absorbEliteStrike(b, s, i);
+  const repelled = guarded && isElite(i) && armor === b.armor[i];
   if (!guarded) b.resist[i] = 0; // Lesser demons retain the fast finisher; elite armor gets a real exchange.
   b.combo = b.clock <= b.comboUntil ? b.combo + 1 : 1; b.comboUntil = b.clock + 4;
   strike(s, i, player, 9);
   f.knockV[i].x += dive.dir.x * 10; f.knockV[i].y += dive.dir.y * 10; f.knockV[i].z += dive.dir.z * 10;
   addTrauma(s.camFx, .5); punchFov(s.camFx, 'kill', 6); kick(s.camFx, 1.6, 0);
-  landStrike(guarded || !isElite(i)); emit(b, FX.sword, i, player, f.pos[i]);
+  landStrike(guarded || !isElite(i), isElite(i) ? repelled ? .07 : .11 : STRIKE.freeze); emit(b, FX.sword, i, player, f.pos[i]);
   interrupt(s, i);
   if (guarded) {
+    if (repelled) cue(b, 'guarded');
     dive.carrySpeed = 24; dive.dir.x *= -1; dive.dir.y *= -1; dive.dir.z *= -1;
     emit(b, FX.armor, i, player, f.pos[i]); return;
   }

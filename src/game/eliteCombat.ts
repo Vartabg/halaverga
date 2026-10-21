@@ -11,6 +11,11 @@ export function absorbEliteStrike(b: BanishState, s: ShooterState, i: number) {
   // An adjacent counter may land before Player ever sees the dive phase. It still leaves the parked-hover intent.
   if (counter) flightFeel.brake = false;
   if (b.armor[i] === 0) return false;
+  // The first hit provokes the duel. Its last armor layer needs a defended attack, not another timed spam loop.
+  if (b.armor[i] < 2 && !counter) {
+    b.guardTime[i] = .8; b.retaliate[i] = 1; b.mode[i] = MODE.staggered; b.timer[i] = ELITE.reaction;
+    s.drones.held[i] = 1; b.wardens.cool[i] = 0; return true;
+  }
   b.armor[i]--; b.guardTime[i] = ELITE.exchange; b.retaliate[i] = 1;
   if (counter && b.armor[i] === 0) { s.drones.broken[i] = 1; return false; }
   b.mode[i] = MODE.staggered; b.timer[i] = ELITE.reaction; s.drones.held[i] = 1;

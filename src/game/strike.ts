@@ -17,8 +17,8 @@ export function beginStrike(target: number, at: Vec3, distance = 0) {
 /** Follows a moving target while the dive is under way. */
 export function aimStrike(at: Vec3) { strike.aim.x = at.x; strike.aim.y = at.y; strike.aim.z = at.z; }
 /** The blow connected: freeze briefly, then carry through; a finishing blow (carry false) stops at the fallen demon instead. */
-export function landStrike(carry = true) {
-  strike.phase = 2; strike.t = 0; strike.landed = true; strike.halt = !carry; strike.freeze = STRIKE.freeze;
+export function landStrike(carry = true, contactBeat: number = STRIKE.freeze) {
+  strike.phase = 2; strike.t = 0; strike.landed = true; strike.halt = !carry; strike.freeze = contactBeat;
   strike.carrySpeed = Math.max(STRIKE.exitSpeed, Math.min(90, strike.speed * .85));
 }
 export function cancelStrike() { strike.phase = 0; strike.target = -1; strike.freeze = 0; strike.queued = false; }

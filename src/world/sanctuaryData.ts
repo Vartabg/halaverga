@@ -1,5 +1,6 @@
 import { IcosahedronGeometry } from 'three';
 import { sanctuaryKit } from './sanctuaryKit';
+import { buildBreachRoutes } from './breachArchitecture';
 
 /** Portrait arena: open air through the nave; large architecture marks the perimeter, never a slalom through the fight. */
 export function makeSanctuary() {
@@ -31,6 +32,7 @@ export function makeSanctuary() {
   k.drum(30, 60.85, -38, 6, 1, 0, 4.8);
   k.box(30, 61.39, -38, 8, .05, 8, 1);
   k.box(30, 61.43, -38, .22, .02, 4, 2); k.box(30, 61.43, -38, 4, .02, .22, 2);
+  buildBreachRoutes(k);
   // The breach is the far landmark. Its framing arch stays beyond the combat nave.
   k.arch(0, 4, -145, 32, 29); k.ring(0, 33, -147.2, 30, .35, 1);
   for (const side of [-1, 1]) k.column(side * 43, 0, -152, 85, 3.4);
