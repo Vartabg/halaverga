@@ -82,14 +82,17 @@ export function tryCounter(s: ShooterState, player: Vec3): '' | 'pending' | 'def
   return 'pending';
 }
 /**
- * Call after stepBanish. A pending counter is credited once the dive at its attacker is under way: the charge is broken, the
+ * Call after stepBanish. A pending counter is credited once, when the dive at its attacker is under way or has already struck
+ * it (a close attacker is reached in the same step): the charge is broken, the
  * rebuke rings out and slow motion starts. While chain combat still holds it in its queue it waits; if the queue drops it (the
  * strike before it was cancelled, or its time ran out) nothing is credited and a quenched dart stands as a deflection.
  */
 export function settleCounter(s: ShooterState, player: Vec3): '' | 'counter' | 'dropped' {
   const i = counterState.pending;
   if (i < 0) return '';
-  if (strike.phase === 1 && strike.target === i) {
+  if (strike.queued && strike.queueTarget === i) return '';
+  // Under way, or a close attacker reached and struck within this same step (launch and landing in one stepBanish).
+  if (strike.target === i && (strike.phase === 1 || strike.phase === 2 && strike.landed)) {
     counterState.pending = -1;
     if (battle.charging === i) battle.charging = -1;
     battle.nextAttack = battle.clock + 2.2; // the host hesitates after a counter
@@ -99,7 +102,6 @@ export function settleCounter(s: ShooterState, player: Vec3): '' | 'counter' | '
     addTrauma(s.camFx, .3); punchFov(s.camFx, 'kill', 7);
     return 'counter';
   }
-  if (strike.queued && strike.queueTarget === i) return '';
   counterState.pending = -1;
   if (counterState.pendingQuenched) counterState.deflects++;
   return 'dropped';

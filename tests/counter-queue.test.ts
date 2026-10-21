@@ -15,9 +15,10 @@ import { resetBulletTime, stepBulletTime } from '../src/game/bulletTime';
 // credited (count, slow motion, broken charge) only when that dive really launches at the attacker; a dropped queue credits
 // nothing. Two demons 30 m ahead of the angel, demon 1 charging; the frame order is Shooter's: window, press, stepBanish, settle.
 const player = { x: 0, y: 30, z: 0 };
-function setup() {
+function setup(close = false) {
   const s = createShooter(); createDroneSim(s); s.drones.count = 2;
   for (let i = 0; i < 2; i++) { Object.assign(s.drones.pos[i], { x: i ? 15 : -15, y: 30, z: -30 }); s.drones.phase[i] = PHASE.patrol; }
+  if (close) Object.assign(s.drones.pos[1], { x: 0, y: 30, z: -2 }); // inside STRIKE.contact: the dive lands the step it launches
   buildTargets(s); for (const t of s.targets) t.los = true;
   flowPaths.fill(1); resetBattle(0); resetBanish(banish, s); resetBulletTime(); resetCounter(); cancelStrike();
   counterState.serial = 0; counterState.deflects = 0;
@@ -65,6 +66,17 @@ describe('a queued counter is credited only when its dive launches', () => {
     const s = setup();
     expect(press(s)).toBe('pending'); expect(frame(s)).toBe('counter');
     expect(strike.target).toBe(1); expect(counterState.serial).toBe(1);
+  });
+  it('a close attacker struck in the same step it is countered is credited exactly once (Codex 2026-10-21, 3e62dd5)', () => {
+    const s = setup(true);
+    expect(press(s)).toBe('pending');
+    expect(frame(s)).toBe('counter');
+    expect(strike.phase).toBe(2); expect(strike.landed).toBe(true); expect(strike.target).toBe(1);
+    expect(banish.mode[1]).toBe(MODE.bound); expect(s.stats.hits).toBeGreaterThan(0);
+    expect(counterState.serial).toBe(1); expect(battle.charging).toBe(-1); expect(banish.rebukeT).toBe(banish.clock);
+    expect(stepBulletTime(.1, false, false)).toBeLessThan(1);
+    for (let i = 0; i < 30; i++) expect(frame(s)).toBe('');
+    expect(counterState.serial).toBe(1);
   });
   it('a dropped counter that had quenched a dart stands as a deflection', () => {
     const s = setup(); battle.charging = -1; beginStrike(0, s.drones.pos[0], 34); s.targets[0].los = false;
