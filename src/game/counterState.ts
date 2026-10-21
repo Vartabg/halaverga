@@ -7,6 +7,8 @@ export const counterState = {
   attacker: -1, bolt: -1,
   /** Counters landed (the HUD and effects watch the serial); real-time seconds since the last one. */
   serial: 0, since: 1e9,
+  /** Darts quenched on the shield with no dive (the thrower was out of the sword's reach). */
+  deflects: 0,
   /** Current game-time scale (1 normal, lower in slow motion). */
   scale: 1,
 };

@@ -5,7 +5,7 @@ import { audioBus, type PlayOptions } from '@/ui/audioBus';
 import { resetShooterFeel } from './combat';
 import { COMMAND, requestCommand } from './commands';
 import { runtime } from './runtime';
-import { stepBulletTime } from './bulletTime';
+import { resetBulletTime, stepBulletTime } from './bulletTime';
 import { tryCounter, updateCounterWindow } from './counter';
 import { useGame } from './store';
 import { presentation, CHASE_HEAD } from './presentation';
@@ -73,6 +73,9 @@ export default function Shooter() {
     return () => { removeEventListener('keydown', down); removeEventListener('keyup', up); commandKeyUp('KeyV', runtime.shooter); };
   }, []);
   // Switching the setting off returns look, camera and pose to exact main behaviour.
-  useEffect(() => { resetBanish(banish, runtime.shooter); return () => { resetAutoFire(runtime.shooter, autoFire); resetShooterFeel(runtime.shooter); resetBanish(banish, runtime.shooter); }; }, []);
+  // This component owns the slow-motion clock, so leaving (Holy fire off, a scene reload) returns game time to normal: flight
+  // reads counterState.scale and would otherwise stay slow with no clock left to ease it back.
+  useEffect(() => { resetBanish(banish, runtime.shooter); resetBulletTime();
+    return () => { resetAutoFire(runtime.shooter, autoFire); resetShooterFeel(runtime.shooter); resetBanish(banish, runtime.shooter); resetBulletTime(); }; }, []);
   return null;
 }
