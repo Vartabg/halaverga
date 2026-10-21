@@ -138,11 +138,11 @@ describe('far ruins generator', () => {
   });
   it('draws the hills and the terrace parapets in the calm concrete group, so big plain faces are not slabs of marble', () => {
     const city = makeCity();
-    expect(city.geometry.groups.map(g => g.materialIndex)).toEqual([0, 1, 2, 3, 4, 5]); // one more draw call, nothing else changes
+    expect(city.geometry.groups.map(g => g.materialIndex)).toEqual([0, 1, 2, 3, 4, 5, 6]); // calm concrete, then the painted rock and steles
     expect(city.geometry.groups[5].count / 3).toBe(1408); // the four cut-up hills and the two parapet panels
     expect(city.geometry.index!.count / 3).toBe(56276);
     const mats = readFileSync('src/world/cityMaterials.ts', 'utf8');
-    expect(mats).toContain('concrete(true)'); expect(mats).toContain('return [stone, glass, metal, ground, paint, calm]');
+    expect(mats).toContain('concrete(true)'); expect(mats).toContain('return [stone, glass, metal, ground, paint, calm, paintInkMaterial()]');
     city.geometry.dispose();
   });
   it('draws it as one static, unshadowed, fogged, display-referred mesh in the Scene', () => {

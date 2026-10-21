@@ -1,17 +1,17 @@
 import { BoxGeometry, Color, CylinderGeometry, Float32BufferAttribute, Matrix4, Quaternion, Euler, Vector3, BufferGeometry } from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { INK, INK_GROUP } from './paintInk';
 export type Triple = [number, number, number];
 /** `building` marks a core's exterior volume; `frame` is bare ruin steel, which the chase camera's boom looks through (City.tsx). */
 export type Solid = { position: Triple; size: Triple; rotation: Triple; kind?: 'building' | 'frame' };
 export type Kit = ReturnType<typeof createKit>;
-export const surfaces = ['stone', 'glass', 'metal', 'ground', 'paint', 'calm'] as const;
+export const surfaces = ['stone', 'glass', 'metal', 'ground', 'paint', 'calm', 'ink'] as const;
 /** The calm group (index into `surfaces`): the stone texture with its marbling halved, for big plain concrete faces, so the district-edge
  * hills and the terrace parapets read as weathered concrete and not as slabs of marble. */
 export const CALM_GROUP = 5;
 export function surface(color: string) {
   if (color === colors.glass || color === '#2d3742') return 1;
   if ([colors.steel, colors.edge, '#44434d', '#272e37'].includes(color)) return 2;
-  if (['#8a6a3f', '#77572e'].includes(color)) return 2; // the bronze crowns: metal, so the env map lights them
   if ([colors.road, '#6c7a6b'].includes(color)) return 3;
   if ([colors.white, '#6f5d4b', '#b8e8b0'].includes(color)) return 4;
   return 0;
@@ -39,7 +39,10 @@ export function createKit() {
     const g = new BoxGeometry(w, h, d);
     g.applyMatrix4(new Matrix4().compose(new Vector3(x, y, z),
       new Quaternion().setFromEuler(new Euler(0, ry, rz)), new Vector3(1, 1, 1)));
-    add(g, color, lift, undefined, group);
+    // The three arrival-terrace boxes in cityData sit at x 0, z 65. They are the rock under the hero, so they take the paint
+    // instead of the photo concrete. The thin top is the lit band; the mass under it is the stone colour.
+    const rock = x === 0 && z === 65;
+    add(g, rock ? (h < 0.2 ? INK.lit : INK.rock) : color, rock ? 1 : lift, undefined, rock ? INK_GROUP : group);
     if (solid) solids.push({ position: [x, y, z], size: [w / 2, h / 2, d / 2], rotation: [0, ry, rz] });
   }
   /** A district-edge hill: the same solid box (the collider is the plain box), drawn as 16 m cells whose corners each carry their own
@@ -92,12 +95,12 @@ export function createKit() {
       }
     }
     g.computeVertexNormals();
-    const warm = lift < 1 ? 1 + (lift - 1) * .5 : lift; // the longest stele keep a note of cool dusk near their feet
+    const warm = lift < 1 ? 0.9 : 1; // a sunk shaft is one darker paint, not a gradient
     g.applyMatrix4(new Matrix4().compose(new Vector3(x, y, z), new Quaternion().setFromEuler(new Euler(0, ry, 0)), new Vector3(1, 1, 1)));
-    add(g, '#6b5a48', lift, (pw, n) => {
-      const course = Math.floor(pw.y / flute.course), band = (course % 2 ? 1 : .87) * (.9 + .12 * Math.abs(Math.sin(seed * 3.1 + course)));
-      return new Color('#6b5a48').multiplyScalar(band * warm).multiplyScalar(1 - .18 * Math.max(0, (2 - pw.y) / 2));
-    });
+    add(g, INK.shaft, 1, (pw) => {
+      const course = Math.floor(pw.y / flute.course);
+      return new Color(INK.shaft).multiplyScalar((course % 2 ? 1 : 0.86) * warm);
+    }, INK_GROUP);
   }
   return { box, hill, block, slab, pillar, add, finish, solids };
 }

@@ -1,6 +1,7 @@
 import { useLoader } from '@react-three/fiber';
 import { useMemo } from 'react';
 import { MeshStandardMaterial, RepeatWrapping, SRGBColorSpace, TextureLoader, Vector2 } from 'three';
+import { paintInkMaterial } from './paintInk';
 
 const root = '/textures/environment/';
 const files = ['concrete_floor_02_diff_1k.jpg', 'concrete_floor_02_nor_gl_1k.jpg',
@@ -66,6 +67,6 @@ export function useCityMaterials() {
       shader.fragmentShader = shader.fragmentShader.replace('#include <color_fragment>',
         '#include <color_fragment>\ndiffuseColor.rgb = vec3(.09, .065, .05);');
     };
-    return [stone, glass, metal, ground, paint, calm];
+    return [stone, glass, metal, ground, paint, calm, paintInkMaterial()];
   }, [maps]);
 }

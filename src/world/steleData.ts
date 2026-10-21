@@ -1,4 +1,5 @@
 import type { Kit } from './kit';
+import { INK, INK_GROUP } from './paintInk';
 /** Colossal Watcher stele inside the flyable box (the distant Skyline mesh keeps no colliders and stays untouched). Carved
  * twelve-sided basalt shafts with bronze crowns, placed clear of the authored route tube (BUILDING_ROUTE: x 0..9, z 65..-38,
  * y 3..69) and of every scripted navigation fixture: slim convex cores, no overhangs, no parallel faces forming slots, tops below
@@ -37,11 +38,11 @@ export const plinth = { depth: 3, extra: 2.1 };
 export function placeStele(k: Kit, s: Stele) {
   const y0 = seatY(s), topY = y0 + s.h, w = s.r * 2 + plinth.extra;
   k.pillar(s.x, y0 + s.h / 2, s.z, s.h, s.r * shaft.taper, s.r, s.seed, s.ry, s.lift ?? 1);
-  k.box(s.x, y0 - plinth.depth / 2, s.z, w, plinth.depth, w, '#4a453e', s.solid, s.ry, 0, .78);
+  k.box(s.x, y0 - plinth.depth / 2, s.z, w, plinth.depth, w, INK.plinth, s.solid, s.ry, 0, 1, INK_GROUP);
   if (s.crown === 'intact') {
-    k.box(s.x, topY + 1.15, s.z, s.r * 2 * 1.25, 2.3, s.r * 2 * 1.25, '#8a6a3f', s.solid, s.ry, 0, .9);
-    k.box(s.x, topY + 3.0, s.z, s.r * 1.1, 2.2, s.r * 1.1, '#77572e', false, s.ry * 2, 0, .92);
-  } else if (s.crown === 'broken') k.box(s.x, topY + .55, s.z, s.r * 2 * 1.02, 1.1, s.r * 2 * 1.02, '#3c3733', s.solid, s.ry, 0, 1);
-  if (s.kind === 'fallen') k.box(s.x + s.r * 3.4, y0 + 1.6, s.z - s.r * 2.6, s.r * 2 * 2.2, 3.2, s.r * 2 * 3.6, '#4a453e', false, s.ry + 1.9, 0, .8);
+    k.box(s.x, topY + 1.15, s.z, s.r * 2 * 1.25, 2.3, s.r * 2 * 1.25, INK.crown, s.solid, s.ry, 0, 1, INK_GROUP);
+    k.box(s.x, topY + 3.0, s.z, s.r * 1.1, 2.2, s.r * 1.1, INK.cap, false, s.ry * 2, 0, 1, INK_GROUP);
+  } else if (s.crown === 'broken') k.box(s.x, topY + .55, s.z, s.r * 2 * 1.02, 1.1, s.r * 2 * 1.02, INK.broken, s.solid, s.ry, 0, 1, INK_GROUP);
+  if (s.kind === 'fallen') k.box(s.x + s.r * 3.4, y0 + 1.6, s.z - s.r * 2.6, s.r * 2 * 2.2, 3.2, s.r * 2 * 3.6, INK.plinth, false, s.ry + 1.9, 0, 1, INK_GROUP);
   return { y0, topY };
 }
