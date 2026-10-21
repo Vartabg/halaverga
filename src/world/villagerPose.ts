@@ -3,12 +3,13 @@ import type { Block } from './villageHouseData';
 /** Feet on the arrival path. Yaw PI turns the local -z face toward world +z, the arrival camera. */
 export const VILLAGER = { x: 2.55, y: 20.12, z: 62.4, yaw: Math.PI };
 
-const SKIN = '#c49a78';
-const LINEN = '#d7c7a8';
-const ROBE = '#7d624c';
-const HAIR = '#2a2118';
-const EYE = '#1c1612';
-const SOLE = '#3c342e';
+/** Shared paint palette so every painted figure stays on one bar. */
+export const SKIN = '#c49a78';
+export const LINEN = '#d7c7a8';
+export const ROBE = '#7d624c';
+export const HAIR = '#2a2118';
+export const EYE = '#1c1612';
+export const SOLE = '#3c342e';
 
 /** A person on foot, built in local space. The face and the nose sit on local -z. */
 export function villagerBlocks(): Block[] {
