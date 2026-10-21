@@ -3,8 +3,8 @@ import { useThree } from '@react-three/fiber';
 import { SUN_UV, directionFromUv, skyBase } from './atmospherePalette';
 import { DataTexture, DataUtils, EquirectangularReflectionMapping, HalfFloatType, PMREMGenerator, RGBAFormat } from 'three';
 
-/** A small shared sky reflection, generated once from the same overcast as the dome and the water (the oily sea below, a faint smear
- * where the hidden sun is). No second scene render per frame. */
+/** A small shared sky reflection, generated once from the same sky as the dome and the abyssal sea (magma current bounce below the
+ * horizon from the Rivers of Fire, a faint smear where the hidden throne burns). No second scene render per frame. */
 export default function EnvironmentLight() {
   const { gl, scene, invalidate } = useThree();
   useEffect(() => {
@@ -12,7 +12,12 @@ export default function EnvironmentLight() {
     for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
       const u = (x + .5) / width, v = (y + .5) / height;
       const glow = Math.exp(-((u - SUN_UV[0]) ** 2 + (v - SUN_UV[1]) ** 2) * 60) * .08;
-      const c = v < .5 ? [.05, .055, .04] : skyBase(directionFromUv(u, v));
+      // The Rivers of Fire throw light up from below (1 Enoch 17): magma current streaks circle the abyss and are strongest just
+      // under the horizon, so metal and any surface that faces down register the burning water. Branchless, generated once.
+      const curl = Math.max(0, Math.sin((Math.sin(u * 41.3) * 7.7 + u) * 11.9)) ** 8 * Math.max(0, 1 - Math.abs(v - .46) * 14) ** 2;
+      const c = v < .5
+        ? [.055 + .32 * curl, .03 + .13 * curl, .016 + .04 * curl]
+        : skyBase(directionFromUv(u, v));
       const i = (y * width + x) * 4;
       data[i] = DataUtils.toHalfFloat(c[0] + glow * 6);
       data[i + 1] = DataUtils.toHalfFloat(c[1] + glow * 4);

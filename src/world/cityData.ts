@@ -2,6 +2,7 @@ import { createKit, car, colors, CALM_GROUP } from './kit';
 import { ruinBuilding, type RuinKind } from './ruinBuilding';
 import { trees } from './reclamationData';
 import { heroRuins } from './heroRuins';
+import { STELE, placeStele } from './steleData';
 /** The district-edge hills: ash-grey concrete walls and dead, ash-covered tops on the stone texture. Neither hex is in kit.ts's
  * surface() lists, so both fall in the stone group. */
 export const HILL = { wall: '#7b786f', top: '#69655a', outerWall: '#75726a', outerTop: '#625e54', lift: [2.2, 1.4] as [number, number] };
@@ -78,5 +79,8 @@ export function makeCity() {
     k.solids.push({ position: [x, y + s, z], size: [.24 * s, s, .24 * s], rotation: [0, 0, 0] });
   }
   heroRuins(k);
+  // The colossal Watcher stele: gateposts at the arrival pair and the outer watch standing in the abyssal sea (steleData.ts keeps
+  // them clear of the authored route tube and the navigation fixtures; the corridor gates wait for a dedicated pin audit).
+  STELE.forEach(s => placeStele(k, s));
   return k.finish();
 }

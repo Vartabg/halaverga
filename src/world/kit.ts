@@ -1,4 +1,4 @@
-import { BoxGeometry, Color, Float32BufferAttribute, Matrix4, Quaternion, Euler, Vector3, BufferGeometry } from 'three';
+import { BoxGeometry, Color, CylinderGeometry, Float32BufferAttribute, Matrix4, Quaternion, Euler, Vector3, BufferGeometry } from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 export type Triple = [number, number, number];
 /** `building` marks a core's exterior volume; `frame` is bare ruin steel, which the chase camera's boom looks through (City.tsx). */
@@ -11,6 +11,7 @@ export const CALM_GROUP = 5;
 export function surface(color: string) {
   if (color === colors.glass || color === '#2d3742') return 1;
   if ([colors.steel, colors.edge, '#44434d', '#272e37'].includes(color)) return 2;
+  if (['#8a6a3f', '#77572e'].includes(color)) return 2; // the bronze crowns: metal, so the env map lights them
   if ([colors.road, '#6c7a6b'].includes(color)) return 3;
   if ([colors.white, '#6f5d4b', '#b8e8b0'].includes(color)) return 4;
   return 0;
@@ -76,7 +77,29 @@ export function createKit() {
     }
     g.computeVertexNormals(); g.translate(x, y, z); add(g, colors.concrete);
   }
-  return { box, hill, block, slab, add, finish, solids };
+  /** A colossal Watcher stele shaft ({@link steleData}): a tapering twelve-sided cylinder whose vertices are carved — flutes pinch
+   * the radius in around the shaft and horizontal courses bare bands like lifted stone — then vertex-shaded so the courses read as
+   * chiselled work yet it merges into whichever surface group the city mesh already carries (one draw call unchanged). */
+  function pillar(x: number, y: number, z: number, h: number, rTop: number, rBot: number, seed: number, ry: number,
+    lift = 1, flute = { depth: .05, course: 3.2 }) {
+    const g = new CylinderGeometry(rTop, rBot, h, 12, Math.max(2, Math.round(h / flute.course * 2))), p = g.attributes.position;
+    for (let i = 0; i < p.count; i++) {
+      const vy = p.getY(i), vx = p.getX(i), vz = p.getZ(i), r = Math.hypot(vx, vz);
+      if (r > 1e-3) {
+        const a = Math.atan2(vz, vx) + ry, wy = vy + h / 2, course = wy / flute.course, frac = Math.abs(course % 1 - .5) * 2;
+        const pinch = Math.pow(Math.abs(Math.cos(a * 6 + seed * .17)), 2) * flute.depth + (1 - frac) * .045 + (Math.floor(course) % 2 ? .026 : 0);
+        p.setXYZ(i, vx * (1 - pinch), vy, vz * (1 - pinch));
+      }
+    }
+    g.computeVertexNormals();
+    const warm = lift < 1 ? 1 + (lift - 1) * .5 : lift; // the longest stele keep a note of cool dusk near their feet
+    g.applyMatrix4(new Matrix4().compose(new Vector3(x, y, z), new Quaternion().setFromEuler(new Euler(0, ry, 0)), new Vector3(1, 1, 1)));
+    add(g, '#6b5a48', lift, (pw, n) => {
+      const course = Math.floor(pw.y / flute.course), band = (course % 2 ? 1 : .87) * (.9 + .12 * Math.abs(Math.sin(seed * 3.1 + course)));
+      return new Color('#6b5a48').multiplyScalar(band * warm).multiplyScalar(1 - .18 * Math.max(0, (2 - pw.y) / 2));
+    });
+  }
+  return { box, hill, block, slab, pillar, add, finish, solids };
 }
 /** Ash-dulled concrete, faded markings, dirty glass and rusted steel (the 2026-10-06 ruins). */
 export const colors = { concrete: '#a8a598', edge: '#33302c', glass: '#3c4542', warm: '#8f6a58',
