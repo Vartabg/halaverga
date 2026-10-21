@@ -4,7 +4,8 @@ import { WORLD } from '@/game/motion';
 import { SKYLINE } from './atmospherePalette';
 import { pickMood } from './skylineDamage';
 import { bakeTower, type Buffers, type Part } from './skylineParts';
-import { pickRuin, ruinSpecs, type Ruin } from './ruinShapes';
+import { pickRuin, type Ruin } from './ruinShapes';
+import { stoneSpecs } from './summitStone';
 
 /** The distant Hermon ranges: neighbouring peaks and watch towers in three hazy layers, outside the flyable box, world-fixed (no
  * anchoring, no per-frame code, no colliders). Seeded, so every run and every device builds the same ranges. The layout (where a
@@ -55,7 +56,7 @@ export function makeSkyline(seed = SKYLINE.seed) {
       // What is left of this tower comes from its own stream, so changing a ruin never moves the skyline (the layout draws from `rng` only).
       const look = mulberry32(seed * 7 + towers.length * 7919 + 17), mood = pickMood(look), tag = look() * .999;
       const ruin = pickRuin(look, !!cluster || landmark), lean = ruin !== 'mound' && look() < .2 ? .03 + look() * .07 : 0;
-      const baked = bakeTower(out, { x, z, yaw, lean, leanAxis, layer, bright, mood, seed: tag }, ruinSpecs(look, ruin, w, d, h + 3, layer));
+      const baked = bakeTower(out, { x, z, yaw, lean, leanAxis, layer, bright, mood, seed: tag }, stoneSpecs(look, ruin, w, d, h + 3));
       towers.push({ layer, x, z, w, d, yaw, lean, ruin, top: Math.max(...baked.parts.map(q => q.max[1])), foot: baked.foot, parts: baked.parts });
     }
   });
