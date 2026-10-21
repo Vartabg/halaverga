@@ -11,7 +11,7 @@ const sample = () => {
   const width = typeof window === 'undefined' ? 1 : window.innerWidth, height = typeof window === 'undefined' ? 1 : window.innerHeight;
   const w = banish.wardens;
   const sealing = isElite(banish.last) && banish.mode[banish.last] >= MODE.bound && runtime.shooter.targets[banish.last]?.alive ? banish.last : -1;
-  let i = sealing >= 0 ? sealing : w.active >= 0 ? w.active : strike.phase > 0 && isElite(strike.target) ? strike.target : isElite(battle.charging) ? battle.charging : -1;
+  let i = sealing >= 0 ? sealing : w.active >= 0 ? w.active : w.duel >= 0 ? w.duel : strike.phase > 0 && isElite(strike.target) ? strike.target : isElite(battle.charging) ? battle.charging : -1;
   if (i < 0) {
     let best = Infinity;
     for (const k of ELITES) {
@@ -36,7 +36,9 @@ const sample = () => {
   const sy = depth > 0 ? height / 2 - (x * a.up.x + y * a.up.y + z * a.up.z) * height / (2 * depth * half) : -1;
   return { i, x: Math.round(sx), y: Math.round(sy), armor: i >= 0 ? banish.armor[i] : 0, recovery: i >= 0 && banish.guardTime[i] > 0, mode: i >= 0 ? banish.mode[i] : 0,
     attack: w.phase[i] ?? 0, opening: (w.open[i] ?? 0) > 0 || w.pending === i && i >= 0,
-    move: w.move[i] ?? 0, turn: w.turns[i] ?? 0, fierce: !!w.fierce[i],
+    move: w.move[i] ?? 0, turn: w.turns[i] ?? 0, fierce: !!w.fierce[i], nav: w.navMode[i] ?? 0,
+    traveled: Math.round((w.navDistance[i] ?? 0) * 10) / 10, position: p ? [p.x, p.y, p.z] : [],
+    onscreen: depth > 0 && sx > 28 && sx < width - 28 && sy > 85 && sy < height - 90, left: p ? x * a.right.x + y * a.right.y + z * a.right.z < 0 : false,
     progress: Math.round(Math.min(1, (w.time[i] ?? 0) / (w.tell[i] || 1)) * 100),
     gate: w.gate[i] ?? 0, battleClock: Math.floor(battle.clock), battleStatus: battle.status, incoming, counters: w.counters, parries: w.parries, serial: w.serial, visible: i >= 0 && runtime.shooter.targets[i]?.alive, charging: battle.charging === i && i >= 0 };
 };
@@ -49,8 +51,11 @@ export default function EliteHud() {
     : s.incoming ? s.move === WA.sweep ? 'SHIELD NOW · turn the cleave' : 'SHIELD NOW · turn the volley'
     : defend ? s.move === WA.rush ? 'RUSH · hold Evade to clear the lane' : s.move === WA.sweep ? 'CLEAVE · shield or retreat out of reach'
       : s.move === WA.fan ? 'SPLITFIRE · hover in the center gap' : 'VOLLEY · dodge or time your shield'
-    : s.attack === WA.recover ? 'Recovering · keep moving' : s.charging || s.recovery ? 'Ready to answer · keep moving' : s.armor > 0 ? 'Bait its attack · punish the opening' : 'Exposed · strike to banish';
-  return <aside className={styles.elite} data-testid="elite-hud" data-target={s.i} data-armor={s.armor} data-x={s.x} data-y={s.y} data-mode={s.mode} data-recovering={String(s.recovery)} data-attack={s.attack} data-move={s.move} data-turn={s.turn} data-fierce={String(s.fierce)} data-opening={String(s.opening)} data-counters={s.counters} data-parries={s.parries} data-parry-window={String(s.incoming)} data-progress={s.progress} data-gate={s.gate} data-battle-clock={s.battleClock} data-battle-status={s.battleStatus} aria-label="Abyssal warden">
+    : s.attack === WA.recover ? 'Recovering · keep moving'
+    : s.nav && !s.onscreen ? `${s.left ? '← Turn left' : 'Turn right →'} · track the warden`
+    : s.nav === 1 ? 'CLOSING · change your flight line' : s.nav === 2 ? 'RETREATING · close the gap' : s.nav === 3 ? 'REPOSITIONING · follow its new angle'
+    : s.nav === 4 ? 'Seeking a clear path · keep moving' : s.charging || s.recovery ? 'Ready to answer · keep moving' : s.armor > 0 ? 'Bait its attack · punish the opening' : 'Exposed · strike to banish';
+  return <aside className={styles.elite} data-testid="elite-hud" data-target={s.i} data-armor={s.armor} data-x={s.x} data-y={s.y} data-mode={s.mode} data-recovering={String(s.recovery)} data-attack={s.attack} data-move={s.move} data-turn={s.turn} data-fierce={String(s.fierce)} data-nav={s.nav} data-traveled={s.traveled} data-position={JSON.stringify(s.position)} data-opening={String(s.opening)} data-counters={s.counters} data-parries={s.parries} data-parry-window={String(s.incoming)} data-progress={s.progress} data-gate={s.gate} data-battle-clock={s.battleClock} data-battle-status={s.battleStatus} aria-label="Abyssal warden">
     <span>{wardenName(s.i).toUpperCase()} <i aria-label={`${s.armor} armor layers remaining`}>{s.armor > 0 ? '◆'.repeat(s.armor) : 'EXPOSED'}</i></span>
     <strong role="status">{text}</strong>
     {s.attack === WA.tell && <progress aria-label="Attack commitment" value={s.progress} max={100} />}

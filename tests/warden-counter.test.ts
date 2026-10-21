@@ -10,7 +10,8 @@ it('two defended attacks and actual counters break one layer each, then bind and
   const { b, w, i, player, step, tick, contact, s } = wardenSetup(); step(); tick(WARDEN.lock + .03); player.x = 12;
   tick(1.6); expect(w.phase[i]).toBe(WA.recover); expect(w.open[i]).toBeGreaterThan(0); expect(b.armor[i]).toBe(2);
   contact(); expect(w.counters).toBe(1); expect(b.armor[i]).toBe(1); expect(b.mode[i]).toBe(MODE.staggered); expect(s.stats.kills).toBe(0);
-  s.input.shield = 1; tick(.6); expect(w.move[i]).toBe(WA.sweep);
+  s.input.shield = 1; tick(.6); expect(w.navMode[i]).toBeGreaterThan(0); expect(w.phase[i]).toBe(WA.idle);
+  tick(1.6); expect(w.move[i]).toBe(WA.sweep);
   for (let n = 0; n < 180 && w.phase[i] !== WA.recover; n++) step();
   expect(w.open[i]).toBeGreaterThan(0); flightFeel.brake = true; contact(); expect(flightFeel.brake).toBe(false);
   expect(w.counters).toBe(2); expect(b.armor[i]).toBe(0); expect(b.mode[i]).toBe(MODE.bound);
@@ -35,7 +36,7 @@ it('spam cannot strike through a tell; rebuke interrupts the attack and reset cl
   const { b, w, i, s, step } = wardenSetup(); step();
   for (let n = 0; n < 8; n++) { requestCommand(s, COMMAND.sword, i); step(); }
   expect(b.armor[i]).toBe(2); expect(strike.phase).toBe(0); expect(w.counters).toBe(0);
-  requestCommand(s, COMMAND.rebuke); step(); expect(w.phase[i]).toBe(WA.idle); expect(s.drones.held[i]).toBe(0);
+  requestCommand(s, COMMAND.rebuke); step(); expect(w.phase[i]).toBe(WA.idle); expect(s.drones.held[i]).toBe(1); // The stunned duelist still owns its position.
   w.pending = i; w.bolts[0].live = true; w.open[i] = 2; resetBanish(b, s);
   expect(w.pending).toBe(-1); expect(w.bolts.some(o => o.live)).toBe(false); expect(w.open[i]).toBe(0); expect(w.counters).toBe(0);
 });

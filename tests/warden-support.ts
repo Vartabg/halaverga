@@ -7,7 +7,7 @@ import { wardenWorld } from '../src/game/wardenMath';
 import { COMMAND, requestCommand } from '../src/game/commands';
 import { cancelStrike } from '../src/game/strike';
 export function wardenSetup(i = 5) {
-  const s = createShooter(); createDroneSim(s); const b = createBanish(); resetBanish(b, s); resetBattle();
+  const s = createShooter(), sim = createDroneSim(s); const b = createBanish(); resetBanish(b, s); resetBattle();
   for (let k = 0; k < s.drones.count; k++) { s.drones.hp[k] = k === i ? 6 : 0; s.drones.phase[k] = k === i ? PHASE.alert : PHASE.dead; s.drones.los[k] = 1; }
   Object.assign(s.drones.pos[i], { x: 0, y: 35, z: 0 });
   const player = { x: 0, y: 35, z: 20 }; Object.assign(s.aim.origin, player); Object.assign(s.aim.dir, { x: 0, y: 0, z: -1 }); s.aim.valid = true;
@@ -19,5 +19,5 @@ export function wardenSetup(i = 5) {
   };
   const tick = (sec: number, dt = 1 / 60) => { for (let n = 0; n < Math.ceil(sec / dt); n++) step(dt); };
   const contact = () => { cancelStrike(); Object.assign(player, s.drones.pos[i]); player.z += 2; requestCommand(s, COMMAND.sword, i); step(); };
-  return { i, s, b, w: b.wardens, player, step, tick, contact };
+  return { i, s, sim, b, w: b.wardens, player, step, tick, contact };
 }

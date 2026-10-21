@@ -4,6 +4,7 @@ import { ELITE } from './encounter';
 import { stepWardenAttacks } from './wardenAttacks';
 import { takeWardenCounter } from './wardenCounter';
 import { flightFeel } from './flightFeel';
+import { PURSUIT } from './wardenSteering';
 /** Armor absorbs an actual contact, never an input press. The player may carry through and fight someone else. */
 export function absorbEliteStrike(b: BanishState, s: ShooterState, i: number) {
   const counter = takeWardenCounter(b.wardens, i);
@@ -15,6 +16,7 @@ export function absorbEliteStrike(b: BanishState, s: ShooterState, i: number) {
   b.mode[i] = MODE.staggered; b.timer[i] = ELITE.reaction; s.drones.held[i] = 1;
   if (b.armor[i] === 0) s.drones.broken[i] = 1;
   b.wardens.cool[i] = 0;
+  if (b.wardens.duel === i) { b.wardens.relocate[i] = PURSUIT.beat; b.wardens.navTime[i] = 0; }
   return true;
 }
 /** New elite turn choreography; normal enemy darts remain in celestialBattle. */

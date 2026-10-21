@@ -55,7 +55,8 @@ export function createDemonActors(source: Object3D, animations: AnimationClip[])
     const time = state.reduced ? 0 : state.time + index * .37;
     blendAngelClip(a.joints, clips.idle, clipTime(clips.idle, time, true), 1, FULL, hip);
     // The airborne legs and shoulders carry weight; only the upper body interrupts for the fiery-dart gesture.
-    blendAngelClip(a.joints, clips.flight, clipTime(clips.flight, time * .7, true), .3, FULL, hip);
+    const velocity = banish.wardens.navVelocity[index], speed = Math.hypot(velocity.x, velocity.y, velocity.z);
+    blendAngelClip(a.joints, clips.flight, clipTime(clips.flight, time * .7, true), Math.min(.78, .3 + speed * .04), FULL, hip);
     if (state.charging) blendAngelClip(a.joints, clips.charge, .18, .85, UPPER_BODY);
     if (state.hit > 0) blendAngelClip(a.joints, clips.hit, .12, Math.min(.8, state.hit), UPPER_BODY);
     attackPose(a.joints, state, banish.wardens.move[index]);

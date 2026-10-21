@@ -13,6 +13,37 @@ async function steerTo(page: Page, point: number[], stop: number) {
   }
   await page.keyboard.press('KeyB');
 }
+for (const id of [5, 7]) test(`arena pursuit follows real flight input for warden${id}`, async ({ browser }) => {
+  test.setTimeout(90000); const view = { width: 393, height: 852 };
+  const context = await browser.newContext({ viewport: view, isMobile: true, hasTouch: true });
+  try {
+    const page = await context.newPage(), errors: string[] = []; page.on('pageerror', e => errors.push(e.message));
+    await seed(page, CLASSIC); await page.goto('/'); await page.getByRole('button', { name: 'Begin expedition' }).tap();
+    await page.getByRole('button', { name: 'Lift', exact: true }).tap(); await page.waitForTimeout(300); await page.keyboard.press('KeyB');
+    await page.keyboard.down('KeyV'); await steerTo(page, id === 5 ? [-32, 42, -56] : [32, 44, -42], 14);
+    await facePoint(page, id === 5 ? [0, 42, -85] : [18, 45, -65]); await acquireTell(page, id, view);
+    const elite = page.getByTestId('elite-hud'), t = page.getByTestId('flight-telemetry');
+    if (id === 5) {
+      await page.keyboard.up('KeyV'); await expect.poll(async () => Number(await elite.getAttribute('data-progress')), { intervals: [16] }).toBeGreaterThan(55);
+      await page.keyboard.down('KeyD'); await page.waitForTimeout(550); await page.keyboard.up('KeyD'); await page.keyboard.press('KeyB');
+    }
+    await expect(elite).toHaveAttribute('data-attack', '4', { timeout: 8000 });
+    const enemy = JSON.parse((await elite.getAttribute('data-position'))!), pilot = JSON.parse((await t.getAttribute('data-position'))!);
+    await facePoint(page, id === 5 ? pilot.map((n: number, i: number) => n * 2 - enemy[i]) : enemy);
+    await expect(elite).toHaveAttribute('data-attack', '0', { timeout: 6000 });
+    const before = JSON.parse((await t.getAttribute('data-position'))!) as number[], travel = Number(await elite.getAttribute('data-traveled'));
+    const motion = 'KeyW', modes = new Set<number>(); await page.keyboard.down(motion);
+    for (let n = 0; n < 30; n++) { modes.add(Number(await elite.getAttribute('data-nav'))); await page.waitForTimeout(50); }
+    await page.keyboard.up(motion); await page.keyboard.press('KeyB'); expect([...modes], 'escaping lancer chases; pressured cantor retreats').toContain(id === 5 ? 1 : 2);
+    const after = JSON.parse((await t.getAttribute('data-position'))!) as number[];
+    expect(Math.hypot(...after.map((n, i) => n - before[i]))).toBeGreaterThan(7);
+    await expect.poll(async () => Number(await elite.getAttribute('data-traveled')), { timeout: 5000 }).toBeGreaterThan(travel + 7);
+    const position = JSON.parse((await elite.getAttribute('data-position'))!) as number[];
+    expect(position.every(Number.isFinite)).toBe(true); expect(await elite.getAttribute('data-target')).toBe(String(id));
+    await page.screenshot({ path: test.info().outputPath('arena-pursuit.png') });
+    expect(errors).toEqual([]);
+  } finally { await context.close(); }
+});
 async function facePoint(page: Page, point: number[]) {
   const t = page.getByTestId('flight-telemetry');
   for (let n = 0; n < 40; n++) {
@@ -43,8 +74,8 @@ async function acquireTell(page: Page, id: number, view: View) {
     const target = Number(await e.getAttribute('data-target')), phase = Number(await e.getAttribute('data-attack'));
     const x = Number(await e.getAttribute('data-x')), y = Number(await e.getAttribute('data-y')), gate = Number(await e.getAttribute('data-gate'));
     if (target === id && phase === 1 && Number(await e.getAttribute('data-progress')) < 70) return;
-    const h = x < view.width * .35 ? 'ArrowLeft' : x > view.width * .65 ? 'ArrowRight' : null;
-    const v = y < view.height * .35 ? 'ArrowUp' : y > view.height * .6 ? 'ArrowDown' : null;
+    const h = x < view.width / 2 - view.height * .12 ? 'ArrowLeft' : x > view.width / 2 + view.height * .12 ? 'ArrowRight' : null;
+    const v = y < view.height * .43 ? 'ArrowUp' : y > view.height * .55 ? 'ArrowDown' : null;
     if (h) await page.keyboard.down(h); if (v) await page.keyboard.down(v);
     if (gate === 6 && !h && !v) await page.keyboard.down('KeyW');
     await page.waitForTimeout(70);
@@ -91,8 +122,13 @@ for (const view of [{ width: 393, height: 852 }, { width: 852, height: 393 }]) f
       await page.screenshot({ path: test.info().outputPath('opening.png') });
       await tapOpening(page, view); await expect(elite).toHaveAttribute('data-counters', '1'); await expect(elite).toHaveAttribute('data-armor', '1');
       await page.keyboard.press('KeyB');
+      const beforeMove = Number(await elite.getAttribute('data-traveled'));
+      await expect.poll(async () => Number(await elite.getAttribute('data-nav')), { timeout: 5000 }).toBeGreaterThan(0);
+      await expect.poll(async () => Number(await elite.getAttribute('data-traveled')), { timeout: 5000 }).toBeGreaterThan(beforeMove + 4);
+      await page.screenshot({ path: test.info().outputPath('reposition.png') });
       // Keep the real world and player input: no injected combat state or teleport to manufacture the second move.
       if (id === 5) await page.keyboard.down('KeyV');
+      await acquireTell(page, id, view);
       await expect(elite).toHaveAttribute('data-turn', '2', { timeout: 12000 });
       await expect(elite).toHaveAttribute('data-move', id === 5 ? '5' : '6');
       await expect(elite).toHaveAttribute('data-fierce', 'true');

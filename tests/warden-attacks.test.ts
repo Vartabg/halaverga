@@ -31,7 +31,7 @@ it('keeps lesser darts from ambushing an active elite exchange or its finisher; 
   const { w, i, b, player, step, tick } = wardenSetup(); step(); expect(w.duel).toBe(i);
   tick(4.3); expect(battle.nextAttack).toBeGreaterThan(battle.clock + .7);
   b.mode[i] = 3; player.z = 100; step(); expect(w.duel).toBe(i);
-  b.mode[i] = 0; step(); expect(w.duel).toBe(-1);
+  b.mode[i] = 0; player.z = 160; step(); expect(w.duel).toBe(-1);
 });
 it('drains already airborne lesser darts before the elite tell, without deleting them or allowing another cast', () => {
   const { w, i, step, tick } = wardenSetup(); battle.bolts[0].live = true;
