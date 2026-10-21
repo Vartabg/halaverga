@@ -19,30 +19,28 @@ export const SUN_POSITION: [number, number, number] = [-65, 100, 80];
 const sunLength = Math.hypot(...SUN_POSITION);
 export const SUN_DIRECTION: Rgb = [SUN_POSITION[0] / sunLength, SUN_POSITION[1] / sunLength, SUN_POSITION[2] / sunLength];
 /** The key light through the overcast: flat, cool and weak (a third of the old sun), so shapes read without hard shadows. */
-export const SUN_COLOR = '#c9c4b5';
+export const SUN_COLOR = '#e2be92';
 export const SUN_INTENSITY = 1.4;
-/** The glow behind the ash where the sun is, as q = 1 - cos(angle to the sun): a wide dull smear, never a disc. */
-export const SUN_GLOW = { color: '#a8987a', rate: 7, weight: .42 };
+/** The glow behind the firmament where the hidden throne burns, as q = 1 - cos(angle to the sun): a wide smoldering smear, never a disc. */
+export const SUN_GLOW = { color: '#b5885c', rate: 7, weight: .42 };
 /** Equirectangular centre of the sun (three's mapping: u = atan2(z, x) / 2pi + .5, v = asin(y) / pi + .5). */
 export const SUN_UV: [number, number] = [Math.atan2(SUN_DIRECTION[2], SUN_DIRECTION[0]) / (2 * Math.PI) + .5, Math.asin(SUN_DIRECTION[1]) / Math.PI + .5];
 const flat = Math.hypot(SUN_DIRECTION[0], SUN_DIRECTION[2]);
 /** Unit horizontal direction toward the sun. */
 export const SUN_XZ: [number, number] = [SUN_DIRECTION[0] / flat, SUN_DIRECTION[2] / flat];
 
-/** HAZE is the one horizon colour: the ash in the air. Sea far end, fog, dome at and below eye level all land on it. It is the
- * lightest thing in a frame on purpose, so the ruins stand against it as dark silhouettes. */
-export const HAZE = '#7e796b';
-/** The overcast from the horizon up: the ash haze, a lower grey-brown, a dark ceiling overhead. `warm` lifts the low sky toward the
- * hidden sun. No blue anywhere. */
-export const SKY = { low: '#6c685d', mid: '#504d47', zenith: '#302e2c', warm: '#8e826b' };
+/** HAZE is the one horizon colour: the smoldering bronze-ash of the Chasm of Dudael. Sea far end, fog, dome at and below eye level all
+ * land on it. It is the lightest thing in a frame on purpose, so the Watcher monoliths stand against it as dark silhouettes. */
+export const HAZE = '#8a6b54';
+/** The firmament from the horizon up: smoldering bronze haze, copper-umber low sky, dark crimson-obsidian vault overhead. `warm` lifts
+ * the low sky toward the hidden throne light. No blue anywhere. */
+export const SKY = { low: '#755744', mid: '#523b2f', zenith: '#2b1e19', warm: '#a67b56' };
 /** Dome elevation (dir.y) of the low and mid colour stops: about 10 and 30 degrees. */
 export const SKY_STOPS_H = { low: .17, mid: .5 };
-/** The ash ceiling: thin and thick cloud colours, coverage (the density threshold; low means almost none of the sky shows), texture
- * repeats per unit of plane projection, drift in uv per second, start offset, and the weather map (its scale in the plane, and how far
- * it moves the threshold). `lift` keeps the ceiling as fine overhead as near the horizon. The old clear `gaps` for the first frame's
- * telemetry are gone: white text reads on a dark ceiling. */
+/** The chasm ceiling: thin and thick storm-cloud colours, coverage, texture repeats per unit of plane projection, drift in uv per
+ * second, start offset, and the weather map. `lift` keeps the ceiling as fine overhead as near the horizon. */
 export const CLOUD = {
-  lit: '#6f6a60', shade: '#3a3734', coverage: .2, scale: .7, lift: .55, wind: [.0045, .0012] as [number, number], offset: [.95, .05] as [number, number],
+  lit: '#785a47', shade: '#33241e', coverage: .2, scale: .7, lift: .55, wind: [.0045, .0012] as [number, number], offset: [.95, .05] as [number, number],
   weatherScale: .55, weatherSwing: .3,
   gaps: [] as { az: number; el: number; clear: number; fade: number }[], gapLift: 0,
 };
@@ -52,38 +50,38 @@ export const skyDirection = (az: number, el: number): Rgb => {
   return [Math.sin(a) * Math.cos(e), Math.sin(e), -Math.cos(a) * Math.cos(e)];
 };
 /** Fog is three's linear smoothstep on view depth, applied after tone mapping, so the colour is exactly what appears on screen. Thick
- * ash: it starts close and has swallowed everything by 470 m, well inside the camera far plane (650). */
+ * chasm mist: it starts close and has swallowed everything by 470 m, well inside the camera far plane (650). */
 export const FOG = { color: HAZE, near: 30, far: 470 };
-/** The distant ruins: three layers standing in the sea outside the flyable box. `gaps` are metres from the box edge to the nearest
- * footprint on the [north, east and west, south] sides. Tints are display hex before fog, as [lit, shaded]: soot and ash concrete,
- * each layer a little paler (fog does the rest). `rust` is bare steel, `soot` the burned bands, `foam` the scum at the waterline. */
+/** The distant Watcher monoliths: three layers standing in the abyssal sea outside the flyable box. `gaps` are metres from the box edge
+ * to the nearest footprint on the [north, east and west, south] sides. Tints are display hex before fog, as [lit, shaded]: carved
+ * bronze-basalt and scorched obsidian. `rust` is molten bronze veins, `soot` charred obsidian, `foam` brimstone crust at the waterline. */
 export const SKYLINE = {
-  seed: 2033, rust: '#5b4232', soot: '#1f1d1b', foam: '#77735a',
+  seed: 2033, rust: '#b86828', soot: '#161110', foam: '#7a5638',
   gaps: [[110, 120, 200], [170, 180, 260], [240, 250, 330]] as [number, number, number][],
-  tints: [['#6b675f', '#403d38'], ['#716d64', '#4a4741'], ['#77736a', '#55524b']] as [string, string][],
+  tints: [['#5e493c', '#332620'], ['#685244', '#3d2f28'], ['#735c4e', '#483830']] as [string, string][],
 };
-/** Falling ash (Ash.tsx): flakes per quality level, their size in pixels at 1 m (before the pixel ratio), the side of the box around
- * the camera they fill, their colour (display hex), fall speed range and wind (m/s) and opacity. */
-export const ASH = { count: { high: 2600, low: 1100 }, size: 26, box: 60, color: '#9d978a', fall: [.5, 1.3] as [number, number], wind: [.6, .25] as [number, number], alpha: .5 };
-/** Scene.tsx tones the city, hero and sea body with ACES at this exposure. */
+/** Drifting chasm embers (Ash.tsx): sparks per quality level, their size in pixels at 1 m (before the pixel ratio), the side of the box
+ * around the camera they fill, their colour (display hex), drift speed range and wind (m/s) and opacity. */
+export const ASH = { count: { high: 2600, low: 1100 }, size: 28, box: 60, color: '#e8b468', fall: [.5, 1.3] as [number, number], wind: [.6, .25] as [number, number], alpha: .65 };
+/** Scene.tsx tones the monoliths, archangel and abyssal sea body with ACES at this exposure. */
 export const EXPOSURE = 1.2;
-/** The poisoned sea before tone mapping: an oily dark olive (#1e2318 on screen), with sick yellow-green and rust patches drifting
- * through it. waterShader adds the slicks, scum, ripples and wake. */
-export const WATER_BODY: Rgb = [.024, .028, .0185];
-export const WATER_SICK: Rgb = [.051, .056, .021];
-export const WATER_RUST: Rgb = [.052, .036, .021];
-/** Scum on the water, display hex (it is mixed in after tone mapping). */
-export const WATER_SCUM = '#6c6850';
+/** The abyssal sea (Rivers of Fire, 1 Enoch 17) before tone mapping: dark obsidian-wine (#241916 on screen), with submerged crimson
+ * magma currents and molten brimstone veins drifting through it. waterShader adds the bronze sheen, sulfur crust, ripples and wake. */
+export const WATER_BODY: Rgb = [.032, .016, .014];
+export const WATER_SICK: Rgb = [.085, .028, .014];
+export const WATER_RUST: Rgb = [.12, .062, .016];
+/** Brimstone crust on the abyssal water, display hex (it is mixed in after tone mapping). */
+export const WATER_SCUM = '#8c623e';
 /** three's ACES filmic curve (the Hill fit) in JS, for colours that are tone mapped in a shader and needed elsewhere as they appear. */
 export function acesFilmic(c: Rgb, exposure = EXPOSURE): Rgb {
   const m = [[.59719, .35458, .04823], [.0760, .90834, .01566], [.02840, .13383, .83777]], o = [[1.60475, -.53108, -.07367], [-.10208, 1.10813, -.00605], [-.00327, -.07276, 1.07602]];
   const v = m.map(r => (r[0] * c[0] + r[1] * c[1] + r[2] * c[2]) * exposure / .6).map(x => (x * (x + .0245786) - .000090537) / (x * (.983729 * x + .432951) + .238081));
   return o.map(r => Math.min(1, Math.max(0, r[0] * v[0] + r[1] * v[1] + r[2] * v[2]))) as Rgb;
 }
-/** The sea body as it appears on screen (display linear): the foot of a distant tower mists toward the water, not toward the sky. */
+/** The sea body as it appears on screen (display linear): the foot of a distant monolith mists toward the water, not toward the sky. */
 export const SEA_BODY = acesFilmic(WATER_BODY);
-/** Most of the light now: the overcast from above, the dark water and ash from below. */
-export const HEMISPHERE = { sky: '#a6a294', ground: '#3b382f', intensity: 2.5 };
+/** Most of the light now: the bronze firmament from above, the dark ember-lit abyss from below. */
+export const HEMISPHERE = { sky: '#b89472', ground: '#4a2e20', intensity: 2.5 };
 
 const clamp01 = (x: number) => Math.min(1, Math.max(0, x));
 const smooth = (a: number, b: number, x: number) => { const t = clamp01((x - a) / (b - a)); return t * t * (3 - 2 * t); };

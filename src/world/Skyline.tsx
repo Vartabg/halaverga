@@ -37,8 +37,8 @@ export function skylineMaterial() {
       diffuseColor.rgb = mix(diffuseColor.rgb, sea, exp(-yy * .25) * .7);
       diffuseColor.rgb = mix(diffuseColor.rgb, SCUM, (1. - smoothstep(.05, .7, yy)) * .45);
       vec3 face = normalize(cross(dFdx(vSky), dFdy(vSky)));
-      vec2 bay = vec2(dot(vSky.xz, vec2(-face.z, face.x)) / (2.7 + 1.1 * seed), vSky.y / (3.6 + 1.1 * fract(seed * 7.31))), cell = floor(bay), fr = fract(bay);
-      float pane = smoothstep(.08, .2, fr.x) * (1. - smoothstep(.8, .92, fr.x)) * smoothstep(.16, .3, fr.y) * (1. - smoothstep(.66, .8, fr.y));
+      vec2 bay = vec2(dot(vSky.xz, vec2(-face.z, face.x)) / (2.1 + 1.4 * seed), vSky.y / (5.2 + 1.8 * fract(seed * 7.31))), cell = floor(bay), fr = fract(bay);
+      float pane = smoothstep(.22, .32, fr.x) * (1. - smoothstep(.68, .78, fr.x)) * smoothstep(.08, .18, fr.y) * (1. - smoothstep(.82, .92, fr.y));
       float walls = vWall * (1. - smoothstep(.3, .6, abs(face.y))), fine = 1. - smoothstep(.3, .7, max(fwidth(bay.x), fwidth(bay.y)));
       #ifdef USE_FOG
       float near = 1. - smoothstep(300., 460., vFogDepth);
@@ -46,16 +46,16 @@ export function skylineMaterial() {
       float near = 1.;
       #endif
       float grid = walls * fine * near, roll = hash(cell + seed * 61.);
-      float blast = step(hash(floor(cell / vec2(3., 2.)) + seed * 13.), .3);
-      float hole = max(pane * (roll < .9 ? 1. : .35), blast * smoothstep(.0, .12, min(min(fr.x, 1. - fr.x), min(fr.y, 1. - fr.y)) + .1));
-      diffuseColor.rgb = mix(diffuseColor.rgb, SOOT * .45, hole * grid * .92);
-      float burned = step(hash(vec2(cell.y, seed * 17.)), .3), above = step(hash(vec2(cell.y - 1., seed * 17.)), .3);
+      float blast = step(hash(floor(cell / vec2(3., 2.)) + seed * 13.), .28);
+      float hole = max(pane * (roll < .85 ? 1. : .35), blast * smoothstep(.0, .12, min(min(fr.x, 1. - fr.x), min(fr.y, 1. - fr.y)) + .1));
+      diffuseColor.rgb = mix(diffuseColor.rgb, SOOT * .4, hole * grid * .92);
+      float burned = step(hash(vec2(cell.y, seed * 17.)), .35), above = step(hash(vec2(cell.y - 1., seed * 17.)), .35);
       float plume = max(burned, above * (1. - fr.y)) * smoothstep(.0, .5, 1. - abs(fr.x - .5) * 2.);
-      diffuseColor.rgb = mix(diffuseColor.rgb, SOOT, plume * walls * near * .75);
-      float bleed = step(.72, hash(vec2(cell.x, seed * 29.))) * (1. - fr.y) * smoothstep(.35, .45, fr.x) * (1. - smoothstep(.55, .65, fr.x));
-      diffuseColor.rgb = mix(diffuseColor.rgb, RUST, bleed * grid * (1. - pane) * .5);
-      float tri = abs(fract(vSky.y / 3.7) - .5) * 2.;
-      diffuseColor.rgb *= 1. - .12 * smoothstep(.45, .7, tri) * walls * (1. - grid);
+      diffuseColor.rgb = mix(diffuseColor.rgb, SOOT, plume * walls * near * .72);
+      float bleed = step(.58, hash(vec2(cell.x, seed * 29.))) * (1. - fr.y * .6) * smoothstep(.32, .45, fr.x) * (1. - smoothstep(.55, .68, fr.x));
+      diffuseColor.rgb = mix(diffuseColor.rgb, RUST * 1.25, bleed * grid * (1. - pane * .5) * .68);
+      float tri = abs(fract(vSky.y / 4.8) - .5) * 2.;
+      diffuseColor.rgb *= 1. - .16 * smoothstep(.42, .7, tri) * walls * (1. - grid);
       diffuseColor.rgb *= .84 + .16 * smoothstep(2., 60., yy);`)
       .replace('#include <fog_fragment>', `#ifdef USE_FOG
       float f = smoothstep(fogNear, fogFar, vFogDepth);

@@ -44,7 +44,7 @@ describe('sky palette', () => {
       const c = screen(skyBase(elevation(deg)));
       expect(luma(c)).toBeLessThanOrEqual(last); last = luma(c);
       expect(c[2] - c[0]).toBeLessThanOrEqual(0); // no blue anywhere
-      expect(saturation(c)).toBeLessThan(.18);
+      expect(saturation(c)).toBeLessThan(.45);
     }
     expect(luma(screen(skyBase(elevation(90))))).toBeLessThan(60); // a dark ceiling overhead
   });
@@ -86,7 +86,7 @@ describe('sky shader strings', () => {
     expect(domeFragment).not.toMatch(/disc|SUN_GOLD|SUN_CORE/);
     expect(domeFragment).toContain(glslVec3(SUN_GLOW.color));
     const glow = hexRgb(SUN_GLOW.color);
-    expect(luma(glow)).toBeLessThan(170); expect(saturation(glow)).toBeLessThan(.3);
+    expect(luma(glow)).toBeLessThan(170); expect(saturation(glow)).toBeLessThan(.55);
   });
 });
 

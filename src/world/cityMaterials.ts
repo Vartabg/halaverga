@@ -17,7 +17,7 @@ export function useCityMaterials() {
      * adds a wet band at the water line (the district-edge hills and the terrace parapets: a big plain face reads as weathered concrete, not a slab of marble). */
     const concrete = (calm: boolean) => {
       const material = new MeshStandardMaterial({ vertexColors: true, map: maps[0], normalMap: maps[1],
-        roughnessMap: maps[2], roughness: .95, normalScale: new Vector2(calm ? .45 : .7, calm ? .45 : .7) });
+        roughnessMap: maps[2], roughness: .88, metalness: .22, normalScale: new Vector2(calm ? .55 : .85, calm ? .55 : .85) });
       material.onBeforeCompile = shader => {
         shader.vertexShader = 'varying vec3 vWeather;\n' + shader.vertexShader;
         shader.vertexShader = shader.vertexShader.replace('#include <begin_vertex>',
@@ -25,36 +25,43 @@ export function useCityMaterials() {
         shader.fragmentShader = 'varying vec3 vWeather;\n' + shader.fragmentShader;
         shader.fragmentShader = shader.fragmentShader.replace('#include <color_fragment>', `
           #include <color_fragment>
-          ${calm ? 'vec3 tex = diffuseColor.rgb / max(vColor.rgb, vec3(.001)); tex = mix(vec3(dot(tex, vec3(.2126, .7152, .0722))), tex, .3); diffuseColor.rgb = vColor.rgb * mix(vec3(.155), tex, .25);' : ''}
-          float streak = pow(abs(sin(vWeather.x * 2.91 + vWeather.z * 4.73)), 16.);
-          float weather = .84 + .16 * sin(vWeather.y * .22 + vWeather.x * .13 + vWeather.z * .17);
-          diffuseColor.rgb *= weather * (1. - streak * .14);
-          ${calm ? 'diffuseColor.rgb *= 1. - .3 * (1. - smoothstep(0., 4., vWeather.y)) * vec3(.9, .55, .7);' : ''}
+          ${calm ? 'vec3 tex = diffuseColor.rgb / max(vColor.rgb, vec3(.001)); tex = mix(vec3(dot(tex, vec3(.2126, .7152, .0722))), tex, .3); diffuseColor.rgb = vColor.rgb * mix(vec3(.14, .10, .08), tex, .28);' : ''}
+          diffuseColor.rgb = mix(diffuseColor.rgb * vec3(.72, .54, .40), vec3(.14, .095, .075), .38);
+          float streak = pow(abs(sin(vWeather.x * 2.4 + vWeather.z * 2.4)), 10.);
+          float tier = smoothstep(.72, .94, abs(sin(vWeather.y * 1.35)));
+          float weather = .82 + .18 * sin(vWeather.y * .22 + vWeather.x * .13 + vWeather.z * .17);
+          diffuseColor.rgb *= weather * (1. - streak * .22 - tier * .18);
+          float emberVein = pow(max(0., sin(vWeather.x * 1.7 - vWeather.y * .9 + vWeather.z * 1.3)), 18.) * (1. - smoothstep(0., 16., vWeather.y));
+          diffuseColor.rgb += vec3(.42, .16, .03) * emberVein;
+          ${calm ? 'diffuseColor.rgb *= 1. - .35 * (1. - smoothstep(0., 4., vWeather.y)) * vec3(.5, .75, .85);' : ''}
         `);
       };
       return material;
     };
     const stone = concrete(false), calm = concrete(true);
-    const glass = new MeshStandardMaterial({ vertexColors: true, roughness: .26, metalness: .48, envMapIntensity: 1.3 });
-    const metal = new MeshStandardMaterial({ vertexColors: true, roughness: .76, metalness: .3 });
-    const ground = new MeshStandardMaterial({ vertexColors: true, map: maps[3], normalMap: maps[4],
-      roughness: 1, normalScale: new Vector2(.8, .8) });
-    const paint = new MeshStandardMaterial({ vertexColors: true, roughness: .85 });
-    const asphalt = new MeshStandardMaterial({ vertexColors: true, map: maps[0], normalMap: maps[1],
-      roughness: .74, normalScale: new Vector2(.35, .35) });
-    asphalt.onBeforeCompile = shader => {
-      shader.vertexShader = 'varying vec3 vRoad;\n' + shader.vertexShader;
-      shader.vertexShader = shader.vertexShader.replace('#include <begin_vertex>',
-        '#include <begin_vertex>\nvRoad=(modelMatrix*vec4(position,1.)).xyz;');
-      shader.fragmentShader = 'varying vec3 vRoad;\n' + shader.fragmentShader;
-      shader.fragmentShader = shader.fragmentShader.replace('#include <roughnessmap_fragment>', `
-        #include <roughnessmap_fragment>
-        float wetMask = sin(vRoad.x*.61+sin(vRoad.z*.32))*sin(vRoad.z*.49+sin(vRoad.x*.3));
-        float puddle = smoothstep(.38,.65,wetMask);
-        roughnessFactor = mix(.84,.16,puddle);
-        diffuseColor.rgb *= mix(.9,.46,puddle);
-      `);
+    const glass = new MeshStandardMaterial({ vertexColors: true, roughness: .22, metalness: .82, envMapIntensity: 1.5 });
+    glass.onBeforeCompile = shader => {
+      shader.fragmentShader = shader.fragmentShader.replace('#include <color_fragment>',
+        '#include <color_fragment>\ndiffuseColor.rgb = mix(diffuseColor.rgb, vec3(.78, .54, .24), .68);');
     };
-    return [stone, glass, metal, ground, paint, calm, asphalt];
+    const metal = new MeshStandardMaterial({ vertexColors: true, roughness: .42, metalness: .76 });
+    metal.onBeforeCompile = shader => {
+      shader.fragmentShader = shader.fragmentShader.replace('#include <color_fragment>',
+        '#include <color_fragment>\ndiffuseColor.rgb = mix(diffuseColor.rgb, vec3(.52, .35, .18), .6);');
+    };
+    const ground = new MeshStandardMaterial({ vertexColors: true, map: maps[3], normalMap: maps[4],
+      roughness: .92, metalness: .15, normalScale: new Vector2(.9, .9) });
+    // Scorched volcanic obsidian and brimstone rock of the Chasm of Dudael.
+    ground.onBeforeCompile = shader => {
+      shader.fragmentShader = shader.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
+        float luma = dot(diffuseColor.rgb, vec3(.2126, .7152, .0722));
+        diffuseColor.rgb = vec3(luma) * vec3(.46, .33, .25);`);
+    };
+    const paint = new MeshStandardMaterial({ vertexColors: true, roughness: .9, metalness: .25 });
+    paint.onBeforeCompile = shader => {
+      shader.fragmentShader = shader.fragmentShader.replace('#include <color_fragment>',
+        '#include <color_fragment>\ndiffuseColor.rgb = vec3(.09, .065, .05);');
+    };
+    return [stone, glass, metal, ground, paint, calm];
   }, [maps]);
 }

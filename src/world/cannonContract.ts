@@ -45,8 +45,8 @@ export const VIEWS: readonly Readonly<V3>[] = [{ x: -.002, y: .998, z: .067 }, {
  * the lens at .55 (brighter from behind on a phone).
  */
 export const COLORS = {
-  fringe: { r: 0, g: .578, b: 1 } /* #00c8ff */,
-  cool: { r: 0, g: .479, b: 1 } /* #00b8ff */, amber: { r: 1, g: .451, b: .0629 } /* #ffb347 */, hot: { r: 1, g: .0423, b: .0052 } /* #ff3a10 */,
+  fringe: { r: 1, g: .72, b: .18 } /* #ffd066 */,
+  cool: { r: 1, g: .64, b: .14 } /* #ffc452 */, amber: { r: 1, g: .451, b: .0629 } /* #ffb347 */, hot: { r: 1, g: .0423, b: .0052 } /* #ff3a10 */,
 } as const;
 /** Written by the shot choreography (Suit, priority -20), read by the runtime cannon (-19). Intensities multiply the colours. */
 export type CannonDrive = { slide: number; vent: number; core: number; coreColor: RGB; strip: number; stripColor: RGB; fins: number; ring: number };

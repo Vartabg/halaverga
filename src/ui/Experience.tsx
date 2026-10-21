@@ -117,9 +117,8 @@ export default function Experience() {
   // clear is imported here rather than at module scope to keep three.js out of the landing page's first load.
   const retry = async () => {
     pause();
-    const [{ useLoader }, { GLTFLoader }, { SUIT_URL }, { DISTRICT_URL }] = await Promise.all([
-      import('@react-three/fiber'), import('three/addons/loaders/GLTFLoader.js'), import('@/world/Suit'), import('@/world/districtAsset')]);
-    useLoader.clear(GLTFLoader, SUIT_URL); useLoader.clear(GLTFLoader, DISTRICT_URL);
+    const { clearWorldCache } = await import('@/world/Suit');
+    clearWorldCache();
     setFailed(false); setSceneKey(v => v + 1); state.set({ ready: false, flying: false, landing: false });
   };
   const standard = lab === 'standard', playing = state.started && !state.paused, twin = state.touchScheme === 'twin';

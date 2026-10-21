@@ -29,7 +29,8 @@ export default function IvyCards({ plants }: { plants: Plant[] }) {
         position.fromArray(plant.position); position.z += layer * .18;
         q.setFromEuler(new Euler(0, plant.yaw + (plant.tilt ? layer * .13 : layer * 1.2), plant.tilt || 0));
         matrix.compose(position, q, scale.fromArray(plant.scale)); mesh.setMatrixAt(i * 2 + layer, matrix);
-        mesh.setColorAt(i * 2 + layer, new Color().setRGB(.82 + i % 3 * .06, .91 + i % 2 * .07, .78));
+        // Smoldering brimstone scrub along the chasm ledges.
+        mesh.setColorAt(i * 2 + layer, new Color().setRGB(.58 + i % 3 * .06, .34 + i % 2 * .04, .2));
       }
     });
     mesh.instanceMatrix.needsUpdate = true; mesh.computeBoundingSphere();

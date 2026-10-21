@@ -1,18 +1,19 @@
 import record from '@/content/arrival.json';
+import { nearestTerminal } from '@/game/navigation';
 import { persistGame, useGame } from '@/game/store';
 import { runtime } from '@/game/runtime';
 import Modal from './Modal';
 import styles from './Experience.module.css';
 import { BUILD_STAMP, DEPLOYMENT_URL } from './buildInfo';
 export default function FieldGuide({ onClose }: { onClose: () => void }) {
-  const discovered = useGame(s => s.discovered), blaster = useGame(s => s.shooter);
+  const discovered = useGame(s => s.discovered), blaster = useGame(s => s.shooter), active = nearestTerminal(runtime.position)?.record ?? record;
   return <Modal title="Field guide" onClose={onClose}>
-    <p className={styles.eyebrow}>MERIDIAN · EARTH · 2113</p>
-    <p>A fictional modern hillside city, eighty years after the catastrophe of 2033. Ash has hidden the sun ever since, and the floodwater is poison. A flooded boulevard divides what is left of the district: gutted stumps, burned shells and bare steel on both banks. Beyond the ridges the drowned city runs on into the haze, and you can fly all of it.</p>
+    <p className={styles.eyebrow}>CHASM OF DUDAEL · INSPIRED BY 1 ENOCH</p>
+    <p>An otherworldly chasm, inspired by the Book of the Watchers (1 Enoch 6–21). A smoldering bronze-and-crimson firmament hangs over the River of Fire, where obsidian monoliths, stepped ziggurats, and shattered celestial temples rise from the dark ember-lit abyss. You fly as a winged angel, sent into the chasm against the sentinels of the Fallen Watchers. The tablets quote 1 Enoch word for word; the chasm, the sentinels and the flight are game fiction.</p>
     <h3>Your route</h3>
-    <ol><li>Arrival terrace: your starting point, 20 metres above the water.</li><li>Flooded boulevard: fly forward and descend to skim the water.</li><li>Broken viaduct: pass through the opening in the elevated road.</li><li>Upper skyline: rise to the tall tower on your right and find a flat roof.</li></ol>
+    <ol><li>Threshold of Hermon: your starting terrace, 20 metres above the abyssal waters.</li><li>River of Fire: fly forward and descend between the obsidian monoliths to skim the ember-lit stream.</li><li>Bridge of the Abyss: pass through the cleft span across the central chasm.</li><li>Sanctuary of the Throne: rise to the high temple pillar on your right and alight on its summit.</li></ol>
     <img className={styles.districtMap} src="/district-map.svg" width="450" height="336" alt="District map: 1 arrival terrace, 2 flooded boulevard, 3 viaduct opening, 4 tower roof. The line follows the exterior route; shaded footprints mark building interiors." />
-    <p>The suit explores the exteriors of the ruins. Amber clearance markers mean slow down and steer around; a survey frame and faint grids mark the edge of the survey area. The suit eases to a stop before the edge, and the edge hold turns: hold your thumb near the screen side (or move the cursor to a side, or use the arrow keys) to turn. Hands-off, it also turns itself toward open air. The ceiling is 105 metres. Ruined interiors are outside this expedition.</p>
+    <p>The suit explores the exteriors of the ruins. Amber clearance markers mean slow down and steer around; a survey frame and faint grids mark the edge of the survey area. The suit eases to a stop before the edge, and the edge hold turns: hold your thumb near the screen side (or move the cursor to a side, or use the arrow keys) to turn. Hands-off, it also turns itself toward open air. The ceiling is 150 metres. Ruined interiors are outside this expedition.</p>
     <h3>Move naturally</h3>
     <p>Recommended on a trackpad (the default): click the open scene to lift and cruise, move the pointer to steer, hold near an edge to keep turning, and scroll with two fingers for speed. Click again to brake and hover. While hovering, click and drag to look around; aim at a nearby flat surface and click Land. With the blaster on, a click while stopped or on the ground fires at the centre reticle instead (dragging only looks), and Space starts flying — W too, once you are in the air. Space stops again. Blaster sound starts off; turn it on in Flight settings.</p>
     <p>Every way of flying is under Controls (top row), and the Controls row on the pause card opens the same list.</p>
@@ -31,7 +32,7 @@ export default function FieldGuide({ onClose }: { onClose: () => void }) {
     <p>Current location: {runtime.location}. You can read the same terminal record here without navigating the 3D scene.</p>
     <button className={styles.secondary} onClick={() => { useGame.setState({ discovered: true }); persistGame(); }}>
       {discovered ? 'Record recovered' : 'Recover municipal record'}</button>
-    {discovered && <article><p className={styles.eyebrow}>{record.kind}</p><h3>{record.title}</h3><p>{record.body}</p><p className={styles.muted}>{record.note}</p></article>}
+    {discovered && <article><p className={styles.eyebrow}>{active.kind}</p><h3>{active.title}</h3><p>{active.body}</p><p className={styles.muted}>{active.note}</p></article>}
     <h3>Playtest this build</h3>
     <p>Scan with a phone to open the deployed game there. The build stamp identifies this exact code; Flight settings downloads measurements carrying the same stamp.</p>
     <img className={styles.qrHandoff} src="/qr-deployment.svg" width="150" height="150" alt={`QR code that opens ${DEPLOYMENT_URL}`} />

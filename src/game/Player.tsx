@@ -9,7 +9,7 @@ import { presentation } from './presentation';
 import { applyEdgeTurns, thumbTurn } from './edgeTurn';
 import { carve } from './carve';
 import { FlightSafety } from './FlightSafety';
-import { CLEARANCE, nearestTerminal, removeInward } from './navigation';
+import { CLEARANCE, locationName, nearestTerminal, removeInward } from './navigation';
 import { resetLimitSteer } from './limitSteer';
 import { driveLimits } from './limitDrive';
 import { limitStep, resetCueHold } from './limitStep';
@@ -187,7 +187,7 @@ export default function Player() {
       }
       const terminal = nearestTerminal(runtime.position);
       const nearTerminal = terminal !== null;
-      runtime.location = terminal ? terminal.location : next.y > 50 ? 'Upper skyline' : next.y < 6 ? 'Flooded boulevard' : next.z < 15 ? 'Broken viaduct' : 'Arrival terrace';
+      runtime.location = locationName(next, terminal);
       const nearGround = flying && probeBelow(world, rapier, col, safe, runtime.position, FOOT + LAND_WINDOW) !== null;
       useGame.setState({ canLand: !!runtime.landTarget, nearTerminal, nearGround, limitCue: runtime.clearance.cue, limitHint: limitHint(flying ? runtime.clearance.cue : '', inputKind(touchMode(), state.trackpadSteering, state.desktopMode)), clearanceActive: runtime.clearance.active });
     }

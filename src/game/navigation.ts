@@ -24,8 +24,30 @@ export const BUILDING_ROUTE = [
 // player recovers there. Adding a terminal is a content change — Player.tsx
 // reads this table without flight-loop edits.
 export interface Terminal { id: string; position: Vec; radius: number; location: string; record: typeof arrival }
+// Every record body is a verbatim 1 Enoch quotation (kind names the verses); the shared note marks everything around it as game fiction.
+const sourceNote = arrival.note;
 export const TERMINALS: Terminal[] = [
-  { id: 'municipal-memory-07', position: { x: -7, y: 21, z: 58 }, radius: 5, location: 'Municipal terminal', record: arrival },
+  { id: 'municipal-memory-07', position: { x: -7, y: 21, z: 58 }, radius: 5, location: 'Tablet of Semjaza', record: arrival },
+  { id: 'north-core-12', position: { x: 0, y: 12, z: -260 }, radius: 8, location: 'Tablet of the Seven Stars', record: {
+    id: 'north-core-12', locationId: 'halaverga-north-core-12', title: 'The Prison of the Burning Stars', kind: 'Quoted source · 1 Enoch 21:3, 6',
+    place: 'Northern Abyss · Prison of the Seven Stars', date: '1 Enoch 21:3, 6',
+    body: "And there I saw seven stars of the heaven bound together in it, like great mountains and burning with fire. … ‘These are of the number of the stars of heaven, which have transgressed the commandment of the Lord, and are bound here till ten thousand years, the time entailed by their sins, are consummated.’",
+    note: sourceNote } },
+  { id: 'west-flats-09', position: { x: -230, y: 18, z: -40 }, radius: 8, location: 'Tablet of Azazel', record: {
+    id: 'west-flats-09', locationId: 'halaverga-west-flats-09', title: 'The Binding in Dudael', kind: 'Quoted source · 1 Enoch 10:4–5',
+    place: 'Western Cleft · Chasm of Dudael', date: '1 Enoch 10:4–5',
+    body: "And again the Lord said to Raphael: ‘Bind Azâzêl hand and foot, and cast him into the darkness: and make an opening in the desert, which is in Dûdâêl, and cast him therein. And place upon him rough and jagged rocks, and cover him with darkness, and let him abide there for ever, and cover his face that he may not see light.’",
+    note: sourceNote } },
+  { id: 'east-flats-14', position: { x: 230, y: 18, z: -30 }, radius: 8, location: 'Tablet of Kokabiel', record: {
+    id: 'east-flats-14', locationId: 'halaverga-east-flats-14', title: 'Secrets of the Firmament', kind: 'Quoted source · 1 Enoch 8:3',
+    place: 'Eastern Monoliths · Mount of Simeon', date: '1 Enoch 8:3',
+    body: "Semjâzâ taught enchantments, and root-cuttings, Armârôs the resolving of enchantments, Barâqîjâl (taught) astrology, Kôkabêl the constellations, Êzêqêêl the knowledge of the clouds, Araqiêl the signs of the earth, Shamsiêl the signs of the sun, and Sariêl the course of the moon.",
+    note: sourceNote } },
+  { id: 'south-breach-03', position: { x: 0, y: 10, z: 165 }, radius: 8, location: 'Tablet of Michael', record: {
+    id: 'south-breach-03', locationId: 'halaverga-south-breach-03', title: 'The Four Looked Down', kind: 'Quoted source · 1 Enoch 9:1',
+    place: 'Southern Abyss · Gate of Gehenna', date: '1 Enoch 9:1',
+    body: "And then Michael, Uriel, Raphael, and Gabriel looked down from heaven and saw much blood being shed upon the earth, and all lawlessness being wrought upon the earth.",
+    note: sourceNote } },
 ];
 export function nearestTerminal(position: Vec): Terminal | null {
   for (const terminal of TERMINALS) {
@@ -33,6 +55,14 @@ export function nearestTerminal(position: Vec): Terminal | null {
     if (Math.hypot(position.x - x, position.y - y, position.z - z) < terminal.radius) return terminal;
   }
   return null;
+}
+export function locationName(p: Vec, terminal = nearestTerminal(p)): string {
+  if (terminal) return terminal.location;
+  if (p.z < -208) return 'Prison of the Seven Stars';
+  if (p.z > 128) return 'Gate of Gehenna';
+  if (p.x < -225) return 'Chasm of Dudael';
+  if (p.x > 225) return 'Mount of Simeon';
+  return p.y > 50 ? 'Sanctuary of the Throne' : p.y < 6 ? 'River of Fire' : p.z < 15 ? 'Bridge of the Abyss' : 'Threshold of Hermon';
 }
 export function boundaryDistance(p: Vec) {
   return Math.min(p.x - WORLD.minX, WORLD.maxX - p.x, p.z - WORLD.minZ, WORLD.maxZ - p.z, WORLD.ceiling - p.y);

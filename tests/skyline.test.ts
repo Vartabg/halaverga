@@ -93,8 +93,8 @@ describe('far ruins generator', () => {
   });
   it('knows the sea\'s colour on screen: the tower feet mist toward it, and ACES twins three\'s curve', () => {
     const enc = (x: number) => Math.round(255 * (x <= .0031308 ? 12.92 * x : 1.055 * x ** (1 / 2.4) - .055));
-    const [r, g, b] = SEA_BODY.map(enc); // the poisoned sea at near-normal incidence: #1e2318, an oily dark olive
-    expect(Math.abs(r - 30)).toBeLessThanOrEqual(3); expect(Math.abs(g - 35)).toBeLessThanOrEqual(3); expect(Math.abs(b - 24)).toBeLessThanOrEqual(3);
+    const [r, g, b] = SEA_BODY.map(enc); // the abyssal sea at near-normal incidence: #251412, dark obsidian-wine
+    expect(Math.abs(r - 37)).toBeLessThanOrEqual(3); expect(Math.abs(g - 20)).toBeLessThanOrEqual(3); expect(Math.abs(b - 18)).toBeLessThanOrEqual(3);
     const grey = (x: number): Rgb => [x, x, x];
     let last = -1; for (const x of [.01, .05, .18, .5, 1, 4]) { const v = acesFilmic(grey(x))[1]; expect(v).toBeGreaterThan(last); last = v; }
     expect(acesFilmic(grey(100))[0]).toBeGreaterThan(.97); expect(acesFilmic(grey(0))[0]).toBeLessThan(.001);
@@ -110,16 +110,13 @@ describe('far ruins generator', () => {
     expect(tall(-130, -60).length).toBeGreaterThanOrEqual(2);
     expect(tall(60, 110).length).toBeGreaterThanOrEqual(1);
   });
-  it('keeps the Blender district solid while leaving the canal open and the skyline outside the ground mesh', () => {
-    const city = makeCity(), buildings = city.solids.filter(s => s.kind === 'building');
-    expect(buildings).toHaveLength(40); // twenty authored envelopes, each with its stepped upper cap
-    for (const s of buildings) {
-      expect(Math.abs(s.position[0]) - s.size[0]).toBeGreaterThan(15);
-      expect(s.position[2] - s.size[2]).toBeGreaterThan(-180);
-      expect(s.size.every(n => Number.isFinite(n) && n > 0)).toBe(true);
-    }
-    expect(city.solids.some(s => s.position[0] === 30 && s.position[2] === -38 && s.position[1] > 61)).toBe(true);
-    expect(city.geometry.index!.count / 3).toBeLessThan(12000); // authored buildings are in the GLB
+  it('builds the district as ruins with matching colliders, and keeps the skyline out of the city mesh (2026-10-06)', () => {
+    const city = makeCity();
+    expect(city.solids.length).toBe(209); // was 101: open debris pits get rim walls, bare steel collides on its own
+    expect(city.solids.filter(s => s.kind === 'frame').length).toBe(59);
+    expect(city.solids.filter(s => s.kind === 'building').length).toBe(90);
+    expect(createHash('sha256').update(JSON.stringify(city.solids)).digest('hex').slice(0, 16)).toBe('051693dc50f33da8');
+    expect(city.geometry.index!.count / 3).toBe(46016); // 86,784 before: gutted cores, no glass curtain walls
     city.geometry.dispose();
   });
   it('draws the district-edge hills on the stone texture in ash grey: no light for eighty years, nothing green grows', () => {
@@ -141,18 +138,21 @@ describe('far ruins generator', () => {
   });
   it('draws the hills and the terrace parapets in the calm concrete group, so big plain faces are not slabs of marble', () => {
     const city = makeCity();
-    expect(city.geometry.groups.map(g => g.materialIndex)).toEqual([0, 1, 2, 3, 4, 5, 6]); // calm concrete and wet asphalt stay separate
+    expect(city.geometry.groups.map(g => g.materialIndex)).toEqual([0, 1, 2, 3, 4, 5]); // one more draw call, nothing else changes
     expect(city.geometry.groups[5].count / 3).toBe(1408); // the four cut-up hills and the two parapet panels
-    expect(city.geometry.groups[6].count).toBeGreaterThan(0);
+    expect(city.geometry.index!.count / 3).toBe(46016);
     const mats = readFileSync('src/world/cityMaterials.ts', 'utf8');
-    expect(mats).toContain('concrete(true)'); expect(mats).toContain('return [stone, glass, metal, ground, paint, calm, asphalt]');
+    expect(mats).toContain('concrete(true)'); expect(mats).toContain('return [stone, glass, metal, ground, paint, calm]');
     city.geometry.dispose();
   });
-  it('retains the optional distant skyline component as a static mesh with owned resource cleanup', () => {
-    const mesh = readFileSync('src/world/Skyline.tsx', 'utf8');
+  it('draws it as one static, unshadowed, fogged, display-referred mesh in the Scene', () => {
+    const mesh = readFileSync('src/world/Skyline.tsx', 'utf8'), scene = readFileSync('src/world/Scene.tsx', 'utf8'), water = readFileSync('src/world/Atmosphere.tsx', 'utf8');
     expect(mesh).toContain('toneMapped: false'); expect(mesh).toContain('fog: true');
     expect(mesh).toContain('castShadow={false}'); expect(mesh).toContain('receiveShadow={false}');
     expect(mesh).not.toContain('useFrame'); expect(mesh).not.toContain('invalidate');
     expect(mesh).toContain('geometry.dispose()'); expect(mesh).toContain('material.dispose()');
+    expect(scene).toContain('<Skyline />');
+    // the sea follows the camera and takes the fog uniforms
+    expect(water).toContain('UniformsLib.fog'); expect(water).toContain('camera.position.x'); expect(water).toMatch(/<shaderMaterial[^>]* fog\b/);
   });
 });

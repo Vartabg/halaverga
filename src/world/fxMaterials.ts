@@ -5,9 +5,9 @@ import { AdditiveBlending, DoubleSide, BufferAttribute, BufferGeometry, Color, D
 import { puffFrame, puffU, type Puffs, type Rgb } from './fxPools';
 import { billboard, billboardLit, debrisShader, sparkShader, tracerFragment, tracerVertex } from './fxShaders';
 import { shardPositions } from './shards';
-export const FX = { core: new Color('#f2feff'), fringe: new Color('#58e1ff'), hot: new Color('#ff8a3c'), white: new Color('#ffffff'),
-  spark: new Color('#ffd08a'), water: new Color('#9fe3d6'), fire: new Color('#ff9a3c'), ember: new Color('#8a1c0c'),
-  smoke: new Color('#4a4450'), steam: new Color('#d9e2e0'), amber: new Color('#ffb347'),
+export const FX = { core: new Color('#fffbe6'), fringe: new Color('#ffbe44'), hot: new Color('#ff8a3c'), white: new Color('#ffffff'),
+  spark: new Color('#ffd98a'), water: new Color('#e89448'), fire: new Color('#ff9a3c'), ember: new Color('#8a1c0c'),
+  smoke: new Color('#4a3834'), steam: new Color('#f2DEC0'), amber: new Color('#ffb347'),
   // Kill burst: a white-hot pop, a flame core that cools yellow -> orange -> ember, and a pale smoke plume that reads on ruins.
   pop: new Color('#fff2c0'), flame: new Color('#ffd27a'), blaze: new Color('#ff7a2a'), plume: new Color('#6b5648'), plumeEnd: new Color('#8a8078'),
   // Drone debris tints (dark gunmetal, dim worn panel, scorched red; none near white, so they hold shape on pale sky) and the dark core

@@ -21,20 +21,21 @@ const vec3 SCUM = ${glslVec3(SKYLINE.foam)};
 float hash(vec2 p) { return fract(52.9829189 * fract(dot(p, vec2(.06711056, .00583715)))); }
 ` + shader.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
       float seed = fract(vSeed), yy = max(vRuin.y - .1, 0.);
+      diffuseColor.rgb = mix(diffuseColor.rgb * vec3(.74, .55, .41), SOOT, .32);
       vec3 face = normalize(cross(dFdx(vRuin), dFdy(vRuin)));
-      vec2 bay = vec2(dot(vRuin.xz, vec2(-face.z, face.x)) / (2.7 + 1.1 * seed), vRuin.y / (3.6 + 1.1 * fract(seed * 7.31))), cell = floor(bay), fr = fract(bay);
-      float pane = smoothstep(.08, .2, fr.x) * (1. - smoothstep(.8, .92, fr.x)) * smoothstep(.16, .3, fr.y) * (1. - smoothstep(.66, .8, fr.y));
+      vec2 bay = vec2(dot(vRuin.xz, vec2(-face.z, face.x)) / (2.1 + 1.4 * seed), vRuin.y / (5.2 + 1.8 * fract(seed * 7.31))), cell = floor(bay), fr = fract(bay);
+      float pane = smoothstep(.22, .32, fr.x) * (1. - smoothstep(.68, .78, fr.x)) * smoothstep(.08, .18, fr.y) * (1. - smoothstep(.82, .92, fr.y));
       float walls = vWall * (1. - smoothstep(.3, .6, abs(face.y))), grid = walls * (1. - smoothstep(.3, .7, max(fwidth(bay.x), fwidth(bay.y))));
-      float roll = hash(cell + seed * 61.), blast = step(hash(floor(cell / vec2(3., 2.)) + seed * 13.), .3);
-      float hole = max(pane * (roll < .9 ? 1. : .35), blast * smoothstep(.0, .12, min(min(fr.x, 1. - fr.x), min(fr.y, 1. - fr.y)) + .1));
-      diffuseColor.rgb = mix(diffuseColor.rgb, SOOT * .3, hole * grid * .93);
-      float burned = step(hash(vec2(cell.y, seed * 17.)), .3), above = step(hash(vec2(cell.y - 1., seed * 17.)), .3);
+      float roll = hash(cell + seed * 61.), blast = step(hash(floor(cell / vec2(3., 2.)) + seed * 13.), .28);
+      float hole = max(pane * (roll < .85 ? 1. : .35), blast * smoothstep(.0, .12, min(min(fr.x, 1. - fr.x), min(fr.y, 1. - fr.y)) + .1));
+      diffuseColor.rgb = mix(diffuseColor.rgb, SOOT * .25, hole * grid * .92);
+      float burned = step(hash(vec2(cell.y, seed * 17.)), .35), above = step(hash(vec2(cell.y - 1., seed * 17.)), .35);
       float plume = max(burned, above * (1. - fr.y)) * smoothstep(.0, .5, 1. - abs(fr.x - .5) * 2.);
-      diffuseColor.rgb = mix(diffuseColor.rgb, SOOT, plume * walls * .7);
-      float bleed = step(.72, hash(vec2(cell.x, seed * 29.))) * (1. - fr.y) * smoothstep(.35, .45, fr.x) * (1. - smoothstep(.55, .65, fr.x));
-      diffuseColor.rgb = mix(diffuseColor.rgb, RUST, bleed * grid * (1. - pane) * .5);
-      diffuseColor.rgb *= 1. - .5 * (1. - smoothstep(.2, 3., yy));
-      diffuseColor.rgb = mix(diffuseColor.rgb, SCUM * .6, (1. - smoothstep(.05, .7, yy)) * .5);`);
+      diffuseColor.rgb = mix(diffuseColor.rgb, SOOT, plume * walls * .68);
+      float bleed = step(.58, hash(vec2(cell.x, seed * 29.))) * (1. - fr.y * .6) * smoothstep(.32, .45, fr.x) * (1. - smoothstep(.55, .68, fr.x));
+      diffuseColor.rgb = mix(diffuseColor.rgb, RUST * 1.35, bleed * grid * (1. - pane * .5) * .72);
+      diffuseColor.rgb *= 1. - .45 * (1. - smoothstep(.2, 3., yy));
+      diffuseColor.rgb = mix(diffuseColor.rgb, SCUM * .75, (1. - smoothstep(.05, .9, yy)) * .55);`);
   };
   return material;
 }
@@ -61,5 +62,5 @@ export default function RuinField() {
     return () => { try { world.removeRigidBody(body); } catch { /* world already freed */ } };
   }, [world, rapier, field]);
   useEffect(() => () => { field.geometries.forEach(g => g.dispose()); material.dispose(); }, [field, material]);
-  return <>{field.geometries.map((g, i) => <mesh key={i} geometry={g} material={material} receiveShadow castShadow={false} dispose={null} />)}</>;
+  return <>{field.geometries.map((g, i) => <mesh key={i} geometry={g} material={material} receiveShadow castShadow dispose={null} />)}</>;
 }
