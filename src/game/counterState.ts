@@ -9,6 +9,8 @@ export const counterState = {
   serial: 0, since: 1e9,
   /** Darts quenched on the shield with no dive (the thrower was out of the sword's reach). */
   deflects: 0,
+  /** A counter pressed but not yet credited: the attacker its dive must reach (-1 none), and whether a dart was quenched. */
+  pending: -1, pendingQuenched: false,
   /** Current game-time scale (1 normal, lower in slow motion). */
   scale: 1,
 };

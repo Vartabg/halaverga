@@ -3,10 +3,11 @@ import { createShooter } from '../src/game/combat';
 import { createDroneSim, buildTargets } from '../src/game/drones';
 import { COMMAND, requestCommand } from '../src/game/commands';
 import { BATTLE, battle, resetBattle } from '../src/game/celestialBattle';
-import { banish, resetBanish } from '../src/game/banish';
+import { banish, resetBanish, stepBanish } from '../src/game/banish';
+import { cancelStrike, strike } from '../src/game/strike';
 import { BANISH, MODE } from '../src/game/banishState';
 import { flowPaths } from '../src/game/combatFlow';
-import { COUNTER, dartIntercept, tryCounter, updateCounterWindow } from '../src/game/counter';
+import { COUNTER, dartIntercept, resetCounter, settleCounter, tryCounter, updateCounterWindow } from '../src/game/counter';
 import { counterState } from '../src/game/counterState';
 import { BULLET, resetBulletTime, startBulletTime, stepBulletTime } from '../src/game/bulletTime';
 
@@ -14,7 +15,7 @@ import { BULLET, resetBulletTime, startBulletTime, stepBulletTime } from '../src
 function setup(gap = 12) {
   const s = createShooter(); createDroneSim(s); buildTargets(s);
   for (const t of s.targets) t.los = true;
-  flowPaths.fill(1); resetBattle(0); resetBanish(banish, s); resetBulletTime();
+  flowPaths.fill(1); resetBattle(0); resetBanish(banish, s); resetBulletTime(); resetCounter(); cancelStrike();
   counterState.serial = 0; counterState.deflects = 0;
   const player = { ...s.drones.pos[0], z: s.drones.pos[0].z + gap };
   return { s, player };
@@ -37,8 +38,11 @@ describe('Arkham-style counters', () => {
     charging(); updateCounterWindow(s, player, 1 / 60);
     expect(counterState.open).toBe(true); expect(counterState.attacker).toBe(0);
     requestCommand(s, COMMAND.context, -1);
-    expect(tryCounter(s, player)).toBe('counter');
+    expect(tryCounter(s, player)).toBe('pending');
     expect(s.input.cmdKind).toBe(COMMAND.sword); expect(s.input.cmdTarget).toBe(0);
+    expect(counterState.serial).toBe(0); expect(battle.charging).toBe(0); // nothing is credited before the dive
+    stepBanish(banish, s, player, 1 / 60); expect(strike.phase).toBe(1); expect(strike.target).toBe(0);
+    expect(settleCounter(s, player)).toBe('counter'); expect(stepBulletTime(BULLET.attack, false, false)).toBeLessThan(1);
     expect(battle.charging).toBe(-1); expect(battle.nextAttack).toBeGreaterThan(battle.clock);
     expect(banish.rebukeT).toBe(banish.clock); expect(counterState.serial).toBe(1);
   });
@@ -47,7 +51,7 @@ describe('Arkham-style counters', () => {
     const bolt = dart(player, COUNTER.dartLead * .5);
     updateCounterWindow(s, player, 1 / 60); expect(counterState.bolt).toBe(0); expect(counterState.attacker).toBe(0);
     const quenched = battle.quenched; requestCommand(s, COMMAND.context, -1);
-    expect(tryCounter(s, player)).toBe('counter');
+    expect(tryCounter(s, player)).toBe('pending');
     expect(bolt.live).toBe(false); expect(battle.quenched).toBe(quenched + 1); expect(s.input.cmdTarget).toBe(0);
   });
   it('a dart still far out does not open the window, and no press means no counter', () => {
@@ -66,7 +70,7 @@ describe('Arkham-style counters', () => {
     const { s, player } = setup();
     for (let i = 0; i < 2; i++) { const o = battle.bolts[i]; o.live = true; o.src = 0; Object.assign(o.p, player, { z: player.z - (5 + 2 * i) }); Object.assign(o.v, { x: 0, y: 0, z: BATTLE.speed }); }
     updateCounterWindow(s, player, 1 / 60); expect(counterState.bolt).toBe(0);
-    requestCommand(s, COMMAND.context, -1); expect(tryCounter(s, player)).toBe('counter');
+    requestCommand(s, COMMAND.context, -1); expect(tryCounter(s, player)).toBe('pending');
     expect(battle.bolts[0].live).toBe(false); expect(battle.bolts[1].live).toBe(true);
   });
   it('closest approach: seconds until the dart passes nearest, -1 once it has passed or misses', () => {
@@ -125,7 +129,7 @@ describe('only strike inputs counter', () => {
     it(`a ${name} press counters`, () => {
       const { s, player } = setup(); charging(); updateCounterWindow(s, player, 1 / 60);
       requestCommand(s, kind, -1);
-      expect(tryCounter(s, player)).toBe('counter'); expect(s.input.cmdKind).toBe(COMMAND.sword); expect(s.input.cmdTarget).toBe(0);
+      expect(tryCounter(s, player)).toBe('pending'); expect(s.input.cmdKind).toBe(COMMAND.sword); expect(s.input.cmdTarget).toBe(0);
     });
   }
 });

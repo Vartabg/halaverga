@@ -6,7 +6,7 @@ import { resetShooterFeel } from './combat';
 import { COMMAND, requestCommand } from './commands';
 import { runtime } from './runtime';
 import { resetBulletTime, stepBulletTime } from './bulletTime';
-import { tryCounter, updateCounterWindow } from './counter';
+import { resetCounter, settleCounter, tryCounter, updateCounterWindow } from './counter';
 import { useGame } from './store';
 import { presentation, CHASE_HEAD } from './presentation';
 import { guarded } from './shooterFault';
@@ -55,7 +55,7 @@ export default function Shooter() {
     stepShooter(runtime.shooter, parts.sim, parts.mem, parts.world, ctx, sink);
     if (!game.paused) {
       updateFlowPaths(runtime.shooter, p, parts.world.lineClear, state.size); updateCounterWindow(runtime.shooter, p, delta);
-      tryCounter(runtime.shooter, p); stepBanish(banish, runtime.shooter, p, scaled);
+      tryCounter(runtime.shooter, p); stepBanish(banish, runtime.shooter, p, scaled); settleCounter(runtime.shooter, p);
     }
     if (!compiled.current) {
       // Compile the pooled drone and effect programs now, so the first shot never stalls on a shader compile.
@@ -75,7 +75,7 @@ export default function Shooter() {
   // Switching the setting off returns look, camera and pose to exact main behaviour.
   // This component owns the slow-motion clock, so leaving (Holy fire off, a scene reload) returns game time to normal: flight
   // reads counterState.scale and would otherwise stay slow with no clock left to ease it back.
-  useEffect(() => { resetBanish(banish, runtime.shooter); resetBulletTime();
-    return () => { resetAutoFire(runtime.shooter, autoFire); resetShooterFeel(runtime.shooter); resetBanish(banish, runtime.shooter); resetBulletTime(); }; }, []);
+  useEffect(() => { resetBanish(banish, runtime.shooter); resetBulletTime(); resetCounter();
+    return () => { resetAutoFire(runtime.shooter, autoFire); resetShooterFeel(runtime.shooter); resetBanish(banish, runtime.shooter); resetBulletTime(); resetCounter(); }; }, []);
   return null;
 }
