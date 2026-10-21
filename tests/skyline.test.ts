@@ -116,7 +116,7 @@ describe('far ruins generator', () => {
     expect(city.solids.filter(s => s.kind === 'frame').length).toBe(59);
     expect(city.solids.filter(s => s.kind === 'building').length).toBe(90);
     expect(createHash('sha256').update(JSON.stringify(city.solids)).digest('hex').slice(0, 16)).toBe('d7d91fd1091796d3');
-    expect(city.geometry.index!.count / 3).toBe(56276); // 46016 before the stele: carved twelve-sided gate shafts, plinths, bronze crowns
+    expect(city.geometry.index!.count / 3).toBe(19120); // window piers, glass and rebar came off; four stone faces remain (2026-10-21)
     city.geometry.dispose();
   });
   it('draws the district-edge hills on the stone texture in ash grey: no light for eighty years, nothing green grows', () => {
@@ -140,7 +140,7 @@ describe('far ruins generator', () => {
     const city = makeCity();
     expect(city.geometry.groups.map(g => g.materialIndex)).toEqual([0, 1, 2, 3, 4, 5, 6]); // calm concrete, then the painted rock and steles
     expect(city.geometry.groups[5].count / 3).toBe(1408); // the four cut-up hills and the two parapet panels
-    expect(city.geometry.index!.count / 3).toBe(56276);
+    expect(city.geometry.index!.count / 3).toBe(19120);
     const mats = readFileSync('src/world/cityMaterials.ts', 'utf8');
     expect(mats).toContain('concrete(true)'); expect(mats).toContain('return [stone, glass, metal, ground, paint, calm, paintInkMaterial()]');
     city.geometry.dispose();
