@@ -67,7 +67,9 @@ describe('the cold-start log line', () => {
     const { depsFromEnv: fresh } = await import('@/server/vote/config');
     fresh(env);
     fresh(env);
-    return log.mock.calls;
+    const calls = log.mock.calls;
+    log.mockRestore(); // vitest 4 keeps earlier spies live: without restore the next case counts this case's lines too
+    return calls;
   };
 
   it('is one line per process, words only', async () => {
