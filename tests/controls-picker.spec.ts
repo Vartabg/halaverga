@@ -242,7 +242,7 @@ test('the demo note is passive text that shows until the first Begin that showed
   for (const v of [PHONE_PORTRAIT, PHONE_LANDSCAPE, DESKTOP]) {
     const touch = v.width < 900, context = await browser.newContext({ viewport: v, isMobile: touch, hasTouch: touch }), page = await context.newPage();
     await page.goto('/');
-    const begin = page.getByRole('button', { name: 'Begin expedition' }), note = page.getByTestId('demo-note');
+    const begin = page.getByRole('button', { name: 'Ascend Mount Hermon' }), note = page.getByTestId('demo-note');
     await expect(begin).toBeVisible();
     await expect(trigger(page)).toHaveCount(0); // the trigger is a post-Begin control
     const b = await box(begin);
@@ -272,13 +272,13 @@ test('the demo note is passive text that shows until the first Begin that showed
       await expect(page.getByTestId('demo-note')).toBeVisible();
       expect(await demoStored(page)).toBeNull();
       // Begin removes the start card and marks it seen (it was visible); the next visit does not show it.
-      await expect(page.getByRole('button', { name: 'Begin expedition' })).toBeEnabled({ timeout: 60000 });
-      if (touch) await page.getByRole('button', { name: 'Begin expedition' }).tap(); else await page.getByRole('button', { name: 'Begin expedition' }).click();
+      await expect(page.getByRole('button', { name: 'Ascend Mount Hermon' })).toBeEnabled({ timeout: 60000 });
+      if (touch) await page.getByRole('button', { name: 'Ascend Mount Hermon' }).tap(); else await page.getByRole('button', { name: 'Ascend Mount Hermon' }).click();
       await expect(page.getByRole('button', { name: 'Pause expedition' })).toBeVisible();
       await expect(page.getByTestId('demo-note')).toHaveCount(0);
       expect(await demoStored(page)).toBe('1');
       await page.reload();
-      await expect(page.getByRole('button', { name: 'Begin expedition' })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Ascend Mount Hermon' })).toBeVisible();
       await expect(page.getByTestId('demo-note')).toHaveCount(0);
     }
     await context.close();
@@ -332,8 +332,8 @@ test('blocked localStorage still works: the passive demo note shows and Begin st
   await first.addInitScript(blockStorage);
   await first.goto('/');
   await expect(first.getByTestId('demo-note')).toBeVisible();
-  await expect(first.getByRole('button', { name: 'Begin expedition' })).toBeEnabled({ timeout: 60000 });
-  await first.getByRole('button', { name: 'Begin expedition' }).click();
+  await expect(first.getByRole('button', { name: 'Ascend Mount Hermon' })).toBeEnabled({ timeout: 60000 });
+  await first.getByRole('button', { name: 'Ascend Mount Hermon' }).click();
   await expect(first.getByRole('button', { name: 'Pause expedition' })).toBeVisible();
   await expect(first.getByTestId('demo-note')).toHaveCount(0);
   expect(errors).toEqual([]);

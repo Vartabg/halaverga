@@ -27,30 +27,22 @@ export function paintInkMaterial() {
         'vec3 outgoingLight = reflectedLight.directDiffuse + reflectedLight.indirectDiffuse + totalEmissiveRadiance;',
         `reflectedLight.indirectDiffuse *= ${INK_SKY};
         vec3 nW = normalize(vInkN);
-        float nEdge = smoothstep(0.18, 0.44, length(fwidth(nW)));
-        float rowIdx = floor(vInkW.y * 0.42);
-        float course = abs(fract(vInkW.y * 0.42) - 0.5);
-        float joint = abs(fract((vInkW.x + vInkW.z) * 0.14 + rowIdx * 0.5) - 0.5);
-        float wallMask = 1.0 - smoothstep(0.45, 0.75, abs(nW.y));
-        float hSeam = wallMask * (1.0 - smoothstep(0.032, 0.068, course)) * (1.0 - smoothstep(0.18, 0.45, fwidth(vInkW.y * 0.42)));
-        float vSeam = wallMask * (1.0 - smoothstep(0.018, 0.042, joint)) * (1.0 - smoothstep(0.16, 0.38, fwidth((vInkW.x + vInkW.z) * 0.14)));
-        float inkMask = clamp(max(nEdge * 0.96, max(hSeam * 0.78, vSeam * 0.55)), 0.0, 1.0);
+        float nEdge = smoothstep(0.12, 0.36, length(fwidth(nW)));
+        float cragStrata = (1.0 - smoothstep(0.45, 0.78, abs(nW.y))) * (1.0 - smoothstep(0.02, 0.05, abs(fract(vInkW.y * 0.14 + sin(vInkW.x * 0.18 + vInkW.z * 0.16) * 0.35) - 0.5)));
+        float inkMask = clamp(max(nEdge * 0.94, cragStrata * 0.52), 0.0, 1.0);
         vec3 baseLight = reflectedLight.directDiffuse + reflectedLight.indirectDiffuse + totalEmissiveRadiance;
-        float faceLight = max(0.0, nW.y) * 0.85 + abs(nW.x) * 0.48 + max(0.0, -nW.z) * 0.62 + max(0.0, nW.z) * 0.36;
-        float elevGlow = smoothstep(4.0, 48.0, vInkW.y) * 0.34;
-        float celBand = floor(clamp((faceLight + elevGlow) * 2.8, 0.0, 2.99)) / 2.0;
-        vec3 shadowCol = diffuseColor.rgb * vec3(0.46, 0.38, 0.62);
-        vec3 midCol = diffuseColor.rgb * vec3(0.84, 0.74, 0.86);
-        vec3 litCol = mix(diffuseColor.rgb * 1.12, vec3(0.98, 0.86, 0.68), 0.28);
+        float sunFace = max(0.0, nW.y) * 0.65 + max(0.0, -nW.x) * 0.55 + max(0.0, -nW.z) * 0.45;
+        float celBand = floor(clamp(sunFace * 3.1, 0.0, 2.99)) / 2.0;
+        vec3 shadowCol = diffuseColor.rgb * vec3(0.42, 0.34, 0.58);
+        vec3 midCol = diffuseColor.rgb * vec3(0.76, 0.66, 0.82);
+        vec3 litCol = mix(diffuseColor.rgb * 1.08, vec3(0.96, 0.86, 0.72), 0.34);
         vec3 celTone = mix(shadowCol, mix(midCol, litCol, clamp(celBand * 2.0 - 1.0, 0.0, 1.0)), clamp(celBand * 2.0, 0.0, 1.0));
-        vec3 shaded = max(baseLight, celTone);
-        float torchBounce = smoothstep(26.0, 2.0, vInkW.y) * wallMask;
-        shaded = mix(shaded, shaded + vec3(0.32, 0.12, 0.06), torchBounce * 0.48);
-        float frieze = wallMask * step(0.84, fract(vInkW.y * 0.11));
-        shaded = mix(shaded, vec3(0.96, 0.72, 0.28), frieze * 0.42);
-        float chisel = nEdge * step(0.05, nW.y + 0.45 * abs(nW.x)) * (1.0 - step(0.76, nEdge));
-        vec3 rimGold = vec3(0.99, 0.80, 0.38) * (chisel * 0.68 + step(0.65, nW.y) * 0.16);
-        vec3 outgoingLight = mix(shaded + rimGold, vec3(0.03, 0.02, 0.06), inkMask);`,
+        vec3 shaded = mix(baseLight, celTone, 0.78);
+        float snowSlope = smoothstep(0.28, 0.72, nW.y + 0.28 * smoothstep(14.0, 42.0, vInkW.y)) * (0.38 + 0.62 * celBand);
+        shaded = mix(shaded, vec3(0.96, 0.91, 0.84), snowSlope * 0.68);
+        float chisel = nEdge * step(0.08, nW.y + 0.38 * max(0.0, -nW.x)) * (1.0 - step(0.76, nEdge));
+        vec3 rimGold = vec3(0.99, 0.78, 0.36) * (chisel * 0.62 + step(0.68, nW.y) * 0.14);
+        vec3 outgoingLight = mix(shaded + rimGold, vec3(0.04, 0.03, 0.08), inkMask);`,
       );
   };
   material.customProgramCacheKey = () => 'paint-ink-hades-v3';

@@ -24,27 +24,20 @@ float hash(vec2 p) { return fract(52.9829189 * fract(dot(p, vec2(.06711056, .005
 ` + shader.fragmentShader
       .replace('#include <map_fragment>', `#include <map_fragment>
       float seed = fract(vSeed), yy = max(vRuin.y - .1, 0.);
-      diffuseColor.rgb = mix(diffuseColor.rgb * vec3(.74, .66, .84), SOOT, .26);
       vec3 face = normalize(cross(dFdx(vRuin), dFdy(vRuin)));
-      vec2 bay = vec2(dot(vRuin.xz, vec2(-face.z, face.x)) / (2.6 + 1.2 * seed), vRuin.y / 2.4), cell = floor(bay), fr = fract(bay);
-      float walls = vWall * (1. - smoothstep(.3, .6, abs(face.y))), grid = walls * (1. - smoothstep(.3, .7, max(fwidth(bay.x), fwidth(bay.y))));
-      float course = fract(bay.y), seam = smoothstep(.88, .96, course);
-      float carved = step(hash(floor(cell / vec2(1., 2.)) + seed * 41.), .5) * smoothstep(.08, .2, fr.x) * (1. - smoothstep(.8, .92, fr.x));
-      diffuseColor.rgb = mix(diffuseColor.rgb, vec3(.06, .04, .11), (seam + carved * .58) * grid);
-      float vein = step(.36, hash(vec2(floor(bay.x), floor(vRuin.y / 2.4)) + seed * 23.)) * (1. - smoothstep(4., 36., yy)) * seam;
-      diffuseColor.rgb = mix(diffuseColor.rgb, RUST * 1.65, vein * grid * .9);
-      float snowCap = smoothstep(.52, .85, face.y) * smoothstep(14., 34., yy);
-      diffuseColor.rgb = mix(diffuseColor.rgb, CRUST, snowCap * .74);
-      diffuseColor.rgb *= 1. - .35 * (1. - smoothstep(.2, 3., yy));
-      diffuseColor.rgb = mix(diffuseColor.rgb, CRUST * .85, (1. - smoothstep(.05, .9, yy)) * .52);
-      diffuseColor.rgb = mix(diffuseColor.rgb, RUST * 1.85, (1. - smoothstep(0., 8., yy)) * .32 * walls);`)
+      vec3 alpineRock = mix(vec3(.44, .38, .58), vec3(.68, .61, .76), smoothstep(0., 55., yy));
+      diffuseColor.rgb = mix(diffuseColor.rgb * vec3(.88, .82, .94), alpineRock, .56);
+      float snowSlope = smoothstep(.25, .75, face.y + .35 * smoothstep(12., 48., yy));
+      diffuseColor.rgb = mix(diffuseColor.rgb, vec3(.94, .89, .83), snowSlope * .78);
+      diffuseColor.rgb *= 1. - .28 * (1. - smoothstep(.2, 3., yy));
+      diffuseColor.rgb = mix(diffuseColor.rgb, CRUST * .88, (1. - smoothstep(.05, .9, yy)) * .48);`)
       .replace('#include <dithering_fragment>', `
       vec3 faceEdge = normalize(cross(dFdx(vRuin), dFdy(vRuin)));
       float edgeInk = smoothstep(.18, .45, length(fwidth(faceEdge)));
       float lumF = dot(gl_FragColor.rgb, vec3(.299, .587, .114));
-      float celStep = mix(.66, 1.14, floor(clamp(lumF * 3.2, 0., 2.99)) / 2.);
-      vec3 celOut = mix(vec3(.13, .10, .23), gl_FragColor.rgb * celStep, smoothstep(.06, .34, lumF));
-      gl_FragColor.rgb = mix(celOut, vec3(.05, .04, .10), edgeInk * .88);
+      float celStep = mix(.78, 1.16, floor(clamp(lumF * 3.2, 0., 2.99)) / 2.);
+      vec3 celOut = mix(vec3(.26, .21, .38), gl_FragColor.rgb * celStep, smoothstep(.04, .28, lumF));
+      gl_FragColor.rgb = mix(celOut, vec3(.06, .04, .12), edgeInk * .85);
       #include <dithering_fragment>`);
   };
   return material;

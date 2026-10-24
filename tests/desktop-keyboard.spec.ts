@@ -61,7 +61,7 @@ test('W held from hover takes off at the cruise speed (about 8 m/s), never stack
 test('a touch laptop driven by its mouse keeps selection and zoom (touch-only guards follow the live pointer)', async ({ browser }) => {
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, hasTouch: true, isMobile: false });
   const page = await context.newPage();
-  await page.goto('/'); await page.getByRole('button', { name: 'Begin expedition' }).click();
+  await page.goto('/'); await page.getByRole('button', { name: 'Ascend Mount Hermon' }).click();
   await expect(page.getByRole('button', { name: 'Pause expedition' })).toBeVisible();
   const input = () => page.evaluate(() => document.documentElement.dataset.input);
   await page.mouse.click(720, 380); await expect.poll(input).toBe('mouse');

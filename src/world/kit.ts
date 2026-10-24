@@ -89,17 +89,17 @@ export function createKit() {
     for (let i = 0; i < p.count; i++) {
       const vy = p.getY(i), vx = p.getX(i), vz = p.getZ(i), r = Math.hypot(vx, vz);
       if (r > 1e-3) {
-        const a = Math.atan2(vz, vx) + ry, wy = vy + h / 2, course = wy / flute.course, frac = Math.abs(course % 1 - .5) * 2;
-        const pinch = Math.pow(Math.abs(Math.cos(a * 6 + seed * .17)), 2) * flute.depth + (1 - frac) * .045 + (Math.floor(course) % 2 ? .026 : 0);
+        const a = Math.atan2(vz, vx) + ry, wy = vy + h / 2;
+        const pinch = Math.pow(Math.abs(Math.cos(a * 5 + seed * .17)), 1.6) * flute.depth + Math.sin(wy * .28 + a * 2) * .024;
         p.setXYZ(i, vx * (1 - pinch), vy, vz * (1 - pinch));
       }
     }
     g.computeVertexNormals();
-    const warm = lift < 1 ? 0.9 : 1; // a sunk shaft is one darker paint, not a gradient
+    const warm = lift < 1 ? 0.9 : 1;
     g.applyMatrix4(new Matrix4().compose(new Vector3(x, y, z), new Quaternion().setFromEuler(new Euler(0, ry, 0)), new Vector3(1, 1, 1)));
-    add(g, INK.shaft, 1, (pw) => {
-      const course = Math.floor(pw.y / flute.course);
-      return new Color(INK.shaft).multiplyScalar((course % 2 ? 1 : 0.86) * warm);
+    add(g, INK.shaft, 1, (pw, nw) => {
+      const snowT = Math.min(1, Math.max(0, (pw.y - 8) / 26 + Math.max(0, nw.y) * .45));
+      return new Color(INK.shaft).lerp(new Color(INK.lit), snowT * .72).multiplyScalar(warm);
     }, INK_GROUP);
   }
   return { box, hill, block, slab, pillar, add, finish, solids };
@@ -107,9 +107,9 @@ export function createKit() {
 /** Basalt, gilded limestone, worked bronze and snow-alabaster pigments for the Hermon massif. */
 export const colors = { concrete: '#7d738c', edge: '#282136', glass: '#241e33', warm: '#c47d4e',
   light: '#dfba8c', moss: '#3d3752', road: '#685e78', white: '#f2b84b', steel: '#b8823c' };
-/** A carved Watcher sarcophagus / basalt reliquary plinth along the Dawn Waters banks (preserves the exact base solid). */
+/** A snow-capped alpine boulder & Watcher waystone along the Hermon gorge (preserves the exact base solid). */
 export function car(k: Kit, x: number, y: number, z: number, _color: string, ry = 0) {
-  k.box(x, y + .45, z, 1.9, .6, 4.3, INK.plinth, true, ry, 0, 1, INK_GROUP);
-  k.box(x, y + .92, z, 1.45, .36, 3.6, INK.shaft, false, ry, 0, 1, INK_GROUP);
-  k.box(x, y + 1.18, z, 1.05, .18, 2.8, INK.crown, false, ry, 0, 1, INK_GROUP);
+  k.solids.push({ position: [x, y + .45, z], size: [.95, .3, 2.15], rotation: [0, ry, 0] });
+  k.pillar(x, y + 1.8, z, 3.8, .9, 1.85, Math.round(Math.abs(x * 7 + z)), ry, .95, { depth: .16, course: 1.9 });
+  k.box(x, y + 3.8, z, 1.35, .45, 1.35, INK.lit, false, ry, .08, 1, INK_GROUP);
 }

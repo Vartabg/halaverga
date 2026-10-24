@@ -35,9 +35,9 @@ test('?controls=draw is this session only: the lab replaces the standard layers 
   // Lift/Land stays available in every lab scheme.
   await expect(page.getByRole('button', { name: 'Lift', exact: true })).toBeVisible();
   // A reload saves on pagehide: the saved choice is still Standard, and a plain URL starts in Cursor.
-  await page.reload(); await expect(page.getByRole('button', { name: 'Begin expedition' })).toBeVisible();
+  await page.reload(); await expect(page.getByRole('button', { name: 'Ascend Mount Hermon' })).toBeVisible();
   expect((await saved(page)).controlLab ?? 'standard').toBe('standard');
-  await page.goto('/'); await page.getByRole('button', { name: 'Begin expedition' }).click();
+  await page.goto('/'); await page.getByRole('button', { name: 'Ascend Mount Hermon' }).click();
   await expect(page.getByTestId('flight-surface')).toHaveCount(1);
   expect(await controls(page)).toBeNull();
   expect(t.errors).toEqual([]); await t.context.close();

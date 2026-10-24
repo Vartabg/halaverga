@@ -31,26 +31,26 @@ for (const v of [...VIEWS, ...NARROW]) {
     await t.press(page.getByTestId('controls-done'));
     await expect(page.getByTestId('controls-sheet')).toHaveCount(0);
     await t.press(page.getByRole('button', { name: 'Pause expedition' }));
-    await expect(page.getByRole('region', { name: 'Expedition paused' })).toBeVisible();
+    await expect(page.getByRole('region', { name: 'Ascent paused' })).toBeVisible();
     await expect(page.getByTestId('controls-row')).toBeVisible(); // the pause card's Controls row and vote door are one lazy chunk
     await check('paused', { vote: 'locked' });
     if (AXE_AT.includes(v.name)) await wcag(page);
     // The pause card's Controls row opens the same sheet over the paused game: the card hides while it shows, and Done brings it back.
     await t.press(page.getByTestId('controls-row'));
     await expect(page.getByTestId('controls-sheet')).toBeVisible();
-    await expect(page.getByRole('region', { name: 'Expedition paused' })).toHaveCount(0);
+    await expect(page.getByRole('region', { name: 'Ascent paused' })).toHaveCount(0);
     await check('paused-sheet', { sheet: true, paused: true, vote: 'locked' });
     if (AXE_AT.includes(v.name)) await wcag(page);
     await t.press(page.getByTestId('controls-done'));
     await expect(page.getByTestId('controls-sheet')).toHaveCount(0);
-    await expect(page.getByRole('region', { name: 'Expedition paused' })).toBeVisible();
+    await expect(page.getByRole('region', { name: 'Ascent paused' })).toBeVisible();
     // Flight settings over the paused game: the dialog fits, nothing in it overlaps or is under 44 px, and its Resume footer is flush.
-    await t.press(page.getByRole('region', { name: 'Expedition paused' }).getByRole('button', { name: 'Flight settings', exact: true }));
+    await t.press(page.getByRole('region', { name: 'Ascent paused' }).getByRole('button', { name: 'Flight settings', exact: true }));
     await expect(page.getByRole('dialog', { name: 'Flight settings' })).toBeVisible();
     await check('settings', { settings: true });
     if (AXE_AT.includes(v.name)) await wcag(page);
     await t.press(page.getByRole('button', { name: 'Close dialog' }));
-    await expect(page.getByRole('region', { name: 'Expedition paused' })).toBeVisible();
+    await expect(page.getByRole('region', { name: 'Ascent paused' })).toBeVisible();
     expect(all, `${v.name}\n${all.join('\n')}`).toEqual([]);
     expect(t.errors).toEqual([]); await t.context.close();
   });
@@ -75,7 +75,7 @@ for (const v of [...VIEWS, ...NARROW]) {
     await t.press(page.getByTestId('controls-done'));
     await expect(page.getByTestId('controls-sheet')).toHaveCount(0);
     await t.press(page.getByRole('button', { name: 'Pause expedition' }));
-    await expect(page.getByRole('region', { name: 'Expedition paused' })).toBeVisible();
+    await expect(page.getByRole('region', { name: 'Ascent paused' })).toBeVisible();
     await expect(page.getByTestId('vote-open')).toBeVisible(); // the door arrives with the lazy chunk
     await check('vote-ready-paused', { vote: 'ready' });
     if (AXE_AT.includes(v.name)) await wcag(page);
@@ -93,7 +93,7 @@ for (const v of [...VIEWS, ...NARROW]) {
     expect(problems, problems.join('\n')).toEqual([]);
     if (AXE_AT.includes(v.name)) await wcag(page);
     await t.press(page.getByTestId('hint-slot').getByRole('button'));
-    await expect(page.getByRole('region', { name: 'Expedition paused' }).or(page.getByRole('dialog'))).toBeVisible({ timeout: 15000 });
+    await expect(page.getByRole('region', { name: 'Ascent paused' }).or(page.getByRole('dialog'))).toBeVisible({ timeout: 15000 });
     expect(t.errors).toEqual([]); await t.context.close();
   });
   if (!v.touch) continue;

@@ -16,13 +16,13 @@ export default function Landing({ started, failed, ready, zoomNote, note, onEnte
     {/* The title and the start card are one bottom-anchored column (Experience.module.css .hero): a taller card pushes the title up, never into it. */}
     <div className={off ? styles.heroOff : styles.hero}><h1 className={off ? 'sr-only' : styles.heroTitle}>Watchers,<br /><em>cast down.</em></h1>
       {failed && <div className={styles.recovery} role="alert"><h2>The world needs a moment.</h2><p>Your field guide remains available. Reload the scene to continue from your saved landing.</p>{note && <p>{note}</p>}<button className={styles.primary} onClick={onRetry}>Reload scene</button></div>}
-      {!off && <section className={styles.intro} aria-label="Begin expedition">
-        <p className={styles.eyebrow}><span className={styles.statusDot} /> COVENANT 001 <span>/</span> MOUNT HERMON</p>
-        <p className={styles.introCopy}>Two hundred Watchers descended on Mount Hermon.<br />Rise into the dawn firmament and cast down their sentinels.</p>
-        <button className={styles.primary} disabled={!ready} onClick={onEnter}>{ready ? 'Begin expedition' : 'Preparing your suit…'}<span aria-hidden="true">↗</span></button>
-        <p className={styles.introHint} role="status">{note || (zoomNote ? 'Pinch out to normal size, then tap Begin.' : ready ? 'Explore freely. Leave whenever you like.' : 'Building the district and collision map.')}</p>
+      {!off && <section className={styles.intro} aria-label="Ascend Mount Hermon">
+        <p className={styles.eyebrow}><span className={styles.statusDot} /> BOOK OF ENOCH <span>/</span> MOUNT HERMON</p>
+        <p className={styles.introCopy}>Two hundred Watchers descended on Mount Hermon.<br />Rise into the dawn firmament and cast down their host.</p>
+        <button className={styles.primary} disabled={!ready} onClick={onEnter}>{ready ? 'Ascend Mount Hermon' : 'Calling your angel…'}<span aria-hidden="true">↗</span></button>
+        <p className={styles.introHint} role="status">{note || (zoomNote ? 'Pinch out to normal size, then tap Ascend.' : ready ? 'Rise from the summit altar. Leave whenever you like.' : 'Shaping the peaks and sanctuaries of Hermon.')}</p>
         {children}
       </section>}</div>
-    {!started && <footer className={styles.introFooter}><span>1 ENOCH <small>THE WATCHERS</small><b>—</b> HERMON <small>AT DAWN</small></span><span>ASCENT <small>OF THE WATCHERS</small></span></footer>}
+    {!started && <footer className={styles.introFooter}><span>1 ENOCH VI <small>THE WATCHERS</small><b>—</b> HERMON <small>AT DAWN</small></span><span>ARCHANGEL <small>OF THE COVENANT</small></span></footer>}
   </>;
 }

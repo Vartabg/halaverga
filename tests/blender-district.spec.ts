@@ -6,7 +6,7 @@ test('the ruined district and default arm cannon load together and shooting work
   const loaded = new Set<string>();
   page.on('response', r => { if (r.ok() && r.url().endsWith('.glb')) loaded.add(new URL(r.url()).pathname); });
   await page.goto('/');
-  await page.getByRole('button', { name: 'Begin expedition' }).click();
+  await page.getByRole('button', { name: 'Ascend Mount Hermon' }).click();
   const hud = page.getByTestId('shooter-hud');
   await expect(hud).toHaveAttribute('data-cannon', 'shown');
   await page.keyboard.down('KeyC');
@@ -27,7 +27,7 @@ for (const model of ['/models/environment/island_tree_01.glb', '/models/suit.glb
     expect(requests).toBe(1);
     fail = false;
     await page.getByRole('button', { name: 'Reload scene' }).click();
-    await page.getByRole('button', { name: 'Begin expedition' }).click();
+    await page.getByRole('button', { name: 'Ascend Mount Hermon' }).click();
     await page.keyboard.press('Space');
     await expect(page.getByTestId('flight-telemetry')).toHaveAttribute('data-flying', 'true');
     expect(requests).toBe(2);
@@ -39,7 +39,7 @@ test('scene resources settle after repeated high/low quality switches', async ({
   page.on('pageerror', error => errors.push(error.message));
   page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
   await page.goto('/');
-  await page.getByRole('button', { name: 'Begin expedition' }).click();
+  await page.getByRole('button', { name: 'Ascend Mount Hermon' }).click();
   const resources: { geometries: number; textures: number }[] = [];
   for (const quality of ['high', 'low', 'high', 'low', 'high']) {
     await openSettings(page);

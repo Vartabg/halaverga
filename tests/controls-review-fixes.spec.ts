@@ -122,7 +122,7 @@ test('a failed picker, row or vote chunk leaves the page standing: Begin, the Fi
     return route.fulfill({ response: res, body });
   });
   await page.goto('/');
-  const begin = page.getByRole('button', { name: 'Begin expedition' });
+  const begin = page.getByRole('button', { name: 'Ascend Mount Hermon' });
   await expect(begin).toBeEnabled({ timeout: 60000 });
   await page.getByRole('button', { name: 'Field guide' }).click(); // the landing keeps the header button
   await expect(page.getByRole('heading', { name: 'Field guide' })).toBeVisible();
@@ -134,7 +134,7 @@ test('a failed picker, row or vote chunk leaves the page standing: Begin, the Fi
   await expect(trigger(page)).toHaveCount(0);
   // The pause card stands without the row: Resume, the Field guide and Flight settings are all there, and Resume plays on.
   await page.getByRole('button', { name: 'Pause expedition' }).click();
-  const paused = page.getByRole('region', { name: 'Expedition paused' });
+  const paused = page.getByRole('region', { name: 'Ascent paused' });
   await expect(paused.getByRole('button', { name: 'Resume flight' })).toBeVisible();
   await expect(paused.getByRole('button', { name: 'Field guide', exact: true })).toBeVisible();
   await expect(paused.getByRole('button', { name: 'Flight settings', exact: true })).toBeVisible();
@@ -156,10 +156,10 @@ test('a sheet that cannot load never hides the pause card: the Controls row puts
     return route.fulfill({ response: res, body });
   });
   await page.goto('/');
-  await expect(page.getByRole('button', { name: 'Begin expedition' })).toBeEnabled({ timeout: 60000 });
-  await page.getByRole('button', { name: 'Begin expedition' }).click();
+  await expect(page.getByRole('button', { name: 'Ascend Mount Hermon' })).toBeEnabled({ timeout: 60000 });
+  await page.getByRole('button', { name: 'Ascend Mount Hermon' }).click();
   await page.getByRole('button', { name: 'Pause expedition' }).click();
-  const paused = page.getByRole('region', { name: 'Expedition paused' });
+  const paused = page.getByRole('region', { name: 'Ascent paused' });
   await expect(paused).toBeVisible();
   const row = paused.getByTestId('controls-row');
   await expect(row).toBeVisible({ timeout: 15000 });

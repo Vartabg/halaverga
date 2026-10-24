@@ -10,7 +10,7 @@ async function begin(page: Page) {
     const saved = JSON.parse(localStorage.getItem('halaverga-flight-v1') || '{}');
     if (!saved.trackpadSteering || saved.shooter === undefined) localStorage.setItem('halaverga-flight-v1', JSON.stringify({ trackpadSteering: 'free', controlsVersion: 2, shooter: false, ...saved }));
   });
-  await page.goto('/'); await page.getByRole('button', { name: 'Begin expedition' }).click();
+  await page.goto('/'); await page.getByRole('button', { name: 'Ascend Mount Hermon' }).click();
   await page.waitForTimeout(250);
 }
 for (const camera of ['third', 'first']) test(`trackpad-only cruise, steering, speed and hover in ${camera} person`, async ({ page }) => {
@@ -108,7 +108,7 @@ test('optional mouse capture persists and failure offers trackpad recovery', asy
   await expect.poll(() => page.evaluate(() => document.pointerLockElement?.tagName)).toBe('CANVAS');
   await page.keyboard.press('Escape');
   await expect(page.getByRole('button', { name: 'Resume flight' })).toBeVisible();
-  await page.reload(); await page.getByRole('button', { name: 'Begin expedition' }).click();
+  await page.reload(); await page.getByRole('button', { name: 'Ascend Mount Hermon' }).click();
   await openSettings(page);
   expect(await settingsCurrent(page)).toBe('mouse-keys');
   await closeAndResume(page);

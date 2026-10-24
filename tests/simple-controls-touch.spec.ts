@@ -81,7 +81,7 @@ for (const viewport of [PORTRAIT, LANDSCAPE]) {
       await expect(page.getByRole('group', { name: 'Tap flight controls' })).toBeVisible();
       await expect(lesson(page)).toHaveText('Tap pad: Fire and Aim toggle');
       await expect(page.getByText(/Drag to fly/)).toHaveCount(0);
-      await page.goto('/?shooter=0'); await page.getByRole('button', { name: 'Begin expedition' }).tap();
+      await page.goto('/?shooter=0'); await page.getByRole('button', { name: 'Ascend Mount Hermon' }).tap();
       await expect(page.getByRole('group', { name: 'Tap flight controls' })).toBeVisible();
       await expect(lesson(page)).toHaveText('Drag to fly'); await expect(lesson(page)).toHaveAttribute('data-track', 'drag');
       expect(t.errors).toEqual([]); await t.context.close();
@@ -106,7 +106,7 @@ for (const viewport of [PORTRAIT, LANDSCAPE]) {
       await expect(lesson(page)).toHaveCount(0);
       await page.waitForTimeout(1200);
       await expect(lesson(page)).toHaveCount(0);
-      await page.reload(); await page.getByRole('button', { name: 'Begin expedition' }).tap();
+      await page.reload(); await page.getByRole('button', { name: 'Ascend Mount Hermon' }).tap();
       await expect(lesson(page)).toHaveText('Drag to fly · tap a drone'); // it returns on the next visit until the first takeoff
       expect(t.errors).toEqual([]); await t.context.close();
     });

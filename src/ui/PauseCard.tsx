@@ -56,11 +56,11 @@ export default function PauseCard({ ready, onEnter, note = '' }: Props) {
   return <><div className={styles.pauseScrim} data-testid="pause-scrim" aria-hidden="true" onClick={resume} />
   <section ref={card} tabIndex={-1} className={styles.pauseCard} aria-labelledby={kicker}>
     {probeNode}
-    <p id={kicker} className={styles.kicker}>Expedition paused</p>
+    <p id={kicker} className={styles.kicker}>Ascent paused</p>
     <h2>Take your time.</h2>
-    {shooter && runtime.shooter.stats.kills > 0 && <p>Drones downed: {runtime.shooter.stats.kills}</p>}
+    {shooter && runtime.shooter.stats.kills > 0 && <p>Watchers cast down: {runtime.shooter.stats.kills}</p>}
     <p className={styles.note} role="status">{note || (zoomNote ? 'Pinch out to normal size, then tap Resume.' : cramped ? 'Screen too short for touch controls. Zoom out or turn the phone.' : '')}</p>
-    <button ref={go} className={styles.primary} autoFocus disabled={!ready} onClick={resume}>{ready ? 'Resume flight' : 'Restoring your suit…'} <span aria-hidden="true">↗</span></button>
+    <button ref={go} className={styles.primary} autoFocus disabled={!ready} onClick={resume}>{ready ? 'Resume flight' : 'Restoring your angel…'} <span aria-hidden="true">↗</span></button>
     {/* The doors, one list of rows: the vote door (when it works), the Controls row and its tried line come from the chunk below (V4: the vote door is
         right under Resume for players who are asked, after the Controls row for everyone else, and its words cost the landing page nothing). The
         Controls sheet and the vote card (VoteLayer) open over the paused game; this card hides while they show and returns when they close. */}

@@ -28,23 +28,15 @@ export function useCityMaterials() {
           .replace('#include <color_fragment>', `
             #include <color_fragment>
             vec3 nW = normalize(vWorldN);
-            ${calm ? 'vec3 tex = diffuseColor.rgb / max(vColor.rgb, vec3(.001)); tex = mix(vec3(dot(tex, vec3(.2126, .7152, .0722))), tex, .25); diffuseColor.rgb = vColor.rgb * mix(vec3(.24, .21, .32), tex, .22);' : ''}
-            diffuseColor.rgb = mix(diffuseColor.rgb * vec3(.78, .72, .88), vec3(.22, .18, .31), .32);
-            float coursePhase = fract(vWeather.y * 0.38 + (vWeather.x + vWeather.z) * 0.02);
-            float seam = (1.0 - abs(nW.y)) * (1.0 - smoothstep(0.035, 0.075, abs(coursePhase - 0.5)));
-            float tierShift = step(0.5, fract(floor(vWeather.y * 0.38) * 0.37 + floor((vWeather.x - vWeather.z) * 0.08) * 0.23));
-            diffuseColor.rgb *= mix(0.92, 1.08, tierShift);
-            float snowCrest = smoothstep(0.55, 0.85, nW.y) * smoothstep(10.0, 26.0, vWeather.y);
-            diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.91, 0.86, 0.80), snowCrest * 0.62);
-            float goldVein = seam * (1.0 - smoothstep(3.0, 24.0, vWeather.y)) * step(0.55, sin(vWeather.x * 0.35 + vWeather.z * 0.29));
-            diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.92, 0.62, 0.26), goldVein * 0.65);
-            ${calm ? 'diffuseColor.rgb *= 1. - .28 * (1. - smoothstep(0., 4., vWeather.y)) * vec3(.35, .52, .68);' : ''}
+            ${calm ? 'vec3 tex = diffuseColor.rgb / max(vColor.rgb, vec3(.001)); tex = mix(vec3(dot(tex, vec3(.2126, .7152, .0722))), tex, .25); diffuseColor.rgb = vColor.rgb * mix(vec3(.46, .41, .58), tex, .28);' : ''}
+            diffuseColor.rgb = mix(diffuseColor.rgb * vec3(.84, .78, .92), vec3(.32, .27, .44), .24);
+            float snowCrest = smoothstep(0.25, 0.78, nW.y + 0.35 * smoothstep(8.0, 26.0, vWeather.y));
+            diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.94, 0.89, 0.83), snowCrest * 0.78);
           `)
           .replace('#include <dithering_fragment>', `
             vec3 nEdgeVec = normalize(vWorldN);
             float edgeInk = smoothstep(0.18, 0.44, length(fwidth(nEdgeVec)));
-            float courseInk = (1.0 - abs(nEdgeVec.y)) * (1.0 - smoothstep(0.028, 0.062, abs(fract(vWeather.y * 0.38) - 0.5))) * (1.0 - smoothstep(0.18, 0.42, fwidth(vWeather.y * 0.38)));
-            float totalInk = clamp(max(edgeInk * 0.94, courseInk * 0.68), 0.0, 1.0);
+            float totalInk = clamp(edgeInk * 0.92, 0.0, 1.0);
             float lum = dot(gl_FragColor.rgb, vec3(0.299, 0.587, 0.114));
             float faceBoost = max(0.0, nEdgeVec.y) * 0.35 + abs(nEdgeVec.x) * 0.22 + max(0.0, nEdgeVec.z) * 0.18;
             float celBand = mix(0.76, 1.18, floor(clamp((lum + faceBoost) * 3.0, 0.0, 2.99)) / 2.0);
@@ -79,11 +71,12 @@ export function useCityMaterials() {
       );
       shader.fragmentShader = 'varying vec3 vGndW;\n' + shader.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
         float luma = dot(diffuseColor.rgb, vec3(.2126, .7152, .0722));
-        float grid = max(1.0 - smoothstep(0.03, 0.08, abs(fract(vGndW.x * 0.16) - 0.5)), 1.0 - smoothstep(0.03, 0.08, abs(fract(vGndW.z * 0.16) - 0.5)));
-        vec3 slate = mix(vec3(.24, .21, .34), vec3(.58, .52, .64), smoothstep(.2, .75, luma));
-        float frost = smoothstep(14.0, 21.0, vGndW.y) * smoothstep(0.42, 0.72, luma);
-        slate = mix(slate, vec3(.88, .83, .78), frost * 0.55);
-        diffuseColor.rgb = mix(slate, vec3(.08, .06, .14), grid * 0.45);`);
+        float drift = 0.5 + 0.5 * sin(vGndW.x * 0.07 + sin(vGndW.z * 0.045) * 2.4);
+        float snow = smoothstep(0.22, 0.65, luma * 0.55 + drift * 0.65);
+        vec3 rock = mix(vec3(.48, .42, .58), vec3(.72, .66, .78), smoothstep(.15, .65, luma));
+        vec3 alpine = mix(rock, vec3(.94, .89, .83), snow * 0.88);
+        float ridgeInk = (1.0 - smoothstep(0.02, 0.06, abs(fract(vGndW.x * 0.04 + sin(vGndW.z * 0.03) * 0.8) - 0.5))) * 0.22;
+        diffuseColor.rgb = mix(alpine, vec3(.16, .12, .24), ridgeInk);`);
     };
     const paint = new MeshStandardMaterial({ vertexColors: true, roughness: .45, metalness: .35, emissive: '#d98a2b', emissiveIntensity: .65 });
     paint.onBeforeCompile = shader => {

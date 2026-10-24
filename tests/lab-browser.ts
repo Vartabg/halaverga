@@ -10,7 +10,7 @@ export type Pt = { x: number; y: number };
 export type Tel = { pos: number[]; speed: number; flying: boolean; heading: number; pitch: number };
 /** A mouse click, or a tap on a touch page (a mouse click on a touch page would flip the control family). */
 export const press = (l: Locator, touch = false) => touch ? l.tap() : l.click();
-export const pauseCard = (page: Page) => page.getByRole('region', { name: 'Expedition paused' });
+export const pauseCard = (page: Page) => page.getByRole('region', { name: 'Ascent paused' });
 export const flightSettings = (page: Page) => page.getByRole('dialog', { name: 'Flight settings' });
 export const controlsSheet = (page: Page) => page.getByTestId('controls-sheet');
 /** The one hint slot under the top row (a message, the Municipal record, a landing or limit line, or the controls lesson). */
@@ -118,7 +118,7 @@ export async function labPage(browser: Browser, scheme: AnyControl, opts: { touc
   }, opts.saved);
   if (opts.routes) await opts.routes(page);
   await page.goto(opts.url ?? (scheme === 'standard' ? '/' : `/?controls=${scheme}`));
-  const begin = page.getByRole('button', { name: 'Begin expedition' });
+  const begin = page.getByRole('button', { name: 'Ascend Mount Hermon' });
   await expect(begin).toBeEnabled({ timeout: 60000 });
   if (touch) await begin.tap(); else await begin.click();
   await expect(page.getByRole('button', { name: 'Pause expedition' })).toBeVisible();

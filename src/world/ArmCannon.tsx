@@ -6,10 +6,14 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { guarded } from '@/game/shooterFault';
 import { CANNON_URL, cannonDrive, cannonLink } from './cannonContract';
 import { buildArmCannon, detachArmCannon, disposeArmCannon, stepArmCannon } from './cannonRuntime';
+import { luminousBracer } from './luminousBracer';
 
 export default function ArmCannon() {
   const gltf = useLoader(GLTFLoader, CANNON_URL);
-  const cannon = useMemo(() => buildArmCannon(gltf.scene), [gltf]);
+  const { cannon, disposeBracer } = useMemo(() => {
+    const c = buildArmCannon(gltf.scene), disposeBracer = luminousBracer(c.root);
+    return { cannon: c, disposeBracer };
+  }, [gltf]);
   const tick = useMemo(() => {
     let warmed = false;
     return guarded('ArmCannon', (state: RootState, _dt: number) => {
@@ -22,7 +26,7 @@ export default function ArmCannon() {
       }
     });
   }, [cannon]);
-  useEffect(() => () => { detachArmCannon(cannon, cannonLink); disposeArmCannon(cannon); }, [cannon]);
+  useEffect(() => () => { detachArmCannon(cannon, cannonLink); disposeBracer(); disposeArmCannon(cannon); }, [cannon, disposeBracer]);
   useFrame(tick, -19);
   // Nothing is rendered through React: attaching reparents the root into the forearm_r bone of Suit's rig, and a <primitive>
   // here would let React reparent it back under this component's parent on every reconciliation.

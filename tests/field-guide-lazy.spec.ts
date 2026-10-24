@@ -22,9 +22,9 @@ async function guideChunk(page: Page, start: Mode) {
   return { mode, requests, served, release: () => release() };
 }
 const FAILED = 'The field guide could not load. Try again.', LOADING = 'Opening field guide…';
-const card = (page: Page) => page.getByRole('region', { name: 'Expedition paused' });
+const card = (page: Page) => page.getByRole('region', { name: 'Ascent paused' });
 const begin = async (page: Page) => {
-  const b = page.getByRole('button', { name: 'Begin expedition' });
+  const b = page.getByRole('button', { name: 'Ascend Mount Hermon' });
   await expect(b).toBeEnabled({ timeout: 60000 }); await b.click();
   await expect(page.getByRole('button', { name: 'Pause expedition' })).toBeVisible();
 };
@@ -38,7 +38,7 @@ const dialogOpen = (page: Page) => expect(page.getByRole('dialog').getByRole('he
 test('the guide chunk is warmed after hydration and the guide then opens at once', async ({ page }) => {
   const chunk = await guideChunk(page, 'pass');
   await page.goto('/');
-  await expect(page.getByRole('button', { name: 'Begin expedition' })).toBeEnabled({ timeout: 60000 });
+  await expect(page.getByRole('button', { name: 'Ascend Mount Hermon' })).toBeEnabled({ timeout: 60000 });
   await expect.poll(() => chunk.requests.length, { timeout: 10000 }).toBeGreaterThan(0);
   const before = chunk.requests.length;
   await page.getByRole('button', { name: 'Field guide', exact: true }).click();
@@ -50,18 +50,18 @@ test('the guide chunk is warmed after hydration and the guide then opens at once
 test('start card: a failed guide says so, nothing opens, and the next click retries', async ({ page }) => {
   const chunk = await guideChunk(page, 'fail');
   await page.goto('/');
-  await expect(page.getByRole('button', { name: 'Begin expedition' })).toBeEnabled({ timeout: 60000 });
-  const status = page.getByRole('region', { name: 'Begin expedition' }).getByRole('status');
+  await expect(page.getByRole('button', { name: 'Ascend Mount Hermon' })).toBeEnabled({ timeout: 60000 });
+  const status = page.getByRole('region', { name: 'Ascend Mount Hermon' }).getByRole('status');
   await page.getByRole('button', { name: 'Field guide', exact: true }).click();
   await expect(status).toHaveText(FAILED);
   await expect(page.getByRole('dialog')).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Begin expedition' })).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Ascend Mount Hermon' })).toBeEnabled();
   chunk.mode.now = 'pass';
   await page.getByRole('button', { name: 'Field guide', exact: true }).click();
   await dialogOpen(page);
   await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog')).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Begin expedition' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Ascend Mount Hermon' })).toBeVisible();
   await expect(status).not.toHaveText(FAILED);
 });
 

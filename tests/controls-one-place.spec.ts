@@ -115,7 +115,7 @@ test('a pause card that is not ready keeps focus on the card, then hands it to R
   const context = await browser.newContext({ viewport: DESKTOP }), page = await context.newPage(), errors: string[] = [];
   page.on('pageerror', e => errors.push(e.message));
   // Hold the Gesture Lab chunk ('lab-surface' is its surface's test id: in no first-load or other chunk): switching to Draw in play then
-  // leaves the controls not ready, and the pause card shows `Restoring your suit…` with Resume disabled.
+  // leaves the controls not ready, and the pause card shows `Restoring your angel…` with Resume disabled.
   let release = () => {}; const gate = new Promise<void>(r => { release = r; });
   await page.route('**/_next/static/chunks/*.js', async route => {
     const res = await route.fetch(), body = await res.text();
@@ -124,13 +124,13 @@ test('a pause card that is not ready keeps focus on the card, then hands it to R
   });
   try {
     await page.goto('/');
-    await expect(page.getByRole('button', { name: 'Begin expedition' })).toBeEnabled({ timeout: 60000 });
-    await page.getByRole('button', { name: 'Begin expedition' }).click();
+    await expect(page.getByRole('button', { name: 'Ascend Mount Hermon' })).toBeEnabled({ timeout: 60000 });
+    await page.getByRole('button', { name: 'Ascend Mount Hermon' }).click();
     await openSheet(page);
     await sheet(page).locator('[data-control="draw"]').click();
     await page.keyboard.press('Escape'); // closes the sheet
     await pauseButton(page).click();
-    const card = pauseCard(page), wait = card.getByRole('button', { name: /Restoring your suit/ });
+    const card = pauseCard(page), wait = card.getByRole('button', { name: /Restoring your angel/ });
     await expect(wait).toBeVisible(); await expect(wait).toBeDisabled();
     await expect(card).toBeFocused(); // a disabled button cannot hold focus, so the card does: never the page behind
     release();

@@ -194,7 +194,7 @@ export async function openLanding(browser: Browser, v: View, opts: { saved?: Rec
   }, seed);
   await mockResults(page, opts.results); // before the page loads: the Vote button asks the ballot once, as soon as two ways are flown
   await page.goto(opts.url ?? '/');
-  const begin = page.getByRole('button', { name: 'Begin expedition' });
+  const begin = page.getByRole('button', { name: 'Ascend Mount Hermon' });
   await expect(begin).toBeEnabled({ timeout: 60000 });
   const press = (l: ReturnType<Page['locator']>) => v.touch ? l.tap() : l.click();
   return { context, page, errors, press,

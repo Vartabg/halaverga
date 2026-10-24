@@ -7,7 +7,7 @@ for (const [side, x, camera] of [['left', 90, 'Third person'], ['right', 290, 'F
     const context = await browser.newContext({ viewport: { width: 393, height: 852 }, isMobile: true, hasTouch: true });
     const page = await context.newPage(), errors: string[] = []; await seed(page, CLASSIC);
     page.on('pageerror', e => errors.push(e.message));
-    await page.goto('/'); await page.getByRole('button', { name: 'Begin expedition' }).tap();
+    await page.goto('/'); await page.getByRole('button', { name: 'Ascend Mount Hermon' }).tap();
     if (camera === 'First person') {
       await openSettings(page, true);
       await page.getByRole('button', { name: camera, exact: true }).tap();
@@ -48,7 +48,7 @@ for (const [side, x, camera] of [['left', 90, 'Third person'], ['right', 290, 'F
 test('long presses on controls and their surroundings do not select game text', async ({ browser }) => {
   const context = await browser.newContext({ viewport: { width: 393, height: 852 }, isMobile: true, hasTouch: true });
   const page = await context.newPage(); await seed(page, CLASSIC); await page.goto('/');
-  await page.getByRole('button', { name: 'Begin expedition' }).tap();
+  await page.getByRole('button', { name: 'Ascend Mount Hermon' }).tap();
   const lift = page.getByRole('button', { name: 'Lift', exact: true }), bounds = (await lift.boundingBox())!;
   const cdp = await context.newCDPSession(page);
   for (const x of [bounds.x + 3, bounds.x + bounds.width / 2, bounds.x - 6]) {
@@ -74,7 +74,7 @@ test('long presses on controls and their surroundings do not select game text', 
 test('rotation releases both thumbs and keeps playing, without changing the view', async ({ browser }) => {
   const context = await browser.newContext({ viewport: { width: 393, height: 852 }, isMobile: true, hasTouch: true });
   const page = await context.newPage(); await seed(page, CLASSIC); await page.goto('/');
-  await page.getByRole('button', { name: 'Begin expedition' }).tap();
+  await page.getByRole('button', { name: 'Ascend Mount Hermon' }).tap();
   const cdp = await context.newCDPSession(page), telemetry = page.getByTestId('flight-telemetry');
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: 90, y: 650, id: 1 }] });
   await page.waitForTimeout(850);

@@ -119,7 +119,7 @@ describe('far ruins generator', () => {
     expect(city.solids.filter(s => s.kind === 'frame').length).toBe(59);
     expect(city.solids.filter(s => s.kind === 'building').length).toBe(90);
     expect(createHash('sha256').update(JSON.stringify(city.solids)).digest('hex').slice(0, 16)).toBe('d7d91fd1091796d3');
-    expect(city.geometry.index!.count / 3).toBe(27772); // Watcher colonnades, ziggurat friezes, and 1 Enoch tablet shrines (2026-10-24)
+    expect(city.geometry.index!.count / 3).toBe(87640); // 12-sided fluted Mount Hermon crag peaks & Watcher sanctuaries (2026-10-24)
     city.geometry.dispose();
   });
   it('draws the district-edge hills on the stone texture in ash grey: no light for eighty years, nothing green grows', () => {
@@ -143,7 +143,7 @@ describe('far ruins generator', () => {
     const city = makeCity();
     expect(city.geometry.groups.map(g => g.materialIndex)).toEqual([0, 1, 2, 3, 4, 5, 6]); // calm concrete, then the painted rock and steles
     expect(city.geometry.groups[5].count / 3).toBe(1408); // the four cut-up hills and the two parapet panels
-    expect(city.geometry.index!.count / 3).toBe(27772);
+    expect(city.geometry.index!.count / 3).toBe(87640);
     const mats = readFileSync('src/world/cityMaterials.ts', 'utf8');
     expect(mats).toContain('concrete(true)'); expect(mats).toContain('return [stone, glass, metal, ground, paint, calm, paintInkMaterial()]');
     city.geometry.dispose();
