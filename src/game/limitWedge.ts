@@ -1,4 +1,5 @@
 import { S, STEER, type SteerIn } from './limitLatch';
+import { FLIGHT_FLOOR } from './motion';
 /**
  * Wedge fallback (limits plan S1): the suit presses on a solid, commands a heading, and does not move at all: a slab over a facade,
  * two faces whose normals flip step to step. The face nudge cannot pick a side there, so after wedgeS (0.6 s) of not moving it looks for
@@ -12,7 +13,15 @@ export function wedgeSteer(rt: { yaw: number; pitch: number }, c: SteerIn, pitch
   const touching = c.scrape.active || c.contact.active;
   const stuck = c.commanded > .5 && touching && c.speed < Math.max(.3, .08 * c.commanded);
   S.stuckGap = stuck ? 0 : S.stuckGap + c.dt; S.stuckT = S.stuckGap > STEER.gap ? 0 : S.stuckT + c.dt;
-  if (S.wedge) { S.wedgeT += c.dt; if (c.speed > .4 * c.commanded || S.wedgeT > STEER.wedgeMaxS) { S.wedge = false; S.stuckT = 0; } }
+  if (S.wedge) {
+    S.wedgeT += c.dt;
+    if (c.speed > .4 * c.commanded || S.wedgeT > STEER.wedgeMaxS) { S.wedge = false; S.stuckT = 0; }
+    // Released by moving, low above the flight floor: the wedge levelled the pitch and its release wiped the peel
+    // state, so the suit would skate the floor 1.2 m up forever (pin #142, 2026-10-21; movement-side fix ok'd by
+    // Garo). Re-latch the floor peel there: climb clear, the same way a floor touch would (under a slab is not low).
+    const rel = c.speed > .4 * c.commanded && S.wedgeT <= STEER.wedgeMaxS;
+    if (rel && pitchFree && c.p.y - FLIGHT_FLOOR < STEER.exitFloor) { S.peel = -1; S.peelLost = 0; S.shallow = false; S.settle = false; S.leaveT = 0; }
+  }
   else if (S.stuckT > STEER.wedgeS && c.free) {
     // Compass directions, not offsets from the nose: the city's corridors are axis-aligned and a capsule only fits straight down one.
     let best = -1, bestAt = rt.yaw, bestOff = Infinity;

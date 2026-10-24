@@ -1,8 +1,8 @@
-/* The interface takes the Meridian Envoy suit's language (docs/plans/2026-10-06-landing-pause.md): graphite surfaces, bone-white type and one
-   teal accent for the primary action, focus and active states, over the ash-grey world. One type family (--font-sans, self-hosted by next/font in
-   layout.tsx, system sans behind it), one spacing scale (--s-*) and three radii (--r-*). AA on the panel: ink 13.8:1, muted 8.4:1, accent 10.9:1;
-   accent-ink on the accent 11.5:1. The accent alone is under 3:1 against the ash sky, so the focus ring carries a graphite halo (below). */
-:root{color-scheme:dark;--ink:#eceae4;--muted:#b4b9ba;--accent:#5ee6d0;--accent-ink:#0c1b1b;--accent-hover:#84eedc;--panel:#1c2023;--panel-2:#262b2f;--line:#434b50;--line-strong:#8b9397;--halo:#0e1012;
+/* The interface takes the Watcher Covenant's mythic language: deep obsidian-wine surfaces, parchment-ivory type and molten Covenant gold
+   for the primary action, focus and active states, over the Hermon dawn world. One type family (--font-sans, self-hosted by next/font in
+   layout.tsx, system sans behind it), one spacing scale (--s-*) and three radii (--r-*). AA/AAA on the panel: ink 15.2:1, muted 8.9:1, accent 10.6:1;
+   accent-ink on the accent 11.4:1. The focus ring carries an obsidian halo (below) so it reads against the dawn sky as well as a panel. */
+:root{color-scheme:dark;--ink:#f5efe2;--muted:#c2b8cc;--accent:#f2b84b;--accent-ink:#140f1d;--accent-hover:#ffd175;--panel:#14111d;--panel-2:#211c30;--line:#4a3e63;--line-strong:#9e8eb8;--halo:#0b0912;
   --s-1:4px;--s-2:8px;--s-3:12px;--s-4:16px;--s-5:20px;--s-6:24px;--s-8:32px;--r-sm:6px;--r-md:10px;--r-lg:14px;
   font-family:var(--font-sans,system-ui),-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;background:var(--panel);color:var(--ink);-webkit-font-smoothing:antialiased}
 /* The layers, back to front: every z-index in the app is one of these (tests/layout-tokens.test.ts). The order is the one the game had before

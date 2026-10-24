@@ -3,7 +3,7 @@ import { AdditiveBlending, BoxGeometry, BufferGeometry, Color, DataTexture, Icos
   type WebGLProgramParametersWithUniforms } from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
-export const DRONE_COLORS = { body: '#1f1618', plate: '#8c6232', eyeIdle: '#ffaa2b', eyeAlert: '#ff2418', telegraph: '#fff7de', rim: '#ff8822', flash: '#ffffff' } as const;
+export const DRONE_COLORS = { body: '#1a1426', plate: '#c98a38', eyeIdle: '#ffb638', eyeAlert: '#ff2a1c', telegraph: '#fff7de', rim: '#ff8822', flash: '#ffffff' } as const;
 /** Wheel radius and crown offset: the crossed brass wheels sit inside the .95 m hit sphere. */
 const ARM_R = .58, ARM_Y = .04;
 
@@ -71,6 +71,8 @@ function flashRim(material: MeshStandardMaterial, rim: number) {
       totalEmissiveRadiance += vec3(vFlash) * 1.6 + uRim * pow(1.0 - saturate(dot(normal, normalize(vViewPosition))), 3.0);
       float exposed = smoothstep(0.18, 0.5, vLocal.y) + 0.25 * smoothstep(0.35, 0.0, abs(vLocal.y));
       totalEmissiveRadiance += uEmber * exposed * vDamage * 3.0;
+      float droneInk = smoothstep(0.24, 0.54, length(fwidth(normal)));
+      diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.05, 0.03, 0.10), droneInk * 0.85);
     `);
   };
   material.customProgramCacheKey = () => CACHE_KEY;

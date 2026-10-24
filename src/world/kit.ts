@@ -104,12 +104,12 @@ export function createKit() {
   }
   return { box, hill, block, slab, pillar, add, finish, solids };
 }
-/** Ash-dulled concrete, faded markings, dirty glass and rusted steel (the 2026-10-06 ruins). */
-export const colors = { concrete: '#a8a598', edge: '#33302c', glass: '#3c4542', warm: '#8f6a58',
-  light: '#a99a86', moss: '#4f4b40', road: '#85857c', white: '#a39d88', steel: '#4a4038' };
-/** A burned-out car: a rusted body, the cabin a black hollow, sitting on its rims. */
-export function car(k: Kit, x: number, y: number, z: number, color: string, ry = 0) {
-  k.box(x, y + .45, z, 1.9, .6, 4.3, color, true, ry);
-  k.box(x, y + .93, z - .2, 1.65, .45, 2, '#1d1b19', false, ry);
-  for (const dx of [-1, 1]) for (const dz of [-1.35, 1.35]) k.box(x + dx * .86, y + .2, z + dz, .2, .4, .5, '#2b2723');
+/** Basalt, gilded limestone, worked bronze and snow-alabaster pigments for the Hermon massif. */
+export const colors = { concrete: '#7d738c', edge: '#282136', glass: '#241e33', warm: '#c47d4e',
+  light: '#dfba8c', moss: '#3d3752', road: '#685e78', white: '#f2b84b', steel: '#b8823c' };
+/** A carved Watcher sarcophagus / basalt reliquary plinth along the Dawn Waters banks (preserves the exact base solid). */
+export function car(k: Kit, x: number, y: number, z: number, _color: string, ry = 0) {
+  k.box(x, y + .45, z, 1.9, .6, 4.3, INK.plinth, true, ry, 0, 1, INK_GROUP);
+  k.box(x, y + .92, z, 1.45, .36, 3.6, INK.shaft, false, ry, 0, 1, INK_GROUP);
+  k.box(x, y + 1.18, z, 1.05, .18, 2.8, INK.crown, false, ry, 0, 1, INK_GROUP);
 }

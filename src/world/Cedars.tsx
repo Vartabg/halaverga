@@ -10,15 +10,15 @@ function cedarGeometry() {
   const parts: { g: ConeGeometry | CylinderGeometry; color: Color }[] = [];
   const trunk = new CylinderGeometry(CEDAR.trunkR, CEDAR.trunkR * 1.5, CEDAR.trunkH * HEIGHT, 6);
   trunk.translate(0, CEDAR.trunkH * HEIGHT / 2, 0);
-  parts.push({ g: trunk, color: new Color('#4a3524') });
+  parts.push({ g: trunk, color: new Color('#523528') });
   for (const [i, tier] of CEDAR_TIERS.entries()) {
     const cone = new ConeGeometry(tier.r * 2, tier.h * HEIGHT, 8);
     cone.translate(0, tier.y * HEIGHT, 0);
-    parts.push({ g: cone, color: new Color(i % 2 ? '#33502e' : '#2a4527') });
+    parts.push({ g: cone, color: new Color(i % 2 ? '#266b5c' : '#1b5247') });
   }
   const snow = new ConeGeometry(CEDAR.snowR * 2, .16 * HEIGHT, 8);
   snow.translate(0, CEDAR.snowY * HEIGHT, 0);
-  parts.push({ g: snow, color: new Color('#eef0ea') });
+  parts.push({ g: snow, color: new Color('#f6efe2') });
   const geos = parts.map(({ g, color }) => {
     const n = g.attributes.position.count, colors = new Float32Array(n * 3);
     for (let i = 0; i < n; i++) colors.set([color.r, color.g, color.b], i * 3);
@@ -28,11 +28,21 @@ function cedarGeometry() {
   return mergeGeometries(geos)!;
 }
 
-/** Living cedars on the banks: one instanced draw, no colliders (flight passes over the banks, trees sit outside the corridor). */
+/** Living cedars on the banks: one instanced draw with Hades cel-and-ink shading, no colliders. */
 export default function Cedars() {
   const mesh = useMemo(() => {
     const cedars = makeCedars();
-    const m = new InstancedMesh(cedarGeometry(), new MeshStandardMaterial({ vertexColors: true, roughness: .9, metalness: 0 }), cedars.length);
+    const mat = new MeshStandardMaterial({ vertexColors: true, roughness: .78, metalness: .05, flatShading: true });
+    mat.onBeforeCompile = shader => {
+      shader.fragmentShader = shader.fragmentShader.replace('#include <dithering_fragment>', `
+        float edgeInk = smoothstep(.20, .48, length(fwidth(vNormal)));
+        float lum = dot(gl_FragColor.rgb, vec3(.299, .587, .114));
+        float cel = mix(.62, 1.16, floor(clamp(lum * 3.2, 0., 2.99)) / 2.);
+        vec3 celCol = mix(vec3(.11, .14, .24), gl_FragColor.rgb * cel, smoothstep(.06, .34, lum));
+        gl_FragColor.rgb = mix(celCol, vec3(.05, .04, .10), edgeInk * .88);
+        #include <dithering_fragment>`);
+    };
+    const m = new InstancedMesh(cedarGeometry(), mat, cedars.length);
     const matrix = new Matrix4(), q = new Quaternion(), e = new Euler();
     cedars.forEach((c, i) => {
       matrix.compose(new Vector3(...c.position), q.setFromEuler(e.set(0, c.yaw, 0)), new Vector3(c.scale, c.scale, c.scale));

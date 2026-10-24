@@ -6,9 +6,11 @@ import { FRAME_GROUPS } from '@/game/combat';
 import { SKYLINE, glslVec3 } from './atmospherePalette';
 import { makeField } from './fieldData';
 
-/** The flyable ruins' surface: the city's concrete photo under the baked ruin colours, lit by the scene (tone mapped like the city),
- * with the far skyline's cheap touches on wall faces (aWall): a grid of empty, black window holes, blown-out blocks, soot climbing
- * above burned floors and rust bleeding from the sills; a dark wet band and scum at the waterline. No loops, no extra textures. */
+/** The flyable field's surface: the stone photo under the baked basalt colours, lit by the scene
+ * (tone mapped like the city), since the Dudael pass (Garo, 2026-10-21: the field is chasm terrain,
+ * not apartment ruins). On wall faces (aWall): carved ashlar courses with dark seams, broad shadows
+ * in alternating panels, molten bronze bleeding from the joints low down, ember glow and a molten
+ * crust tideline at the waterline. No loops, no extra textures. */
 export function fieldMaterial(map: Texture) {
   const material = new MeshLambertMaterial({ vertexColors: true, map });
   material.onBeforeCompile = shader => {
@@ -17,25 +19,33 @@ export function fieldMaterial(map: Texture) {
     shader.fragmentShader = `varying vec3 vRuin;\nvarying float vSeed;\nvarying float vWall;
 const vec3 SOOT = ${glslVec3(SKYLINE.soot)};
 const vec3 RUST = ${glslVec3(SKYLINE.rust)};
-const vec3 SCUM = ${glslVec3(SKYLINE.foam)};
+const vec3 CRUST = ${glslVec3(SKYLINE.foam)};
 float hash(vec2 p) { return fract(52.9829189 * fract(dot(p, vec2(.06711056, .00583715)))); }
-` + shader.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
+` + shader.fragmentShader
+      .replace('#include <map_fragment>', `#include <map_fragment>
       float seed = fract(vSeed), yy = max(vRuin.y - .1, 0.);
-      diffuseColor.rgb = mix(diffuseColor.rgb * vec3(.74, .55, .41), SOOT, .32);
+      diffuseColor.rgb = mix(diffuseColor.rgb * vec3(.74, .66, .84), SOOT, .26);
       vec3 face = normalize(cross(dFdx(vRuin), dFdy(vRuin)));
-      vec2 bay = vec2(dot(vRuin.xz, vec2(-face.z, face.x)) / (2.1 + 1.4 * seed), vRuin.y / (5.2 + 1.8 * fract(seed * 7.31))), cell = floor(bay), fr = fract(bay);
-      float pane = smoothstep(.22, .32, fr.x) * (1. - smoothstep(.68, .78, fr.x)) * smoothstep(.08, .18, fr.y) * (1. - smoothstep(.82, .92, fr.y));
+      vec2 bay = vec2(dot(vRuin.xz, vec2(-face.z, face.x)) / (2.6 + 1.2 * seed), vRuin.y / 2.4), cell = floor(bay), fr = fract(bay);
       float walls = vWall * (1. - smoothstep(.3, .6, abs(face.y))), grid = walls * (1. - smoothstep(.3, .7, max(fwidth(bay.x), fwidth(bay.y))));
-      float roll = hash(cell + seed * 61.), blast = step(hash(floor(cell / vec2(3., 2.)) + seed * 13.), .28);
-      float hole = max(pane * (roll < .85 ? 1. : .35), blast * smoothstep(.0, .12, min(min(fr.x, 1. - fr.x), min(fr.y, 1. - fr.y)) + .1));
-      diffuseColor.rgb = mix(diffuseColor.rgb, SOOT * .25, hole * grid * .92);
-      float burned = step(hash(vec2(cell.y, seed * 17.)), .35), above = step(hash(vec2(cell.y - 1., seed * 17.)), .35);
-      float plume = max(burned, above * (1. - fr.y)) * smoothstep(.0, .5, 1. - abs(fr.x - .5) * 2.);
-      diffuseColor.rgb = mix(diffuseColor.rgb, SOOT, plume * walls * .68);
-      float bleed = step(.58, hash(vec2(cell.x, seed * 29.))) * (1. - fr.y * .6) * smoothstep(.32, .45, fr.x) * (1. - smoothstep(.55, .68, fr.x));
-      diffuseColor.rgb = mix(diffuseColor.rgb, RUST * 1.35, bleed * grid * (1. - pane * .5) * .72);
-      diffuseColor.rgb *= 1. - .45 * (1. - smoothstep(.2, 3., yy));
-      diffuseColor.rgb = mix(diffuseColor.rgb, SCUM * .75, (1. - smoothstep(.05, .9, yy)) * .55);`);
+      float course = fract(bay.y), seam = smoothstep(.88, .96, course);
+      float carved = step(hash(floor(cell / vec2(1., 2.)) + seed * 41.), .5) * smoothstep(.08, .2, fr.x) * (1. - smoothstep(.8, .92, fr.x));
+      diffuseColor.rgb = mix(diffuseColor.rgb, vec3(.06, .04, .11), (seam + carved * .58) * grid);
+      float vein = step(.36, hash(vec2(floor(bay.x), floor(vRuin.y / 2.4)) + seed * 23.)) * (1. - smoothstep(4., 36., yy)) * seam;
+      diffuseColor.rgb = mix(diffuseColor.rgb, RUST * 1.65, vein * grid * .9);
+      float snowCap = smoothstep(.52, .85, face.y) * smoothstep(14., 34., yy);
+      diffuseColor.rgb = mix(diffuseColor.rgb, CRUST, snowCap * .74);
+      diffuseColor.rgb *= 1. - .35 * (1. - smoothstep(.2, 3., yy));
+      diffuseColor.rgb = mix(diffuseColor.rgb, CRUST * .85, (1. - smoothstep(.05, .9, yy)) * .52);
+      diffuseColor.rgb = mix(diffuseColor.rgb, RUST * 1.85, (1. - smoothstep(0., 8., yy)) * .32 * walls);`)
+      .replace('#include <dithering_fragment>', `
+      vec3 faceEdge = normalize(cross(dFdx(vRuin), dFdy(vRuin)));
+      float edgeInk = smoothstep(.18, .45, length(fwidth(faceEdge)));
+      float lumF = dot(gl_FragColor.rgb, vec3(.299, .587, .114));
+      float celStep = mix(.66, 1.14, floor(clamp(lumF * 3.2, 0., 2.99)) / 2.);
+      vec3 celOut = mix(vec3(.13, .10, .23), gl_FragColor.rgb * celStep, smoothstep(.06, .34, lumF));
+      gl_FragColor.rgb = mix(celOut, vec3(.05, .04, .10), edgeInk * .88);
+      #include <dithering_fragment>`);
   };
   return material;
 }

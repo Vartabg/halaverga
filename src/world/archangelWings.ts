@@ -57,10 +57,19 @@ export function createArchangelWings(): ArchangelWings {
   root.add(leftInner, rightInner);
 
   const plumeMat = new MeshStandardMaterial({
-    color: '#fff4d2', emissive: '#6e4510', emissiveIntensity: .65, metalness: .38, roughness: .32, side: DoubleSide,
+    color: '#fff3cf', emissive: '#8a4f12', emissiveIntensity: .78, metalness: .42, roughness: .28, side: DoubleSide, flatShading: true,
   });
+  plumeMat.onBeforeCompile = shader => {
+    shader.fragmentShader = shader.fragmentShader.replace('#include <dithering_fragment>', `
+      float featherInk = smoothstep(0.20, 0.48, length(fwidth(vNormal)));
+      float rim = pow(1.0 - abs(dot(normalize(vNormal), normalize(vViewPosition))), 2.2);
+      vec3 goldBlade = gl_FragColor.rgb + vec3(1.0, 0.76, 0.32) * smoothstep(0.35, 0.75, rim) * 0.45;
+      gl_FragColor.rgb = mix(goldBlade, vec3(0.08, 0.05, 0.14), featherInk * 0.88);
+      #include <dithering_fragment>`);
+  };
+  plumeMat.customProgramCacheKey = () => 'archangel-plume-hades-v2';
   const glowMat = new MeshBasicMaterial({
-    color: '#ffcf66', transparent: true, opacity: .34, blending: AdditiveBlending, depthWrite: false, side: DoubleSide,
+    color: '#ffbe47', transparent: true, opacity: .42, blending: AdditiveBlending, depthWrite: false, side: DoubleSide,
   });
 
   const L = buildSideGeometries(-1), R = buildSideGeometries(1);

@@ -21,13 +21,18 @@ export function skylineMaterial() {
     shader.vertexShader = 'varying vec3 vSky;\n' + shader.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\nvSky = transformed;');
     shader.fragmentShader = prefix + shader.fragmentShader.replace('#include <color_fragment>', `#include <color_fragment>
       float yy = max(vSky.y - .1, 0.);
+      vec3 faceN = normalize(cross(dFdx(vSky), dFdy(vSky)));
+      float ridgeInk = smoothstep(.18, .44, length(fwidth(faceN)));
+      float highSnow = smoothstep(.45, .82, faceN.y) * smoothstep(18., 46., yy);
+      diffuseColor.rgb = mix(diffuseColor.rgb, SNOW, highSnow * .68);
       diffuseColor.rgb *= 1. - .45 * (1. - smoothstep(.2, 3., yy)) * vec3(.85, .8, .9);
       vec3 toBase = cameraPosition - vec3(vSky.x, .1, vSky.z);
       float cosI = clamp(toBase.y / length(toBase), 0., 1.);
       vec3 sea = mix(FOOT_SEA, mix(FOOT_HAZE, FOOT_LOW, smoothstep(0., .17, cosI)), min(.025 + .55 * pow(1. - cosI, 4.), .8));
       diffuseColor.rgb = mix(diffuseColor.rgb, sea, exp(-yy * .25) * .7);
       diffuseColor.rgb = mix(diffuseColor.rgb, SNOW, (1. - smoothstep(.05, .7, yy)) * .45);
-      diffuseColor.rgb *= .84 + .16 * smoothstep(2., 60., yy);`)
+      diffuseColor.rgb *= .84 + .16 * smoothstep(2., 60., yy);
+      diffuseColor.rgb = mix(diffuseColor.rgb, vec3(.07, .05, .13), ridgeInk * .75);`)
       .replace('#include <fog_fragment>', `#ifdef USE_FOG
       float f = smoothstep(fogNear, fogFar, vFogDepth);
       gl_FragColor.rgb = mix(gl_FragColor.rgb, fogColor, mix(f, pow(f, 1.3), smoothstep(.5, 14., vSky.y)));

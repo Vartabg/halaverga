@@ -29,8 +29,23 @@ export default function Suit() {
     r.root.traverse(o => {
       if (!(o instanceof SkinnedMesh) || !(o.material instanceof MeshStandardMaterial)) return;
       const m = o.material;
-      if (m.name === 'skin') { m.color.set('#e8d5b8'); m.emissive.set('#2c1d0a'); m.roughness = .48; }
-      else { m.color.set('#f4e2b8'); m.emissive.set('#4a2f0c'); m.metalness = .68; m.roughness = .28; }
+      if (m.name === 'skin') { m.color.set('#edd6ba'); m.emissive.set('#2b180e'); m.roughness = .42; }
+      else if (m.name === 'textile') { m.color.set('#261e3a'); m.emissive.set('#120c21'); m.metalness = .25; m.roughness = .58; }
+      else if (m.name === 'glow') { m.color.set('#ffe28a'); m.emissive.set('#ff9b26'); m.emissiveIntensity = 1.9; }
+      else { m.color.set('#f5d58e'); m.emissive.set('#4d2d0a'); m.metalness = .65; m.roughness = .26; }
+      m.onBeforeCompile = shader => {
+        shader.fragmentShader = shader.fragmentShader.replace('#include <dithering_fragment>', `
+          float edgeInk = smoothstep(0.24, 0.56, length(fwidth(vNormal)));
+          float fresnel = pow(1.0 - abs(dot(normalize(vNormal), normalize(vViewPosition))), 2.6);
+          float rimStep = smoothstep(0.42, 0.68, fresnel);
+          float lum = dot(gl_FragColor.rgb, vec3(0.299, 0.587, 0.114));
+          float cel = mix(0.68, 1.15, floor(clamp(lum * 3.2, 0.0, 2.99)) / 2.0);
+          vec3 celCol = mix(vec3(0.14, 0.10, 0.24), gl_FragColor.rgb * cel, smoothstep(0.06, 0.32, lum));
+          celCol += vec3(0.99, 0.78, 0.36) * rimStep * 0.38;
+          gl_FragColor.rgb = mix(celCol, vec3(0.05, 0.03, 0.09), edgeInk * 0.85);
+          #include <dithering_fragment>`);
+      };
+      m.customProgramCacheKey = () => 'suit-hades-' + m.name;
     });
     return r;
   }, [asset]);
