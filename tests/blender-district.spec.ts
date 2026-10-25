@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import { openSettings, closeAndResume } from './lab-browser';
 
-test('the ruined district and default arm cannon load together and shooting works', async ({ page }) => {
+test('the continuous massif and default covenant bracer load together and celestial fire works', async ({ page }) => {
   const loaded = new Set<string>();
   page.on('response', r => { if (r.ok() && r.url().endsWith('.glb')) loaded.add(new URL(r.url()).pathname); });
   await page.goto('/');
@@ -12,13 +12,13 @@ test('the ruined district and default arm cannon load together and shooting work
   await page.keyboard.down('KeyC');
   await expect.poll(async () => Number(await hud.getAttribute('data-shots'))).toBeGreaterThan(2);
   await page.keyboard.up('KeyC');
-  expect(loaded.has('/models/suit.glb')).toBe(true);
+  expect(loaded.has('/models/angel.glb')).toBe(true);
   expect(loaded.has('/models/arm-cannon.glb')).toBe(true);
   expect(loaded.has('/models/environment/meridian-district.glb')).toBe(false);
 });
 
-// Each world model, blocked once: the scene fails, Reload scene fetches it again (not the cached error) and flight works.
-for (const model of ['/models/environment/island_tree_01.glb', '/models/suit.glb']) {
+// The archangel model, blocked once: the scene fails, Reload scene fetches it again (not the cached error) and flight works.
+for (const model of ['/models/angel.glb']) {
   test(`${model} download failure recovers through Reload scene`, async ({ page }) => {
     let fail = true, requests = 0;
     await page.route(`**${model}`, route => { requests++; return fail ? route.abort() : route.continue(); });

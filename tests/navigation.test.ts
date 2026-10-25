@@ -3,23 +3,22 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { join } from 'node:path';
 import RAPIER from '@dimforge/rapier3d-compat';
-import { Euler, Quaternion } from 'three';
-import { makeCity } from '../src/world/cityData';
-import { makeField } from '../src/world/fieldData';
+import { physicsGeometry, mountPhysicsGeometry } from './physicsWorld';
 import { FlightSafety } from '../src/game/FlightSafety';
 import { advanceVelocity, FOOT, START, WORLD, type Vec } from '../src/game/motion';
 import { BUILDING_ROUTE, CLEARANCE, removeInward, softenBounds } from '../src/game/navigation';
-let solids: ReturnType<typeof makeCity>['solids'];
+import { heightAt } from '../src/world/massifData';
+let geometry: ReturnType<typeof physicsGeometry>;
 const worlds: RAPIER.World[] = [];
 const routeResults: { from: string; to: string; clear: boolean }[] = [];
 let stressSteps = 0, stressApproaches = 0;
 const identity = { x: 0, y: 0, z: 0, w: 1 };
 // The district plus the flyable ruins around it (fieldData.ts, 2026-10-06): the stress approaches sample the whole box.
-beforeAll(async () => { await RAPIER.init(); const city = makeCity(), field = makeField(); solids = [...city.solids, ...field.solids]; city.geometry.dispose(); field.geometries.forEach(g => g.dispose()); });
+beforeAll(async () => { await RAPIER.init(); geometry = physicsGeometry(); });
 afterEach(() => { worlds.splice(0).forEach(w => w.free()); });
 function setup(position: Vec) {
   const world = new RAPIER.World({ x: 0, y: 0, z: 0 }); worlds.push(world);
-  solids.forEach(s => world.createCollider(RAPIER.ColliderDesc.cuboid(...s.size).setTranslation(...s.position).setRotation(new Quaternion().setFromEuler(new Euler(...s.rotation)))));
+  mountPhysicsGeometry(world, geometry);
   const body = world.createRigidBody(RAPIER.RigidBodyDesc.kinematicPositionBased().setTranslation(position.x, position.y, position.z));
   const capsule = world.createCollider(RAPIER.ColliderDesc.capsule(.6, .4), body);
   const controller = world.createCharacterController(CLEARANCE.margin); controller.setSlideEnabled(true);
@@ -37,12 +36,10 @@ function move(fixture: ReturnType<typeof setup>, velocity: Vec) {
   return corrected;
 }
 describe('authored city navigation', () => {
-  // Since the 2026-10-06 ruins, building 1 (x -62) is a bare steel skeleton above its third floor; the burned shell of building 4
-  // (x -38, its upper block centred on x -41, z -28, faces at z -17.2 and -38.8, solid from 27.9 to 40.3 m) is the sealed upper storey.
-  it('seals the broken upper stories, while keeping both principal landings valid', () => {
+  it('blocks vertical sweeps through the massif while both principal landings remain valid', () => {
     const f = setup(START);
-    expect(f.safety.isClear({ x: -41, y: 33.3, z: -28 })).toBe(false);
-    expect(f.safety.isClear({ x: 36, y: 54, z: -38 })).toBe(false);
+    expect(f.safety.pathClear({ x: -41, y: heightAt(-41, -28) + 5, z: -28 }, { x: -41, y: heightAt(-41, -28) - 5, z: -28 })).toBe(false);
+    expect(f.safety.pathClear({ x: 36, y: heightAt(36, -38) + 5, z: -38 }, { x: 36, y: heightAt(36, -38) - 5, z: -38 })).toBe(false);
     expect(f.safety.canLand({ x: 0, y: 20, z: 65 })).toBe(true);
     expect(f.safety.canLand({ x: 30, y: 61.415, z: -38 })).toBe(true);
   });
@@ -56,13 +53,13 @@ describe('authored city navigation', () => {
       expect(hit, `${a.label} → ${b.label}`).toBeNull();
     }
   });
-  it('stops a full-speed facade approach early and immediately allows departure', () => {
-    const f = setup({ x: -41, y: 33.3, z: -2 });
-    for (let i = 0; i < 180; i++) move(f, { x: 0, y: 0, z: -34 });
-    expect(f.body.translation().z).toBeGreaterThan(-16.2);
-    const stopped = f.body.translation().z;
-    for (let i = 0; i < 30; i++) move(f, { x: 0, y: 0, z: 13 });
-    expect(f.body.translation().z).toBeGreaterThan(stopped + 5);
+  it('keeps a full-speed summit approach clear and immediately allows departure', () => {
+    const f = setup({ x: -15, y: 50, z: -38 });
+    for (let i = 0; i < 180; i++) move(f, { x: 34, y: 0, z: 0 });
+    expect(f.body.translation().y).toBeGreaterThan(49);
+    const stopped = f.body.translation().x;
+    for (let i = 0; i < 30; i++) move(f, { x: -13, y: 0, z: 0 });
+    expect(f.body.translation().x).toBeLessThan(stopped - 5);
   });
   it('preserves tangential movement rather than sticking to a facade', () => {
     const f = setup({ x: -48, y: 15, z: 38 });
@@ -72,11 +69,11 @@ describe('authored city navigation', () => {
   });
   it('rejects trapped, unsupported and narrow-edge checkpoints', () => {
     const f = setup(START);
-    expect(f.safety.checkpoint({ x: -41, y: 33.3, z: -28 })).toEqual(START);
+    expect(f.safety.checkpoint({ x: -41, y: heightAt(-41, -28) - 2, z: -28 })).toEqual(START);
     expect(f.safety.checkpoint({ x: 0, y: 50, z: 45 })).toEqual(START);
-    expect(f.safety.canLand({ x: 11.9, y: 20, z: 65 })).toBe(false);
+    expect(f.safety.canLand({ x: 18, y: 20, z: 65 })).toBe(false);
     expect(f.safety.checkpoint(START)).toEqual(START);
-    expect(f.safety.pathClear({ x: -41, y: 33.3, z: -2 }, { x: -41, y: 33.3, z: -44 })).toBe(false);
+    expect(f.safety.pathClear({ x: -15, y: 50, z: -38 }, { x: 30, y: 50, z: -38 })).toBe(false);
   });
   it('brakes at all district limits while allowing a turn back', () => {
     const cases = [
@@ -118,11 +115,11 @@ describe('authored city navigation', () => {
 afterAll(() => {
   const output = process.env.NAV_REPORT_DIR; if (!output) return;
   const width = WORLD.maxX - WORLD.minX, depth = WORLD.maxZ - WORLD.minZ;
-  const rectangles = solids.filter(s => s.kind === 'building').map(s => `<rect x="${s.position[0] - s.size[0]}" y="${s.position[2] - s.size[2]}" width="${s.size[0] * 2}" height="${s.size[2] * 2}" fill="#564769" fill-opacity=".7" stroke="#e8cfa6" stroke-width=".6"/>`).join('');
+  const rectangles = geometry.solids.filter(s => s.kind === 'building').map(s => `<rect x="${s.position[0] - s.size[0]}" y="${s.position[2] - s.size[2]}" width="${s.size[0] * 2}" height="${s.size[2] * 2}" fill="#564769" fill-opacity=".7" stroke="#e8cfa6" stroke-width=".6"/>`).join('');
   const stops = ['arrival', 'boulevard', 'viaduct', 'roof'].map(id => BUILDING_ROUTE.find(p => p.id === id)!);
   const pins = stops.map((p, i) => `<circle cx="${p.x}" cy="${p.z}" r="6" fill="#f2b84b"/><text x="${p.x}" y="${p.z + 3}" text-anchor="middle" fill="#140f1d" font-size="9">${i + 1}</text>`).join('');
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-225 -208 450 336" role="img"><title>Mount Hermon exterior flight route</title><desc>Sanctuary footprints, summit perimeter and flight route from the Threshold of Hermon through the Dawn Waters and Bridge of the Abyss to the High Watchtower.</desc><rect x="-225" y="-208" width="450" height="336" rx="8" fill="#14111d"/><rect x="${WORLD.minX}" y="${WORLD.minZ}" width="${width}" height="${depth}" fill="#211c30" stroke="#f2b84b" stroke-dasharray="4 3"/><path d="M0 108V-188" stroke="#245d6d" stroke-width="28"/>${rectangles}<polyline points="${BUILDING_ROUTE.map(p => `${p.x},${p.z}`).join(' ')}" fill="none" stroke="#f2b84b" stroke-width="2"/>${pins}<text x="-205" y="-197" fill="#f5efe2" font-family="sans-serif" font-size="8">MOUNT HERMON · SUMMIT SURVEY · NORTH ↑</text></svg>`;
   const sources = ['src/game/FlightSafety.ts','src/game/navigation.ts','src/game/motion.ts','src/world/kit.ts','src/world/cityData.ts','src/game/Player.tsx','src/world/DistrictBoundary.tsx'];
-  const report = { engine: 'Rapier ' + RAPIER.version(), generatedAt: new Date().toISOString(), maximumSpeed: 34, physicsStepSeconds: 1 / 60, bounds: WORLD, cityColliderCount: solids.length, exteriorBuildingVolumes: solids.filter(s => s.kind === 'building').length, flightProbeRadius: 1.05, routeAuditRadius: 1.15, route: BUILDING_ROUTE, routeResults, stressApproaches, stressSteps, sourceHashes: Object.fromEntries(sources.map(p => [p, createHash('sha256').update(readFileSync(p)).digest('hex')])), scope: 'Finite seeded swept-body regression and declared route tubes in the actual city geometry. Not an exhaustive proof of every trajectory or physical-device validation.' };
+  const report = { engine: 'Rapier ' + RAPIER.version(), generatedAt: new Date().toISOString(), maximumSpeed: 34, physicsStepSeconds: 1 / 60, bounds: WORLD, cityColliderCount: geometry.solids.length + geometry.terrains.length, exteriorBuildingVolumes: geometry.solids.filter(s => s.kind === 'building').length, flightProbeRadius: 1.05, routeAuditRadius: 1.15, route: BUILDING_ROUTE, routeResults, stressApproaches, stressSteps, sourceHashes: Object.fromEntries(sources.map(p => [p, createHash('sha256').update(readFileSync(p)).digest('hex')])), scope: 'Finite seeded swept-body regression and declared route tubes in the actual city geometry. Not an exhaustive proof of every trajectory or physical-device validation.' };
   mkdirSync(output, { recursive: true }); writeFileSync(join(output, 'district-map.svg'), svg); writeFileSync(join(output, 'navigation-audit.json'), JSON.stringify(report, null, 2) + '\n');
 });

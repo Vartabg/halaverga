@@ -1,6 +1,7 @@
-import { BoxGeometry, Color, CylinderGeometry, Float32BufferAttribute, Matrix4, Quaternion, Euler, Vector3, BufferGeometry } from 'three';
+import { BoxGeometry, Color, Float32BufferAttribute, Matrix4, Quaternion, Euler, Vector3, BufferGeometry } from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { INK, INK_GROUP } from './paintInk';
+import { megalithGeometry } from './megalithGeometry';
 export type Triple = [number, number, number];
 /** `building` marks a core's exterior volume; `frame` is bare ruin steel, which the chase camera's boom looks through (City.tsx). */
 export type Solid = { position: Triple; size: Triple; rotation: Triple; kind?: 'building' | 'frame' };
@@ -21,6 +22,7 @@ export function createKit() {
   /** `shade` (optional) gives a vertex its colour from its world position and normal; otherwise the whole piece is `color`. */
   function add(g: BufferGeometry, color: string, lift = 1, shade?: (p: Vector3, n: Vector3) => Color, group?: number) {
     const c = new Color(color).multiplyScalar(lift), p = g.attributes.position, n = g.attributes.normal, uv = g.attributes.uv;
+    if (!g.index) g.setIndex(Array.from({ length: p.count }, (_, i) => i));
     const shaded = new Float32Array(p.count * 3), at = new Vector3(), up = new Vector3();
     for (let i = 0; i < p.count; i++) {
       const v = shade ? shade(at.fromBufferAttribute(p, i), up.fromBufferAttribute(n, i)) : c;
@@ -61,9 +63,18 @@ export function createKit() {
     if (solid) solids.push({ position: [x, y, z], size: [w / 2, h / 2, d / 2], rotation: [0, 0, 0] });
   }
   function finish() {
-    const merged = pieces.map(group => mergeGeometries(group));
-    const geometry = mergeGeometries(merged, true);
-    pieces.flat().forEach(g => g.dispose()); merged.forEach(g => g.dispose());
+    const merged = pieces.map(group => group.length ? mergeGeometries(group) : null);
+    const present = merged.filter((g): g is BufferGeometry => !!g);
+    const geometry = mergeGeometries(present, false);
+    if (!geometry) throw new Error('sanctuary geometry merge failed');
+    geometry.clearGroups();
+    let start = 0;
+    merged.forEach((g, materialIndex) => {
+      if (!g) return;
+      const count = g.index ? g.index.count : g.attributes.position.count;
+      geometry.addGroup(start, count, materialIndex); start += count;
+    });
+    pieces.flat().forEach(g => g.dispose()); present.forEach(g => g.dispose());
     geometry.computeBoundingSphere();
     return { geometry, solids };
   }
@@ -80,25 +91,23 @@ export function createKit() {
     }
     g.computeVertexNormals(); g.translate(x, y, z); add(g, colors.concrete);
   }
-  /** A colossal Watcher stele shaft ({@link steleData}): a tapering twelve-sided cylinder whose vertices are carved — flutes pinch
-   * the radius in around the shaft and horizontal courses bare bands like lifted stone — then vertex-shaded so the courses read as
-   * chiselled work yet it merges into whichever surface group the city mesh already carries (one draw call unchanged). */
+  /** A faceted Watcher megalith: an irregular seven-sided worked-stone silhouette, never a smooth cylinder or brick stack. */
   function pillar(x: number, y: number, z: number, h: number, rTop: number, rBot: number, seed: number, ry: number,
     lift = 1, flute = { depth: .05, course: 3.2 }) {
-    const g = new CylinderGeometry(rTop, rBot, h, 12, Math.max(2, Math.round(h / flute.course * 2))), p = g.attributes.position;
+    const source = megalithGeometry(h, rTop, rBot, seed), p = source.attributes.position;
     for (let i = 0; i < p.count; i++) {
       const vy = p.getY(i), vx = p.getX(i), vz = p.getZ(i), r = Math.hypot(vx, vz);
       if (r > 1e-3) {
         const a = Math.atan2(vz, vx) + ry, wy = vy + h / 2;
-        const pinch = Math.pow(Math.abs(Math.cos(a * 5 + seed * .17)), 1.6) * flute.depth + Math.sin(wy * .28 + a * 2) * .024;
+        const pinch = Math.pow(Math.abs(Math.cos(a * 5 + seed * .17)), 1.6) * flute.depth + Math.sin(wy * .28 + a * 2) * .018;
         p.setXYZ(i, vx * (1 - pinch), vy, vz * (1 - pinch));
       }
     }
-    g.computeVertexNormals();
+    const g = source.toNonIndexed(); source.dispose(); g.computeVertexNormals();
     const warm = lift < 1 ? 0.9 : 1;
     g.applyMatrix4(new Matrix4().compose(new Vector3(x, y, z), new Quaternion().setFromEuler(new Euler(0, ry, 0)), new Vector3(1, 1, 1)));
     add(g, INK.shaft, 1, (pw, nw) => {
-      const snowT = Math.min(1, Math.max(0, (pw.y - 8) / 26 + Math.max(0, nw.y) * .45));
+      const snowT = Math.min(1, Math.max(0, (pw.y - 18) / 38 + Math.max(0, nw.y) * .35));
       return new Color(INK.shaft).lerp(new Color(INK.lit), snowT * .72).multiplyScalar(warm);
     }, INK_GROUP);
   }
@@ -109,7 +118,7 @@ export const colors = { concrete: '#7d738c', edge: '#282136', glass: '#241e33', 
   light: '#dfba8c', moss: '#3d3752', road: '#685e78', white: '#f2b84b', steel: '#b8823c' };
 /** A snow-capped alpine boulder & Watcher waystone along the Hermon gorge (preserves the exact base solid). */
 export function car(k: Kit, x: number, y: number, z: number, _color: string, ry = 0) {
-  k.solids.push({ position: [x, y + .45, z], size: [.95, .3, 2.15], rotation: [0, ry, 0] });
+  k.solids.push({ position: [x, y + 1.95, z], size: [1.85, 2.05, 1.85], rotation: [0, ry, 0] });
   k.pillar(x, y + 1.8, z, 3.8, .9, 1.85, Math.round(Math.abs(x * 7 + z)), ry, .95, { depth: .16, course: 1.9 });
   k.box(x, y + 3.8, z, 1.35, .45, 1.35, INK.lit, false, ry, .08, 1, INK_GROUP);
 }

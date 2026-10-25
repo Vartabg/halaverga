@@ -56,7 +56,7 @@ test('Flight settings has an accent Resume in its footer: Pause, settings, adjus
   await openSettings(page);
   const resume = dialog.getByRole('button', { name: 'Resume flight' });
   await expect(resume).toHaveText('Resume'); await expect(resume).toBeEnabled();
-  expect(await resume.evaluate(e => getComputedStyle(e).backgroundColor), 'the accent, the same as the card\'s Resume').toBe('rgb(94, 230, 208)');
+  expect(await resume.evaluate(e => getComputedStyle(e).backgroundColor), 'the covenant-gold accent, the same as the card\'s Resume').toBe('rgb(242, 184, 75)');
   const was = (await saved(page)).reduced; await page.getByLabel('Reduced camera motion').setChecked(!was);
   await resume.click();
   await expect(dialog).toHaveCount(0); await expect(pauseCard(page)).toHaveCount(0); await expect(pauseButton(page)).toBeVisible();

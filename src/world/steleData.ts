@@ -9,21 +9,21 @@ import { INK, INK_GROUP } from './paintInk';
 export type Stele = { kind: 'gate' | 'corridor' | 'outer' | 'fallen'; x: number; z: number; ry: number;
   h: number; r: number; seed: number; solid: boolean; crown: 'intact' | 'broken' | 'none'; lift?: number };
 export const STELE: Stele[] = [
-  // The arrival pair: gateposts of Dudael flanking the terrace the hero lands on. Both bases stand on the road terraces (top 2.05).
-  { kind: 'gate', x: -26, z: 70, ry: .22, h: 46, r: 3.1, seed: 11, solid: true, crown: 'intact' },
-  { kind: 'gate', x: 26, z: 70, ry: .79, h: 44, r: 3.1, seed: 29, solid: true, crown: 'broken' },
+  // The arrival pair: oath megaliths flanking the lower ledges below the summit court (top 2.05).
+  { kind: 'gate', x: -24, z: 48, ry: .22, h: 24, r: 2.6, seed: 11, solid: true, crown: 'intact' },
+  { kind: 'gate', x: 24, z: 48, ry: .79, h: 26, r: 2.6, seed: 29, solid: true, crown: 'broken' },
   // Corridor gates were cut from the slice (2026-10-21): the hands-off escape regressions (pin #151 in limit-escape) are
   // layout-sensitive, gates + corridor stele together trip one recorded pin while either alone is clean, so the corridor slalom
   // returns as its own task with a recorded-pin audit, not a placement gamble.
   //
   // The outer watch: monoliths in the open abyss beyond the district hills (which end at x +/-199).
-  { kind: 'outer', x: -232, z: 36, ry: .3, h: 104, r: 6.4, seed: 131, solid: false, crown: 'intact' },
-  { kind: 'outer', x: 214, z: -84, ry: .61, h: 92, r: 5.8, seed: 149, solid: false, crown: 'broken' },
-  { kind: 'outer', x: -186, z: -214, ry: .95, h: 98, r: 6.1, seed: 167, solid: false, crown: 'none' },
-  { kind: 'outer', x: 258, z: -262, ry: .4, h: 112, r: 6.7, seed: 191, solid: false, crown: 'intact' },
-  { kind: 'outer', x: 236, z: 74, ry: .77, h: 86, r: 5.5, seed: 211, solid: false, crown: 'intact' },
-  // A fallen colossus half-sunk into the sea, a slab of its shaft lying beside it.
-  { kind: 'fallen', x: -118, z: -158, ry: -.34, h: 72, r: 5.0, seed: 233, solid: false, crown: 'none' },
+  { kind: 'outer', x: -232, z: 36, ry: .3, h: 58, r: 6.4, seed: 131, solid: false, crown: 'intact' },
+  { kind: 'outer', x: 214, z: -84, ry: .61, h: 52, r: 5.8, seed: 149, solid: false, crown: 'broken' },
+  { kind: 'outer', x: -186, z: -214, ry: .95, h: 56, r: 6.1, seed: 167, solid: false, crown: 'none' },
+  { kind: 'outer', x: 258, z: -262, ry: .4, h: 64, r: 6.7, seed: 191, solid: false, crown: 'intact' },
+  { kind: 'outer', x: 236, z: 74, ry: .77, h: 50, r: 5.5, seed: 211, solid: false, crown: 'intact' },
+  // A fallen colossus half-sunk into the gorge, a broken shaft lying beside it.
+  { kind: 'fallen', x: -118, z: -158, ry: -.34, h: 48, r: 5.0, seed: 233, solid: false, crown: 'none' },
 ];
 /** A fluted shaft: one course every 3.2 m (so the carving reads at any distance), flutes pushing in this far, and the crown collar
  * that flares just below the bronze cap. Deterministic per stele, driven by its seed. */

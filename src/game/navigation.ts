@@ -11,14 +11,14 @@ export function allowedClosing(distance: number) {
   return Math.sqrt(half * half + 2 * a * Math.max(0, distance - CLEARANCE.buffer)) - half;
 }
 export const BUILDING_ROUTE = [
-  { id: 'arrival', label: 'Arrival terrace', x: 0, y: 20 + FOOT, z: 65 },
-  { id: 'lift', label: 'Vertical departure', x: 0, y: 26, z: 65 },
-  { id: 'launch', label: 'Departure', x: 0, y: 26, z: 47 },
-  { id: 'boulevard', label: 'Water corridor', x: 0, y: 3.2, z: 22 },
-  { id: 'viaduct', label: 'Viaduct opening', x: -3, y: 3.2, z: -1 },
-  { id: 'north', label: 'North boulevard', x: 0, y: 8, z: -27 },
-  { id: 'ascent', label: 'Tower approach', x: 9, y: 69, z: -38 },
-  { id: 'roof', label: 'Marked tower roof', x: 30, y: 69, z: -38 },
+  { id: 'arrival', label: 'Threshold of Hermon', x: 0, y: 20 + FOOT, z: 65 },
+  { id: 'lift', label: 'Summit liftoff', x: 0, y: 26, z: 65 },
+  { id: 'launch', label: 'Oath sanctuary departure', x: 0, y: 26, z: 47 },
+  { id: 'boulevard', label: 'Dawn chasm descent', x: 0, y: 3.2, z: 22 },
+  { id: 'viaduct', label: 'Cloven Arch', x: -3, y: 3.2, z: -1 },
+  { id: 'north', label: 'Watcher gorge', x: 0, y: 8, z: -27 },
+  { id: 'ascent', label: 'High Sanctuary ascent', x: 9, y: 69, z: -38 },
+  { id: 'roof', label: 'Sanctuary of the Throne', x: 30, y: 69, z: -38 },
 ] as const;
 // Discoverable story terminals: physical spots paired with the record a
 // player recovers there. Adding a terminal is a content change — Player.tsx

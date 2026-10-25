@@ -7,8 +7,8 @@ import { SUN_DIRECTION } from './atmospherePalette';
 import { waterFragment, waterVertex } from './waterShader';
 export { Sky } from './Sky';
 
-/** The sea. The plane follows the camera on x and z (the ripple phases use world position, so they do not slide), so its edge is
- * never in view; it takes the scene fog, so it ends in the same haze as the ranges and the skyline. */
+/** Dawn-lit meltwater below the cloven gorge. The plane follows the camera on x and z while ripple phases remain in world
+ * space; continuous terrain hides it above the waterline, and scene fog joins distant lakes to the dawn haze. */
 export function Water() {
   const material = useRef<ShaderMaterial>(null), mesh = useRef<Mesh>(null);
   const uniforms = useMemo(() => UniformsUtils.merge([UniformsLib.fog,

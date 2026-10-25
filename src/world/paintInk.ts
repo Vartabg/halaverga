@@ -27,25 +27,25 @@ export function paintInkMaterial() {
         'vec3 outgoingLight = reflectedLight.directDiffuse + reflectedLight.indirectDiffuse + totalEmissiveRadiance;',
         `reflectedLight.indirectDiffuse *= ${INK_SKY};
         vec3 nW = normalize(vInkN);
-        float nEdge = smoothstep(0.12, 0.36, length(fwidth(nW)));
-        float cragStrata = (1.0 - smoothstep(0.45, 0.78, abs(nW.y))) * (1.0 - smoothstep(0.02, 0.05, abs(fract(vInkW.y * 0.14 + sin(vInkW.x * 0.18 + vInkW.z * 0.16) * 0.35) - 0.5)));
-        float inkMask = clamp(max(nEdge * 0.94, cragStrata * 0.52), 0.0, 1.0);
+        float nEdge = smoothstep(0.16, 0.42, length(fwidth(nW)));
+        float inkFade = 1.0 - smoothstep(75.0, 215.0, distance(cameraPosition, vInkW));
+        float inkMask = clamp(nEdge * 0.88 * inkFade, 0.0, 1.0);
         vec3 baseLight = reflectedLight.directDiffuse + reflectedLight.indirectDiffuse + totalEmissiveRadiance;
         float sunFace = max(0.0, nW.y) * 0.65 + max(0.0, -nW.x) * 0.55 + max(0.0, -nW.z) * 0.45;
         float celBand = floor(clamp(sunFace * 3.1, 0.0, 2.99)) / 2.0;
         vec3 shadowCol = diffuseColor.rgb * vec3(0.42, 0.34, 0.58);
         vec3 midCol = diffuseColor.rgb * vec3(0.76, 0.66, 0.82);
-        vec3 litCol = mix(diffuseColor.rgb * 1.08, vec3(0.96, 0.86, 0.72), 0.34);
+        vec3 litCol = mix(diffuseColor.rgb * 1.02, vec3(0.96, 0.86, 0.72), 0.18);
         vec3 celTone = mix(shadowCol, mix(midCol, litCol, clamp(celBand * 2.0 - 1.0, 0.0, 1.0)), clamp(celBand * 2.0, 0.0, 1.0));
-        vec3 shaded = mix(baseLight, celTone, 0.78);
-        float snowSlope = smoothstep(0.28, 0.72, nW.y + 0.28 * smoothstep(14.0, 42.0, vInkW.y)) * (0.38 + 0.62 * celBand);
-        shaded = mix(shaded, vec3(0.96, 0.91, 0.84), snowSlope * 0.68);
+        vec3 shaded = mix(baseLight, celTone, 0.88);
+        float snowSlope = smoothstep(0.30, 0.76, nW.y) * smoothstep(34.0, 78.0, vInkW.y) * (0.48 + 0.52 * celBand);
+        shaded = mix(shaded, vec3(0.96, 0.91, 0.84), snowSlope * 0.74);
         float chisel = nEdge * step(0.08, nW.y + 0.38 * max(0.0, -nW.x)) * (1.0 - step(0.76, nEdge));
         vec3 rimGold = vec3(0.99, 0.78, 0.36) * (chisel * 0.62 + step(0.68, nW.y) * 0.14);
         vec3 outgoingLight = mix(shaded + rimGold, vec3(0.04, 0.03, 0.08), inkMask);`,
       );
   };
-  material.customProgramCacheKey = () => 'paint-ink-hades-v3';
+  material.customProgramCacheKey = () => 'paint-ink-hades-v6';
   const dispose = material.dispose.bind(material);
   material.dispose = () => { gradient.dispose(); dispose(); };
   return material;

@@ -3,7 +3,7 @@ import { Suspense, lazy, useEffect, useRef } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Physics } from '@react-three/rapier';
 import { ACESFilmicToneMapping, type DirectionalLight } from 'three';
-import City from './City';
+import City from './HermonCity';
 import RuinField from './RuinField';
 import DistrictBoundary from './DistrictBoundary';
 import { Sky, Water } from './Atmosphere';

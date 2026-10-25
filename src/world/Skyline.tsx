@@ -23,8 +23,8 @@ export function skylineMaterial() {
       float yy = max(vSky.y - .1, 0.);
       vec3 faceN = normalize(cross(dFdx(vSky), dFdy(vSky)));
       float ridgeInk = smoothstep(.18, .44, length(fwidth(faceN)));
-      float highSnow = smoothstep(.45, .82, faceN.y) * smoothstep(18., 46., yy);
-      diffuseColor.rgb = mix(diffuseColor.rgb, SNOW, highSnow * .68);
+      float highSnow = smoothstep(.45, .82, faceN.y) * smoothstep(34., 78., yy);
+      diffuseColor.rgb = mix(diffuseColor.rgb, SNOW, highSnow * .58);
       diffuseColor.rgb *= 1. - .45 * (1. - smoothstep(.2, 3., yy)) * vec3(.85, .8, .9);
       vec3 toBase = cameraPosition - vec3(vSky.x, .1, vSky.z);
       float cosI = clamp(toBase.y / length(toBase), 0., 1.);
@@ -41,10 +41,10 @@ export function skylineMaterial() {
   return material;
 }
 
-/** The distant ruins: one static mesh, one draw call, outside the flyable box, no collider, no shadow, nothing per frame. Built
- * and disposed with the Scene, which remounts after a context loss. */
+/** Continuous distant Hermon ranges: one static mesh, one draw call, no collider, no shadow, nothing per frame.
+ * Built and disposed with the Scene, which remounts after a context loss. */
 export default function Skyline() {
   const sky = useMemo(makeSkyline, []), material = useMemo(skylineMaterial, []);
   useEffect(() => () => { sky.geometry.dispose(); material.dispose(); }, [sky, material]);
-  return <mesh geometry={sky.geometry} material={material} frustumCulled={false} castShadow={false} receiveShadow={false} dispose={null} />;
+  return <mesh name="distant-ranges" geometry={sky.geometry} material={material} frustumCulled={false} castShadow={false} receiveShadow={false} dispose={null} />;
 }
