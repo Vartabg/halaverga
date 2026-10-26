@@ -3,6 +3,7 @@ import { RigidBody, CuboidCollider } from '@react-three/rapier';
 import { FRAME_GROUPS } from '@/game/combat';
 import { makeCity } from './cityData';
 import { useCityMaterials } from './cityMaterials';
+import Reclamation from './Reclamation';
 import Village from './Village';
 import VillageHouses from './villageHouses';
 import Villager from './Villager';
@@ -17,6 +18,7 @@ export default function HermonCity() {
     <RigidBody type="fixed" colliders={false}>
       <mesh name="sanctuary-props" geometry={city.geometry} material={materials} receiveShadow castShadow dispose={null} />
       <MassifTerrain chunks={city.terrains} />
+      <Reclamation />
       <Village />
       <VillageHouses />
       <Villager />

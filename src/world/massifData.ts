@@ -64,3 +64,14 @@ export function heightAt(x: number, z: number, seed: number = MASSIF.seed) {
   for (const plateau of PLATEAUS) y = terrace(y, x, z, plateau);
   return y;
 }
+
+/** Where the mountain supports growth: below the treeline, off the cliff faces and clear of the flight corridor. */
+export const GROWTH = { treeline: 26, cedarSlope: .8, ivySlope: 1.2, corridor: 12 };
+
+/** Gradient magnitude of the sampler: 0 is level ground, 1 is a forty-five degree face. Dressing uses it to stay off the cliffs. */
+export function slopeAt(x: number, z: number, seed: number = MASSIF.seed) {
+  const d = 2;
+  const dx = (heightAt(x + d, z, seed) - heightAt(x - d, z, seed)) / (2 * d);
+  const dz = (heightAt(x, z + d, seed) - heightAt(x, z - d, seed)) / (2 * d);
+  return Math.hypot(dx, dz);
+}
