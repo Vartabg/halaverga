@@ -39,4 +39,8 @@ describe('village houses', () => {
     expect(src).not.toContain('CuboidCollider');
     expect(src).not.toContain('map:');
   });
+
+  it('is mounted in the scene', () => {
+    expect(readFileSync('src/world/HermonCity.tsx', 'utf8')).toContain('<VillageHouses />');
+  });
 });

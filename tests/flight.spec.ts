@@ -21,7 +21,7 @@ test('loads, lifts, moves, brakes, switches cameras and survives pause', async (
   expect(Math.abs(resumed[2] - traveled[2])).toBeLessThan(3);
   await openSettings(page);
   await expect(page.getByRole('button', { name: 'First person', exact: true })).toHaveAttribute('aria-pressed', 'true');
-  await page.getByRole('button', { name: 'Return to arrival terrace' }).click();
+  await page.getByRole('button', { name: 'Return to summit altar' }).click();
   await resume(page); await expect(telemetry).toHaveAttribute('data-flying', 'false');
   expect(errors).toEqual([]);
 });
@@ -35,7 +35,7 @@ test('portrait/landscape resize retains position and text route works', async ({
   const after = JSON.parse((await telemetry.getAttribute('data-position'))!);
   expect(Math.hypot(...after.map((v: number, i: number) => v - before[i]))).toBeLessThan(.4);
   await openGuide(page);
-  await page.getByRole('button', { name: 'Recover municipal record' }).click();
+  await page.getByRole('button', { name: 'Recover tablet record' }).click();
   await expect(page.getByText('The Oath upon Mount Hermon', { exact: true })).toBeVisible();
   await expect(page.getByText('Quoted source · 1 Enoch 6:6', { exact: true })).toBeVisible();
 });

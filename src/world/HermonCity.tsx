@@ -4,6 +4,8 @@ import { FRAME_GROUPS } from '@/game/combat';
 import { makeCity } from './cityData';
 import { useCityMaterials } from './cityMaterials';
 import Village from './Village';
+import VillageHouses from './villageHouses';
+import Villager from './Villager';
 import MassifTerrain from './MassifTerrain';
 export default function HermonCity() {
   const city = useMemo(makeCity, []);
@@ -16,6 +18,8 @@ export default function HermonCity() {
       <mesh name="sanctuary-props" geometry={city.geometry} material={materials} receiveShadow castShadow dispose={null} />
       <MassifTerrain chunks={city.terrains} />
       <Village />
+      <VillageHouses />
+      <Villager />
       {city.solids.map((s, i) => s.kind === 'frame' ? null : <CuboidCollider key={i} args={s.size} position={s.position} rotation={s.rotation} />)}
     </RigidBody>
     <RigidBody type="fixed" colliders={false} collisionGroups={FRAME_GROUPS}>
