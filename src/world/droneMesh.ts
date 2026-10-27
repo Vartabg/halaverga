@@ -11,13 +11,14 @@ function merge(parts: BufferGeometry[]) {
   if (!out) throw new Error('drone geometry merge failed');
   return out;
 }
-/** A Fallen Watcher sentinel, facing -Z: faceted obsidian core, six swept seraphic wing-blades, interlocking wheels of fire,
- * and the blazing eye at eyeCenter(). Stays strictly inside the .95 m hit sphere with zero spherical robot shell. */
+/** A Biblical Ophanim Watcher sentinel, facing -Z: faceted obsidian core, seraphic wing-blades,
+ * interlocking gyroscopic wheels of fire with cherubic eyes all round, and the blazing eye at eyeCenter().
+ * Stays strictly inside the .95 m hit sphere with zero spherical robot shell. */
 export function buildDroneGeometry() {
-  const bodyParts: BufferGeometry[] = [new IcosahedronGeometry(.38, 1)];
+  const bodyParts: BufferGeometry[] = [new IcosahedronGeometry(.36, 1)];
   for (const side of [-1, 1]) {
     for (const tier of [-1, 0, 1]) {
-      const wing = new BoxGeometry(.64, .048, .18);
+      const wing = new BoxGeometry(.62, .04, .15);
       wing.rotateZ(side * (.36 + tier * .28));
       wing.rotateY(side * -.24);
       wing.translate(side * .48, tier * .16, .06);
@@ -25,18 +26,28 @@ export function buildDroneGeometry() {
     }
   }
   for (const [rx, rz] of [[.62, .28], [-.62, -.28]] as const) {
-    bodyParts.push(new TorusGeometry(.58, .042, 6, 18).rotateX(rx).rotateZ(rz));
+    bodyParts.push(new TorusGeometry(.58, .038, 6, 14).rotateX(rx).rotateZ(rz));
+  }
+  for (let k = 0; k < 4; k++) {
+    const a = k * Math.PI / 2;
+    const eyeGem = new SphereGeometry(.045, 5, 4);
+    eyeGem.translate(Math.cos(a) * .58, Math.sin(a) * .58, 0);
+    eyeGem.rotateX(.62); eyeGem.rotateZ(.28);
+    bodyParts.push(eyeGem);
   }
   const plateParts: BufferGeometry[] = [];
   for (const [rx, rz] of [[.28, -.68], [-.28, .68]] as const) {
-    plateParts.push(new TorusGeometry(.72, .048, 6, 20).rotateX(rx).rotateZ(rz));
+    plateParts.push(new TorusGeometry(.72, .042, 6, 14).rotateX(rx).rotateZ(rz));
   }
   for (let k = 0; k < 6; k++) {
     const a = k * Math.PI / 3;
-    const spoke = new BoxGeometry(.06, .26, .08);
+    const spoke = new BoxGeometry(.05, .24, .06);
     spoke.rotateZ(-a);
     spoke.translate(Math.sin(a) * .72, Math.cos(a) * .72, 0);
     plateParts.push(spoke);
+    const gem = new SphereGeometry(.045, 5, 4);
+    gem.translate(Math.sin(a) * .72, Math.cos(a) * .72, 0);
+    plateParts.push(gem);
   }
   return {
     body: merge(bodyParts),
