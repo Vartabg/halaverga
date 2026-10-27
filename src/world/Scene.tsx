@@ -33,6 +33,9 @@ const GestureTrack = lazy(() => import('./GestureTrack'));
 const DrawProbe = lazy(() => import('./DrawProbe'));
 const GestureRibbon = lazy(() => import('./GestureRibbon'));
 const HeroTrail = lazy(() => import('./HeroTrail'));
+const FlamingSword = lazy(() => import('./FlamingSword'));
+const Banishment = lazy(() => import('./Banishment'));
+const Battle = lazy(() => import('./Battle'));
 function GraphicsRecovery({ onLoss, sun }: { onLoss: () => void; sun: React.RefObject<DirectionalLight | null> }) {
   const { gl, invalidate } = useThree();
   useEffect(() => {
@@ -55,7 +58,7 @@ function GraphicsRecovery({ onLoss, sun }: { onLoss: () => void; sun: React.RefO
 function ShooterLayer() {
   const shooter = useGame(s => s.shooter);
   return shooter ? <Boundary fallback={null} onError={() => shooterFault('render', null)}><Shooter /><Drones /><ShotFx /><ImpactFx />
-    <Suspense fallback={null}><ArmCannon /></Suspense></Boundary> : null;
+    <Suspense fallback={null}><ArmCannon /><FlamingSword /><Banishment /><Battle /></Suspense></Boundary> : null;
 }
 /** Standard on the classic one thumb, blaster on, touch-capable device: the drone screen history alone (the tap pick reads it).
  *  A desktop that has never shown touch mounts nothing here, so its Standard stays as it was. A failure only leaves it out. */
