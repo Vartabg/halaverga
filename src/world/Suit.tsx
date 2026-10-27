@@ -15,10 +15,14 @@ import { createBlasterFrame, releaseSuitBlaster, stepSuitBlaster } from './suitB
 import { alignArchangelWings, createArchangelWings, stepArchangelWings } from './archangelWings';
 import { angelRegalia } from './angelRegalia';
 export const SUIT_URL = '/models/angel.glb';
+export const SEMJAZA_URL = '/models/semjaza.glb';
+export const SPEAR_URL = '/models/spear.glb';
 /** Reload scene: forget every model the world loads, so a failed download is fetched again instead of replaying the cached error.
  * One call per file: useLoader.clear with an array clears only the cache entry for that whole array, which nothing loads. */
 export function clearWorldCache() {
   useLoader.clear(GLTFLoader, SUIT_URL);
+  useLoader.clear(GLTFLoader, SEMJAZA_URL);
+  useLoader.clear(GLTFLoader, SPEAR_URL);
 }
 const input = { flying: false, landing: false, paused: true, reduced: false, velocity: runtime.velocity, turn: runtime.turn };
 export default function Suit() {

@@ -1,12 +1,16 @@
 /** Player Spear Combat state, combo chaining, dash i-frames, and damage resolution. */
 export interface SpearCombatState {
+  combo: number;
   comboStep: number;
   comboTimer: number;
+  attacking: boolean;
+  attackTimer: number;
   dashTimer: number;
   isDashing: boolean;
   covenantWards: number;
   maxWards: number;
   invulnerableTimer: number;
+  diveSmiting: boolean;
   diveSmiteActive: boolean;
   attackLunge: number;
 }
@@ -17,13 +21,17 @@ export const MAX_WARDS = 3;
 
 export function createSpearCombat(): SpearCombatState {
   return {
+    combo: 0,
     comboStep: 0,
     comboTimer: 0,
+    attacking: false,
+    attackTimer: 0,
     dashTimer: 0,
     isDashing: false,
     covenantWards: MAX_WARDS,
     maxWards: MAX_WARDS,
     invulnerableTimer: 0,
+    diveSmiting: false,
     diveSmiteActive: false,
     attackLunge: 0,
   };
@@ -36,7 +44,10 @@ export function triggerAttack(s: SpearCombatState): number {
   } else {
     s.comboStep = (s.comboStep % 3) + 1;
   }
+  s.combo = s.comboStep;
   s.comboTimer = 0;
+  s.attacking = true;
+  s.attackTimer = 0;
   s.attackLunge = 2.5; // forward step on strike
 
   // Return base damage according to combo step
@@ -53,6 +64,7 @@ export function triggerDash(s: SpearCombatState): boolean {
 }
 
 export function triggerDiveSmite(s: SpearCombatState): number {
+  s.diveSmiting = true;
   s.diveSmiteActive = true;
   return 180; // Heavy dive smite damage
 }
@@ -60,7 +72,16 @@ export function triggerDiveSmite(s: SpearCombatState): number {
 export function updateSpearCombat(s: SpearCombatState, dt: number): void {
   if (s.comboStep > 0) {
     s.comboTimer += dt;
-    if (s.comboTimer > COMBO_WINDOW) s.comboStep = 0;
+    if (s.comboTimer > COMBO_WINDOW) {
+      s.comboStep = 0;
+      s.combo = 0;
+    }
+  }
+  if (s.attacking) {
+    s.attackTimer += dt;
+    if (s.attackTimer > 0.35) {
+      s.attacking = false;
+    }
   }
   if (s.dashTimer > 0) {
     s.dashTimer -= dt;

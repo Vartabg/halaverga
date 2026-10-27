@@ -6,6 +6,9 @@ export interface SemjazaBoss {
   state: SemjazaState;
   hp: number;
   maxHp: number;
+  stagger: number;
+  maxStagger: number;
+  staggerDecayTimer: number;
   x: number;
   y: number;
   z: number;
@@ -21,6 +24,7 @@ export interface SemjazaBoss {
 export const ARENA_CENTER = { x: 30, y: 38, z: -38 };
 export const ARENA_RADIUS = 110;
 export const MAX_HP = 1000;
+export const MAX_STAGGER = 100;
 
 export function createSemjaza(): SemjazaBoss {
   return {
@@ -28,6 +32,9 @@ export function createSemjaza(): SemjazaBoss {
     state: 'intro',
     hp: MAX_HP,
     maxHp: MAX_HP,
+    stagger: 0,
+    maxStagger: MAX_STAGGER,
+    staggerDecayTimer: 0,
     x: ARENA_CENTER.x,
     y: ARENA_CENTER.y,
     z: ARENA_CENTER.z,
@@ -70,10 +77,17 @@ export function updateSemjaza(b: SemjazaBoss, dt: number, playerX: number, playe
   if (b.state === 'stagger') {
     b.staggerTimer -= dt;
     if (b.staggerTimer <= 0) {
+      b.stagger = 0;
       b.state = b.phase === 2 ? 'barrage' : 'stride';
       b.timer = 0;
     }
     return;
+  }
+
+  // Stagger decay if player stops attacking for > 4.0s
+  b.staggerDecayTimer += dt;
+  if (b.staggerDecayTimer > 4.0 && b.stagger > 0) {
+    b.stagger = Math.max(0, b.stagger - dt * 25);
   }
 
   // Phase 1 Logic
@@ -144,9 +158,24 @@ export function updateSemjaza(b: SemjazaBoss, dt: number, playerX: number, playe
   }
 }
 
+export function applyStagger(b: SemjazaBoss, amount: number): boolean {
+  if (b.state === 'intro' || b.state === 'defeated' || b.state === 'stagger') return false;
+  b.staggerDecayTimer = 0;
+  b.stagger = Math.min(MAX_STAGGER, b.stagger + amount);
+  if (b.stagger >= MAX_STAGGER) {
+    b.state = 'stagger';
+    b.staggerTimer = 2.5; // 2.5s kneeling posture-broken window
+    b.timer = 0;
+    return true; // Posture broken
+  }
+  return false;
+}
+
 export function damageSemjaza(b: SemjazaBoss, amount: number): boolean {
   if (b.state === 'intro' || b.state === 'defeated') return false;
-  b.hp = Math.max(0, b.hp - amount);
+  b.staggerDecayTimer = 0;
+  const mult = b.state === 'stagger' ? 1.5 : 1.0;
+  b.hp = Math.max(0, b.hp - amount * mult);
   if (b.hp <= 0) {
     b.state = 'defeated';
     b.timer = 0;

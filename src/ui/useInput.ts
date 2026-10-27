@@ -98,7 +98,8 @@ export function useInput() {
     document.addEventListener('visibilitychange', hidden); document.addEventListener('pointerlockchange', lock);
     window.screen.orientation?.addEventListener('change', resized);
     return () => {
-      window.removeEventListener('keydown', keydown); window.removeEventListener('keyup', keyup); window.removeEventListener('mousemove', mouse);
+      window.removeEventListener('keydown', keydown); window.removeEventListener('keyup', keyup);
+window.removeEventListener('mousemove', mouse);
       window.removeEventListener('blur', blur); window.removeEventListener('resize', resized);
       window.removeEventListener('pagehide', pagehide); window.removeEventListener('pageshow', pageshow);
       document.removeEventListener('visibilitychange', hidden); document.removeEventListener('pointerlockchange', lock);
