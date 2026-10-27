@@ -20,6 +20,7 @@ import Drones from './Drones';
 import ShotFx from './ShotFx';
 import ImpactFx from './ImpactFx';
 import ArmCannon from './ArmCannon';
+import BossEncounter from './BossEncounter';
 import { useGame } from '@/game/store';
 import { clearInput, runtime } from '@/game/runtime';
 import EnvironmentLight from './EnvironmentLight';
@@ -88,7 +89,7 @@ export default function Scene({ onLoss }: { onLoss: () => void }) {
     <Suspense fallback={null}>
       <Physics paused={paused} timeStep={1 / 60} updatePriority={-50} gravity={[0, -22, 0]}>
         <City /><RuinField /><DistrictBoundary /><Player /><FlightPresentation /><Suit /><CameraRig />
-        <ShooterLayer /><LabLayer />
+        <BossEncounter /><ShooterLayer /><LabLayer />
       </Physics>
     </Suspense>
   </Canvas>;
