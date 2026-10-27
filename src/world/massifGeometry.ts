@@ -9,34 +9,72 @@ export type TerrainChunk = {
 };
 const clamp = (x: number) => Math.min(1, Math.max(0, x));
 const smooth = (a: number, b: number, x: number) => { const t = clamp((x - a) / (b - a)); return t * t * (3 - 2 * t); };
-const rock = new Color(INK.rock), shaft = new Color(INK.shaft), snow = new Color(INK.cap), limestone = new Color('#c4ae96');
-function pigment(x: number, y: number, z: number, normal: Vector3, seed: number, out: Color) {
-  const variation = hash2(Math.round(x * .7), Math.round(z * .7), seed);
+const deepCliff = new Color('#211834'), rock = new Color(INK.rock), shaft = new Color(INK.shaft);
+const snow = new Color(INK.cap), limestone = new Color('#d8b298'), dawnGold = new Color('#f6c98e');
+function pigment(x: number, y: number, z: number, normal: Vector3, _seed: number, out: Color) {
+  const stratum = .5 + .5 * Math.sin(y * .22 + x * .035 - z * .028);
   const sun = Math.max(0, normal.x * SUN_DIRECTION[0] + normal.y * SUN_DIRECTION[1] + normal.z * SUN_DIRECTION[2]);
-  const high = smooth(34, 76, y), lying = smooth(.32, .86, normal.y);
-  out.copy(rock).lerp(shaft, .25 + variation * .45);
-  out.lerp(limestone, Math.max(0, normal.y) * .24 + sun * .12);
-  out.lerp(snow, high * lying * .92);
-  out.multiplyScalar(.78 + variation * .15 + sun * .25);
+  const steep = 1 - clamp(normal.y);
+  const high = smooth(28, 68, y), lying = smooth(.38, .84, normal.y);
+  out.copy(deepCliff).lerp(rock, clamp(.22 + normal.y * .52 + stratum * .22));
+  out.lerp(shaft, clamp(sun * .45 + stratum * .16));
+  out.lerp(limestone, clamp((1 - steep) * .28 + sun * .24));
+  out.lerp(dawnGold, clamp(sun * sun * .22 * smooth(14, 70, y)));
+  out.lerp(snow, clamp(high * lying * .94 + smooth(54, 88, y) * smooth(.28, .72, normal.y) * .42));
+  out.multiplyScalar(.68 + sun * .36 - steep * .18);
   return out.setRGB(Math.min(1, out.r), Math.min(1, out.g), Math.min(1, out.b));
 }
 
 /** Expand source triangles into flat facets while retaining the exact arrays Rapier consumes. */
 export function facetedChunk(id: string, vertices: Float32Array, indices: Uint32Array, seed: number = 6606) {
+  const triCount = indices.length / 3, vCount = vertices.length / 3;
   const positions = new Float32Array(indices.length * 3), normals = new Float32Array(indices.length * 3);
   const colors = new Float32Array(indices.length * 3), uvs = new Float32Array(indices.length * 2);
+  const vNormals = new Float32Array(vCount * 3);
+  const edgeMap = new Map<string, number>();
   const a = new Vector3(), b = new Vector3(), c = new Vector3(), ab = new Vector3(), ac = new Vector3();
-  const normal = new Vector3(), color = new Color();
-  for (let i = 0; i < indices.length; i += 3) {
-    const ia = indices[i] * 3, ib = indices[i + 1] * 3, ic = indices[i + 2] * 3;
-    a.fromArray(vertices, ia); b.fromArray(vertices, ib); c.fromArray(vertices, ic);
+  const normal = new Vector3(), nOther = new Vector3(), color = new Color();
+  const faceNormals = new Float32Array(triCount * 3);
+  const edgeKey = (u: number, v: number) => (u < v ? `${u}_${v}` : `${v}_${u}`);
+  for (let t = 0; t < triCount; t++) {
+    const i = t * 3, ia = indices[i], ib = indices[i + 1], ic = indices[i + 2];
+    a.fromArray(vertices, ia * 3); b.fromArray(vertices, ib * 3); c.fromArray(vertices, ic * 3);
     normal.copy(ab.subVectors(b, a).cross(ac.subVectors(c, a))).normalize();
-    const cx = (a.x + b.x + c.x) / 3, cy = (a.y + b.y + c.y) / 3, cz = (a.z + b.z + c.z) / 3;
-    pigment(cx, cy, cz, normal, seed, color);
-    for (const [corner, point] of [[0, a], [1, b], [2, c]] as const) {
+    faceNormals.set([normal.x, normal.y, normal.z], t * 3);
+    for (const v of [ia, ib, ic]) {
+      vNormals[v * 3] += normal.x; vNormals[v * 3 + 1] += normal.y; vNormals[v * 3 + 2] += normal.z;
+    }
+    for (const [u, v] of [[ia, ib], [ib, ic], [ic, ia]] as const) {
+      const k = edgeKey(u, v), prev = edgeMap.get(k);
+      edgeMap.set(k, prev === undefined ? t : -2 - prev * triCount - t);
+    }
+  }
+  for (let v = 0; v < vCount; v++) {
+    normal.fromArray(vNormals, v * 3).normalize();
+    vNormals.set([normal.x, normal.y, normal.z], v * 3);
+  }
+  const creaseAt = (t: number, u: number, v: number) => {
+    const packed = edgeMap.get(edgeKey(u, v));
+    if (packed === undefined || packed >= 0) return 0;
+    const enc = -2 - packed, t0 = Math.floor(enc / triCount), t1 = enc % triCount;
+    const other = t === t0 ? t1 : t0;
+    normal.fromArray(faceNormals, t * 3); nOther.fromArray(faceNormals, other * 3);
+    return clamp((1 - normal.dot(nOther) - .04) * 6.5);
+  };
+  const isArch = id === 'cloven-arch';
+  for (let t = 0; t < triCount; t++) {
+    const i = t * 3, va = indices[i], vb = indices[i + 1], vc = indices[i + 2];
+    a.fromArray(vertices, va * 3); b.fromArray(vertices, vb * 3); c.fromArray(vertices, vc * 3);
+    const s0 = creaseAt(t, vb, vc), s1 = creaseAt(t, vc, va), s2 = creaseAt(t, va, vb);
+    const cMax = Math.max(s0, s1, s2), eIdx = s0 >= s1 && s0 >= s2 ? 0 : s1 >= s2 ? 1 : 2;
+    normal.fromArray(faceNormals, t * 3);
+    const crag = isArch || normal.y < .68;
+    for (const [corner, point, vi] of [[0, a, va], [1, b, vb], [2, c, vc]] as const) {
       const at = (i + corner) * 3, uv = (i + corner) * 2;
+      normal.fromArray(crag ? faceNormals : vNormals, (crag ? t : vi) * 3);
+      pigment(point.x, point.y, point.z, normal, seed, color);
       positions.set([point.x, point.y, point.z], at); normals.set([normal.x, normal.y, normal.z], at);
-      colors.set([color.r, color.g, color.b], at); uvs.set([point.x / 8, point.z / 8], uv);
+      colors.set([color.r, color.g, color.b], at); uvs.set([corner === eIdx ? 1 : 0, cMax], uv);
     }
   }
   const geometry = new BufferGeometry();
@@ -45,7 +83,7 @@ export function facetedChunk(id: string, vertices: Float32Array, indices: Uint32
   geometry.setAttribute('color', new Float32BufferAttribute(colors, 3));
   geometry.setAttribute('uv', new Float32BufferAttribute(uvs, 2));
   geometry.computeBoundingSphere();
-  return { id, geometry, vertices, indices, triangles: indices.length / 3 } satisfies TerrainChunk;
+  return { id, geometry, vertices, indices, triangles: triCount } satisfies TerrainChunk;
 }
 
 function borderHeight(x: number, z: number, seed: number, step: number) {

@@ -40,7 +40,7 @@ describe('village houses', () => {
     expect(src).not.toContain('map:');
   });
 
-  it('is mounted in the scene', () => {
-    expect(readFileSync('src/world/HermonCity.tsx', 'utf8')).toContain('<VillageHouses />');
+  it('keeps box-stacked houses retired from the active Hermon sanctuary scene', () => {
+    expect(readFileSync('src/world/HermonCity.tsx', 'utf8')).not.toContain('<VillageHouses />');
   });
 });

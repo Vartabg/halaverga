@@ -183,10 +183,10 @@ for (const viewport of [{ width: 393, height: 852 }, { width: 852, height: 393 }
     await touch.down(2, t.lookPoint); await touch.drag(2, 60, 0); await touch.up(2);
     await expect(hint(page)).toHaveText('Tap Lift off to fly', { timeout: 3000 }); await page.waitForTimeout(1000);
     await touch.down(4, centre((await t.rise.boundingBox())!)); await page.waitForTimeout(100); await touch.up(4);
-    await expect(hint(page)).toHaveText('Aim at drones · Fire to shoot', { timeout: 3000 });
+    await expect(hint(page)).toHaveText('Aim at Watchers · Fire shoots', { timeout: 3000 });
     expect((await saved(page)).touch).toBe(3);
     await page.reload(); await page.getByRole('button', { name: 'Ascend Mount Hermon' }).tap();
-    await expect(hint(page)).toHaveText('Aim at drones · Fire to shoot');
+    await expect(hint(page)).toHaveText('Aim at Watchers · Fire shoots');
     expect(t.errors).toEqual([]); await t.context.close();
   });
   test('with auto-fire off the last step names the Fire button; a finished series shows nothing', async ({ browser }) => {

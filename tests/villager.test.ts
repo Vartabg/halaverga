@@ -30,7 +30,7 @@ describe('village opening figure', () => {
     expect(src).not.toMatch(/Semjaza|Azazel|Kokabiel/);
   });
 
-  it('is mounted in the scene', () => {
-    expect(readFileSync('src/world/HermonCity.tsx', 'utf8')).toContain('<Villager />');
+  it('keeps the blocky box villager retired from the active Hermon sanctuary scene', () => {
+    expect(readFileSync('src/world/HermonCity.tsx', 'utf8')).not.toContain('<Villager />');
   });
 });

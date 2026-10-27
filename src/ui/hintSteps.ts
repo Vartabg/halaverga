@@ -29,14 +29,14 @@ export const HINT_TEXT = {
   // Step 3 names the cluster's Rise button as it reads on the ground ("Lift off", TouchCluster); twin hides the Lift/Land button, not this one.
   touch: ['Left thumb: move', 'Right thumb: look', 'Tap Lift off to fly'] as [string, string, string],
   /** Touch step 3: blaster on with auto-fire, blaster on without it, blaster off. */
-  touchAuto: 'Aim at drones · Fire to shoot',
+  touchAuto: 'Aim at Watchers · Fire shoots',
   touchButton: 'Hold Fire to shoot',
   touchLand: 'Hold Descend to land',
   simple: ['Click the scene to start', 'Slide to look', 'Click to shoot', 'WASD to fly · Space lifts'],
   mouse: ['Click the scene to start', 'Move the mouse to look', 'Click to shoot', 'WASD to fly · Space lifts'],
   tap: 'Tap pad: Fire and Aim toggle',
   line: 'Hold C to fire',
-  classic: 'Drag to fly · tap a drone',
+  classic: 'Drag to fly · tap a Watcher',
   /** Classic one thumb with the blaster off, or tap controls: no drone to tap, so just the drag. */
   drag: 'Drag to fly',
 };

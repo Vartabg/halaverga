@@ -89,11 +89,11 @@ for (const viewport of [PORTRAIT, LANDSCAPE]) {
     test('classic: the one-thumb line is in the hint slot, stays past the old 6 s, and goes at the first takeoff', async ({ browser }) => {
       const t = await autoTouchPage(browser, viewport), { page } = t;
       await expect(telemetry(page)).toHaveAttribute('data-flying', 'false');
-      await expect(lesson(page)).toHaveText('Drag to fly · tap a drone');
+      await expect(lesson(page)).toHaveText('Drag to fly · tap a Watcher');
       await expect(hintSlot(page)).toHaveAttribute('data-kind', 'coach');
       await expect(lesson(page)).toHaveAttribute('data-track', 'classic');
       await page.waitForTimeout(7500); // D5: not a 6 s line; it waits for the player to fly
-      await expect(lesson(page)).toHaveText('Drag to fly · tap a drone');
+      await expect(lesson(page)).toHaveText('Drag to fly · tap a Watcher');
       await page.keyboard.press('Space'); // a takeoff, not a touch on the flight surface
       await expect(telemetry(page)).toHaveAttribute('data-flying', 'true');
       await expect(lesson(page)).toHaveCount(0);
@@ -101,13 +101,13 @@ for (const viewport of [PORTRAIT, LANDSCAPE]) {
     });
     test('classic: the first touch on the flight surface ends the line for the page load, and a new page load shows it again', async ({ browser }) => {
       const t = await autoTouchPage(browser, viewport), { page } = t;
-      await expect(lesson(page)).toHaveText('Drag to fly · tap a drone');
+      await expect(lesson(page)).toHaveText('Drag to fly · tap a Watcher');
       await page.touchscreen.tap(viewport.width / 2, viewport.height * .6);
       await expect(lesson(page)).toHaveCount(0);
       await page.waitForTimeout(1200);
       await expect(lesson(page)).toHaveCount(0);
       await page.reload(); await page.getByRole('button', { name: 'Ascend Mount Hermon' }).tap();
-      await expect(lesson(page)).toHaveText('Drag to fly · tap a drone'); // it returns on the next visit until the first takeoff
+      await expect(lesson(page)).toHaveText('Drag to fly · tap a Watcher'); // it returns on the next visit until the first takeoff
       expect(t.errors).toEqual([]); await t.context.close();
     });
     test('blaster off (?shooter=0) is main: no Fire, and the one hint line is the plain Drag to fly', async ({ browser }) => {

@@ -7,12 +7,12 @@ import { trees } from './reclamationData';
  * Every trunk base is sampled off the massif, so the grove follows the terrain instead of one authored bank level. */
 export type Cedar = { position: [number, number, number]; scale: number; yaw: number };
 export const CEDAR_TIERS = [
-  { r: 2.6, y: .42, h: .5 },
-  { r: 2.0, y: .60, h: .46 },
-  { r: 1.45, y: .76, h: .42 },
-  { r: .95, y: .90, h: .38 },
+  { r: 1.35, y: .52, h: .13, dx: -.14, dz: .10 },
+  { r: 1.48, y: .64, h: .12, dx: .18, dz: -.12 },
+  { r: 1.18, y: .76, h: .11, dx: -.12, dz: -.12 },
+  { r: .88, y: .87, h: .10, dx: .06, dz: .07 },
 ] as const;
-export const CEDAR = { trunkR: .22, trunkH: .34, snowY: .985, snowR: .34, seed: 611 };
+export const CEDAR = { trunkR: .22, trunkH: .78, snowY: .94, snowR: .78, seed: 611 };
 /** Metres from trunk base to snow cap at scale 1. Cedars.tsx builds the geometry to this height. */
 export const CEDAR_HEIGHT = 9;
 
@@ -24,14 +24,12 @@ const plant = (x: number, z: number, scale: number, yaw: number): Cedar =>
 export const canGrow = (x: number, z: number) =>
   Math.abs(x) > GROWTH.corridor && heightAt(x, z) <= GROWTH.treeline && slopeAt(x, z) <= GROWTH.cedarSlope;
 
-/** Hero cedars flanking the arrival view. The court stands about seventeen metres above these banks, so a tree merely tall
- * enough to clear the terrace lip reads as a speck from the terrace; at roughly thirty metres (well inside the species' real
- * height) the tiered crowns rise far enough above the lip to frame the view. */
+/** Hero cedars flanking the arrival view: rooted on the lower gorge shelves, spreading horizontal tabular crowns above the lip. */
 export const HERO_SITES = [
-  { x: -22.5, z: 56, scale: 3.3, yaw: .7 },
-  { x: 24, z: 56, scale: 3.2, yaw: 2.4 },
-  { x: -24, z: 41, scale: 3.4, yaw: 1.5 },
-  { x: 25.5, z: 41, scale: 3.2, yaw: 0 },
+  { x: -24, z: 46, scale: 3.0, yaw: .7 },
+  { x: 24, z: 46, scale: 2.95, yaw: 2.4 },
+  { x: -24, z: 41, scale: 3.05, yaw: 1.5 },
+  { x: 24, z: 41, scale: 3.0, yaw: 0 },
 ] as const;
 export const HERO_CEDARS: Cedar[] = HERO_SITES.map(s => plant(s.x, s.z, s.scale, s.yaw));
 

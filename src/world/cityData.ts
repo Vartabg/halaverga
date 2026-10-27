@@ -14,9 +14,12 @@ export function makeCity() {
 
   // Tablet of Semjaza on the flat arrival promontory; quoted source framing remains in navigation/arrival.json.
   k.solids.push({ position: [-7, 21, 58], size: [.8, 1, .6], rotation: [0, 0, 0] });
-  k.pillar(-7, 22.1, 58, 4.2, .16, 1.45, 58, .3, 1, { depth: .14, course: 2.8 });
+  k.pillar(-7, 22.2, 58, 4.4, .82, 1.35, 58, .3, 1, { depth: .1, course: 2.8 });
   k.solids.push({ position: [6, 20.25, 55.3], size: [2.5, .225, 1], rotation: [0, .23, -.14] });
-  k.pillar(6, 20.4, 55.3, 1.4, .8, 2.2, 55, .23, .95, { depth: .14, course: 1.4 });
+  k.pillar(6, 20.8, 55.3, 1.8, 1.25, 1.95, 55, .23, .95, { depth: .09, course: 1.4 });
+  for (const [x, z, ry, h, seed] of [[-8.6, 61.2, .45, 3.1, 61], [7.8, 59.8, -.35, 3.4, 62], [-5.2, 55.8, .18, 2.6, 63]]) {
+    k.pillar(x, 20 + h / 2, z, h, .52, .88, seed, ry, .96, { depth: .08, course: 2.2 });
+  }
 
   // High Sanctuary of the Throne: a snow-alabaster covenant seal and low megalithic witnesses.
   ink(30, 61.44, -38, .42, .05, 5.2, INK.cap);

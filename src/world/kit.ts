@@ -104,11 +104,17 @@ export function createKit() {
       }
     }
     const g = source.toNonIndexed(); source.dispose(); g.computeVertexNormals();
-    const warm = lift < 1 ? 0.9 : 1;
+    const warm = lift < 1 ? 0.92 : 1;
     g.applyMatrix4(new Matrix4().compose(new Vector3(x, y, z), new Quaternion().setFromEuler(new Euler(0, ry, 0)), new Vector3(1, 1, 1)));
+    const topY = y + h / 2, botY = y - h / 2;
     add(g, INK.shaft, 1, (pw, nw) => {
-      const snowT = Math.min(1, Math.max(0, (pw.y - 18) / 38 + Math.max(0, nw.y) * .35));
-      return new Color(INK.shaft).lerp(new Color(INK.lit), snowT * .72).multiplyScalar(warm);
+      const t = Math.min(1, Math.max(0, (pw.y - botY) / Math.max(h, 0.1)));
+      const base = new Color(INK.plinth).lerp(new Color(INK.rock), Math.min(1, t * 1.4));
+      base.lerp(new Color(INK.shaft), Math.max(0, nw.y + 0.35 * -nw.x) * 0.55);
+      const band = Math.abs(t - 0.72) < 0.035 || Math.abs(t - 0.84) < 0.022;
+      if (band && h >= 3.2) return new Color(INK.crown);
+      const snowCap = Math.min(1, Math.max(0, (t - 0.82) * 3.8 + Math.max(0, nw.y) * 0.55));
+      return base.lerp(new Color(INK.cap), snowCap * 0.85).multiplyScalar(warm);
     }, INK_GROUP);
   }
   return { box, hill, block, slab, pillar, add, finish, solids };

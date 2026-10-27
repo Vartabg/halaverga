@@ -5,8 +5,6 @@ import { makeCity } from './cityData';
 import { useCityMaterials } from './cityMaterials';
 import Reclamation from './Reclamation';
 import Village from './Village';
-import VillageHouses from './villageHouses';
-import Villager from './Villager';
 import MassifTerrain from './MassifTerrain';
 export default function HermonCity() {
   const city = useMemo(makeCity, []);
@@ -20,8 +18,6 @@ export default function HermonCity() {
       <MassifTerrain chunks={city.terrains} />
       <Reclamation />
       <Village />
-      <VillageHouses />
-      <Villager />
       {city.solids.map((s, i) => s.kind === 'frame' ? null : <CuboidCollider key={i} args={s.size} position={s.position} rotation={s.rotation} />)}
     </RigidBody>
     <RigidBody type="fixed" colliders={false} collisionGroups={FRAME_GROUPS}>

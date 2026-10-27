@@ -37,15 +37,15 @@ export const plinth = { depth: 3, extra: 2.1 };
  * detached slab. Colliders only ever mark the upright convex pieces skyline-style. Returns the shaft top y for tests. */
 export function placeStele(k: Kit, s: Stele) {
   const y0 = seatY(s), topY = y0 + s.h, w = s.r * 2 + plinth.extra;
-  k.pillar(s.x, y0 + s.h / 2, s.z, s.h, s.r * .24, s.r * 1.85, s.seed, s.ry, s.lift ?? 1, { depth: .16, course: 4.4 });
+  k.pillar(s.x, y0 + s.h / 2, s.z, s.h, s.r * .62, s.r * 1.18, s.seed, s.ry, s.lift ?? 1, { depth: .1, course: 4.4 });
   k.box(s.x, y0 - plinth.depth / 2, s.z, w, plinth.depth, w, INK.plinth, s.solid, s.ry, 0, 1, INK_GROUP);
   if (s.crown === 'intact') {
     if (s.solid) k.solids.push({ position: [s.x, topY + 1.15, s.z], size: [s.r * 1.25, 1.15, s.r * 1.25], rotation: [0, s.ry, 0] });
-    k.pillar(s.x, topY + 1.9, s.z, 4.0, .12, s.r * .26, s.seed + 7, s.ry, 1, { depth: .12, course: 2.0 });
+    k.pillar(s.x, topY + 1.9, s.z, 3.8, s.r * .44, s.r * .78, s.seed + 7, s.ry, 1, { depth: .08, course: 2.0 });
   } else if (s.crown === 'broken') {
     if (s.solid) k.solids.push({ position: [s.x, topY + .55, s.z], size: [s.r * 1.02, .55, s.r * 1.02], rotation: [0, s.ry, 0] });
-    k.pillar(s.x, topY + 1.1, s.z, 2.4, .18, s.r * .26, s.seed + 11, s.ry, 1, { depth: .12, course: 1.8 });
+    k.pillar(s.x, topY + 1.1, s.z, 2.2, s.r * .42, s.r * .72, s.seed + 11, s.ry, 1, { depth: .08, course: 1.8 });
   }
-  if (s.kind === 'fallen') k.pillar(s.x + s.r * 3.4, y0 + 4.2, s.z - s.r * 2.6, 9.5, s.r * .4, s.r * 2.1, s.seed + 19, s.ry + 1.9, .92, { depth: .16, course: 3.2 });
+  if (s.kind === 'fallen') k.pillar(s.x + s.r * 3.4, y0 + 4.2, s.z - s.r * 2.6, 9.5, s.r * .65, s.r * 1.35, s.seed + 19, s.ry + 1.9, .92, { depth: .1, course: 3.2 });
   return { y0, topY };
 }

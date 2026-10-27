@@ -57,10 +57,12 @@ export function heightAt(x: number, z: number, seed: number = MASSIF.seed) {
   const promontory = gauss(z - 65, 30) * smooth(-8, 85, x) * 14;
   y += promontory;
   const edge = Math.max(smooth(215, 405, Math.abs(x)), smooth(200, 370, Math.abs(z + 55)));
-  y += edge * (24 + broad * 39);
+  const alpinePeak = (1 - Math.abs(Math.sin(x * .018 + z * .014 + broad * 2.6))) * .65
+    + (1 - Math.abs(Math.cos(x * .031 - z * .027 + detail * 2.1))) * .35;
+  y += edge * (16 + broad * 24 + alpinePeak * 28);
   const outside = Math.max(0, WORLD.minX - x, x - WORLD.maxX, WORLD.minZ - z, z - WORLD.maxZ);
-  y += smooth(0, 155, outside) * (37 + broad * 48 + detail * 12);
-  y = Math.min(124, y);
+  y += smooth(0, 155, outside) * (22 + broad * 32 + alpinePeak * 34);
+  if (y > 78) y = 78 + 46 * Math.tanh((y - 78) / 52);
   for (const plateau of PLATEAUS) y = terrace(y, x, z, plateau);
   return y;
 }

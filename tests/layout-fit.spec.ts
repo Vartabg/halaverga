@@ -103,7 +103,7 @@ for (const v of [...VIEWS, ...NARROW]) {
     test.setTimeout(120000);
     const t = await openLanding(browser, v), { page } = t;
     await t.begin();
-    await expectSlot(page, v, 'coach', 'Drag to fly · tap a drone');
+    await expectSlot(page, v, 'coach', 'Drag to fly · tap a Watcher');
     const problems = await audit(page, v, { play: true, vote: 'locked' }), form = await rowFormProblems(page);
     expect(problems.concat(form.problems), problems.concat(form.problems).join('\n')).toEqual([]);
     if (AXE_AT.includes(v.name)) await wcag(page);
@@ -111,7 +111,7 @@ for (const v of [...VIEWS, ...NARROW]) {
     await expect(page.getByTestId('controls-sheet')).toBeVisible();
     await expect(page.getByTestId('hint-slot')).toHaveCount(0);
     await t.press(page.getByTestId('controls-done'));
-    await expectSlot(page, v, 'coach', 'Drag to fly · tap a drone');
+    await expectSlot(page, v, 'coach', 'Drag to fly · tap a Watcher');
     expect(t.errors).toEqual([]); await t.context.close();
   });
   test(`${v.name}: Draw (the lab surface) and Twin stick keep the same clean top row and a free surface`, async ({ browser }) => {
