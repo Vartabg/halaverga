@@ -10,7 +10,7 @@ export type TerrainChunk = {
 const clamp = (x: number) => Math.min(1, Math.max(0, x));
 const smooth = (a: number, b: number, x: number) => { const t = clamp((x - a) / (b - a)); return t * t * (3 - 2 * t); };
 const deepCliff = new Color('#211834'), rock = new Color(INK.rock), shaft = new Color(INK.shaft);
-const snow = new Color(INK.cap), limestone = new Color('#d8b298'), dawnGold = new Color('#f6c98e');
+const sunlitCrest = new Color(INK.cap), limestone = new Color('#d8b298'), dawnGold = new Color('#f6c98e'), warmBasalt = new Color('#32273d');
 function pigment(x: number, y: number, z: number, normal: Vector3, _seed: number, out: Color) {
   const stratum = .5 + .5 * Math.sin(y * .22 + x * .035 - z * .028);
   const sun = Math.max(0, normal.x * SUN_DIRECTION[0] + normal.y * SUN_DIRECTION[1] + normal.z * SUN_DIRECTION[2]);
@@ -18,9 +18,10 @@ function pigment(x: number, y: number, z: number, normal: Vector3, _seed: number
   const high = smooth(28, 68, y), lying = smooth(.38, .84, normal.y);
   out.copy(deepCliff).lerp(rock, clamp(.22 + normal.y * .52 + stratum * .22));
   out.lerp(shaft, clamp(sun * .45 + stratum * .16));
-  out.lerp(limestone, clamp((1 - steep) * .28 + sun * .24));
-  out.lerp(dawnGold, clamp(sun * sun * .22 * smooth(14, 70, y)));
-  out.lerp(snow, clamp(high * lying * .94 + smooth(54, 88, y) * smooth(.28, .72, normal.y) * .42));
+  out.lerp(limestone, clamp((1 - steep) * .35 + sun * .28));
+  out.lerp(dawnGold, clamp(sun * sun * .32 * smooth(14, 70, y)));
+  out.lerp(sunlitCrest, clamp(high * lying * .48 + smooth(54, 88, y) * smooth(.28, .72, normal.y) * .25));
+  out.lerp(warmBasalt, clamp(steep * .42));
   out.multiplyScalar(.68 + sun * .36 - steep * .18);
   return out.setRGB(Math.min(1, out.r), Math.min(1, out.g), Math.min(1, out.b));
 }

@@ -56,7 +56,7 @@ export default function Suit() {
     alignArchangelWings(wings, rig.root, pose.lean);
     // The blaster (arm cannon, carry and aim, whole-body shot choreography, hand hide) layers over everything, in one guarded block.
     const f = blaster, cam = three.camera as PerspectiveCamera;
-    f.on = state.shooter; f.third = state.camera === 'third'; f.paused = state.paused; f.reduced = state.reduced; f.epoch = pose.epoch;
+    f.on = false; f.third = state.camera === 'third'; f.paused = state.paused; f.reduced = state.reduced; f.epoch = pose.epoch;
     f.flight = pose.flight; f.speed = pose.speed; f.ground = life.ground; f.fov = cam.fov ?? 65; f.height = three.size.height;
     f.camera.x = cam.position.x; f.camera.y = cam.position.y; f.camera.z = cam.position.z;
     stepSuitBlaster(f, dt);

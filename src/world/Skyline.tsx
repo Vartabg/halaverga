@@ -14,7 +14,7 @@ const vec3 SNOW = ${glslVec3(SKYLINE.foam)};
 `;
 
 /** Display-referred vertex colour and scene fog. The foot mists toward the water in front of it, with a dark contact line and a
- * band of snow. No window grid: these are stone ranges, not towers. The haze takes every peak by the fog's far end.
+ * warm limestone ridge band. No window grid: these are stone ranges, not towers. The haze takes every peak by the fog's far end.
  * `transformed` is world space because the mesh sits at the origin. No loops. */
 export function skylineMaterial() {
   const material = new MeshBasicMaterial({ vertexColors: true, toneMapped: false, fog: true });
@@ -25,13 +25,13 @@ export function skylineMaterial() {
       vec3 faceN = normalize(cross(dFdx(vSky), dFdy(vSky)));
       float ridgeInk = (1. - smoothstep(0., max(fwidth(vSkyUv.x) * 1.35, .06), vSkyUv.x)) * smoothstep(.18, .65, vSkyUv.y);
       float highSnow = smoothstep(.38, .78, faceN.y) * smoothstep(28., 68., yy);
-      diffuseColor.rgb = mix(diffuseColor.rgb, SNOW, highSnow * .68);
+      diffuseColor.rgb = mix(diffuseColor.rgb, SNOW, highSnow * .35);
       diffuseColor.rgb *= 1. - .45 * (1. - smoothstep(.2, 3., yy)) * vec3(.85, .8, .9);
       vec3 toBase = cameraPosition - vec3(vSky.x, .1, vSky.z);
       float cosI = clamp(toBase.y / length(toBase), 0., 1.);
       vec3 sea = mix(FOOT_SEA, mix(FOOT_HAZE, FOOT_LOW, smoothstep(0., .17, cosI)), min(.025 + .55 * pow(1. - cosI, 4.), .8));
       diffuseColor.rgb = mix(diffuseColor.rgb, sea, exp(-yy * .25) * .7);
-      diffuseColor.rgb = mix(diffuseColor.rgb, SNOW, (1. - smoothstep(.05, .7, yy)) * .45);
+      diffuseColor.rgb = mix(diffuseColor.rgb, SNOW, (1. - smoothstep(.05, .7, yy)) * .20);
       diffuseColor.rgb *= .84 + .16 * smoothstep(2., 60., yy);
       diffuseColor.rgb = mix(diffuseColor.rgb, vec3(.06, .04, .12), ridgeInk * .78);`)
       .replace('#include <fog_fragment>', `#ifdef USE_FOG

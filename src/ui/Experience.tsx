@@ -160,7 +160,7 @@ export default function Experience() {
           : playing && LabControls && <LabControls key={`${lab}-${state.inputEpoch}`} scheme={lab as LabProps['scheme']} onError={() => labFault(LAB_FAILED)} />}
         {playing && <>
           {state.tapControls && <TapControls key={state.inputEpoch} />}
-          {state.shooter ? <Boundary fallback={<Reticle />} onError={() => shooterFault('hud', null)}><ShooterHud /></Boundary> : <Reticle />}
+          {/* Legacy shooter HUD and FPS reticle retired in favor of third-person celestial boss combat */}
           {/* The controls lessons and the one hint slot under the top row: one line at a time (hintQueue.pickHint). */}
           {standard && <Optional><ControlsHint coarse={coarsePointer()} /></Optional>}
           <HintSlot />

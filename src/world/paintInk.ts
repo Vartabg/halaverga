@@ -3,7 +3,7 @@ import { DataTexture, MeshToonMaterial, NearestFilter, NoColorSpace, RedFormat }
 /** Hades-inspired mythic palette for Mount Hermon: deep obsidian-indigo shadow stone, warm dawn-gilded limestone, molten covenant gold,
  * crimson-ember bronze, and crisp snow-alabaster crests. */
 export const INK = {
-  rock: '#63507d', lit: '#f4dec0', shaft: '#8e728b', plinth: '#3e3154', crown: '#ffbe42', cap: '#fbf4e8', broken: '#e26444',
+  rock: '#63507d', lit: '#f4dec0', shaft: '#8e728b', plinth: '#3e3154', crown: '#ffbe42', cap: '#edd3b4', broken: '#e26444',
   ember: '#f05a38', jade: '#2d7a6e', obsidian: '#181322',
 } as const;
 /** Material group on the merged city mesh. Appended so the six older groups keep their indexes. */
@@ -43,8 +43,8 @@ export function paintInkMaterial() {
         vec3 litCol = mix(diffuseColor.rgb * 1.05, vec3(0.98, 0.88, 0.74), 0.22);
         vec3 celTone = mix(shadowCol, mix(midCol, litCol, clamp(celBand * 2.0 - 1.0, 0.0, 1.0)), clamp(celBand * 2.0, 0.0, 1.0));
         vec3 shaded = mix(baseLight, celTone, 0.90);
-        float snowSlope = smoothstep(0.34, 0.78, nW.y) * smoothstep(32.0, 74.0, vInkW.y) * (0.48 + 0.52 * celBand);
-        shaded = mix(shaded, vec3(0.97, 0.92, 0.85), snowSlope * 0.78);
+        float crestSlope = smoothstep(0.42, 0.82, nW.y) * smoothstep(42.0, 82.0, vInkW.y) * (0.48 + 0.52 * celBand);
+        shaded = mix(shaded, vec3(0.88, 0.76, 0.60), crestSlope * 0.45);
         float chisel = max(nEdge, max(ridgeLine * 0.85, contour * 0.75)) * step(0.08, nW.y + 0.38 * max(0.0, -nW.x)) * (1.0 - step(0.78, rawEdge));
         vec3 rimGold = vec3(0.99, 0.78, 0.36) * (chisel * 0.65 + step(0.68, nW.y) * 0.14);
         vec3 outgoingLight = mix(shaded + rimGold, vec3(0.04, 0.03, 0.09), inkMask);`,

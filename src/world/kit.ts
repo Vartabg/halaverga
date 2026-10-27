@@ -113,8 +113,8 @@ export function createKit() {
       base.lerp(new Color(INK.shaft), Math.max(0, nw.y + 0.35 * -nw.x) * 0.55);
       const band = Math.abs(t - 0.72) < 0.035 || Math.abs(t - 0.84) < 0.022;
       if (band && h >= 3.2) return new Color(INK.crown);
-      const snowCap = Math.min(1, Math.max(0, (t - 0.82) * 3.8 + Math.max(0, nw.y) * 0.55));
-      return base.lerp(new Color(INK.cap), snowCap * 0.85).multiplyScalar(warm);
+      const crest = Math.min(1, Math.max(0, (t - 0.82) * 3.8 + Math.max(0, nw.y) * 0.55));
+      return base.lerp(new Color(INK.cap), crest * 0.55).multiplyScalar(warm);
     }, INK_GROUP);
   }
   return { box, hill, block, slab, pillar, add, finish, solids };

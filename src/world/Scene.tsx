@@ -13,13 +13,7 @@ import Suit from './Suit';
 import Player from '@/game/Player';
 import CameraRig from '@/game/CameraRig';
 import FlightPresentation from '@/game/FlightPresentation';
-import Shooter from '@/game/Shooter';
-import { shooterFault } from '@/game/shooterFault';
 import Boundary from '@/ui/Boundary';
-import Drones from './Drones';
-import ShotFx from './ShotFx';
-import ImpactFx from './ImpactFx';
-import ArmCannon from './ArmCannon';
 import BossEncounter from './BossEncounter';
 import { useGame } from '@/game/store';
 import { clearInput, runtime } from '@/game/runtime';
@@ -51,27 +45,7 @@ function GraphicsRecovery({ onLoss, sun }: { onLoss: () => void; sun: React.RefO
   });
   return null;
 }
-/** The blaster, its arm cannon and the Watcher sentinels, mounted only while the setting is on (so arm-cannon.glb is fetched only
- * then). A render or load error turns the blaster off; flight continues. */
-function ShooterLayer() {
-  const shooter = useGame(s => s.shooter);
-  return shooter ? <Boundary fallback={null} onError={() => shooterFault('render', null)}><Shooter /><Drones /><ShotFx /><ImpactFx />
-    <Suspense fallback={null}><ArmCannon /></Suspense></Boundary> : null;
-}
-/** Standard on the classic one thumb, blaster on, touch-capable device: the drone screen history alone (the tap pick reads it).
- *  A desktop that has never shown touch mounts nothing here, so its Standard stays as it was. A failure only leaves it out. */
-function TapTrack() {
-  const on = useGame(s => s.shooter && s.touchScheme === 'classic' && s.controlLab === 'standard'), capable = useTouchCapable();
-  return on && capable ? <Boundary fallback={null} onError={() => {}}><Suspense fallback={null}><GestureTrack /></Suspense></Boundary> : null;
-}
-/** Mounted inside Physics (DrawProbe queries the world). A load or render error returns the session to the standard controls. */
-function LabLayer() {
-  const lab = useGame(s => s.controlLab);
-  if (lab === 'standard') return <TapTrack />;
-  return <Boundary key={lab} fallback={null} onError={() => labFault('The Gesture Lab scene failed. Standard controls are on.')}>
-    <Suspense fallback={null}><GestureTrack />{lab === 'draw' && <><DrawProbe /><GestureRibbon /></>}<HeroTrail /></Suspense>
-  </Boundary>;
-}
+
 export default function Scene({ onLoss }: { onLoss: () => void }) {
   const paused = useGame(s => s.paused), quality = useGame(s => s.quality), sun = useRef<DirectionalLight>(null);
   return <Canvas aria-label="Three-dimensional Mount Hermon at dawn. Text description and keyboard controls are available in the field guide."
@@ -89,7 +63,7 @@ export default function Scene({ onLoss }: { onLoss: () => void }) {
     <Suspense fallback={null}>
       <Physics paused={paused} timeStep={1 / 60} updatePriority={-50} gravity={[0, -22, 0]}>
         <City /><RuinField /><DistrictBoundary /><Player /><FlightPresentation /><Suit /><CameraRig />
-        <BossEncounter /><ShooterLayer /><LabLayer />
+        <BossEncounter />
       </Physics>
     </Suspense>
   </Canvas>;

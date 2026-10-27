@@ -5,7 +5,7 @@ import { CEDAR, CEDAR_HEIGHT, CEDAR_TIERS, makeCedars } from './cedarData';
 
 function boughPlate(rx: number, rz: number, h: number, y: number, dx: number, dz: number, seed: number, topHex: string, botHex: string) {
   const g = new CylinderGeometry(rx * .92, rx * .68, h, 9, 2), p = g.attributes.position;
-  const top = new Color(topHex), bot = new Color(botHex), snow = new Color('#f6efe2'), c = new Color();
+  const top = new Color(topHex), bot = new Color(botHex), sunNeedle = new Color('#3a7566'), c = new Color();
   const colors = new Float32Array(p.count * 3);
   for (let i = 0; i < p.count; i++) {
     const vx = p.getX(i), vy = p.getY(i), vz = p.getZ(i), a = Math.atan2(vz, vx);
@@ -14,7 +14,7 @@ function boughPlate(rx: number, rz: number, h: number, y: number, dx: number, dz
     p.setXYZ(i, vx * lobe + dx, vy + droop + y, vz * (rz / rx) * lobe + dz);
     const t = Math.min(1, Math.max(0, (vy / h) + .5));
     c.copy(bot).lerp(top, t);
-    if (vy > h * .18 && y > CEDAR_HEIGHT * .68) c.lerp(snow, .58);
+    if (vy > h * .18 && y > CEDAR_HEIGHT * .68) c.lerp(sunNeedle, .38);
     colors.set([c.r, c.g, c.b], i * 3);
   }
   g.setAttribute('color', new BufferAttribute(colors, 3));
@@ -46,7 +46,7 @@ function cedarGeometry() {
       '#316b5d', '#163330'));
   }
   geos.push(boughPlate(CEDAR.snowR * 1.28, CEDAR.snowR * 1.12, .09 * CEDAR_HEIGHT, CEDAR.snowY * CEDAR_HEIGHT, 0, 0, 9.4,
-    '#fbf4e8', '#d5c7bc'));
+    '#367262', '#1a3a33'));
   const merged = mergeGeometries(geos)!;
   geos.forEach(g => g.dispose());
   return merged;
