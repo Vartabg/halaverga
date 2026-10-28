@@ -16,7 +16,10 @@ interface HudSnapshot {
   vanguardsAlive: number;
   runicCd: number;
   comboHits: number;
+  comboTimerPct: number;
   moveLabel: string;
+  popupText: string;
+  popupTone: string;
   threatPrompt: string;
   realmShift: boolean;
 }
@@ -26,6 +29,7 @@ function readSnapshot(): HudSnapshot {
   const vanguardsAlive = gowRuntime.enemies.filter(
     (e) => !e.isBoss && e.state !== 'dead',
   ).length;
+  const latestPopup = gowRuntime.popups[gowRuntime.popups.length - 1];
   return {
     hp: Math.round(gowRuntime.hp),
     rage: Math.round(gowRuntime.rage),
@@ -37,7 +41,13 @@ function readSnapshot(): HudSnapshot {
     vanguardsAlive,
     runicCd: Math.ceil(gowRuntime.runicCooldown),
     comboHits: gowRuntime.comboBannerTimer > 0 ? gowRuntime.comboHits : 0,
+    comboTimerPct:
+      gowRuntime.comboBannerTimer > 0
+        ? Math.round(Math.min(100, (gowRuntime.comboBannerTimer / 2.6) * 100))
+        : 0,
     moveLabel: gowRuntime.comboBannerTimer > 0 ? gowRuntime.lastMoveLabel : '',
+    popupText: latestPopup ? latestPopup.text : '',
+    popupTone: latestPopup ? latestPopup.tone : '',
     threatPrompt: gowRuntime.threatPrompt,
     realmShift: gowRuntime.realmShiftTimer > 0,
   };
@@ -68,7 +78,10 @@ export default function GowHud() {
         prev.vanguardsAlive === next.vanguardsAlive &&
         prev.runicCd === next.runicCd &&
         prev.comboHits === next.comboHits &&
+        prev.comboTimerPct === next.comboTimerPct &&
         prev.moveLabel === next.moveLabel &&
+        prev.popupText === next.popupText &&
+        prev.popupTone === next.popupTone &&
         prev.threatPrompt === next.threatPrompt &&
         prev.realmShift === next.realmShift
           ? prev
@@ -134,16 +147,28 @@ export default function GowHud() {
           <span>WATCHERS: {snap.vanguardsAlive + (snap.bossHp > 0 ? 1 : 0)}</span>
         </div>
 
-        {snap.comboHits > 0 || snap.realmShift ? (
+        {snap.comboHits > 0 || snap.realmShift || snap.popupText ? (
           <div className={styles.comboBadge} data-testid="gow-combo-badge">
-            {snap.realmShift
-              ? 'CELESTIAL REALM SHIFT'
-              : `${snap.comboHits} HIT • ${snap.moveLabel || 'STRIKE'}`}
+            <div>
+              {snap.realmShift
+                ? 'CELESTIAL REALM SHIFT'
+                : snap.comboHits > 0
+                  ? `x${snap.comboHits} FREEFLOW • ${snap.moveLabel || 'STRIKE'}`
+                  : snap.popupText}
+            </div>
+            {snap.comboTimerPct > 0 ? (
+              <div className={styles.comboTimerTrack}>
+                <div
+                  className={styles.comboTimerFill}
+                  style={{ width: `${snap.comboTimerPct}%` }}
+                />
+              </div>
+            ) : null}
           </div>
         ) : null}
 
         <div className={styles.combatKeys}>
-          [J/Click] Cleave • [K] Bash • [Q/R-Click] Parry • [C/Shift] Roll • [G] Runic • [V] Rage • [E] Execute
+          [J/Click] Freeflow Cleave • [K] Slam • [Q/R-Click] Counter • [C/Shift] Roll • [G] Runic • [V] Rage • [E] Execute
         </div>
       </div>
     </div>

@@ -2,11 +2,13 @@ import {
   AnimationAction,
   AnimationMixer,
   ConeGeometry,
+  DoubleSide,
   Group,
   LoopOnce,
   LoopRepeat,
   Mesh,
   MeshBasicMaterial,
+  OctahedronGeometry,
   RingGeometry,
   SphereGeometry,
   type AnimationClip,
@@ -19,13 +21,8 @@ import { createArchangelWings } from './archangelWings';
 import { decorateWatcherEnemy, type GowRigHandle } from './gowMaterials';
 
 const LOOP_CLIPS = new Set<GowClipName>([
-  'Idle_Loop',
-  'Walk_Loop',
-  'Jog_Fwd_Loop',
-  'Sprint_Loop',
-  'Jump_Loop',
-  'Sword_Idle',
-  'Spell_Simple_Idle_Loop',
+  'Idle_Loop', 'Walk_Loop', 'Jog_Fwd_Loop', 'Sprint_Loop',
+  'Jump_Loop', 'Sword_Idle', 'Spell_Simple_Idle_Loop',
 ]);
 
 export interface EnemyInstance {
@@ -43,22 +40,14 @@ export interface EnemyInstance {
 
 export function selectEnemyClip(e: GowEnemy): { clip: GowClipName; speed: number } {
   switch (e.state) {
-    case 'dead':
-      return { clip: 'Death01', speed: 1.0 };
-    case 'stunned':
-      return { clip: 'Hit_Head', speed: 0.55 };
-    case 'stagger':
-      return { clip: 'Hit_Chest', speed: 1.15 };
-    case 'windup_yellow':
-      return { clip: 'Sword_Attack', speed: 0.72 };
-    case 'windup_red':
-      return { clip: 'Punch_Cross', speed: 0.68 };
-    case 'windup_spell':
-      return { clip: 'Spell_Simple_Shoot', speed: 0.95 };
-    case 'chase':
-      return { clip: e.isBoss ? 'Walk_Loop' : 'Jog_Fwd_Loop', speed: e.isBoss ? 1.08 : 1.15 };
-    default:
-      return { clip: 'Sword_Idle', speed: 0.9 };
+    case 'dead': return { clip: 'Death01', speed: 1.0 };
+    case 'stunned': return { clip: 'Hit_Head', speed: 0.55 };
+    case 'stagger': return { clip: 'Hit_Chest', speed: 1.15 };
+    case 'windup_yellow': return { clip: 'Sword_Attack', speed: 0.72 };
+    case 'windup_red': return { clip: 'Punch_Cross', speed: 0.68 };
+    case 'windup_spell': return { clip: 'Spell_Simple_Shoot', speed: 0.95 };
+    case 'chase': return { clip: e.isBoss ? 'Walk_Loop' : 'Jog_Fwd_Loop', speed: e.isBoss ? 1.08 : 1.15 };
+    default: return { clip: 'Sword_Idle', speed: 0.9 };
   }
 }
 
@@ -69,11 +58,17 @@ export function createGowArena(scene: Object3D, animations: AnimationClip[]) {
   const beaconGeo = new ConeGeometry(0.28, 0.65, 6);
   const projGeo = new SphereGeometry(0.32, 12, 12);
   const shockGeo = new RingGeometry(0.6, 1.1, 32);
+  const slashGeo = new RingGeometry(1.05, 1.95, 24, 1, -1.15, 2.3);
+  const lockGeo = new RingGeometry(0.68, 0.86, 24);
+  const sparkGeo = new OctahedronGeometry(0.085, 0);
 
   const stunMat = new MeshBasicMaterial({ color: '#ffd166' });
   const playerProjMat = new MeshBasicMaterial({ color: '#ffcf56' });
   const enemyProjMat = new MeshBasicMaterial({ color: '#ff3b30' });
-  const shockMat = new MeshBasicMaterial({ color: '#ffe599', transparent: true, opacity: 0.8 });
+  const shockMat = new MeshBasicMaterial({ color: '#ffe599', transparent: true, opacity: 0.8, side: DoubleSide });
+  const slashMat = new MeshBasicMaterial({ color: '#ffd166', transparent: true, opacity: 0.85, side: DoubleSide });
+  const lockMat = new MeshBasicMaterial({ color: '#5ee6d0', transparent: true, opacity: 0.78, side: DoubleSide });
+  const sparkMat = new MeshBasicMaterial({ color: '#ffd166' });
 
   const instances: EnemyInstance[] = gowRuntime.enemies.map((e) => {
     const wrapper = new Group();
@@ -108,9 +103,8 @@ export function createGowArena(scene: Object3D, animations: AnimationClip[]) {
     for (const clip of animations) {
       const name = clip.name as GowClipName;
       const action = mixer.clipAction(clip);
-      if (LOOP_CLIPS.has(name)) {
-        action.setLoop(LoopRepeat, Infinity);
-      } else {
+      if (LOOP_CLIPS.has(name)) action.setLoop(LoopRepeat, Infinity);
+      else {
         action.setLoop(LoopOnce, 1);
         action.clampWhenFinished = true;
       }
@@ -119,16 +113,8 @@ export function createGowArena(scene: Object3D, animations: AnimationClip[]) {
 
     container.add(wrapper);
     return {
-      id: e.id,
-      wrapper,
-      handle,
-      mixer,
-      actions,
-      activeClip: '',
-      telegraphRing,
-      telegraphMat,
-      stunBeacon,
-      wings,
+      id: e.id, wrapper, handle, mixer, actions, activeClip: '',
+      telegraphRing, telegraphMat, stunBeacon, wings,
     };
   });
 
@@ -139,28 +125,33 @@ export function createGowArena(scene: Object3D, animations: AnimationClip[]) {
     return m;
   });
 
+  const sparkMeshes = gowRuntime.sparks.map(() => {
+    const m = new Mesh(sparkGeo, sparkMat);
+    m.visible = false;
+    container.add(m);
+    return m;
+  });
+
   const shockMesh = new Mesh(shockGeo, shockMat);
   shockMesh.rotation.x = -Math.PI * 0.5;
   shockMesh.visible = false;
   container.add(shockMesh);
 
+  const slashMesh = new Mesh(slashGeo, slashMat);
+  slashMesh.visible = false;
+  container.add(slashMesh);
+
+  const lockRing = new Mesh(lockGeo, lockMat);
+  lockRing.rotation.x = -Math.PI * 0.5;
+  lockRing.visible = false;
+  container.add(lockRing);
+
   return {
-    container,
-    instances,
-    projMeshes,
-    shockMesh,
-    shockMat,
-    playerProjMat,
-    enemyProjMat,
+    container, instances, projMeshes, sparkMeshes, shockMesh, shockMat,
+    slashMesh, slashMat, lockRing, lockMat, playerProjMat, enemyProjMat,
     dispose() {
-      ringGeo.dispose();
-      beaconGeo.dispose();
-      projGeo.dispose();
-      shockGeo.dispose();
-      stunMat.dispose();
-      playerProjMat.dispose();
-      enemyProjMat.dispose();
-      shockMat.dispose();
+      for (const g of [ringGeo, beaconGeo, projGeo, shockGeo, slashGeo, lockGeo, sparkGeo]) g.dispose();
+      for (const m of [stunMat, playerProjMat, enemyProjMat, shockMat, slashMat, lockMat, sparkMat]) m.dispose();
       for (const inst of instances) {
         inst.mixer.stopAllAction();
         inst.telegraphMat.dispose();

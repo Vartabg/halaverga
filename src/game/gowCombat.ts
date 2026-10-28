@@ -1,20 +1,20 @@
-import { addTrauma, kick, punchFov } from './cameraFx';
+import { addTrauma, punchFov } from './cameraFx';
+import { playImpactAudio, playParryAudio, playRageAudio, playSwingAudio } from './gowAudio';
 import { combatMotion } from './motion';
 import { readIntent, runtime } from './runtime';
-import { ATTACK_SPECS, createInitialEnemies, gowRuntime, type GowAction, type GowEnemy, type GowPopup } from './gowTypes';
+import { ATTACK_SPECS, createInitialEnemies, gowRuntime, type GowEnemy, type GowPopup } from './gowTypes';
 
 export function resetGowState() {
-  gowRuntime.hp = 100; gowRuntime.rage = 40; gowRuntime.rageActive = 0;
-  gowRuntime.action = 'idle'; gowRuntime.actionTimer = 0; gowRuntime.actionDuration = 0;
-  gowRuntime.hitDone = false; gowRuntime.queuedLight = false; gowRuntime.comboStep = 0;
-  gowRuntime.comboResetTimer = 0; gowRuntime.comboHits = 0; gowRuntime.comboBannerTimer = 0;
-  gowRuntime.lastMoveLabel = ''; gowRuntime.parryWindow = 0; gowRuntime.dodgeInvuln = 0;
-  gowRuntime.runicCooldown = 0; gowRuntime.hitstopTimer = 0; gowRuntime.realmShiftTimer = 0;
-  gowRuntime.shockwaveTimer = 0; gowRuntime.executableId = null; gowRuntime.threatPrompt = '';
-  gowRuntime.enemies = createInitialEnemies();
+  Object.assign(gowRuntime, {
+    hp: 100, rage: 40, rageActive: 0, action: 'idle', actionSeq: 0, actionTimer: 0, actionDuration: 0,
+    hitDone: false, queuedLight: false, comboStep: 0, comboResetTimer: 0, comboHits: 0, comboBannerTimer: 0,
+    lastMoveLabel: '', parryWindow: 0, dodgeInvuln: 0, runicCooldown: 0, hitstopTimer: 0, realmShiftTimer: 0,
+    shockwaveTimer: 0, slashTimer: 0, lockedTargetId: null, executableId: null, threatPrompt: '',
+    enemies: createInitialEnemies(),
+  });
   for (const p of gowRuntime.projectiles) p.active = false;
-  gowRuntime.popups.length = 0;
-  combatMotion.vx = combatMotion.vz = combatMotion.timer = 0;
+  for (const s of gowRuntime.sparks) s.active = false;
+  gowRuntime.popups.length = 0; combatMotion.vx = combatMotion.vz = combatMotion.timer = 0;
 }
 
 export function pushPopup(text: string, tone: GowPopup['tone'], x: number, y: number, z: number) {
@@ -22,39 +22,75 @@ export function pushPopup(text: string, tone: GowPopup['tone'], x: number, y: nu
   gowRuntime.popups.push({ id: gowRuntime.nextPopupId++, text, tone, x, y, z, age: 0 });
 }
 
+export function spawnHitSparks(x: number, y: number, z: number, color: string, count = 6) {
+  for (let i = 0, spawned = 0; i < gowRuntime.sparks.length && spawned < count; i++) {
+    const s = gowRuntime.sparks[i];
+    if (s.active && s.life > 0.08) continue;
+    const angle = (spawned / count) * Math.PI * 2 + gowRuntime.actionSeq * 0.7, spd = 3.2 + (spawned % 3) * 1.6;
+    Object.assign(s, { active: true, x, y, z, vx: Math.cos(angle) * spd, vy: 2.4 + (spawned % 2) * 1.6, vz: Math.sin(angle) * spd, life: 0.32, maxLife: 0.32, color });
+    spawned++;
+  }
+}
+
 export function nearestLiveEnemy(px: number, pz: number, maxDist = 24): GowEnemy | null {
   let best: GowEnemy | null = null, bestD = maxDist;
-  for (const e of gowRuntime.enemies) {
-    if (e.state === 'dead') continue;
-    const d = Math.hypot(e.x - px, e.z - pz);
-    if (d < bestD) { bestD = d; best = e; }
-  }
+  for (const e of gowRuntime.enemies) if (e.state !== 'dead' && Math.hypot(e.x - px, e.z - pz) < bestD) { bestD = Math.hypot(e.x - px, e.z - pz); best = e; }
   return best;
 }
 
-function orientAndLunge(lungeSpeed: number, lungeDuration: number, reduced: boolean) {
-  const px = runtime.position.x, pz = runtime.position.z;
-  const target = nearestLiveEnemy(px, pz, 9.5);
-  if (target) {
-    const dx = target.x - px, dz = target.z - pz;
-    const desiredYaw = Math.atan2(-dx, -dz);
-    if (!reduced) runtime.yaw = desiredYaw;
+export function findFreeflowTarget(px: number, pz: number, maxDist = 14.0): GowEnemy | null {
+  const intent = readIntent();
+  const hasDir = Math.hypot(intent.forward, intent.strafe) > 0.15;
+  const dirX = hasDir ? -Math.sin(runtime.yaw) * intent.forward + Math.cos(runtime.yaw) * intent.strafe : -Math.sin(runtime.yaw);
+  const dirZ = hasDir ? -Math.cos(runtime.yaw) * intent.forward - Math.sin(runtime.yaw) * intent.strafe : -Math.cos(runtime.yaw);
+  const dLen = Math.max(0.001, Math.hypot(dirX, dirZ));
+  const nx = dirX / dLen, nz = dirZ / dLen;
+  let best: GowEnemy | null = null, bestScore = Infinity;
+  for (const e of gowRuntime.enemies) {
+    if (e.state === 'dead') continue;
+    const dx = e.x - px, dz = e.z - pz, dist = Math.hypot(dx, dz);
+    if (dist > maxDist) continue;
+    const align = dist > 0.1 ? (dx / dist) * nx + (dz / dist) * nz : 1;
+    const score = dist - align * (hasDir ? 3.5 : 1.6);
+    if (score < bestScore) { bestScore = score; best = e; }
   }
-  if (lungeSpeed > 0 && lungeDuration > 0) {
-    combatMotion.vx = -Math.sin(runtime.yaw) * lungeSpeed;
-    combatMotion.vz = -Math.cos(runtime.yaw) * lungeSpeed;
+  gowRuntime.lockedTargetId = best?.id ?? null;
+  return best;
+}
+
+function orientAndLunge(baseSpeed: number, lungeDuration: number, reduced: boolean) {
+  const px = runtime.position.x, pz = runtime.position.z;
+  const target = findFreeflowTarget(px, pz, 13.5);
+  if (target) {
+    const dx = target.x - px, dz = target.z - pz, dist = Math.hypot(dx, dz);
+    if (dist > 0.05) runtime.yaw = Math.atan2(-dx, -dz);
+    if (lungeDuration > 0 && dist > 0.05) {
+      const gap = Math.max(0, dist - 2.0);
+      const vaultSpeed = Math.min(reduced ? 7.5 : 22.0, gap > 0.25 ? Math.max(baseSpeed, gap / lungeDuration) : 0);
+      combatMotion.vx = (dx / dist) * vaultSpeed;
+      combatMotion.vz = (dz / dist) * vaultSpeed;
+      combatMotion.timer = vaultSpeed > 0 ? lungeDuration : 0;
+    }
+    return;
+  }
+  if (baseSpeed > 0 && lungeDuration > 0) {
+    combatMotion.vx = -Math.sin(runtime.yaw) * baseSpeed;
+    combatMotion.vz = -Math.cos(runtime.yaw) * baseSpeed;
     combatMotion.timer = lungeDuration;
   }
 }
 
 function startSpecAttack(key: keyof typeof ATTACK_SPECS, reduced: boolean) {
   const spec = ATTACK_SPECS[key];
-  gowRuntime.action = spec.action;
-  gowRuntime.actionTimer = 0;
-  gowRuntime.actionDuration = spec.duration;
-  gowRuntime.hitDone = false;
-  gowRuntime.lastMoveLabel = spec.label;
-  gowRuntime.comboBannerTimer = 1.6;
+  Object.assign(gowRuntime, {
+    action: spec.action, actionSeq: gowRuntime.actionSeq + 1, actionTimer: 0, actionDuration: spec.duration,
+    hitDone: false, lastMoveLabel: spec.label, comboBannerTimer: 2.0,
+  });
+  if (key !== 'runic') {
+    const dur = spec.duration * 0.82;
+    const color = key === 'heavy' || key === 'light4' || key === 'rage_slam' ? '#ff9f1c' : key === 'counter' ? '#5ee6d0' : '#ffd166';
+    Object.assign(gowRuntime, { slashDuration: dur, slashTimer: dur, slashTilt: spec.slashTilt, slashSpin: spec.spinTurns, slashColor: color });
+  }
   orientAndLunge(spec.lungeSpeed, spec.lungeDuration, reduced);
 }
 
@@ -62,121 +98,102 @@ export function applyHitToEnemy(e: GowEnemy, damage: number, stun: number, reduc
   if (e.state === 'dead') return;
   const mult = (gowRuntime.rageActive > 0 ? 1.35 : 1) * (e.state === 'stunned' ? 1.25 : 1);
   const dmg = Math.round(damage * mult);
-  e.hp = Math.max(0, e.hp - dmg);
-  e.flashTimer = 0.18;
-  gowRuntime.rage = Math.min(gowRuntime.maxRage, gowRuntime.rage + 7);
-  gowRuntime.comboHits++;
-  gowRuntime.comboBannerTimer = 2.0;
+  e.hp = Math.max(0, e.hp - dmg); e.flashTimer = 0.20;
+  gowRuntime.rage = Math.min(gowRuntime.maxRage, gowRuntime.rage + 8);
+  gowRuntime.comboHits++; gowRuntime.comboBannerTimer = 2.2;
+
+  const dx = e.x - runtime.position.x, dz = e.z - runtime.position.z, dist = Math.max(0.1, Math.hypot(dx, dz));
+  const kb = damage >= 45 || stun >= 40 ? 7.2 : 3.8;
+  e.vx = (dx / dist) * kb; e.vz = (dz / dist) * kb;
+  spawnHitSparks(e.x, e.y + 1.15 * e.scale, e.z, stun >= 30 ? '#ff9f1c' : '#ffd166', damage >= 45 ? 10 : 6);
+  playImpactAudio(damage >= 32 || stun >= 30);
 
   if (e.hp <= 0) {
-    e.state = 'dead'; e.stateTimer = 0; e.stateDuration = 2.6;
-    e.clip = 'Death01'; e.clipSpeed = 1.0; e.respawnTimer = e.isBoss ? 7.0 : 5.0;
+    Object.assign(e, { state: 'dead', stateTimer: 0, stateDuration: 2.6, clip: 'Death01', clipSpeed: 1.0, respawnTimer: e.isBoss ? 7.0 : 5.0 });
     pushPopup(`${e.name.toUpperCase()} FELLED`, 'gold', e.x, e.y + 2.2 * e.scale, e.z);
     if (!reduced) { punchFov(runtime.shooter.camFx, 'kill', 2.4); addTrauma(runtime.shooter.camFx, 0.55); }
     return;
   }
   e.stun = Math.min(e.maxStun, e.stun + stun);
   if (e.stun >= e.maxStun && e.state !== 'stunned') {
-    e.state = 'stunned'; e.stateTimer = 0; e.stateDuration = 4.5;
-    e.clip = 'Hit_Head'; e.clipSpeed = 0.65;
+    Object.assign(e, { state: 'stunned', stateTimer: 0, stateDuration: 4.5, clip: 'Hit_Head', clipSpeed: 0.65 });
     pushPopup('STUNNED · PRESS E!', 'stun', e.x, e.y + 2.1 * e.scale, e.z);
-  } else if (e.state !== 'stunned' && (stun >= 22 || !e.isBoss || e.state === 'idle' || e.state === 'chase')) {
-    e.state = 'stagger'; e.stateTimer = 0; e.stateDuration = 0.48;
-    e.clip = stun >= 30 ? 'Hit_Head' : 'Hit_Chest'; e.clipSpeed = 1.2;
+  } else if (e.state !== 'stunned' && (stun >= 20 || !e.isBoss || e.state === 'idle' || e.state === 'chase')) {
+    Object.assign(e, { state: 'stagger', stateTimer: 0, stateDuration: 0.52, clip: stun >= 28 ? 'Hit_Head' : 'Hit_Chest', clipSpeed: 1.2 });
   }
   pushPopup(tag ? `${tag} -${dmg}` : `-${dmg}`, stun >= 30 ? 'stun' : 'gold', e.x, e.y + 1.8 * e.scale, e.z);
 }
 
 export function triggerStunExecute(reduced = false): boolean {
   const px = runtime.position.x, pz = runtime.position.z;
-  const stunned = gowRuntime.enemies.find(e => (e.state === 'stunned' || (e.state === 'stagger' && e.stun >= e.maxStun)) && Math.hypot(e.x - px, e.z - pz) <= 5.2);
+  const stunned = gowRuntime.enemies.find(e => (e.state === 'stunned' || (e.state === 'stagger' && e.stun >= e.maxStun)) && Math.hypot(e.x - px, e.z - pz) <= 6.2);
   if (!stunned) return false;
-  stunned.stun = 0;
-  startSpecAttack('execute', reduced);
+  stunned.stun = 0; startSpecAttack('execute', reduced); playRageAudio();
   gowRuntime.hp = Math.min(gowRuntime.maxHp, gowRuntime.hp + 25);
   gowRuntime.rage = Math.min(gowRuntime.maxRage, gowRuntime.rage + 25);
-  gowRuntime.shockwaveTimer = 0.45; gowRuntime.shockwaveColor = '#ffae42';
-  gowRuntime.shockwaveX = stunned.x; gowRuntime.shockwaveY = stunned.y + 0.15; gowRuntime.shockwaveZ = stunned.z; gowRuntime.shockwaveMaxR = 4.8;
+  Object.assign(gowRuntime, { shockwaveTimer: 0.45, shockwaveColor: '#ffae42', shockwaveX: stunned.x, shockwaveY: stunned.y + 0.15, shockwaveZ: stunned.z, shockwaveMaxR: 4.8 });
   return true;
 }
 
 export function triggerLightAttack(reduced = false): boolean {
   if (gowRuntime.action === 'idle' && triggerStunExecute(reduced)) return true;
-  if (gowRuntime.action === 'light1' || gowRuntime.action === 'light2') {
-    gowRuntime.queuedLight = true;
-    return true;
+  if (gowRuntime.action !== 'idle' && gowRuntime.actionTimer < gowRuntime.actionDuration * 0.72) {
+    if (gowRuntime.action === 'light1' || gowRuntime.action === 'light2' || gowRuntime.action === 'light3') { gowRuntime.queuedLight = true; return true; }
+    return false;
   }
-  if (gowRuntime.action !== 'idle' && gowRuntime.actionTimer < gowRuntime.actionDuration * 0.72) return false;
-  const nextStep = gowRuntime.comboResetTimer > 0 ? (gowRuntime.comboStep % 3) + 1 : 1;
-  gowRuntime.comboStep = nextStep;
-  gowRuntime.comboResetTimer = 1.25;
-  gowRuntime.queuedLight = false;
-  startSpecAttack(nextStep === 1 ? 'light1' : nextStep === 2 ? 'light2' : 'light3', reduced);
+  const nextStep = gowRuntime.comboResetTimer > 0 ? (gowRuntime.comboStep % 4) + 1 : 1;
+  Object.assign(gowRuntime, { comboStep: nextStep, comboResetTimer: 1.45, queuedLight: false });
+  startSpecAttack((['light1', 'light2', 'light3', 'light4'] as const)[nextStep - 1], reduced); playSwingAudio(nextStep);
   return true;
 }
 
 export function triggerHeavyBash(reduced = false): boolean {
   if (gowRuntime.action !== 'idle' && gowRuntime.actionTimer < gowRuntime.actionDuration * 0.65) return false;
-  gowRuntime.queuedLight = false;
-  startSpecAttack('heavy', reduced);
-  return true;
+  gowRuntime.queuedLight = false; startSpecAttack('heavy', reduced); playSwingAudio(5); return true;
 }
 
 export function triggerParry(reduced = false): boolean {
-  gowRuntime.action = 'parry'; gowRuntime.actionTimer = 0; gowRuntime.actionDuration = 0.36;
-  gowRuntime.parryWindow = 0.32; gowRuntime.lastMoveLabel = 'AEGIS PARRY'; gowRuntime.comboBannerTimer = 1.2;
   const px = runtime.position.x, pz = runtime.position.z;
-  for (const e of gowRuntime.enemies) {
-    if (e.state !== 'windup_yellow' && e.state !== 'strike') continue;
-    if (Math.hypot(e.x - px, e.z - pz) <= 5.8) {
-      e.state = 'stagger'; e.stateTimer = 0; e.stateDuration = 1.1; e.clip = 'Hit_Head'; e.clipSpeed = 0.9;
-      applyHitToEnemy(e, 18, 45, reduced, 'PARRY COUNTER');
-      gowRuntime.shockwaveTimer = 0.42; gowRuntime.shockwaveColor = '#ffe58f';
-      gowRuntime.shockwaveX = px; gowRuntime.shockwaveY = runtime.position.y - 0.9; gowRuntime.shockwaveZ = pz; gowRuntime.shockwaveMaxR = 5.2;
-      if (!reduced) { gowRuntime.hitstopTimer = 0.075; punchFov(runtime.shooter.camFx, 'shot', 1.8); }
-    }
+  const attacker = gowRuntime.enemies.find(e => ((e.state === 'windup_yellow' && !e.hitDealt) || e.state === 'strike') && Math.hypot(e.x - px, e.z - pz) <= 8.5);
+  playParryAudio();
+  if (attacker) {
+    gowRuntime.lockedTargetId = attacker.id; startSpecAttack('counter', reduced);
+    gowRuntime.parryWindow = 0.45; gowRuntime.hitDone = true;
+    Object.assign(attacker, { state: 'stagger', stateTimer: 0, stateDuration: 1.25, hitDealt: true, clip: 'Hit_Head', clipSpeed: 0.85 });
+    applyHitToEnemy(attacker, 36, 55, reduced, 'ARKHAM RIPOSTE');
+    Object.assign(gowRuntime, { shockwaveTimer: 0.45, shockwaveColor: '#5ee6d0', shockwaveX: attacker.x, shockwaveY: attacker.y + 0.1, shockwaveZ: attacker.z, shockwaveMaxR: 5.5 });
+    if (!reduced) { gowRuntime.hitstopTimer = 0.075; punchFov(runtime.shooter.camFx, 'shot', 1.9); }
+    return true;
   }
+  Object.assign(gowRuntime, { action: 'parry', actionSeq: gowRuntime.actionSeq + 1, actionTimer: 0, actionDuration: 0.36, parryWindow: 0.35, lastMoveLabel: 'AEGIS PARRY', comboBannerTimer: 1.2 });
   return true;
 }
 
 export function triggerDodgeRoll(_reduced = false): boolean {
-  gowRuntime.action = 'dodge'; gowRuntime.actionTimer = 0; gowRuntime.actionDuration = 0.50;
-  gowRuntime.dodgeInvuln = 0.40; gowRuntime.queuedLight = false;
-  gowRuntime.lastMoveLabel = 'EVADE ROLL'; gowRuntime.comboBannerTimer = 1.1;
-  const intent = readIntent();
-  const fwd = Math.abs(intent.forward) > 0.1 || Math.abs(intent.strafe) > 0.1 ? intent.forward : -1;
-  const str = intent.strafe;
-  const wx = -Math.sin(runtime.yaw) * fwd + Math.cos(runtime.yaw) * str;
-  const wz = -Math.cos(runtime.yaw) * fwd - Math.sin(runtime.yaw) * str;
+  Object.assign(gowRuntime, { action: 'dodge', actionSeq: gowRuntime.actionSeq + 1, actionTimer: 0, actionDuration: 0.48, dodgeInvuln: 0.42, queuedLight: false, lastMoveLabel: 'EVADE ROLL', comboBannerTimer: 1.2 });
+  const intent = readIntent(), fwd = Math.abs(intent.forward) > 0.1 || Math.abs(intent.strafe) > 0.1 ? intent.forward : -1;
+  const wx = -Math.sin(runtime.yaw) * fwd + Math.cos(runtime.yaw) * intent.strafe, wz = -Math.cos(runtime.yaw) * fwd - Math.sin(runtime.yaw) * intent.strafe;
   const len = Math.max(0.001, Math.hypot(wx, wz));
-  combatMotion.vx = (wx / len) * 9.5; combatMotion.vz = (wz / len) * 9.5; combatMotion.timer = 0.36;
-
+  combatMotion.vx = (wx / len) * 10.2; combatMotion.vz = (wz / len) * 10.2; combatMotion.timer = 0.36;
   const px = runtime.position.x, pz = runtime.position.z;
-  const redThreat = gowRuntime.enemies.some(e => e.state === 'windup_red' && Math.hypot(e.x - px, e.z - pz) <= 7.5);
-  if (redThreat) {
-    gowRuntime.realmShiftTimer = 1.45;
-    pushPopup('REALM SHIFT · TIME SLOWED!', 'parry', px, runtime.position.y + 1.2, pz);
+  if (gowRuntime.enemies.some(e => e.state === 'windup_red' && Math.hypot(e.x - px, e.z - pz) <= 8.0)) {
+    gowRuntime.realmShiftTimer = 1.5; pushPopup('REALM SHIFT · TIME SLOWED!', 'parry', px, runtime.position.y + 1.2, pz);
   }
   return true;
 }
 
 export function triggerRunicSpell(reduced = false): boolean {
   if (gowRuntime.runicCooldown > 0) return false;
-  gowRuntime.runicCooldown = 5.0;
-  startSpecAttack('runic', reduced);
-  return true;
+  gowRuntime.runicCooldown = 5.0; startSpecAttack('runic', reduced); playSwingAudio(4); return true;
 }
 
 export function triggerWingedRage(reduced = false): boolean {
   if (gowRuntime.rage < 35 && gowRuntime.rageActive <= 0) return false;
   if (gowRuntime.rageActive <= 0) {
-    gowRuntime.rage = Math.max(0, gowRuntime.rage - 35);
-    gowRuntime.rageActive = 8.0;
+    gowRuntime.rage = Math.max(0, gowRuntime.rage - 35); gowRuntime.rageActive = 8.0;
     gowRuntime.hp = Math.min(gowRuntime.maxHp, gowRuntime.hp + 35);
   }
-  startSpecAttack('rage_slam', reduced);
-  gowRuntime.shockwaveTimer = 0.55; gowRuntime.shockwaveColor = '#ffcf5c';
-  gowRuntime.shockwaveX = runtime.position.x; gowRuntime.shockwaveY = runtime.position.y - 0.95; gowRuntime.shockwaveZ = runtime.position.z;
-  gowRuntime.shockwaveMaxR = 7.2;
+  startSpecAttack('rage_slam', reduced); playRageAudio();
+  Object.assign(gowRuntime, { shockwaveTimer: 0.55, shockwaveColor: '#ffcf5c', shockwaveX: runtime.position.x, shockwaveY: runtime.position.y - 0.95, shockwaveZ: runtime.position.z, shockwaveMaxR: 7.2 });
   return true;
 }
