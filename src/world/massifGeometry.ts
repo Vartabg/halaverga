@@ -9,24 +9,24 @@ export type TerrainChunk = {
 };
 const clamp = (x: number) => Math.min(1, Math.max(0, x));
 const smooth = (a: number, b: number, x: number) => { const t = clamp((x - a) / (b - a)); return t * t * (3 - 2 * t); };
-const deepCliff = new Color('#211834'), rock = new Color(INK.rock), shaft = new Color(INK.shaft);
-const sunlitCrest = new Color(INK.cap), limestone = new Color('#d8b298'), dawnGold = new Color('#f6c98e'), warmBasalt = new Color('#32273d');
+const deepCliff = new Color('#2b334b'), rock = new Color(INK.rock), shaft = new Color(INK.shaft);
+const snow = new Color(INK.cap), limestone = new Color('#cbb69e'), dawnGold = new Color('#f6c992'), warmSlate = new Color('#474559');
 function pigment(x: number, y: number, z: number, normal: Vector3, _seed: number, out: Color) {
-  const stratum = .5 + .5 * Math.sin(y * .22 + x * .035 - z * .028);
+  const stratum = .5 + .5 * Math.sin(y * .22 + x * .032 - z * .028 + Math.sin(x * .08) * .6);
   const sun = Math.max(0, normal.x * SUN_DIRECTION[0] + normal.y * SUN_DIRECTION[1] + normal.z * SUN_DIRECTION[2]);
   const steep = 1 - clamp(normal.y);
-  const high = smooth(28, 68, y), lying = smooth(.38, .84, normal.y);
-  out.copy(deepCliff).lerp(rock, clamp(.22 + normal.y * .52 + stratum * .22));
-  out.lerp(shaft, clamp(sun * .45 + stratum * .16));
-  out.lerp(limestone, clamp((1 - steep) * .35 + sun * .28));
-  out.lerp(dawnGold, clamp(sun * sun * .32 * smooth(14, 70, y)));
-  out.lerp(sunlitCrest, clamp(high * lying * .48 + smooth(54, 88, y) * smooth(.28, .72, normal.y) * .25));
-  out.lerp(warmBasalt, clamp(steep * .42));
-  out.multiplyScalar(.68 + sun * .36 - steep * .18);
+  const high = smooth(28, 66, y), lying = smooth(.56, .86, normal.y);
+  out.copy(deepCliff).lerp(rock, clamp(.22 + normal.y * .42 + stratum * .28));
+  out.lerp(shaft, clamp(sun * .36 + stratum * .18));
+  out.lerp(limestone, clamp((1 - steep * .65) * .36 + sun * .26 + stratum * steep * .22));
+  out.lerp(dawnGold, clamp(sun * sun * .26 * smooth(12, 68, y)));
+  out.lerp(warmSlate, clamp(steep * (.34 - stratum * .14)));
+  out.lerp(snow, clamp(high * lying * .88 + smooth(52, 84, y) * smooth(.52, .78, normal.y) * .42));
+  out.multiplyScalar(.74 + sun * .28 - steep * .12);
   return out.setRGB(Math.min(1, out.r), Math.min(1, out.g), Math.min(1, out.b));
 }
 
-/** Expand source triangles into flat facets while retaining the exact arrays Rapier consumes. */
+/** Expand source triangles while retaining the exact arrays Rapier consumes; terrain uses smooth shared vertex normals. */
 export function facetedChunk(id: string, vertices: Float32Array, indices: Uint32Array, seed: number = 6606) {
   const triCount = indices.length / 3, vCount = vertices.length / 3;
   const positions = new Float32Array(indices.length * 3), normals = new Float32Array(indices.length * 3);
@@ -68,11 +68,10 @@ export function facetedChunk(id: string, vertices: Float32Array, indices: Uint32
     a.fromArray(vertices, va * 3); b.fromArray(vertices, vb * 3); c.fromArray(vertices, vc * 3);
     const s0 = creaseAt(t, vb, vc), s1 = creaseAt(t, vc, va), s2 = creaseAt(t, va, vb);
     const cMax = Math.max(s0, s1, s2), eIdx = s0 >= s1 && s0 >= s2 ? 0 : s1 >= s2 ? 1 : 2;
-    normal.fromArray(faceNormals, t * 3);
-    const crag = isArch || normal.y < .68;
+    const useFace = isArch && t >= 18 * 9 * 2;
     for (const [corner, point, vi] of [[0, a, va], [1, b, vb], [2, c, vc]] as const) {
       const at = (i + corner) * 3, uv = (i + corner) * 2;
-      normal.fromArray(crag ? faceNormals : vNormals, (crag ? t : vi) * 3);
+      normal.fromArray(useFace ? faceNormals : vNormals, (useFace ? t : vi) * 3);
       pigment(point.x, point.y, point.z, normal, seed, color);
       positions.set([point.x, point.y, point.z], at); normals.set([normal.x, normal.y, normal.z], at);
       colors.set([color.r, color.g, color.b], at); uvs.set([corner === eIdx ? 1 : 0, cMax], uv);

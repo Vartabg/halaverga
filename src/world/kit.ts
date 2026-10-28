@@ -103,28 +103,26 @@ export function createKit() {
         p.setXYZ(i, vx * (1 - pinch), vy, vz * (1 - pinch));
       }
     }
-    const g = source.toNonIndexed(); source.dispose(); g.computeVertexNormals();
+    source.computeVertexNormals();
+    const g = source.toNonIndexed(); source.dispose();
     const warm = lift < 1 ? 0.92 : 1;
     g.applyMatrix4(new Matrix4().compose(new Vector3(x, y, z), new Quaternion().setFromEuler(new Euler(0, ry, 0)), new Vector3(1, 1, 1)));
-    const topY = y + h / 2, botY = y - h / 2;
+    const botY = y - h / 2;
     add(g, INK.shaft, 1, (pw, nw) => {
       const t = Math.min(1, Math.max(0, (pw.y - botY) / Math.max(h, 0.1)));
-      const base = new Color(INK.plinth).lerp(new Color(INK.rock), Math.min(1, t * 1.4));
-      base.lerp(new Color(INK.shaft), Math.max(0, nw.y + 0.35 * -nw.x) * 0.55);
-      const band = Math.abs(t - 0.72) < 0.035 || Math.abs(t - 0.84) < 0.022;
-      if (band && h >= 3.2) return new Color(INK.crown);
-      const crest = Math.min(1, Math.max(0, (t - 0.82) * 3.8 + Math.max(0, nw.y) * 0.55));
-      return base.lerp(new Color(INK.cap), crest * 0.55).multiplyScalar(warm);
+      const base = new Color('#7d726c').lerp(new Color('#b5a494'), Math.min(1, t * 1.3));
+      base.lerp(new Color('#d4c2ae'), Math.max(0, nw.y + 0.35 * -nw.x) * 0.48);
+      const snowCap = Math.min(1, Math.max(0, (t - 0.84) * 3.8 + Math.max(0, nw.y) * 0.52));
+      return base.lerp(new Color(INK.cap), snowCap * 0.78).multiplyScalar(warm);
     }, INK_GROUP);
   }
   return { box, hill, block, slab, pillar, add, finish, solids };
 }
-/** Basalt, gilded limestone, worked bronze and snow-alabaster pigments for the Hermon massif. */
-export const colors = { concrete: '#7d738c', edge: '#282136', glass: '#241e33', warm: '#c47d4e',
-  light: '#dfba8c', moss: '#3d3752', road: '#685e78', white: '#f2b84b', steel: '#b8823c' };
-/** A snow-capped alpine boulder & Watcher waystone along the Hermon gorge (preserves the exact base solid). */
+/** Limestone, slate, bronze and snow-alabaster pigments for the Hermon massif. */
+export const colors = { concrete: '#8a8078', edge: '#383442', glass: '#2d2a38', warm: '#c48858',
+  light: '#dfba8c', moss: '#4a4558', road: '#787068', white: '#f2b84b', steel: '#b8823c' };
+/** Waystone collider and low weathered cairn along the Hermon gorge (preserves the exact base solid). */
 export function car(k: Kit, x: number, y: number, z: number, _color: string, ry = 0) {
   k.solids.push({ position: [x, y + 1.95, z], size: [1.85, 2.05, 1.85], rotation: [0, ry, 0] });
-  k.pillar(x, y + 1.8, z, 3.8, .9, 1.85, Math.round(Math.abs(x * 7 + z)), ry, .95, { depth: .16, course: 1.9 });
-  k.box(x, y + 3.8, z, 1.35, .45, 1.35, INK.lit, false, ry, .08, 1, INK_GROUP);
+  if (Math.abs(x - 26) > 1) k.pillar(x, y + 0.9, z, 1.8, .75, 1.35, Math.round(Math.abs(x * 7 + z)), ry, .95, { depth: .12, course: 1.9 });
 }

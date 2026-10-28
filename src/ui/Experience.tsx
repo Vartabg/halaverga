@@ -44,10 +44,6 @@ const FlowHud = dynamic(() => import('./FlowHud'), { ssr: false, loading: () => 
 const SimpleTrackpadHud = dynamic(() => import('./SimpleTrackpadHud'), { ssr: false, loading: () => null });
 // Flight settings open only after Begin, so they are a chunk warmed then: settings copy never grows the landing first load.
 const loadPanel = () => import('./TestPanel');
-const loadBossHud = () => import('./BossHud');
-const BossHud = dynamic(loadBossHud, { ssr: false, loading: () => null });
-const loadDialogue = () => import('./DialogueBox');
-const DialogueBox = dynamic(loadDialogue, { ssr: false, loading: () => null });
 // The Gesture Lab (Draw, Conduct, Brush) replaces the standard controls only while chosen. Its surface is held in state like the
 // touch controls (loaded when a lab scheme is on, and Begin/Resume waits for it). The controls picker (ControlsEntry: the header
 // trigger and, on the start card, the first-visit demo note) and the in-game vote (VoteLayer) are chunks. The landing first load
@@ -88,7 +84,7 @@ export default function Experience() {
   // Warm the blaster HUD chunk after hydration so the first aim never waits on it; with the blaster off nothing is requested.
   useEffect(() => { if (hydrated && state.shooter) void loadHud().catch(() => {}); }, [hydrated, state.shooter]);
   useEffect(() => { if (hydrated) void loadHint().catch(() => {}); }, [hydrated]);
-  useEffect(() => { if (state.started) { void loadPanel().catch(() => {}); void loadBossHud().catch(() => {}); void loadDialogue().catch(() => {}); } }, [state.started]);
+  useEffect(() => { if (state.started) void loadPanel().catch(() => {}); }, [state.started]);
   useEffect(() => {
     if (hydrated && lab !== 'standard' && !LabControls) void loadLab().then(m => setLabControls(() => m.default)).catch(() => labFault(LAB_LOAD_FAILED));
   }, [hydrated, lab, LabControls]);
@@ -164,8 +160,6 @@ export default function Experience() {
           {/* The controls lessons and the one hint slot under the top row: one line at a time (hintQueue.pickHint). */}
           {standard && <Optional><ControlsHint coarse={coarsePointer()} /></Optional>}
           <HintSlot />
-          <Optional><BossHud /></Optional>
-          <Optional><DialogueBox /></Optional>
           <Telemetry />
           {/* Twin touch: the cluster's Rise/Descend replace Lift/Land, so CSS hides this under html[data-input=touch]. */}
           {/* In a lab scheme Lift/Land is always shown (data-twin false): the lab has no Rise/Descend. */}
