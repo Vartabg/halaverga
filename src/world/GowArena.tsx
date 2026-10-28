@@ -5,6 +5,7 @@ import { useFrame, useLoader } from '@react-three/fiber';
 import { type Group } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { stepGowFrame } from '@/game/gowEnemies';
+import { resetGowState } from '@/game/gowCombat';
 import { useGowInput } from '@/game/gowInput';
 import { GOW_URL, gowRuntime } from '@/game/gowTypes';
 import { runtime } from '@/game/runtime';
@@ -16,6 +17,7 @@ export default function GowArena() {
   useGowInput();
   const asset = useLoader(GLTFLoader, GOW_URL);
   const rootRef = useRef<Group>(null);
+  const lastEpoch = useRef(runtime.poseEpoch);
 
   const arena = useMemo(
     () => createGowArena(asset.scene, asset.animations),
@@ -26,6 +28,10 @@ export default function GowArena() {
 
   useFrame((_three, rawDt) => {
     const state = useGame.getState();
+    if (runtime.poseEpoch !== lastEpoch.current) {
+      lastEpoch.current = runtime.poseEpoch;
+      resetGowState();
+    }
     const visible = state.started && state.shooter;
     arena.container.visible = visible;
     if (!visible) return;
@@ -45,16 +51,17 @@ export default function GowArena() {
       inst.wrapper.position.set(e.x, e.y, e.z);
       inst.wrapper.rotation.y = e.yaw;
 
-      const { clip, speed } = selectEnemyClip(e);
+      const { clip, speed, start } = selectEnemyClip(e);
       if (inst.activeClip !== clip) {
         const prev = inst.activeClip ? inst.actions.get(inst.activeClip) : undefined;
         const next = inst.actions.get(clip);
         if (next) {
           next.reset();
+          next.time = start;
           next.setEffectiveTimeScale(speed);
           next.setEffectiveWeight(1);
           next.play();
-          if (prev && prev !== next) prev.crossFadeTo(next, 0.12, false);
+          if (prev && prev !== next) prev.crossFadeTo(next, 0.16, false);
           inst.activeClip = clip;
         }
       }

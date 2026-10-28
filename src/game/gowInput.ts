@@ -2,11 +2,13 @@
 
 import { useEffect } from 'react';
 import {
+  triggerAerialSwoop,
   triggerDodgeRoll,
   triggerHeavyBash,
   triggerLightAttack,
   triggerParry,
   triggerRunicSpell,
+  triggerSkySwordBeam,
   triggerStunExecute,
   triggerWingedRage,
 } from './gowCombat';
@@ -34,7 +36,6 @@ export function useGowInput() {
         s.started &&
         !s.paused &&
         s.shooter &&
-        !s.flying &&
         !s.panel &&
         !s.journal &&
         !s.controlsOpen &&
@@ -47,6 +48,24 @@ export function useGowInput() {
       if (isUiElement(e.target) || !canAct()) return;
       const s = useGame.getState();
       const reduced = s.reduced;
+
+      if (s.flying) {
+        switch (e.code) {
+          case 'KeyJ':
+            e.preventDefault();
+            triggerAerialSwoop(reduced);
+            break;
+          case 'KeyK':
+          case 'KeyQ':
+          case 'KeyG':
+            e.preventDefault();
+            triggerSkySwordBeam(reduced);
+            break;
+          default:
+            break;
+        }
+        return;
+      }
 
       switch (e.code) {
         case 'KeyJ':
@@ -90,17 +109,20 @@ export function useGowInput() {
         validLeftClick = false;
         return;
       }
-      const reduced = useGame.getState().reduced;
+      const s = useGame.getState();
+      const reduced = s.reduced;
       if (e.target instanceof HTMLElement) {
         if (e.target.closest('[data-testid="fire-button"]')) {
-          if (!triggerStunExecute(reduced)) triggerLightAttack(reduced);
+          if (s.flying) triggerAerialSwoop(reduced);
+          else if (!triggerStunExecute(reduced)) triggerLightAttack(reduced);
           return;
         }
         if (e.target.closest('[data-testid="aim-button"]')) {
-          triggerParry(reduced);
+          if (s.flying) triggerSkySwordBeam(reduced);
+          else triggerParry(reduced);
           return;
         }
-        if (e.target.closest('[data-testid="descend-button"]')) {
+        if (!s.flying && e.target.closest('[data-testid="descend-button"]')) {
           triggerDodgeRoll(reduced);
           return;
         }
@@ -116,7 +138,8 @@ export function useGowInput() {
         validLeftClick = true;
       } else if (e.button === 2) {
         e.preventDefault();
-        triggerParry(reduced);
+        if (s.flying) triggerSkySwordBeam(reduced);
+        else triggerParry(reduced);
       }
     };
 
@@ -127,7 +150,9 @@ export function useGowInput() {
       const dist = Math.hypot(e.clientX - downX, e.clientY - downY);
       const elapsed = performance.now() - downTime;
       if (dist < 6 && elapsed < 260) {
-        triggerLightAttack(useGame.getState().reduced);
+        const s = useGame.getState();
+        if (s.flying) triggerAerialSwoop(s.reduced);
+        else triggerLightAttack(s.reduced);
       }
     };
 

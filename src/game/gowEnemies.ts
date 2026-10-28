@@ -1,8 +1,10 @@
 import { addTrauma, kick, punchFov } from './cameraFx';
+import { combatMotion } from './motion';
 import { runtime } from './runtime';
+import { useGame } from './store';
 import { heightAt } from '@/world/massifData';
 import { ATTACK_SPECS, gowRuntime, type GowEnemy } from './gowTypes';
-import { applyHitToEnemy, findFreeflowTarget, nearestLiveEnemy, pushPopup, triggerLightAttack } from './gowCombat';
+import { applyHitToEnemy, findFreeflowTarget, nearestLiveEnemy, pushPopup, spawnHitSparks, triggerLightAttack } from './gowCombat';
 
 function spawnProjectile(fromPlayer: boolean, x: number, y: number, z: number, vx: number, vy: number, vz: number, damage: number, stun: number) {
   const slot = gowRuntime.projectiles.find(p => !p.active) ?? gowRuntime.projectiles[0];
@@ -17,55 +19,52 @@ function resolvePlayerStrike(reduced: boolean) {
   gowRuntime.hitDone = true;
 
   const px = runtime.position.x, py = runtime.position.y, pz = runtime.position.z;
-  if (act === 'runic') {
-    const t = nearestLiveEnemy(px, pz, 24);
-    let dx = -Math.sin(runtime.yaw), dy = 0, dz = -Math.cos(runtime.yaw);
-    if (t) {
-      dx = t.x - px; dy = (t.y + 1.0 * t.scale) - py; dz = t.z - pz;
-      const len = Math.max(0.01, Math.hypot(dx, dy, dz));
-      dx /= len; dy /= len; dz /= len;
-    }
-    spawnProjectile(true, px + dx * 0.8, py + 0.3, pz + dz * 0.8, dx * 22, dy * 22, dz * 22, spec.damage, spec.stun);
-    if (!reduced) { kick(runtime.shooter.camFx, 1.1, 0); punchFov(runtime.shooter.camFx, 'shot', 1.2); }
+  if (act === 'runic' || act === 'sky_beam') {
+    const t = gowRuntime.enemies.find(e => e.id === gowRuntime.lockedTargetId && e.state !== 'dead') ?? nearestLiveEnemy(px, pz, 28);
+    let dx = t ? t.x - px : -Math.sin(runtime.yaw), dy = t ? (t.y + 1.05 * t.scale) - py : (act === 'sky_beam' ? -0.35 : 0), dz = t ? t.z - pz : -Math.cos(runtime.yaw);
+    const len = Math.max(0.01, Math.hypot(dx, dy, dz)), spd = act === 'sky_beam' ? 28 : 22;
+    dx /= len; dy /= len; dz /= len;
+    spawnProjectile(true, px + dx * 0.8, py + 0.25, pz + dz * 0.8, dx * spd, dy * spd, dz * spd, spec.damage, spec.stun);
+    if (!reduced) { kick(runtime.shooter.camFx, 1.0, 0); punchFov(runtime.shooter.camFx, 'shot', 1.2); }
     return;
   }
 
+  if (act === 'swoop') {
+    combatMotion.vy = 0;
+    if (useGame.getState().flying) useGame.setState({ flying: false, landing: false });
+    Object.assign(gowRuntime, { shockwaveTimer: 0.48, shockwaveColor: '#ffd166', shockwaveX: px, shockwaveY: 20.12, shockwaveZ: pz, shockwaveMaxR: 6.2 });
+  }
+
   let landed = false;
-  const fx = -Math.sin(runtime.yaw), fz = -Math.cos(runtime.yaw);
-  const isOmni = act === 'rage_slam' || act === 'light3';
+  const fx = -Math.sin(runtime.yaw), fz = -Math.cos(runtime.yaw), isOmni = act === 'rage_slam' || act === 'light3' || act === 'swoop';
   for (const e of gowRuntime.enemies) {
     if (e.state === 'dead') continue;
     const dx = e.x - px, dz = e.z - pz, dist = Math.hypot(dx, dz);
-    if (dist > spec.reach + e.scale * 0.55) continue;
-    const dot = dist > 0.1 ? (dx / dist) * fx + (dz / dist) * fz : 1;
-    if (!isOmni && e.id !== gowRuntime.lockedTargetId && dot < -0.15) continue;
-    const tag = act === 'execute' ? 'EXECUTION' : act === 'rage_slam' ? 'SLAM' : act === 'light4' ? 'WRATH' : act === 'heavy' ? 'CLEAVE' : undefined;
+    if ((dist > spec.reach + e.scale * 0.55 && e.id !== gowRuntime.lockedTargetId) || dist > spec.reach + 3.0) continue;
+    if (!isOmni && e.id !== gowRuntime.lockedTargetId && (dist > 0.1 ? (dx / dist) * fx + (dz / dist) * fz : 1) < -0.15) continue;
+    const tag = act === 'execute' ? 'EXECUTION' : act === 'swoop' ? 'AERIAL SWOOP' : act === 'rage_slam' ? 'SLAM' : act === 'light4' ? 'WRATH' : act === 'heavy' ? 'CLEAVE' : undefined;
     applyHitToEnemy(e, spec.damage, spec.stun, reduced, tag);
     landed = true;
   }
-  const heavyHit = act === 'light3' || act === 'light4' || act === 'heavy' || act === 'execute' || act === 'rage_slam' || act === 'counter';
+  const heavyHit = act === 'light3' || act === 'light4' || act === 'heavy' || act === 'execute' || act === 'rage_slam' || act === 'counter' || act === 'swoop';
   if (landed && !reduced) {
     gowRuntime.hitstopTimer = heavyHit ? 0.065 : 0.045;
     kick(runtime.shooter.camFx, heavyHit ? 1.55 : 0.9, (gowRuntime.comboStep % 2 === 0 ? -1 : 1) * 0.85);
-    punchFov(runtime.shooter.camFx, 'shot', act === 'rage_slam' || act === 'execute' || act === 'light4' ? 2.2 : 1.15);
-    if (act === 'rage_slam' || act === 'execute' || act === 'light4') addTrauma(runtime.shooter.camFx, 0.38);
+    punchFov(runtime.shooter.camFx, 'shot', act === 'rage_slam' || act === 'execute' || act === 'light4' || act === 'swoop' ? 2.2 : 1.15);
+    if (act === 'rage_slam' || act === 'execute' || act === 'light4' || act === 'swoop') addTrauma(runtime.shooter.camFx, 0.38);
   }
 }
 
 function damagePlayer(amount: number, source: GowEnemy, unblockable: boolean, reduced: boolean) {
-  if (gowRuntime.dodgeInvuln > 0) {
-    pushPopup('EVADED!', 'parry', runtime.position.x, runtime.position.y + 1.1, runtime.position.z);
-    return;
-  }
+  if (gowRuntime.dodgeInvuln > 0) { pushPopup('EVADED!', 'parry', runtime.position.x, runtime.position.y + 1.1, runtime.position.z); return; }
   if (!unblockable && gowRuntime.parryWindow > 0) {
-    Object.assign(source, { state: 'stagger', stateTimer: 0, stateDuration: 1.15, clip: 'Hit_Head', clipSpeed: 0.85 });
+    Object.assign(source, { state: 'stagger', stateTimer: 0, stateDuration: 1.15 });
     applyHitToEnemy(source, 26, 50, reduced, 'PARRY COUNTER');
     Object.assign(gowRuntime, { shockwaveTimer: 0.42, shockwaveColor: '#5ee6d0', shockwaveX: runtime.position.x, shockwaveY: runtime.position.y - 0.9, shockwaveZ: runtime.position.z, shockwaveMaxR: 5.2 });
     if (!reduced) { gowRuntime.hitstopTimer = 0.075; punchFov(runtime.shooter.camFx, 'shot', 1.8); }
     return;
   }
-  gowRuntime.hp = Math.max(15, gowRuntime.hp - amount);
-  gowRuntime.rage = Math.min(gowRuntime.maxRage, gowRuntime.rage + 12); gowRuntime.comboHits = 0;
+  gowRuntime.hp = Math.max(15, gowRuntime.hp - amount); gowRuntime.rage = Math.min(gowRuntime.maxRage, gowRuntime.rage + 12); gowRuntime.comboHits = 0;
   if (gowRuntime.action === 'idle') Object.assign(gowRuntime, { action: 'hurt', actionSeq: gowRuntime.actionSeq + 1, actionTimer: 0, actionDuration: 0.34 });
   pushPopup(`-${amount}`, 'crimson', runtime.position.x, runtime.position.y + 1.0, runtime.position.z);
   if (!reduced) addTrauma(runtime.shooter.camFx, 0.32);
@@ -79,7 +78,7 @@ function stepSingleEnemy(e: GowEnemy, dt: number, px: number, py: number, pz: nu
   e.y = radFromCenter < 18 ? 20.0 : Math.max(20.0, heightAt(e.x, e.z));
   if (e.state === 'dead') {
     e.stateTimer += dt; e.respawnTimer -= dt;
-    if (e.respawnTimer <= 0) Object.assign(e, { hp: e.maxHp, stun: 0, x: e.spawnX, z: e.spawnZ, vx: 0, vz: 0, state: 'idle', stateTimer: 0, cooldown: 1.2, clip: 'Sword_Idle' });
+    if (e.respawnTimer <= 0) Object.assign(e, { hp: e.maxHp, stun: 0, x: e.spawnX, z: e.spawnZ, vx: 0, vz: 0, state: 'idle', stateTimer: 0, cooldown: 1.2 });
     return;
   }
   let dx = px - e.x, dz = pz - e.z, dist = Math.hypot(dx, dz);
@@ -87,18 +86,16 @@ function stepSingleEnemy(e: GowEnemy, dt: number, px: number, py: number, pz: nu
     const pushOut = 1.85 - dist; e.x -= (dx / dist) * pushOut; e.z -= (dz / dist) * pushOut;
     dx = px - e.x; dz = pz - e.z; dist = Math.hypot(dx, dz);
   }
-  if (e.state !== 'stunned' && e.state !== 'stagger' && dist > 0.2) e.yaw = Math.atan2(dx, dz);
+  if (e.state !== 'stunned' && e.state !== 'stagger' && dist > 0.2) {
+    const targetYaw = Math.atan2(dx, dz), dYaw = Math.atan2(Math.sin(targetYaw - e.yaw), Math.cos(targetYaw - e.yaw));
+    e.yaw += dYaw * Math.min(1, dt * 10);
+  }
   if ((e.state === 'idle' || e.state === 'chase') && e.stun > 0) e.stun = Math.max(0, e.stun - dt * 2.5);
-
   e.stateTimer += dt;
   if (e.state === 'stunned' || e.state === 'stagger') {
-    if (e.stateTimer >= e.stateDuration) {
-      if (e.state === 'stunned') e.stun = 50;
-      Object.assign(e, { state: 'idle', stateTimer: 0, cooldown: 0.8, clip: 'Sword_Idle', clipSpeed: 1 });
-    }
+    if (e.stateTimer >= e.stateDuration) { if (e.state === 'stunned') e.stun = 50; Object.assign(e, { state: 'idle', stateTimer: 0, cooldown: 0.8 }); }
     return;
   }
-
   if (e.state === 'windup_yellow' || e.state === 'windup_red' || e.state === 'windup_spell') {
     const unblockable = e.state === 'windup_red';
     if (!e.hitDealt && e.stateTimer >= e.stateDuration * 0.62) {
@@ -112,26 +109,20 @@ function stepSingleEnemy(e: GowEnemy, dt: number, px: number, py: number, pz: nu
         if (unblockable) Object.assign(gowRuntime, { shockwaveTimer: 0.45, shockwaveColor: '#ff5436', shockwaveX: e.x, shockwaveY: e.y + 0.1, shockwaveZ: e.z, shockwaveMaxR: 5.6 });
       }
     }
-    if (e.stateTimer >= e.stateDuration) Object.assign(e, { state: 'idle', stateTimer: 0, cooldown: e.isBoss ? 1.5 : 2.1, clip: 'Sword_Idle', clipSpeed: 1 });
+    if (e.stateTimer >= e.stateDuration) Object.assign(e, { state: 'idle', stateTimer: 0, cooldown: e.isBoss ? 1.5 : 2.1 });
     return;
   }
-
-  if (dist > 28) { e.state = 'idle'; e.clip = 'Sword_Idle'; e.clipSpeed = 1; return; }
-  if (dist > (e.isBoss ? 4.4 : 3.2)) {
-    e.state = 'chase';
-    const spd = (e.isBoss ? 3.5 : 4.0) * dt;
-    e.x += (dx / dist) * spd; e.z += (dz / dist) * spd;
-    e.clip = dist > 8 ? 'Sprint_Loop' : 'Walk_Loop'; e.clipSpeed = 1.1;
-  } else {
-    e.state = 'idle'; e.clip = 'Sword_Idle'; e.clipSpeed = 1;
-  }
-
+  if (dist > 28) { e.state = 'idle'; return; }
+  const chaseThresh = e.state === 'chase' ? (e.isBoss ? 3.8 : 2.7) : (e.isBoss ? 4.8 : 3.5);
+  if (dist > chaseThresh) {
+    e.state = 'chase'; const spd = (e.isBoss ? 3.5 : 4.0) * dt; e.x += (dx / dist) * spd; e.z += (dz / dist) * spd;
+  } else e.state = 'idle';
   e.cooldown -= dt;
   if (e.cooldown <= 0 && dist <= (e.isBoss ? 11.5 : 3.9)) {
     e.stateTimer = 0; e.hitDealt = false; e.attackIndex++;
-    if (e.isBoss && dist > 5.5) Object.assign(e, { state: 'windup_spell', stateDuration: 0.85, clip: 'Spell_Simple_Shoot', clipSpeed: 1.1 });
-    else if (e.isBoss && e.attackIndex % 3 === 0) Object.assign(e, { state: 'windup_red', stateDuration: 0.95, clip: 'Punch_Cross', clipSpeed: 0.9 });
-    else Object.assign(e, { state: 'windup_yellow', stateDuration: 0.82, clip: 'Sword_Attack', clipSpeed: 1.05 });
+    if (e.isBoss && dist > 5.5) Object.assign(e, { state: 'windup_spell', stateDuration: 0.85 });
+    else if (e.isBoss && e.attackIndex % 3 === 0) Object.assign(e, { state: 'windup_red', stateDuration: 0.88 });
+    else Object.assign(e, { state: 'windup_yellow', stateDuration: 0.82 });
   }
 }
 
@@ -151,41 +142,54 @@ export function stepGowFrame(rawDt: number, reduced: boolean) {
       if (nextQueued) triggerLightAttack(reduced);
     }
   }
-
   const enemyDt = gowRuntime.realmShiftTimer > 0 ? dt * 0.35 : dt;
-  const px = runtime.position.x, py = runtime.position.y, pz = runtime.position.z;
-  if (gowRuntime.action === 'idle') findFreeflowTarget(px, pz, 13.5);
+  const px = runtime.position.x, py = runtime.position.y, pz = runtime.position.z, flying = useGame.getState().flying;
+  if (gowRuntime.action === 'idle') findFreeflowTarget(px, pz, flying ? 28.0 : 13.5);
+  const list = gowRuntime.enemies;
+  for (let i = 0; i < list.length; i++) {
+    for (let j = i + 1; j < list.length; j++) {
+      const a = list[i], b = list[j];
+      if (a.state === 'dead' || b.state === 'dead') continue;
+      const sx = b.x - a.x, sz = b.z - a.z, sd = Math.hypot(sx, sz), minSep = (a.scale + b.scale) * 0.95;
+      if (sd > 0.001 && sd < minSep) {
+        const push = (minSep - sd) * 0.5;
+        a.x -= (sx / sd) * push; a.z -= (sz / sd) * push; b.x += (sx / sd) * push; b.z += (sz / sd) * push;
+      }
+    }
+  }
   let execId = null as typeof gowRuntime.executableId, prompt = '';
-
-  for (const e of gowRuntime.enemies) {
+  for (const e of list) {
     stepSingleEnemy(e, enemyDt, px, py, pz, reduced);
     const d = Math.hypot(e.x - px, e.z - pz);
     if ((e.state === 'stunned' || (e.state === 'stagger' && e.stun >= e.maxStun)) && d <= 6.2) { execId = e.id; prompt = 'EXECUTE [E]'; }
     else if (!prompt && e.state === 'windup_red' && d <= 8.0) prompt = 'EVADE [SHIFT / C]';
     else if (!prompt && e.state === 'windup_yellow' && d <= 8.5) prompt = '⚡ ARKHAM COUNTER [Q / RIGHT-CLICK]';
   }
+  if (flying && gowRuntime.lockedTargetId) prompt = '🦅 AERIAL LOCK • [CLICK/J] SWOOP STRIKE • [R-CLICK/K/G] SWORD BEAM';
   gowRuntime.executableId = execId; gowRuntime.threatPrompt = prompt;
-
   for (const s of gowRuntime.sparks) {
     if (!s.active) continue;
     s.life -= dt; if (s.life <= 0) { s.active = false; continue; }
     s.x += s.vx * dt; s.y += s.vy * dt; s.z += s.vz * dt; s.vy -= 9.8 * dt;
   }
-
   for (const p of gowRuntime.projectiles) {
     if (!p.active) continue;
     p.life -= dt; p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt;
     if (p.life <= 0) { p.active = false; continue; }
     if (p.fromPlayer) {
-      for (const e of gowRuntime.enemies) {
-        if (e.state !== 'dead' && Math.hypot(e.x - p.x, e.z - p.z) <= 1.8 * e.scale) {
-          applyHitToEnemy(e, p.damage, p.stun, reduced, 'URIEL FLAME'); p.active = false;
+      for (const e of list) {
+        if (e.state !== 'dead' && Math.hypot(e.x - p.x, (e.y + 1.0 * e.scale) - p.y, e.z - p.z) <= 2.1 * e.scale) {
+          applyHitToEnemy(e, p.damage, p.stun, reduced, p.damage === 38 ? 'SWORD BEAM' : 'URIEL FLAME'); p.active = false;
           Object.assign(gowRuntime, { shockwaveTimer: 0.38, shockwaveColor: '#ffae42', shockwaveX: e.x, shockwaveZ: e.z });
           break;
         }
       }
-    } else if (Math.hypot(px - p.x, pz - p.z) <= 1.35) {
-      damagePlayer(p.damage, gowRuntime.enemies[2], false, reduced); p.active = false;
+      if (p.active && p.y <= 20.25) {
+        p.active = false; spawnHitSparks(p.x, 20.2, p.z, '#ffd166', 6);
+        Object.assign(gowRuntime, { shockwaveTimer: 0.35, shockwaveColor: '#ffd166', shockwaveX: p.x, shockwaveZ: p.z });
+      }
+    } else if (Math.hypot(px - p.x, pz - p.z) <= 1.35 && Math.abs(py - p.y) <= 2.2) {
+      damagePlayer(p.damage, list[2], false, reduced); p.active = false;
     }
   }
 }

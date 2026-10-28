@@ -83,7 +83,7 @@ export default function Experience() {
   // Warm the blaster HUD chunk after hydration so the first aim never waits on it; with the blaster off nothing is requested.
   useEffect(() => { if (hydrated && state.shooter) void loadHud().catch(() => {}); }, [hydrated, state.shooter]);
   useEffect(() => { if (hydrated) void loadHint().catch(() => {}); }, [hydrated]);
-  useEffect(() => { if (state.started) void loadPanel().catch(() => {}); }, [state.started]);
+  useEffect(() => { if (state.started || state.panel) void loadPanel().catch(() => {}); }, [state.started, state.panel]);
   useEffect(() => {
     if (hydrated && lab !== 'standard' && !LabControls) void loadLab().then(m => setLabControls(() => m.default)).catch(() => labFault(LAB_LOAD_FAILED));
   }, [hydrated, lab, LabControls]);
@@ -147,7 +147,7 @@ export default function Experience() {
       {bar && <><span id="field-guide" className="sr-only" tabIndex={-1} /><Boundary fallback={<SheetLost />} onError={skip}><ControlsEntry part="sheet" /></Boundary></>}
       {state.started && <div className={styles.bandProbe} data-band="" aria-hidden="true" />}
       {/* The title, the start card (with the first-visit demo note) and the footer, or the failed world's card (Landing.tsx). */}
-      <Landing started={state.started} failed={failed} ready={ready} zoomNote={state.zoomNote} note={guide.note} onEnter={enter} onRetry={retry}><Optional><ControlsEntry part="note" /></Optional></Landing>
+      <Landing started={state.started} failed={failed} ready={ready} zoomNote={state.zoomNote} note={guide.note} onEnter={enter} onRetry={retry} onSettings={() => { pause(); state.set({ panel: true }); }} onGuide={() => { pause(); state.set({ journal: true }); }}><Optional><ControlsEntry part="note" /></Optional></Landing>
       {state.started && <>
         {/* A fresh mount per pause state, as on main: the desktop trackpad hooks keep per-session refs (capture, strokes) that
             must reset on resume. inputEpoch moves only in desktop mode; touch controls re-anchor themselves on rotation. */}

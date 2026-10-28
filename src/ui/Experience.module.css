@@ -139,6 +139,7 @@
 .pauseCard .voteAsk{margin:0 0 8px;font-size:13px}
 /* Field guide and Flight settings: two rows in the list (48 px), their chevron a bordered shape (no text: generated text would join the accessible name). Under Flight settings one muted line naming what is in there. */
 .pauseCard .pair{display:grid;gap:8px;margin-top:0}.pauseCard .pair .secondary{width:100%;min-height:48px}.pauseCard .pair .secondary::after{content:'';flex:none;width:7px;height:7px;margin-right:4px;border:solid var(--muted);border-width:0 1.5px 1.5px 0;transform:rotate(-45deg)}
+.menuGrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}.intro .menuGrid .secondary{min-height:44px;justify-content:center;text-align:center}
 .pauseCard .pauseNote{margin:0;font-size:13px;line-height:1.5;color:var(--muted)}
 .pauseCard .pair .settingsHint{margin:-2px 0 0}
 .pauseCard>.pauseNote{margin-top:14px}

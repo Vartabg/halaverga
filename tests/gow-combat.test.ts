@@ -4,22 +4,25 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import {
   findFreeflowTarget,
   resetGowState,
+  triggerAerialSwoop,
   triggerDodgeRoll,
   triggerHeavyBash,
   triggerLightAttack,
   triggerParry,
   triggerRunicSpell,
+  triggerSkySwordBeam,
   triggerStunExecute,
   triggerWingedRage,
 } from '@/game/gowCombat';
 import { stepGowFrame } from '@/game/gowEnemies';
-import { GOW_CLIPS, gowRuntime } from '@/game/gowTypes';
+import { ATTACK_SPECS, GOW_CLIPS, gowRuntime } from '@/game/gowTypes';
 import { advanceVelocity, combatMotion } from '@/game/motion';
 import { runtime } from '@/game/runtime';
+import { useGame } from '@/game/store';
 
 const ROOT = resolve(__dirname, '..');
 
-describe('God of War 65-bone Archangel GLB asset pipeline', () => {
+describe('God of War 65-bone Archangel GLB asset pipeline & clipStart windowing', () => {
   it('bundles the bearded Archangel mesh, PBR textures, and all 18 combat/locomotion animations under 4.2 MB', () => {
     const glbPath = resolve(ROOT, 'public/models/archangel-gow.glb');
     const stat = statSync(glbPath);
@@ -43,12 +46,18 @@ describe('God of War 65-bone Archangel GLB asset pipeline', () => {
     for (const clip of GOW_CLIPS) {
       expect(animNames.has(clip), `missing animation clip ${clip}`).toBe(true);
     }
+
+    // Verify Sword_Attack specs start inside the active slash window (>= 0.42s)
+    expect(ATTACK_SPECS.light1.clipStart).toBeGreaterThanOrEqual(0.42);
+    expect(ATTACK_SPECS.swoop.clipStart).toBeGreaterThanOrEqual(0.42);
+    expect(ATTACK_SPECS.sky_beam.clipStart).toBeGreaterThanOrEqual(0.42);
   });
 });
 
-describe('Batman: Arkham Freeflow + God of War Combat Choreography', () => {
+describe('Batman: Arkham Freeflow + God of War Combat & Elevated Aerial Swoop / Sword Beam', () => {
   beforeEach(() => {
     resetGowState();
+    useGame.setState({ flying: false, landing: false });
     runtime.position.x = 0;
     runtime.position.y = 21.06;
     runtime.position.z = 58;
@@ -67,7 +76,6 @@ describe('Batman: Arkham Freeflow + God of War Combat Choreography', () => {
     expect(gowRuntime.lastMoveLabel).toBe('DAWN CLEAVE');
     expect(gowRuntime.slashTimer).toBeGreaterThan(0);
 
-    // Step past hitTime (0.14s) to resolve damage + sparks + knockback
     for (let i = 0; i < 4; i++) stepGowFrame(0.05, true);
     expect(target.hp).toBeLessThan(initialHp);
     expect(target.stun).toBeGreaterThan(0);
@@ -75,34 +83,85 @@ describe('Batman: Arkham Freeflow + God of War Combat Choreography', () => {
     expect(gowRuntime.sparks.some((s) => s.active)).toBe(true);
     expect(Math.hypot(target.vx, target.vz)).toBeGreaterThan(0);
 
-    // Queue step 2 (AEGIS BACKHAND)
     expect(triggerLightAttack(true)).toBe(true);
     expect(gowRuntime.queuedLight).toBe(true);
-    for (let i = 0; i < 5; i++) stepGowFrame(0.05, true);
+    for (let i = 0; i < 6; i++) stepGowFrame(0.05, true);
     expect(gowRuntime.action).toBe('light2');
     expect(gowRuntime.actionSeq).toBe(2);
     expect(gowRuntime.lastMoveLabel).toBe('AEGIS BACKHAND');
 
-    // Queue step 3 (WHIRLWIND SLASH)
     expect(triggerLightAttack(true)).toBe(true);
     for (let i = 0; i < 9; i++) stepGowFrame(0.05, true);
     expect(gowRuntime.action).toBe('light3');
     expect(gowRuntime.actionSeq).toBe(3);
     expect(gowRuntime.lastMoveLabel).toBe('WHIRLWIND SLASH');
 
-    // Queue step 4 (HEAVENS WRATH)
     expect(triggerLightAttack(true)).toBe(true);
-    for (let i = 0; i < 11; i++) stepGowFrame(0.05, true);
+    for (let i = 0; i < 10; i++) stepGowFrame(0.05, true);
     expect(gowRuntime.action).toBe('light4');
     expect(gowRuntime.actionSeq).toBe(4);
     expect(gowRuntime.lastMoveLabel).toBe('HEAVENS WRATH');
   });
 
+  it('locks onto distant enemies while elevated (up to 28 m), swoops in from the sky to strike and land, or shoots downward sword beams', () => {
+    useGame.setState({ flying: true });
+    runtime.position.x = 0;
+    runtime.position.y = 32.0; // Elevated 12 m above the summit
+    runtime.position.z = 66.0;
+    const boss = gowRuntime.enemies.find((e) => e.isBoss)!;
+    boss.x = 0;
+    boss.y = 20;
+    boss.z = 48.0; // 18 m away horizontally (beyond 13.5 m ground lock, within 28 m aerial lock)
+    gowRuntime.enemies[0].x = 40;
+    gowRuntime.enemies[1].x = -40;
+
+    stepGowFrame(0.02, true);
+    expect(gowRuntime.lockedTargetId).toBe(boss.id);
+    expect(gowRuntime.threatPrompt).toContain('AERIAL LOCK');
+
+    // 1. Shoot Celestial Sword Beam downward from elevated position
+    expect(triggerSkySwordBeam(true)).toBe(true);
+    expect(gowRuntime.action).toBe('sky_beam');
+    for (let i = 0; i < 4; i++) stepGowFrame(0.05, true);
+    const beam = gowRuntime.projectiles.find((p) => p.active && p.fromPlayer);
+    expect(beam).toBeDefined();
+    expect(beam!.vy).toBeLessThan(-5); // Aimed downward from the sky toward the ground target
+
+    // 2. Swoop in from elevated position to strike and land
+    gowRuntime.action = 'idle';
+    const bossHpBefore = boss.hp;
+    expect(triggerAerialSwoop(false)).toBe(true);
+    expect(gowRuntime.action).toBe('swoop');
+    expect(combatMotion.vy).toBeLessThan(-15);
+    expect(combatMotion.vz).toBeLessThan(-20);
+
+    // Advance velocity in flight to verify 3D combatMotion applies while flying
+    const diveVel = advanceVelocity(
+      { x: 0, y: 0, z: 0 },
+      { forward: 0, strafe: 0, vertical: 0 },
+      0,
+      0,
+      true,
+      false,
+      0.05,
+    );
+    expect(diveVel.y).toBeLessThan(-15);
+    expect(diveVel.z).toBeLessThan(-20);
+
+    // Simulate reaching the target as swoop hitTime (0.34s) resolves
+    runtime.position.x = 0;
+    runtime.position.y = 21.06;
+    runtime.position.z = 49.8;
+    for (let i = 0; i < 8; i++) stepGowFrame(0.05, true);
+    expect(useGame.getState().flying).toBe(false);
+    expect(boss.hp).toBeLessThan(bossHpBefore);
+    expect(gowRuntime.shockwaveTimer).toBeGreaterThan(0);
+  });
+
   it('performs Arkham Freeflow magnetic vault toward distant enemies and clamps close-range lunge to >= 0', () => {
     const distant = gowRuntime.enemies[1];
     distant.x = 0;
-    distant.z = 48.0; // 10 m away along -Z
-    // Move other enemies out of range
+    distant.z = 48.0;
     gowRuntime.enemies[0].x = 30;
     gowRuntime.enemies[2].x = -30;
 
@@ -111,24 +170,29 @@ describe('Batman: Arkham Freeflow + God of War Combat Choreography', () => {
 
     expect(triggerLightAttack(false)).toBe(true);
     expect(gowRuntime.lockedTargetId).toBe(distant.id);
-    // Vaults forward toward -Z at high speed
     expect(combatMotion.vz).toBeLessThan(-12);
 
-    // When enemy is closer than 2.0 m (e.g. 1.2 m), lunge speed is 0 (never pulls backward)
     resetGowState();
     runtime.position.x = 0;
     runtime.position.z = 58;
     const closeEnemy = gowRuntime.enemies[0];
     closeEnemy.x = 0;
-    closeEnemy.z = 56.8; // 1.2 m in front (-Z)
+    closeEnemy.z = 56.8;
     expect(triggerLightAttack(true)).toBe(true);
     expect(combatMotion.vz).toBeLessThanOrEqual(0);
   });
 
-  it('triggers Arkham Counter-Riposte against a yellow-ring attacker within 8.5 m without double-hitting', () => {
+  it('separates overlapping Watchers and triggers Arkham Counter-Riposte without double-hitting', () => {
+    const a = gowRuntime.enemies[0];
+    const b = gowRuntime.enemies[1];
+    a.x = 0; a.z = 54;
+    b.x = 0.2; b.z = 54;
+    stepGowFrame(0.05, true);
+    expect(Math.hypot(b.x - a.x, b.z - a.z)).toBeGreaterThan(1.5);
+
     const boss = gowRuntime.enemies.find((e) => e.isBoss)!;
     boss.x = 0;
-    boss.z = 51.5; // 6.5 m away (within 8.5 m counter range)
+    boss.z = 51.5;
     boss.state = 'windup_yellow';
     boss.stateTimer = 0.25;
     boss.hitDealt = false;
@@ -143,7 +207,6 @@ describe('Batman: Arkham Freeflow + God of War Combat Choreography', () => {
     const hpAfterCounter = boss.hp;
     expect(hpAfterCounter).toBeLessThan(hpBefore);
 
-    // Stepping past 0.16s must NOT apply a duplicate strike hit
     for (let i = 0; i < 6; i++) stepGowFrame(0.05, true);
     expect(boss.hp).toBe(hpAfterCounter);
     expect(gowRuntime.hp).toBe(100);

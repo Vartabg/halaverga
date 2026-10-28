@@ -168,7 +168,7 @@ export default function GowHud() {
         ) : null}
 
         <div className={styles.combatKeys}>
-          [J/Click] Freeflow Cleave • [K] Slam • [Q/R-Click] Counter • [C/Shift] Roll • [G] Runic • [V] Rage • [E] Execute
+          [J/Click] Strike/Swoop • [K] Slam/Beam • [Q/R-Click] Counter/Beam • [Space] Elevate • [C/Shift] Roll • [G] Runic • [V] Rage
         </div>
       </div>
     </div>

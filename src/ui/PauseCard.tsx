@@ -4,7 +4,7 @@ import { runtime } from '@/game/runtime';
 import { touchMode } from '@/game/pointerMode';
 import { computeLayout } from '@/game/touchLayout';
 import { headerBand, readInsets, viewportBox } from './touchInsets';
-import { isStandalone, keepPlaying, leaveGame } from './playSession';
+import { isStandalone, keepPlaying, leaveGame, releaseWakeLock } from './playSession';
 import LazyControls from './LazyControls';
 import styles from './Experience.module.css';
 type Props = { ready: boolean; onEnter: () => void; note?: string };
@@ -70,6 +70,10 @@ export default function PauseCard({ ready, onEnter, note = '' }: Props) {
         <button className={styles.secondary} onClick={() => useGame.setState({ journal: true })}>Field guide</button>
         <button className={styles.secondary} aria-describedby="settings-hint" onClick={() => useGame.setState({ panel: true })}>Flight settings</button>
         <p id="settings-hint" className={`${styles.pauseNote} ${styles.settingsHint}`}>Size, left-handed, look speed</p>
+        <div className={styles.menuGrid}>
+          <button className={styles.secondary} data-testid="pause-restart" onClick={() => { runtime.reset = true; resume(); }}>Restart altar</button>
+          <button className={styles.secondary} data-testid="pause-exit" onClick={() => { runtime.reset = true; releaseWakeLock(); useGame.setState({ started: false, paused: false, flying: false, landing: false, leavePrompt: false }); }}>Exit to menu</button>
+        </div>
       </div>
     </div>
     <p className={`${styles.pauseNote} ${styles.portraitLine}`}>Best played sideways.</p>

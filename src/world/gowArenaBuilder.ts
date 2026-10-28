@@ -38,16 +38,16 @@ export interface EnemyInstance {
   wings: ReturnType<typeof createArchangelWings> | null;
 }
 
-export function selectEnemyClip(e: GowEnemy): { clip: GowClipName; speed: number } {
+export function selectEnemyClip(e: GowEnemy): { clip: GowClipName; speed: number; start: number } {
   switch (e.state) {
-    case 'dead': return { clip: 'Death01', speed: 1.0 };
-    case 'stunned': return { clip: 'Hit_Head', speed: 0.55 };
-    case 'stagger': return { clip: 'Hit_Chest', speed: 1.15 };
-    case 'windup_yellow': return { clip: 'Sword_Attack', speed: 0.72 };
-    case 'windup_red': return { clip: 'Punch_Cross', speed: 0.68 };
-    case 'windup_spell': return { clip: 'Spell_Simple_Shoot', speed: 0.95 };
-    case 'chase': return { clip: e.isBoss ? 'Walk_Loop' : 'Jog_Fwd_Loop', speed: e.isBoss ? 1.08 : 1.15 };
-    default: return { clip: 'Sword_Idle', speed: 0.9 };
+    case 'dead': return { clip: 'Death01', speed: 1.0, start: 0 };
+    case 'stunned': return { clip: 'Hit_Head', speed: 0.65, start: 0 };
+    case 'stagger': return { clip: 'Hit_Chest', speed: 1.15, start: 0 };
+    case 'windup_yellow': return { clip: 'Sword_Attack', speed: 1.25, start: 0.38 };
+    case 'windup_red': return { clip: 'Punch_Cross', speed: 1.08, start: 0.10 };
+    case 'windup_spell': return { clip: 'Spell_Simple_Shoot', speed: 1.0, start: 0.05 };
+    case 'chase': return { clip: e.isBoss ? 'Walk_Loop' : 'Jog_Fwd_Loop', speed: e.isBoss ? 1.15 : 1.08, start: 0 };
+    default: return { clip: 'Sword_Idle', speed: 0.95, start: 0 };
   }
 }
 
