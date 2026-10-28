@@ -1,10 +1,13 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { Suspense, useEffect, useMemo, useRef } from 'react';
 import { useFrame, useLoader } from '@react-three/fiber';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { type PerspectiveCamera } from 'three';
+import { GOW_URL, gowRuntime } from '@/game/gowTypes';
 import { presentation as pose } from '@/game/presentation';
 import { runtime } from '@/game/runtime';
 import { useGame } from '@/game/store';
+import Boundary from '@/ui/Boundary';
+import GowWarrior from './GowWarrior';
 import { buildSuitRig } from './suitRig';
 import { advanceSuitMotion, applySuitPose, orientSuit } from './suitPose';
 import { advanceSuitAnimation, applySuitAnimation, createSuitAnimation } from './suitAnimation';
@@ -19,6 +22,7 @@ export const SUIT_URL = '/models/angel.glb';
  * One call per file: useLoader.clear with an array clears only the cache entry for that whole array, which nothing loads. */
 export function clearWorldCache() {
   useLoader.clear(GLTFLoader, SUIT_URL);
+  useLoader.clear(GLTFLoader, GOW_URL);
 }
 const input = { flying: false, landing: false, paused: true, reduced: false, velocity: runtime.velocity, turn: runtime.turn };
 export default function Suit() {
@@ -43,7 +47,7 @@ export default function Suit() {
     advanceFlightMix(mix, pose, input, dt);
     // Visual only: the roll banks the model into the curve of the travel; the camera, physics and presentation pose never read it.
     const roll = advanceSuitRoll(turn.current, pose, input, m.hero, mix.flare, dt), v = input.velocity;
-    rig.root.visible = state.camera === 'third';
+    rig.root.visible = state.camera === 'third' && (!state.shooter || !gowRuntime.heroReady);
     rig.root.position.copy(pose.position);
     orientSuit(rig.root, pose, m, roll, speedFade(Math.sqrt(v.x * v.x + v.z * v.z)), pose.spin);
     applySuitPose(rig.joints, pose, m, state.reduced);
@@ -62,5 +66,8 @@ export default function Suit() {
     stepSuitBlaster(f, dt);
     pose.suitClip = mix.label; pose.suitRoll = roll;
   }, -20);
-  return <primitive object={rig.root} dispose={null} />;
+  return <>
+    <primitive object={rig.root} dispose={null} />
+    <Boundary fallback={null} onError={() => {}}><Suspense fallback={null}><GowWarrior /></Suspense></Boundary>
+  </>;
 }

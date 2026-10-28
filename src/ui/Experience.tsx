@@ -27,9 +27,8 @@ import Landing, { Brand } from './Landing';
 import styles from './Experience.module.css';
 const Scene = dynamic(() => import('@/world/Scene'), { ssr: false });
 // The blaster HUD is its own chunk: the landing page's first load carries no shooter UI. It is warmed once the setting is on.
-const Reticle = () => <div className={styles.reticle} aria-hidden="true"><span /></div>;
-const loadHud = () => import('./ShooterHud');
-const ShooterHud = dynamic(loadHud, { ssr: false, loading: Reticle });
+const loadHud = () => import('./GowHud');
+const GowHud = dynamic(loadHud, { ssr: false, loading: () => null });
 // The touch controls (stick, look, cluster) are a chunk too: loaded right after hydration, and Begin waits for them.
 // The loaded component is held in state (not next/dynamic, whose React.lazy suspends on every first mount), so the surface is
 // there on the very frame Begin starts play and the first click or touch never lands on nothing. No static import of
@@ -156,7 +155,7 @@ export default function Experience() {
           : playing && LabControls && <LabControls key={`${lab}-${state.inputEpoch}`} scheme={lab as LabProps['scheme']} onError={() => labFault(LAB_FAILED)} />}
         {playing && <>
           {state.tapControls && <TapControls key={state.inputEpoch} />}
-          {/* Legacy shooter HUD and FPS reticle retired in favor of third-person celestial boss combat */}
+          {state.shooter && <Optional><GowHud /></Optional>}
           {/* The controls lessons and the one hint slot under the top row: one line at a time (hintQueue.pickHint). */}
           {standard && <Optional><ControlsHint coarse={coarsePointer()} /></Optional>}
           <HintSlot />

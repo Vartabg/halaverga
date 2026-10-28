@@ -7,6 +7,7 @@ export const WORLD = { minX: -420, maxX: 420, minZ: -430, maxZ: 300, ceiling: 15
 /** Where a flying suit's floor is (boundMovement clamps at it); the water is at y = 0.1. */
 export const FLIGHT_FLOOR = 1.7;
 export const SPEED = { walk: 5, flight: 13, surge: 34 };
+export const combatMotion = { vx: 0, vz: 0, timer: 0 };
 export const moving = (i: Intent) => Math.hypot(i.forward, i.strafe, i.vertical) > (i.precise ? 1e-6 : .08);
 export const safeDelta = (dt: number) => Number.isFinite(dt) ? Math.min(Math.max(dt, 0), 1 / 30) : 0;
 export const setVec = (v: Vec, x: number, y: number, z: number) => { v.x = x; v.y = y; v.z = z; };
@@ -44,6 +45,11 @@ export function advanceVelocity(v: Vec, i: Intent, yaw: number, pitch: number,
       next.y = v.y + (next.y - v.y) * ratio;
       next.z = v.z + (next.z - v.z) * ratio;
     }
+  }
+  if (!flying && combatMotion.timer > 0) {
+    combatMotion.timer = Math.max(0, combatMotion.timer - dt);
+    next.x = combatMotion.vx;
+    next.z = combatMotion.vz;
   }
   return next;
 }

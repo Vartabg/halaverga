@@ -1,5 +1,5 @@
 import type { Vector3 } from 'three';
-import { SPEED, START, moving, setVec, type Intent } from './motion';
+import { SPEED, START, combatMotion, moving, setVec, type Intent } from './motion';
 import { useGame } from './store';
 import { flowSpeed, type CaptureState } from './flowFlight';
 import { aimGain, createShooter, engaged, resetShooterInput, releaseFire } from './combat';
@@ -87,6 +87,7 @@ export function clearInput(stop = false, keepShooter = false) {
   if (!keepShooter) resetShooterInput(runtime.shooter);
   runtime.keys.clear(); clearKeyHold(); releaseThumb(); stopTrackpad(); zeroStick();
   runtime.tap = { forward: 0, strafe: 0, vertical: 0 };
+  combatMotion.vx = combatMotion.vz = combatMotion.timer = 0;
   runtime.surge = false; runtime.lift = false; runtime.landGoal = null; runtime.touchEpoch++;
   useGame.setState({ landing: false });
   if (stop) setVec(runtime.velocity, 0, 0, 0);

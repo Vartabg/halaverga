@@ -26,6 +26,7 @@ const GestureTrack = lazy(() => import('./GestureTrack'));
 const DrawProbe = lazy(() => import('./DrawProbe'));
 const GestureRibbon = lazy(() => import('./GestureRibbon'));
 const HeroTrail = lazy(() => import('./HeroTrail'));
+const GowArena = lazy(() => import('./GowArena'));
 
 function GraphicsRecovery({ onLoss, sun }: { onLoss: () => void; sun: React.RefObject<DirectionalLight | null> }) {
   const { gl, invalidate } = useThree();
@@ -72,6 +73,7 @@ export default function Scene({ onLoss }: { onLoss: () => void }) {
       <Physics paused={paused} timeStep={1 / 60} updatePriority={-50} gravity={[0, -22, 0]}>
         <City /><RuinField /><DistrictBoundary /><Player /><FlightPresentation /><Suit /><CameraRig />
         <WindCurrents /><WingTrails /><LabLayer />
+        <Boundary fallback={null} onError={() => {}}><Suspense fallback={null}><GowArena /></Suspense></Boundary>
       </Physics>
     </Suspense>
   </Canvas>;
