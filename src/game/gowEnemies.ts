@@ -134,7 +134,8 @@ export function stepGowFrame(rawDt: number, reduced: boolean) {
   gowRuntime.comboResetTimer = Math.max(0, gowRuntime.comboResetTimer - dt); gowRuntime.comboBannerTimer = Math.max(0, gowRuntime.comboBannerTimer - dt);
   if (gowRuntime.comboBannerTimer <= 0) gowRuntime.comboHits = 0;
   gowRuntime.realmShiftTimer = Math.max(0, gowRuntime.realmShiftTimer - dt); gowRuntime.shockwaveTimer = Math.max(0, gowRuntime.shockwaveTimer - dt);
-  gowRuntime.slashTimer = Math.max(0, gowRuntime.slashTimer - dt);
+  gowRuntime.slashTimer = Math.max(0, gowRuntime.slashTimer - dt); gowRuntime.cursorActiveTimer = Math.max(0, gowRuntime.cursorActiveTimer - dt);
+  if (gowRuntime.action === 'idle' && Math.abs(runtime.velocity.x) > 0.35) gowRuntime.facingLeft = runtime.velocity.x < 0;
   if (gowRuntime.action !== 'idle') {
     gowRuntime.actionTimer += dt; resolvePlayerStrike(reduced);
     if (gowRuntime.actionTimer >= gowRuntime.actionDuration) {

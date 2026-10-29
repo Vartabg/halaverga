@@ -1,0 +1,11 @@
+# EGM Review Resolution: Stage 1 Isometric 2.5D Illustrated Action Brawler
+
+**Reviewer Subagent:** `72ab8b64-cb68-4e6c-ab81-27d72856c152`
+
+## Resolution of Material Blockers
+1. **MB-1 (`< 200` line ceiling in `Player.tsx` and `gowCombat.ts`):** Extracted `stepIsoShooterMotion` into `src/game/motion.ts` and cursor ray-plane projection into `src/game/gowInput.ts`, keeping `Player.tsx`, `gowCombat.ts`, and `gowEnemies.ts` strictly `< 198` lines.
+2. **MB-2 (`CameraRig.tsx` boom double-rotation):** When `state.shooter && state.camera === 'third'`, `CameraRig.tsx` sets `rotation.set(-0.68 + fx.kickP, fx.kickY, 0)` and local `desired.set(0, 0, state.flying ? 20.5 : 16.0)` before `desired.applyQuaternion(q)` (and skips `world.castShape`), placing the camera along the optical axis at a `39°` isometric pitch with Uriel centered in frame while leaving `/?shooter=0` untouched.
+3. **MB-3 (`WASD` screen-space decoupling from `runtime.yaw`):** `stepIsoShooterMotion` computes `vx = intent.strafe * spd` and `vz = -intent.forward * spd` in world/screen coordinates, updates `runtime.yaw` to match movement direction when not lunging, disables `driveLimits`/`carve` when `state.shooter` is true, and uses screen-space `intent` in `findFreeflowTarget` and `triggerDodgeRoll`.
+4. **MB-4 (2.5D Billboard UV flip, shared texture cloning, and `rotation.y = 0`):** Fighter billboards never rotate around `Y` by `yaw`; they stay camera-facing (`rotation.set(-0.42, 0, 0)`), clone their `Texture` per instance, and apply `tex.repeat.set(flipped ? -0.5 : 0.5, 1)` with `tex.offset.set(frame * 0.5 + (flipped ? 0.5 : 0), 0)`.
+5. **MB-5 (Cursor-to-world ground projection on `y = 20.0`):** `gowInput.ts` projects normalized pointer coordinates `(cursorX, cursorY)` through `runtime.shooter.aim` onto the `y = 20.0` plane to populate `(cursorWorldX, cursorWorldZ)` on `gowRuntime`, which `findFreeflowTarget` uses to lock onto the Watcher nearest the mouse cursor.
+6. **MB-6 (`tests/accessibility.spec.ts` speed `< 0.2 m/s` at `1.4s` & `Space` hover toggle):** `stepIsoShooterMotion` reaches `y = 24.8 m` within `0.55 s` and zeroes `vy` once `|24.8 - p.y| <= 0.04`, ensuring `runtime.speed === 0` at `t = 1.4 s`. Pressing `Space` while elevated immediately toggles `flying: false`, and left-click triggers on `pointerdown`.

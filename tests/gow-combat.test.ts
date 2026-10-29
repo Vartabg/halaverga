@@ -16,7 +16,7 @@ import {
 } from '@/game/gowCombat';
 import { stepGowFrame } from '@/game/gowEnemies';
 import { ATTACK_SPECS, GOW_CLIPS, gowRuntime } from '@/game/gowTypes';
-import { advanceVelocity, combatMotion } from '@/game/motion';
+import { advanceVelocity, combatMotion, stepIsoShooterVelocity } from '@/game/motion';
 import { runtime } from '@/game/runtime';
 import { useGame } from '@/game/store';
 
@@ -51,6 +51,47 @@ describe('God of War 65-bone Archangel GLB asset pipeline & clipStart windowing'
     expect(ATTACK_SPECS.light1.clipStart).toBeGreaterThanOrEqual(0.42);
     expect(ATTACK_SPECS.swoop.clipStart).toBeGreaterThanOrEqual(0.42);
     expect(ATTACK_SPECS.sky_beam.clipStart).toBeGreaterThanOrEqual(0.42);
+
+    // Verify Stage 1 2.5D Illustrated Fighter Sprites and Painted Sanctuary Floor exist
+    for (const sprite of ['uriel-ground.png', 'uriel-aerial.png', 'semjaza.png', 'vanguard.png', 'sanctuary-floor.jpg', 'uriel-portrait.jpg']) {
+      const sStat = statSync(resolve(ROOT, 'public/sprites', sprite));
+      expect(sStat.size).toBeGreaterThan(5_000);
+    }
+  });
+
+  it('steps screen-space isometric velocity, settles Wing Hover at y = 24.8 m, and locks onto cursor coordinates', () => {
+    resetGowState();
+    runtime.yaw = 1.9; // Non-zero yaw from previous attack
+    const vGround = stepIsoShooterVelocity(
+      { x: 0, y: 0, z: 0 },
+      { forward: 1, strafe: 0, vertical: 0 },
+      { x: 0, y: 21.06, z: 58 },
+      false,
+      false,
+      1 / 60,
+    );
+    expect(vGround.z).toBeLessThan(0); // W always moves North (-Z) regardless of runtime.yaw
+    expect(Math.abs(vGround.x)).toBeLessThan(1e-5);
+
+    // Simulate Wing Hover rise to 24.8 m
+    let pos = { x: 0, y: 21.06, z: 58 };
+    let vel = { x: 0, y: 0, z: 0 };
+    for (let i = 0; i < 36; i++) {
+      vel = stepIsoShooterVelocity(vel, { forward: 0, strafe: 0, vertical: 0 }, pos, true, false, 1 / 60);
+      pos.y += vel.y * (1 / 60);
+    }
+    expect(Math.abs(pos.y - 24.8)).toBeLessThan(0.05);
+    expect(vel.y).toBe(0);
+
+    // Verify cursor-projected target lock-on
+    const eastGuard = gowRuntime.enemies[1];
+    eastGuard.x = 6.5;
+    eastGuard.z = 54.0;
+    gowRuntime.cursorWorldX = 6.4;
+    gowRuntime.cursorWorldZ = 54.1;
+    gowRuntime.cursorActiveTimer = 2.0;
+    const locked = findFreeflowTarget(0, 58, 14);
+    expect(locked?.id).toBe(eastGuard.id);
   });
 });
 

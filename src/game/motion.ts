@@ -56,12 +56,47 @@ export function advanceVelocity(v: Vec, i: Intent, yaw: number, pitch: number,
   return next;
 }
 
-export function boundMovement(position: Vec, movement: Vec, flying: boolean): Vec {
+/** Direct screen-space isometric velocity + controlled Wing Hover altitude (y = 24.8 m) for Mount Hermon Action Brawler. */
+export function stepIsoShooterVelocity(v: Vec, i: Intent, pos: Vec, flying: boolean, surge: boolean, elapsed: number): Vec {
+  const dt = safeDelta(elapsed);
+  const len = Math.max(1, Math.hypot(i.strafe, i.forward));
+  const active = Math.hypot(i.strafe, i.forward) > 0.08;
+  const spd = flying ? (surge ? 13.5 : 10.2) : 9.2;
+  const tx = active ? (i.strafe / len) * spd : 0;
+  const tz = active ? (-i.forward / len) * spd : 0;
+  const gain = 1 - Math.exp(-(active ? 14 : 18) * dt);
+  let nx = v.x + (tx - v.x) * gain;
+  let nz = v.z + (tz - v.z) * gain;
+  if (!active && Math.hypot(nx, nz) < 0.08) { nx = 0; nz = 0; }
+  const dy = 24.8 - pos.y;
+  let ny = flying
+    ? (Math.abs(dy) > 0.04 ? Math.max(-14, Math.min(14, dy * 11)) : 0)
+    : Math.max(-22, v.y - 28 * dt);
+  if (combatMotion.timer > 0) {
+    combatMotion.timer = Math.max(0, combatMotion.timer - dt);
+    nx = combatMotion.vx;
+    nz = combatMotion.vz;
+    if (combatMotion.vy !== 0) ny = combatMotion.vy;
+    if (combatMotion.timer <= 0) combatMotion.vy = 0;
+  }
+  return { x: nx, y: ny, z: nz };
+}
+
+export function boundMovement(position: Vec, movement: Vec, flying: boolean, isoArena = false): Vec {
   const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(min, v));
+  let nx = clamp(position.x + movement.x, WORLD.minX, WORLD.maxX);
+  let nz = clamp(position.z + movement.z, WORLD.minZ, WORLD.maxZ);
+  if (isoArena) {
+    const r = Math.hypot(nx, nz - 55);
+    if (r > 18.6 && r < 32) {
+      nx *= 18.6 / r;
+      nz = 55 + (nz - 55) * (18.6 / r);
+    }
+  }
   return {
-    x: clamp(position.x + movement.x, WORLD.minX, WORLD.maxX) - position.x,
+    x: nx - position.x,
     y: clamp(position.y + movement.y, flying ? FLIGHT_FLOOR : -20, WORLD.ceiling) - position.y,
-    z: clamp(position.z + movement.z, WORLD.minZ, WORLD.maxZ) - position.z,
+    z: nz - position.z,
   };
 }
 

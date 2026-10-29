@@ -1,28 +1,23 @@
 'use client';
 
 import { useEffect, useMemo, useRef } from 'react';
-import { useFrame, useLoader } from '@react-three/fiber';
+import { useFrame } from '@react-three/fiber';
 import { type Group } from 'three';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { stepGowFrame } from '@/game/gowEnemies';
 import { resetGowState } from '@/game/gowCombat';
 import { useGowInput } from '@/game/gowInput';
-import { GOW_URL, gowRuntime } from '@/game/gowTypes';
+import { gowRuntime } from '@/game/gowTypes';
 import { runtime } from '@/game/runtime';
 import { useGame } from '@/game/store';
-import { stepArchangelWings } from './archangelWings';
-import { createGowArena, selectEnemyClip } from './gowArenaBuilder';
+import { createGowArena } from './gowArenaBuilder';
 
 export default function GowArena() {
   useGowInput();
-  const asset = useLoader(GLTFLoader, GOW_URL);
   const rootRef = useRef<Group>(null);
   const lastEpoch = useRef(runtime.poseEpoch);
+  const phaseRef = useRef(0);
 
-  const arena = useMemo(
-    () => createGowArena(asset.scene, asset.animations),
-    [asset],
-  );
+  const arena = useMemo(() => createGowArena(), []);
 
   useEffect(() => () => arena.dispose(), [arena]);
 
@@ -42,6 +37,7 @@ export default function GowArena() {
 
     const dt = state.paused || gowRuntime.hitstopTimer > 0 ? 0 : Math.min(0.1, rawDt);
     const enemyTimeScale = gowRuntime.realmShiftTimer > 0 ? 0.28 : 1;
+    phaseRef.current += dt * enemyTimeScale * 4.5;
 
     for (let i = 0; i < arena.instances.length; i++) {
       const inst = arena.instances[i];
@@ -49,45 +45,48 @@ export default function GowArena() {
       if (!e) continue;
 
       inst.wrapper.position.set(e.x, e.y, e.z);
-      inst.wrapper.rotation.y = e.yaw;
+      inst.wrapper.rotation.set(0, 0, 0);
 
-      const { clip, speed, start } = selectEnemyClip(e);
-      if (inst.activeClip !== clip) {
-        const prev = inst.activeClip ? inst.actions.get(inst.activeClip) : undefined;
-        const next = inst.actions.get(clip);
-        if (next) {
-          next.reset();
-          next.time = start;
-          next.setEffectiveTimeScale(speed);
-          next.setEffectiveWeight(1);
-          next.play();
-          if (prev && prev !== next) prev.crossFadeTo(next, 0.16, false);
-          inst.activeClip = clip;
-        }
-      }
-      inst.mixer.update(dt * enemyTimeScale);
+      const isDead = e.state === 'dead';
+      inst.wrapper.visible = !isDead || e.stateTimer < 0.85;
 
-      if (inst.wings) {
-        stepArchangelWings(
-          inst.wings,
-          e.state !== 'dead',
-          state.paused,
-          state.reduced,
-          e.state === 'chase' ? 4 : 0,
-          0,
-          0,
-          dt,
-          0,
-          e.state === 'windup_red',
-        );
-      }
+      const isWindupOrStrike =
+        e.state === 'windup_yellow' ||
+        e.state === 'windup_red' ||
+        e.state === 'windup_spell' ||
+        e.state === 'strike';
+      const frame = isWindupOrStrike ? 1 : 0;
+      const flip = runtime.position.x < e.x - 0.15;
+      inst.tex.repeat.set(flip ? -0.5 : 0.5, 1);
+      inst.tex.offset.set(frame * 0.5 + (flip ? 0.5 : 0), 0);
+
+      const bob = state.reduced
+        ? 0
+        : e.state === 'chase'
+          ? Math.abs(Math.sin(phaseRef.current + i * 1.7)) * 0.14
+          : Math.sin(phaseRef.current * 0.45 + i) * 0.04;
+      const baseH = e.isBoss ? 2.35 : 1.65;
+      const tiltZ = isDead
+        ? 1.25
+        : e.state === 'stagger' || e.state === 'stunned'
+          ? (flip ? -0.18 : 0.18)
+          : isWindupOrStrike
+            ? (flip ? 0.12 : -0.12)
+            : 0;
+      inst.sprite.position.set(0, baseH + bob, 0);
+      inst.sprite.rotation.set(-0.52, 0, tiltZ);
+
+      if (e.flashTimer > 0) inst.spriteMat.color.set('#fff4b8');
+      else if (e.state === 'stunned') inst.spriteMat.color.set('#ffd166');
+      else if (isWindupOrStrike) inst.spriteMat.color.set('#ffd6cc');
+      else inst.spriteMat.color.set('#ffffff');
 
       const isYellow = e.state === 'windup_yellow';
       const isRed = e.state === 'windup_red' || e.state === 'windup_spell';
       inst.telegraphRing.visible = isYellow || isRed;
       if (isYellow || isRed) {
         inst.telegraphMat.color.set(isYellow ? '#ffd166' : '#ff3b30');
-        inst.telegraphMat.opacity = 0.72;
+        inst.telegraphMat.opacity = 0.78;
         const pulse = Math.max(0.45, 1.45 - e.stateTimer * 0.9);
         inst.telegraphRing.scale.setScalar(e.scale * pulse);
       }
@@ -95,12 +94,7 @@ export default function GowArena() {
       const isExecutable =
         e.state === 'stunned' || (e.state === 'stagger' && e.stun >= e.maxStun) || isYellow;
       inst.stunBeacon.visible = isExecutable;
-      if (isExecutable) {
-        inst.stunBeacon.rotation.y += dt * 4.2;
-      }
-
-      const flash = e.flashTimer > 0 ? 2.2 : e.isBoss ? 0.65 : 0.35;
-      for (const m of inst.handle.flashMaterials) m.emissiveIntensity = flash;
+      if (isExecutable) inst.stunBeacon.rotation.y += dt * 4.2;
     }
 
     for (let i = 0; i < gowRuntime.projectiles.length; i++) {
@@ -134,9 +128,9 @@ export default function GowArena() {
         runtime.yaw + (p - 0.5) * 1.65 + gowRuntime.slashSpin * p * Math.PI * 2,
         gowRuntime.slashTilt * 0.6,
       );
-      arena.slashMesh.scale.setScalar(0.88 + p * 0.36);
+      arena.slashMesh.scale.setScalar(0.95 + p * 0.42);
       arena.slashMat.color.set(gowRuntime.slashColor);
-      arena.slashMat.opacity = Math.max(0, (1 - p) * 0.88);
+      arena.slashMat.opacity = Math.max(0, (1 - p) * 0.9);
     }
 
     const locked = gowRuntime.enemies.find(
@@ -144,9 +138,14 @@ export default function GowArena() {
     );
     arena.lockRing.visible = Boolean(locked);
     if (locked) {
-      arena.lockRing.position.set(locked.x, locked.y + 0.06, locked.z);
+      arena.lockRing.position.set(locked.x, 20.06, locked.z);
       arena.lockRing.rotation.z += dt * 2.4;
-      arena.lockRing.scale.setScalar(locked.scale);
+      arena.lockRing.scale.setScalar(locked.isBoss ? 1.85 : 1.18);
+    }
+
+    arena.cursorRing.visible = gowRuntime.cursorActiveTimer > 0;
+    if (arena.cursorRing.visible) {
+      arena.cursorRing.position.set(gowRuntime.cursorWorldX, 20.05, gowRuntime.cursorWorldZ);
     }
 
     arena.shockMesh.visible = gowRuntime.shockwaveTimer > 0;

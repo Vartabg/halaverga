@@ -28,24 +28,24 @@ export default function CameraRig() {
     if (state.paused && initialized.current && !resized) return;
     const elapsed = state.paused ? 0 : Math.min(dt, .05), shooter = runtime.shooter, fx = shooter.camFx, aim = shooter.aim, reduced = state.reduced;
     const blend = reduced ? 0 : aim.blend;
-    // Recoil kick joins the view; an idle kick adds nothing (adding a literal 0 could turn -0 into +0).
-    rotation.set(fx.kickP === 0 ? pose.viewPitch : pose.viewPitch + fx.kickP, fx.kickY === 0 ? pose.viewYaw : pose.viewYaw + fx.kickY, 0);
+    const iso = state.shooter && state.camera === 'third';
+    const baseP = iso ? -0.68 : pose.viewPitch, baseY = iso ? 0 : pose.viewYaw;
+    rotation.set(fx.kickP === 0 ? baseP : baseP + fx.kickP, fx.kickY === 0 ? baseY : baseY + fx.kickY, 0);
     q.setFromEuler(rotation);
-    head.copy(pose.position); head.y += CHASE_HEAD;
-    const gowW = state.shooter && state.camera === 'third' ? Math.max(0, Math.min(1, 1 - pose.flight)) : 0;
-    if (state.camera === 'third') {
+    head.copy(pose.position);
+    if (iso && state.flying) head.y = Math.min(pose.position.y, 22.8);
+    head.y += CHASE_HEAD;
+    if (iso) {
+      const k = w > 0 ? 1 - CAM.near * Math.min(w, 1) * 0.35 : 1;
+      desired.set(0, 0, (state.flying ? 19.2 : 15.2) * k);
+    } else if (state.camera === 'third') {
       boomFor(blend, aspect, desired, w);
-      if (gowW > 0) {
-        const k = w > 0 ? 1 - CAM.near * Math.min(w, 1) : 1, hw = w > 0 ? Math.min(w, 1) : 0;
-        const gx = .58 * k, gy = .22 - .12 * hw, gz = 2.85 * k;
-        desired.x += (gx - desired.x) * gowW; desired.y += (gy - desired.y) * gowW; desired.z += (gz - desired.z) * gowW;
-      }
     } else desired.set(0, 0, 0);
     desired.applyQuaternion(q);
     const snap = state.reduced || !initialized.current || epoch.current !== runtime.poseEpoch || resized;
-    boom.current.lerp(desired, snap ? 1 : 1 - Math.exp(-12 * elapsed));
+    boom.current.lerp(desired, snap ? 1 : 1 - Math.exp(-10 * elapsed));
     const length = boom.current.length();
-    if (length > .05) {
+    if (length > .05 && !iso) {
       dir.copy(boom.current).divideScalar(length);
       const hit = world.castShape(head, identity, dir, probe, .04, length, false, undefined, undefined, undefined, undefined, boomBlocks);
       if (hit) boom.current.setLength(Math.max(0, hit.time_of_impact - .08));
@@ -65,7 +65,7 @@ export default function CameraRig() {
       const fresh = !initialized.current || !Number.isFinite(baseFov);
       if (fresh) baseFov = hip === CAM.hipFov ? persp.fov : hip;
       baseFov = baseFovStep(baseFov, fresh ? NaN : lastHip, hip, pose.speed, reduced, elapsed);
-      persp.fov = fovFor(baseFov, blend, reduced, reduced ? 0 : fx.fovShot + fx.fovKill - gowW * 8, hip);
+      persp.fov = fovFor(baseFov, blend, reduced, reduced ? 0 : fx.fovShot + fx.fovKill - (iso ? 8 : 0), hip);
       aim.hipFov = hip;
       persp.updateProjectionMatrix();
       aim.fov = persp.fov;

@@ -12,6 +12,8 @@ import {
   triggerStunExecute,
   triggerWingedRage,
 } from './gowCombat';
+import { gowRuntime } from './gowTypes';
+import { runtime, stopTrackpad } from './runtime';
 import { useGame } from './store';
 
 function isUiElement(target: EventTarget | null): boolean {
@@ -23,31 +25,46 @@ function isUiElement(target: EventTarget | null): boolean {
   );
 }
 
+function updateCursorPlane(clientX: number, clientY: number) {
+  const w = window.innerWidth, h = window.innerHeight;
+  if (w < 1 || h < 1) return;
+  const aim = runtime.shooter.aim;
+  if (!aim.valid) return;
+  const ndcX = (clientX / w) * 2 - 1, ndcY = 1 - (clientY / h) * 2;
+  const aspect = w / h, tanHalf = Math.tan(((aim.fov || 50) * Math.PI) / 360);
+  const rx = aim.dir.x + aim.right.x * ndcX * aspect * tanHalf + aim.up.x * ndcY * tanHalf;
+  const ry = aim.dir.y + aim.right.y * ndcX * aspect * tanHalf + aim.up.y * ndcY * tanHalf;
+  const rz = aim.dir.z + aim.right.z * ndcX * aspect * tanHalf + aim.up.z * ndcY * tanHalf;
+  if (ry < -0.05) {
+    const t = (20.0 - aim.origin.y) / ry;
+    if (t > 0 && t < 80) {
+      gowRuntime.cursorWorldX = aim.origin.x + rx * t;
+      gowRuntime.cursorWorldZ = aim.origin.z + rz * t;
+      gowRuntime.cursorActiveTimer = 2.5;
+    }
+  }
+}
+
 export function useGowInput() {
   useEffect(() => {
-    let downX = 0;
-    let downY = 0;
-    let downTime = 0;
-    let validLeftClick = false;
-
     const canAct = () => {
       const s = useGame.getState();
-      return (
-        s.started &&
-        !s.paused &&
-        s.shooter &&
-        !s.panel &&
-        !s.journal &&
-        !s.controlsOpen &&
-        !s.voteOpen
-      );
+      return s.started && !s.paused && s.shooter && !s.panel && !s.journal && !s.controlsOpen && !s.voteOpen;
     };
 
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.repeat || e.metaKey || e.ctrlKey || e.altKey) return;
       if (isUiElement(e.target) || !canAct()) return;
-      const s = useGame.getState();
-      const reduced = s.reduced;
+      const s = useGame.getState(), reduced = s.reduced;
+      if (e.code === 'Space' && (e.target as HTMLElement)?.tagName !== 'BUTTON') {
+        e.preventDefault();
+        stopTrackpad();
+        runtime.landGoal = null;
+        const nextFly = !s.flying;
+        runtime.velocity.y = nextFly ? 8 : -12;
+        useGame.setState({ flying: nextFly, landing: false });
+        return;
+      }
 
       if (s.flying) {
         switch (e.code) {
@@ -60,6 +77,21 @@ export function useGowInput() {
           case 'KeyG':
             e.preventDefault();
             triggerSkySwordBeam(reduced);
+            break;
+          case 'KeyC':
+            e.preventDefault();
+            runtime.landGoal = null;
+            runtime.velocity.y = -12;
+            useGame.setState({ flying: false, landing: false });
+            break;
+          case 'ShiftLeft':
+          case 'ShiftRight':
+            e.preventDefault();
+            triggerDodgeRoll(reduced);
+            break;
+          case 'KeyV':
+            e.preventDefault();
+            triggerWingedRage(reduced);
             break;
           default:
             break;
@@ -95,22 +127,20 @@ export function useGowInput() {
           triggerWingedRage(reduced);
           break;
         case 'KeyE':
-          if (!s.nearTerminal) {
-            if (triggerStunExecute(reduced)) e.preventDefault();
-          }
+          if (!s.nearTerminal && triggerStunExecute(reduced)) e.preventDefault();
           break;
         default:
           break;
       }
     };
 
+    const onPointerMove = (e: PointerEvent) => {
+      if (e.pointerType === 'mouse' && canAct()) updateCursorPlane(e.clientX, e.clientY);
+    };
+
     const onPointerDown = (e: PointerEvent) => {
-      if (!canAct()) {
-        validLeftClick = false;
-        return;
-      }
-      const s = useGame.getState();
-      const reduced = s.reduced;
+      if (!canAct()) return;
+      const s = useGame.getState(), reduced = s.reduced;
       if (e.target instanceof HTMLElement) {
         if (e.target.closest('[data-testid="fire-button"]')) {
           if (s.flying) triggerAerialSwoop(reduced);
@@ -127,32 +157,15 @@ export function useGowInput() {
           return;
         }
       }
-      if (e.pointerType !== 'mouse' || isUiElement(e.target)) {
-        validLeftClick = false;
-        return;
-      }
+      if (e.pointerType !== 'mouse' || isUiElement(e.target)) return;
+      updateCursorPlane(e.clientX, e.clientY);
       if (e.button === 0) {
-        downX = e.clientX;
-        downY = e.clientY;
-        downTime = performance.now();
-        validLeftClick = true;
+        if (s.flying) triggerAerialSwoop(reduced);
+        else triggerLightAttack(reduced);
       } else if (e.button === 2) {
         e.preventDefault();
         if (s.flying) triggerSkySwordBeam(reduced);
         else triggerParry(reduced);
-      }
-    };
-
-    const onPointerUp = (e: PointerEvent) => {
-      if (!validLeftClick || e.button !== 0) return;
-      validLeftClick = false;
-      if (!canAct()) return;
-      const dist = Math.hypot(e.clientX - downX, e.clientY - downY);
-      const elapsed = performance.now() - downTime;
-      if (dist < 6 && elapsed < 260) {
-        const s = useGame.getState();
-        if (s.flying) triggerAerialSwoop(s.reduced);
-        else triggerLightAttack(s.reduced);
       }
     };
 
@@ -161,13 +174,13 @@ export function useGowInput() {
     };
 
     window.addEventListener('keydown', onKeyDown);
+    window.addEventListener('pointermove', onPointerMove, { passive: true });
     window.addEventListener('pointerdown', onPointerDown, true);
-    window.addEventListener('pointerup', onPointerUp, true);
     window.addEventListener('contextmenu', onContextMenu);
     return () => {
       window.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('pointermove', onPointerMove);
       window.removeEventListener('pointerdown', onPointerDown, true);
-      window.removeEventListener('pointerup', onPointerUp, true);
       window.removeEventListener('contextmenu', onContextMenu);
     };
   }, []);

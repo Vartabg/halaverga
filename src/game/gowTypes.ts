@@ -103,6 +103,7 @@ export const gowRuntime = {
   slashTimer: 0, slashDuration: 0.28, slashTilt: 0, slashSpin: 0, slashColor: '#ffd166',
   lockedTargetId: null as EnemyId | null, executableId: null as EnemyId | null, threatPrompt: '',
   threatTone: 'gold' as 'gold' | 'crimson' | 'stun',
+  cursorWorldX: 0, cursorWorldZ: 55, cursorActiveTimer: 0, facingLeft: false,
   enemies: createInitialEnemies(),
   projectiles: Array.from({ length: 8 }, (): GowProjectile => ({
     active: false, fromPlayer: true, x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, life: 0, damage: 0, stun: 0,

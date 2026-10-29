@@ -11,7 +11,7 @@ export function resetGowState() {
     hitDone: false, queuedLight: false, comboStep: 0, comboResetTimer: 0, comboHits: 0, comboBannerTimer: 0,
     lastMoveLabel: '', parryWindow: 0, dodgeInvuln: 0, runicCooldown: 0, hitstopTimer: 0, realmShiftTimer: 0,
     shockwaveTimer: 0, slashTimer: 0, lockedTargetId: null, executableId: null, threatPrompt: '',
-    enemies: createInitialEnemies(),
+    cursorActiveTimer: 0, facingLeft: false, enemies: createInitialEnemies(),
   });
   for (const p of gowRuntime.projectiles) p.active = false;
   for (const s of gowRuntime.sparks) s.active = false;
@@ -42,15 +42,14 @@ export function nearestLiveEnemy(px: number, pz: number, maxDist = 28): GowEnemy
 
 export function findFreeflowTarget(px: number, pz: number, maxDist = 14.0): GowEnemy | null {
   const intent = readIntent(), hasDir = Math.hypot(intent.forward, intent.strafe) > 0.15;
-  const dirX = hasDir ? -Math.sin(runtime.yaw) * intent.forward + Math.cos(runtime.yaw) * intent.strafe : -Math.sin(runtime.yaw);
-  const dirZ = hasDir ? -Math.cos(runtime.yaw) * intent.forward - Math.sin(runtime.yaw) * intent.strafe : -Math.cos(runtime.yaw);
-  const dLen = Math.max(0.001, Math.hypot(dirX, dirZ)), nx = dirX / dLen, nz = dirZ / dLen;
+  const dirX = hasDir ? intent.strafe : -Math.sin(runtime.yaw), dirZ = hasDir ? -intent.forward : -Math.cos(runtime.yaw);
+  const dLen = Math.max(0.001, Math.hypot(dirX, dirZ)), nx = dirX / dLen, nz = dirZ / dLen, useCursor = gowRuntime.cursorActiveTimer > 0 && !hasDir;
   let best: GowEnemy | null = null, bestScore = Infinity;
   for (const e of gowRuntime.enemies) {
     if (e.state === 'dead') continue;
     const dx = e.x - px, dz = e.z - pz, dist = Math.hypot(dx, dz);
     if (dist > maxDist) continue;
-    const score = dist - (dist > 0.1 ? (dx / dist) * nx + (dz / dist) * nz : 1) * (hasDir ? 3.5 : 1.6);
+  const score = useCursor ? Math.hypot(e.x - gowRuntime.cursorWorldX, e.z - gowRuntime.cursorWorldZ) * 1.35 + dist * 0.35 : dist - (dist > 0.1 ? (dx / dist) * nx + (dz / dist) * nz : 1) * (hasDir ? 3.5 : 1.6);
     if (score < bestScore) { bestScore = score; best = e; }
   }
   gowRuntime.lockedTargetId = best?.id ?? null;
@@ -62,7 +61,7 @@ function orientAndLunge(baseSpeed: number, lungeDuration: number, reduced: boole
   const px = runtime.position.x, pz = runtime.position.z, target = findFreeflowTarget(px, pz, 13.5);
   if (target) {
     const dx = target.x - px, dz = target.z - pz, dist = Math.hypot(dx, dz);
-    if (dist > 0.05) runtime.yaw = Math.atan2(-dx, -dz);
+    if (dist > 0.05) { runtime.yaw = Math.atan2(-dx, -dz); if (Math.abs(dx) > 0.15) gowRuntime.facingLeft = dx < 0; }
     if (lungeDuration > 0 && dist > 0.05) {
       const gap = Math.max(0, dist - 2.0), vaultSpeed = Math.min(reduced ? 7.5 : 22.0, gap > 0.25 ? Math.max(baseSpeed, gap / lungeDuration) : 0);
       Object.assign(combatMotion, { vx: (dx / dist) * vaultSpeed, vz: (dz / dist) * vaultSpeed, timer: vaultSpeed > 0 ? lungeDuration : 0 });
@@ -113,7 +112,7 @@ export function triggerAerialSwoop(reduced = false): boolean {
   const diveDur = 0.34;
   if (target) {
     const dx = target.x - px, dz = target.z - pz, dist = Math.hypot(dx, dz), gap = Math.max(0, dist - 1.8);
-    if (dist > 0.05) runtime.yaw = Math.atan2(-dx, -dz);
+    if (dist > 0.05) { runtime.yaw = Math.atan2(-dx, -dz); if (Math.abs(dx) > 0.15) gowRuntime.facingLeft = dx < 0; }
     Object.assign(combatMotion, { vx: dist > 0.05 ? (dx / dist) * (gap / diveDur) : 0, vz: dist > 0.05 ? (dz / dist) * (gap / diveDur) : 0, vy: ((target.y + FOOT) - py) / diveDur, timer: diveDur });
   } else Object.assign(combatMotion, { vx: -Math.sin(runtime.yaw) * 15, vz: -Math.cos(runtime.yaw) * 15, vy: ((20 + FOOT) - py) / diveDur, timer: diveDur });
   return true;
@@ -122,7 +121,7 @@ export function triggerAerialSwoop(reduced = false): boolean {
 export function triggerSkySwordBeam(reduced = false): boolean {
   if (gowRuntime.action === 'sky_beam' && gowRuntime.actionTimer < 0.25) return false;
   const px = runtime.position.x, pz = runtime.position.z, target = findFreeflowTarget(px, pz, 28.0);
-  if (target && Math.hypot(target.x - px, target.z - pz) > 0.05) runtime.yaw = Math.atan2(-(target.x - px), -(target.z - pz));
+  if (target && Math.hypot(target.x - px, target.z - pz) > 0.05) { runtime.yaw = Math.atan2(-(target.x - px), -(target.z - pz)); if (Math.abs(target.x - px) > 0.15) gowRuntime.facingLeft = target.x < px; }
   startSpecAttack('sky_beam', reduced); playSwingAudio(3); return true;
 }
 
@@ -174,9 +173,9 @@ export function triggerParry(reduced = false): boolean {
 
 export function triggerDodgeRoll(_reduced = false): boolean {
   Object.assign(gowRuntime, { action: 'dodge', actionSeq: gowRuntime.actionSeq + 1, actionTimer: 0, actionDuration: 0.48, dodgeInvuln: 0.42, queuedLight: false, lastMoveLabel: 'EVADE ROLL', comboBannerTimer: 1.2 });
-  const intent = readIntent(), fwd = Math.abs(intent.forward) > 0.1 || Math.abs(intent.strafe) > 0.1 ? intent.forward : -1;
-  const wx = -Math.sin(runtime.yaw) * fwd + Math.cos(runtime.yaw) * intent.strafe, wz = -Math.cos(runtime.yaw) * fwd - Math.sin(runtime.yaw) * intent.strafe, len = Math.max(0.001, Math.hypot(wx, wz));
-  Object.assign(combatMotion, { vx: (wx / len) * 10.2, vy: 0, vz: (wz / len) * 10.2, timer: 0.36 });
+  const intent = readIntent(), hasDir = Math.hypot(intent.forward, intent.strafe) > 0.1;
+  const wx = hasDir ? intent.strafe : -Math.sin(runtime.yaw), wz = hasDir ? -intent.forward : -Math.cos(runtime.yaw), len = Math.max(0.001, Math.hypot(wx, wz));
+  Object.assign(combatMotion, { vx: (wx / len) * 11.2, vy: 0, vz: (wz / len) * 11.2, timer: 0.32 });
   const px = runtime.position.x, pz = runtime.position.z;
   if (gowRuntime.enemies.some(e => e.state === 'windup_red' && Math.hypot(e.x - px, e.z - pz) <= 8.0)) {
     gowRuntime.realmShiftTimer = 1.5; pushPopup('REALM SHIFT · TIME SLOWED!', 'parry', px, runtime.position.y + 1.2, pz);

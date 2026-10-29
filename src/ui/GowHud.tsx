@@ -35,7 +35,7 @@ function readSnapshot(): HudSnapshot {
     rage: Math.round(gowRuntime.rage),
     rageActive: gowRuntime.rageActive > 0,
     bossHp: Math.round(boss?.hp ?? 0),
-    bossMaxHp: boss?.maxHp ?? 450,
+    bossMaxHp: boss?.maxHp ?? 520,
     bossStun: Math.round(boss?.stun ?? 0),
     bossStaggered: boss?.state === 'stagger',
     vanguardsAlive,
@@ -43,7 +43,7 @@ function readSnapshot(): HudSnapshot {
     comboHits: gowRuntime.comboBannerTimer > 0 ? gowRuntime.comboHits : 0,
     comboTimerPct:
       gowRuntime.comboBannerTimer > 0
-        ? Math.round(Math.min(100, (gowRuntime.comboBannerTimer / 2.6) * 100))
+        ? Math.round(Math.min(100, (gowRuntime.comboBannerTimer / 2.2) * 100))
         : 0,
     moveLabel: gowRuntime.comboBannerTimer > 0 ? gowRuntime.lastMoveLabel : '',
     popupText: latestPopup ? latestPopup.text : '',
@@ -102,7 +102,7 @@ export default function GowHud() {
       <div className={styles.bossPlate} data-testid="gow-boss-plate">
         <div className={styles.bossHeader}>
           <span className={styles.bossTitle}>
-            Semjaza • Watcher Chief
+            Semjaza, Watcher Leader
           </span>
           <span className={styles.bossNumbers}>
             HP {snap.bossHp}/{snap.bossMaxHp} • STUN {snap.bossStun}%
@@ -122,22 +122,33 @@ export default function GowHud() {
       </div>
 
       <div className={styles.playerPlate} data-testid="gow-player-plate">
-        <div className={styles.statRow}>
-          <span>ARCHANGEL VITALITY</span>
-          <span>{snap.hp}%</span>
-        </div>
-        <div className={styles.barTrack}>
-          <div className={styles.heroHpFill} style={{ width: `${snap.hp}%` }} />
-        </div>
+        <div className={styles.heroHeader}>
+          <img
+            src="/sprites/uriel-portrait.jpg"
+            alt=""
+            className={styles.portrait}
+            width={44}
+            height={44}
+          />
+          <div className={styles.heroBars}>
+            <div className={styles.statRow}>
+              <span>URIEL VITALITY</span>
+              <span>{snap.hp}%</span>
+            </div>
+            <div className={styles.barTrack}>
+              <div className={styles.heroHpFill} style={{ width: `${snap.hp}%` }} />
+            </div>
 
-        <div className={styles.statRow}>
-          <span className={styles.statAccent}>
-            {snap.rageActive ? 'WINGED RAGE ACTIVE' : 'WINGED RAGE [V]'}
-          </span>
-          <span className={styles.statAccent}>{snap.rage}%</span>
-        </div>
-        <div className={styles.stunTrack}>
-          <div className={styles.rageFill} style={{ width: `${snap.rage}%` }} />
+            <div className={styles.statRow}>
+              <span className={styles.statAccent}>
+                {snap.rageActive ? 'WINGED RAGE ACTIVE' : 'WINGED RAGE [V]'}
+              </span>
+              <span className={styles.statAccent}>{snap.rage}%</span>
+            </div>
+            <div className={styles.stunTrack}>
+              <div className={styles.rageFill} style={{ width: `${snap.rage}%` }} />
+            </div>
+          </div>
         </div>
 
         <div className={styles.cooldownRow}>
@@ -168,7 +179,7 @@ export default function GowHud() {
         ) : null}
 
         <div className={styles.combatKeys}>
-          [J/Click] Strike/Swoop • [K] Slam/Beam • [Q/R-Click] Counter/Beam • [Space] Elevate • [C/Shift] Roll • [G] Runic • [V] Rage
+          [WASD] Move • [Space] Wing Hover • [Click/J] Strike/Swoop • [R-Click/K/Q] Counter/Sword Beam • [Shift/C] Dash
         </div>
       </div>
     </div>
