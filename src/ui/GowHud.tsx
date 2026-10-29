@@ -1,186 +1,159 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { gowRuntime } from '@/game/gowTypes';
+import { executeTurnCommand, selectTarget } from '@/game/gowCombat';
+import { gowRuntime, type EnemyId, type TurnPhase } from '@/game/gowTypes';
 import { useGame } from '@/game/store';
 import styles from './GowHud.module.css';
 
+interface EnemySnap {
+  id: EnemyId; name: string; hp: number; maxHp: number; stun: number;
+  dead: boolean; stunned: boolean; intentLabel: string; portrait: string;
+}
+
 interface HudSnapshot {
-  hp: number;
-  rage: number;
-  rageActive: boolean;
-  bossHp: number;
-  bossMaxHp: number;
-  bossStun: number;
-  bossStaggered: boolean;
-  vanguardsAlive: number;
-  runicCd: number;
-  comboHits: number;
-  comboTimerPct: number;
-  moveLabel: string;
-  popupText: string;
-  popupTone: string;
-  threatPrompt: string;
-  realmShift: boolean;
+  hp: number; rage: number; rageActive: boolean; turnPhase: TurnPhase;
+  turnNumber: number; ap: number; maxAp: number; guardWard: boolean;
+  lockedId: EnemyId | null; bossHp: number; bossMaxHp: number; bossStun: number;
+  moveLabel: string; popupText: string; threatPrompt: string; enemies: EnemySnap[];
 }
 
 function readSnapshot(): HudSnapshot {
   const boss = gowRuntime.enemies.find((e) => e.isBoss);
-  const vanguardsAlive = gowRuntime.enemies.filter(
-    (e) => !e.isBoss && e.state !== 'dead',
-  ).length;
   const latestPopup = gowRuntime.popups[gowRuntime.popups.length - 1];
   return {
-    hp: Math.round(gowRuntime.hp),
-    rage: Math.round(gowRuntime.rage),
-    rageActive: gowRuntime.rageActive > 0,
-    bossHp: Math.round(boss?.hp ?? 0),
-    bossMaxHp: boss?.maxHp ?? 520,
-    bossStun: Math.round(boss?.stun ?? 0),
-    bossStaggered: boss?.state === 'stagger',
-    vanguardsAlive,
-    runicCd: Math.ceil(gowRuntime.runicCooldown),
-    comboHits: gowRuntime.comboBannerTimer > 0 ? gowRuntime.comboHits : 0,
-    comboTimerPct:
-      gowRuntime.comboBannerTimer > 0
-        ? Math.round(Math.min(100, (gowRuntime.comboBannerTimer / 2.2) * 100))
-        : 0,
+    hp: Math.round(gowRuntime.hp), rage: Math.round(gowRuntime.rage), rageActive: gowRuntime.rageActive > 0,
+    turnPhase: gowRuntime.turnPhase, turnNumber: gowRuntime.turnNumber, ap: gowRuntime.ap, maxAp: gowRuntime.maxAp,
+    guardWard: gowRuntime.guardWard, lockedId: gowRuntime.lockedTargetId,
+    bossHp: Math.round(boss?.hp ?? 0), bossMaxHp: boss?.maxHp ?? 520, bossStun: Math.round(boss?.stun ?? 0),
     moveLabel: gowRuntime.comboBannerTimer > 0 ? gowRuntime.lastMoveLabel : '',
-    popupText: latestPopup ? latestPopup.text : '',
-    popupTone: latestPopup ? latestPopup.tone : '',
-    threatPrompt: gowRuntime.threatPrompt,
-    realmShift: gowRuntime.realmShiftTimer > 0,
+    popupText: latestPopup ? latestPopup.text : '', threatPrompt: gowRuntime.threatPrompt,
+    enemies: gowRuntime.enemies.map((e) => ({
+      id: e.id, name: e.isBoss ? 'Semjaza (Boss)' : e.name.replace(' Vanguard', ''),
+      hp: Math.round(e.hp), maxHp: e.maxHp, stun: Math.round(e.stun),
+      dead: e.state === 'dead', stunned: e.state === 'stunned',
+      intentLabel: e.state === 'stunned' ? '⚡ STUNNED · SKIPS TURN' : e.intentLabel, portrait: e.portrait,
+    })),
   };
 }
 
 export default function GowHud() {
-  const started = useGame((s) => s.started);
-  const paused = useGame((s) => s.paused);
-  const shooter = useGame((s) => s.shooter);
-  const panel = useGame((s) => s.panel);
-  const journal = useGame((s) => s.journal);
-  const controlsOpen = useGame((s) => s.controlsOpen);
-  const voteOpen = useGame((s) => s.voteOpen);
-
+  const { started, paused, shooter, panel, journal, controlsOpen, voteOpen, flying, reduced, tapControls, controlLab, touchScheme } = useGame();
   const [snap, setSnap] = useState<HudSnapshot>(readSnapshot);
 
   useEffect(() => {
     if (!started || paused || !shooter) return;
-    const id = window.setInterval(() => {
-      const next = readSnapshot();
-      setSnap((prev) =>
-        prev.hp === next.hp &&
-        prev.rage === next.rage &&
-        prev.rageActive === next.rageActive &&
-        prev.bossHp === next.bossHp &&
-        prev.bossStun === next.bossStun &&
-        prev.bossStaggered === next.bossStaggered &&
-        prev.vanguardsAlive === next.vanguardsAlive &&
-        prev.runicCd === next.runicCd &&
-        prev.comboHits === next.comboHits &&
-        prev.comboTimerPct === next.comboTimerPct &&
-        prev.moveLabel === next.moveLabel &&
-        prev.popupText === next.popupText &&
-        prev.popupTone === next.popupTone &&
-        prev.threatPrompt === next.threatPrompt &&
-        prev.realmShift === next.realmShift
-          ? prev
-          : next,
-      );
-    }, 65);
+    const id = window.setInterval(() => setSnap(readSnapshot()), 65);
     return () => window.clearInterval(id);
   }, [started, paused, shooter]);
 
-  if (!started || paused || !shooter || panel || journal || controlsOpen || voteOpen) {
-    return null;
-  }
+  if (!started || paused || !shooter || panel || journal || controlsOpen || voteOpen) return null;
 
+  const showDeck = !tapControls && controlLab === 'standard' && touchScheme !== 'twin';
+  const canCommand = snap.turnPhase === 'PLAYER_TURN';
   const bossPct = Math.max(0, Math.min(100, (snap.bossHp / snap.bossMaxHp) * 100));
+  const phaseBanner = snap.turnPhase === 'ENEMY_TURN'
+    ? `ROUND ${snap.turnNumber} • WATCHERS' TURN`
+    : flying
+      ? `ROUND ${snap.turnNumber} • SKY STANCE (${snap.ap}/${snap.maxAp} AP)`
+      : `ROUND ${snap.turnNumber} • URIEL'S TURN (${snap.ap}/${snap.maxAp} AP)`;
 
   return (
-    <div className={styles.hud} data-gow-hud="" data-testid="gow-hud" aria-hidden="true">
+    <div className={styles.hud} data-gow-hud="" data-testid="gow-hud" aria-hidden={showDeck ? undefined : 'true'}>
       <div className={styles.bossPlate} data-testid="gow-boss-plate">
         <div className={styles.bossHeader}>
-          <span className={styles.bossTitle}>
-            Semjaza, Watcher Leader
-          </span>
-          <span className={styles.bossNumbers}>
-            HP {snap.bossHp}/{snap.bossMaxHp} • STUN {snap.bossStun}%
-          </span>
+          <span className={styles.bossTitle}>{phaseBanner}</span>
+          <span className={styles.bossNumbers}>SEMJAZA HP {snap.bossHp}/{snap.bossMaxHp} • STUN {snap.bossStun}%</span>
         </div>
         <div className={styles.barTrack}>
           <div className={styles.hpFill} style={{ width: `${bossPct}%` }} />
         </div>
-        <div className={styles.stunTrack}>
-          <div className={styles.stunFill} style={{ width: `${snap.bossStun}%` }} />
-        </div>
-        {snap.threatPrompt ? (
-          <div className={styles.threatBanner} data-testid="gow-threat-banner">
-            {snap.threatPrompt}
-          </div>
+
+        {showDeck ? (
+          <>
+            <div className={styles.targetStrip} data-testid="gow-target-strip">
+              {snap.enemies.map((e) => (
+                <button
+                  key={e.id} type="button" disabled={e.dead}
+                  onMouseDown={(ev) => ev.preventDefault()} onClick={() => selectTarget(e.id)}
+                  className={`${styles.targetCard} ${snap.lockedId === e.id ? styles.targetLocked : ''}`}
+                >
+                  <img src={e.portrait} alt="" className={styles.targetPortrait} width={28} height={28} />
+                  <span className={styles.targetInfo}>
+                    <span className={styles.targetName}>{snap.lockedId === e.id ? `◎ ${e.name}` : e.name} ({e.hp} HP)</span>
+                    <span className={styles.targetIntent}>{e.intentLabel}</span>
+                  </span>
+                </button>
+              ))}
+            </div>
+
+            <div className={styles.commandRow} data-testid="gow-command-deck">
+              <button
+                type="button" disabled={!canCommand || snap.ap < 1}
+                onMouseDown={(ev) => ev.preventDefault()} onClick={() => executeTurnCommand(flying ? 'swoop' : 'slash', reduced)}
+                className={styles.cmdBtn}
+              >
+                <span className={styles.cmdTitle}>{flying ? '🦅 Swoop Strike' : '⚔️ Dawn Cleave'}</span>
+                <span className={styles.cmdMeta}>{flying ? '1 AP • 56 DMG + Land' : '1 AP • 34 DMG Lunge'}</span>
+              </button>
+              <button
+                type="button" disabled={!canCommand || snap.ap < 1}
+                onMouseDown={(ev) => ev.preventDefault()} onClick={() => executeTurnCommand(flying ? 'beam' : 'ward', reduced)}
+                className={styles.cmdBtn}
+              >
+                <span className={styles.cmdTitle}>{flying ? '✨ Sword Beam' : '🛡️ Counter Ward'}</span>
+                <span className={styles.cmdMeta}>{flying ? '1 AP • 38 DMG From Sky' : '1 AP • Riposte 42 DMG'}</span>
+              </button>
+              <button
+                type="button" disabled={!canCommand || (!flying && snap.ap < 1)}
+                onMouseDown={(ev) => ev.preventDefault()} onClick={() => executeTurnCommand('wing', reduced)}
+                className={`${styles.cmdBtn} ${flying ? styles.cmdActive : ''}`}
+              >
+                <span className={styles.cmdTitle}>{flying ? '🕊️ Feather Descent' : '🪽 Take Wing'}</span>
+                <span className={styles.cmdMeta}>{flying ? '0 AP • Land + Ward' : '1 AP • Evade Quakes'}</span>
+              </button>
+              <button
+                type="button" disabled={!canCommand || snap.ap < 1 || (snap.rage < 35 && !snap.rageActive)}
+                onMouseDown={(ev) => ev.preventDefault()} onClick={() => executeTurnCommand('rage', reduced)}
+                className={styles.cmdBtn}
+              >
+                <span className={styles.cmdTitle}>☀️ Dawn Judgement</span>
+                <span className={styles.cmdMeta}>1 AP • 35 Rage AoE</span>
+              </button>
+              <button
+                type="button" disabled={!canCommand}
+                onMouseDown={(ev) => ev.preventDefault()} onClick={() => executeTurnCommand('end', reduced)}
+                className={styles.endTurnBtn}
+              >
+                <span className={styles.cmdTitle}>⏭️ End Turn</span>
+                <span className={styles.cmdMeta}>Watchers Act</span>
+              </button>
+            </div>
+          </>
         ) : null}
       </div>
 
       <div className={styles.playerPlate} data-testid="gow-player-plate">
         <div className={styles.heroHeader}>
-          <img
-            src="/sprites/uriel-portrait.jpg"
-            alt=""
-            className={styles.portrait}
-            width={44}
-            height={44}
-          />
+          <img src="/sprites/uriel-portrait.jpg" alt="" className={styles.portrait} width={44} height={44} />
           <div className={styles.heroBars}>
             <div className={styles.statRow}>
-              <span>URIEL VITALITY</span>
+              <span>URIEL VITALITY {snap.guardWard ? '• 🛡️ WARD' : ''}</span>
               <span>{snap.hp}%</span>
             </div>
-            <div className={styles.barTrack}>
-              <div className={styles.heroHpFill} style={{ width: `${snap.hp}%` }} />
-            </div>
-
+            <div className={styles.barTrack}><div className={styles.heroHpFill} style={{ width: `${snap.hp}%` }} /></div>
             <div className={styles.statRow}>
-              <span className={styles.statAccent}>
-                {snap.rageActive ? 'WINGED RAGE ACTIVE' : 'WINGED RAGE [V]'}
-              </span>
+              <span className={styles.statAccent}>{flying ? 'SKY STANCE • ON WING' : 'WINGED RAGE'}</span>
               <span className={styles.statAccent}>{snap.rage}%</span>
             </div>
-            <div className={styles.stunTrack}>
-              <div className={styles.rageFill} style={{ width: `${snap.rage}%` }} />
-            </div>
+            <div className={styles.stunTrack}><div className={styles.rageFill} style={{ width: `${snap.rage}%` }} /></div>
           </div>
         </div>
-
-        <div className={styles.cooldownRow}>
-          <span>
-            URIEL FLAME [G]: {snap.runicCd > 0 ? `${snap.runicCd}s` : 'READY'}
-          </span>
-          <span>WATCHERS: {snap.vanguardsAlive + (snap.bossHp > 0 ? 1 : 0)}</span>
-        </div>
-
-        {snap.comboHits > 0 || snap.realmShift || snap.popupText ? (
+        {(snap.moveLabel || snap.popupText || snap.threatPrompt) ? (
           <div className={styles.comboBadge} data-testid="gow-combo-badge">
-            <div>
-              {snap.realmShift
-                ? 'CELESTIAL REALM SHIFT'
-                : snap.comboHits > 0
-                  ? `x${snap.comboHits} FREEFLOW • ${snap.moveLabel || 'STRIKE'}`
-                  : snap.popupText}
-            </div>
-            {snap.comboTimerPct > 0 ? (
-              <div className={styles.comboTimerTrack}>
-                <div
-                  className={styles.comboTimerFill}
-                  style={{ width: `${snap.comboTimerPct}%` }}
-                />
-              </div>
-            ) : null}
+            {snap.popupText || snap.moveLabel || snap.threatPrompt}
           </div>
         ) : null}
-
-        <div className={styles.combatKeys}>
-          [WASD] Move • [Space] Wing Hover • [Click/J] Strike/Swoop • [R-Click/K/Q] Counter/Sword Beam • [Shift/C] Dash
-        </div>
       </div>
     </div>
   );

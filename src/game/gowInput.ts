@@ -1,28 +1,16 @@
 'use client';
 
 import { useEffect } from 'react';
-import {
-  triggerAerialSwoop,
-  triggerDodgeRoll,
-  triggerHeavyBash,
-  triggerLightAttack,
-  triggerParry,
-  triggerRunicSpell,
-  triggerSkySwordBeam,
-  triggerStunExecute,
-  triggerWingedRage,
-} from './gowCombat';
+import { executeTurnCommand, triggerAerialSwoop, triggerDodgeRoll, triggerHeavyBash, triggerLightAttack, triggerParry, triggerRunicSpell, triggerSkySwordBeam, triggerStunExecute, triggerWingedRage } from './gowCombat';
 import { gowRuntime } from './gowTypes';
 import { runtime, stopTrackpad } from './runtime';
 import { useGame } from './store';
 
-function isUiElement(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) return false;
-  return Boolean(
-    target.closest(
-      'button, a, input, select, textarea, dialog, [role="dialog"], [data-controls-sheet], [data-gow-hud]',
-    ),
-  );
+function isDialogOrInput(target: EventTarget | null): boolean {
+  return target instanceof HTMLElement && Boolean(target.closest('input, select, textarea, dialog, [role="dialog"], [data-controls-sheet]'));
+}
+function isHudOrButton(target: EventTarget | null): boolean {
+  return target instanceof HTMLElement && (Boolean(target.closest('button, a, [data-gow-hud]')) || isDialogOrInput(target));
 }
 
 function updateCursorPlane(clientX: number, clientY: number) {
@@ -54,15 +42,24 @@ export function useGowInput() {
 
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.repeat || e.metaKey || e.ctrlKey || e.altKey) return;
-      if (isUiElement(e.target) || !canAct()) return;
+      if (isDialogOrInput(e.target) || !canAct()) return;
       const s = useGame.getState(), reduced = s.reduced;
-      if (e.code === 'Space' && (e.target as HTMLElement)?.tagName !== 'BUTTON') {
+      const onBtn = (e.target as HTMLElement)?.tagName === 'BUTTON';
+
+      if (e.code === 'Space' && !onBtn) {
         e.preventDefault();
         stopTrackpad();
         runtime.landGoal = null;
         const nextFly = !s.flying;
         runtime.velocity.y = nextFly ? 8 : -12;
         useGame.setState({ flying: nextFly, landing: false });
+        if (nextFly) gowRuntime.lastMoveLabel = 'SKY STANCE • ON WING';
+        return;
+      }
+
+      if (e.code === 'KeyX') {
+        e.preventDefault();
+        executeTurnCommand('end', reduced);
         return;
       }
 
@@ -70,13 +67,13 @@ export function useGowInput() {
         switch (e.code) {
           case 'KeyJ':
             e.preventDefault();
-            triggerAerialSwoop(reduced);
+            if (!executeTurnCommand('swoop', reduced)) triggerAerialSwoop(reduced);
             break;
           case 'KeyK':
           case 'KeyQ':
           case 'KeyG':
             e.preventDefault();
-            triggerSkySwordBeam(reduced);
+            if (!executeTurnCommand('beam', reduced)) triggerSkySwordBeam(reduced);
             break;
           case 'KeyC':
             e.preventDefault();
@@ -91,7 +88,7 @@ export function useGowInput() {
             break;
           case 'KeyV':
             e.preventDefault();
-            triggerWingedRage(reduced);
+            if (!executeTurnCommand('rage', reduced)) triggerWingedRage(reduced);
             break;
           default:
             break;
@@ -102,7 +99,7 @@ export function useGowInput() {
       switch (e.code) {
         case 'KeyJ':
           e.preventDefault();
-          triggerLightAttack(reduced);
+          if (!executeTurnCommand('slash', reduced)) triggerLightAttack(reduced);
           break;
         case 'KeyK':
           e.preventDefault();
@@ -110,7 +107,7 @@ export function useGowInput() {
           break;
         case 'KeyQ':
           e.preventDefault();
-          triggerParry(reduced);
+          if (!executeTurnCommand('ward', reduced)) triggerParry(reduced);
           break;
         case 'KeyC':
         case 'ShiftLeft':
@@ -124,10 +121,13 @@ export function useGowInput() {
           break;
         case 'KeyV':
           e.preventDefault();
-          triggerWingedRage(reduced);
+          if (!executeTurnCommand('rage', reduced)) triggerWingedRage(reduced);
           break;
         case 'KeyE':
-          if (!s.nearTerminal && triggerStunExecute(reduced)) e.preventDefault();
+          if (!s.nearTerminal) {
+            if (!triggerStunExecute(reduced)) executeTurnCommand('end', reduced);
+            e.preventDefault();
+          }
           break;
         default:
           break;
@@ -143,34 +143,30 @@ export function useGowInput() {
       const s = useGame.getState(), reduced = s.reduced;
       if (e.target instanceof HTMLElement) {
         if (e.target.closest('[data-testid="fire-button"]')) {
-          if (s.flying) triggerAerialSwoop(reduced);
-          else if (!triggerStunExecute(reduced)) triggerLightAttack(reduced);
+          if (s.flying) executeTurnCommand('swoop', reduced);
+          else if (!triggerStunExecute(reduced)) executeTurnCommand('slash', reduced);
           return;
         }
         if (e.target.closest('[data-testid="aim-button"]')) {
-          if (s.flying) triggerSkySwordBeam(reduced);
-          else triggerParry(reduced);
-          return;
-        }
-        if (!s.flying && e.target.closest('[data-testid="descend-button"]')) {
-          triggerDodgeRoll(reduced);
+          if (s.flying) executeTurnCommand('beam', reduced);
+          else executeTurnCommand('ward', reduced);
           return;
         }
       }
-      if (e.pointerType !== 'mouse' || isUiElement(e.target)) return;
+      if (e.pointerType !== 'mouse' || isHudOrButton(e.target)) return;
       updateCursorPlane(e.clientX, e.clientY);
       if (e.button === 0) {
-        if (s.flying) triggerAerialSwoop(reduced);
-        else triggerLightAttack(reduced);
+        if (s.flying) { if (!executeTurnCommand('swoop', reduced)) triggerAerialSwoop(reduced); }
+        else if (!executeTurnCommand('slash', reduced)) triggerLightAttack(reduced);
       } else if (e.button === 2) {
         e.preventDefault();
-        if (s.flying) triggerSkySwordBeam(reduced);
-        else triggerParry(reduced);
+        if (s.flying) { if (!executeTurnCommand('beam', reduced)) triggerSkySwordBeam(reduced); }
+        else if (!executeTurnCommand('ward', reduced)) triggerParry(reduced);
       }
     };
 
     const onContextMenu = (e: MouseEvent) => {
-      if (!isUiElement(e.target) && canAct()) e.preventDefault();
+      if (!isHudOrButton(e.target) && canAct()) e.preventDefault();
     };
 
     window.addEventListener('keydown', onKeyDown);

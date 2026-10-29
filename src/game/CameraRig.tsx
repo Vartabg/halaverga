@@ -7,6 +7,7 @@ import { presentation as pose, CHASE_HEAD } from './presentation';
 import { baseFovStep, boomFor, CAM, fovFor, hipFovFor, shortWeight } from './cameraFx';
 import { useGame } from './store';
 import { boomBlocks } from './boomFilter';
+import { gowRuntime } from './gowTypes';
 const rotation = new Euler(0, 0, 0, 'YXZ'), q = new Quaternion(), desired = new Vector3(), dir = new Vector3(), head = new Vector3();
 const shakeEuler = new Euler(0, 0, 0, 'YXZ'), shake = new Quaternion(), axis = new Vector3();
 // Speed-widened FOV, damped on its own so the ADS drop and shot punches never compound into the damp. Synced to c.fov on init.
@@ -37,7 +38,8 @@ export default function CameraRig() {
     head.y += CHASE_HEAD;
     if (iso) {
       const k = w > 0 ? 1 - CAM.near * Math.min(w, 1) * 0.35 : 1;
-      desired.set(0, 0, (state.flying ? 19.2 : 15.2) * k);
+      const zoom = gowRuntime.action !== 'idle' || gowRuntime.turnPhase === 'ENEMY_TURN' ? 2.0 : 0;
+      desired.set(0, 0, ((state.flying ? 18.8 : 15.2) - zoom) * k);
     } else if (state.camera === 'third') {
       boomFor(blend, aspect, desired, w);
     } else desired.set(0, 0, 0);

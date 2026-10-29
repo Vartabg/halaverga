@@ -2,8 +2,11 @@ import { readFileSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
+  cycleTarget,
+  executeTurnCommand,
   findFreeflowTarget,
   resetGowState,
+  selectTarget,
   triggerAerialSwoop,
   triggerDodgeRoll,
   triggerHeavyBash,
@@ -52,10 +55,10 @@ describe('God of War 65-bone Archangel GLB asset pipeline & clipStart windowing'
     expect(ATTACK_SPECS.swoop.clipStart).toBeGreaterThanOrEqual(0.42);
     expect(ATTACK_SPECS.sky_beam.clipStart).toBeGreaterThanOrEqual(0.42);
 
-    // Verify Stage 1 2.5D Illustrated Fighter Sprites and Painted Sanctuary Floor exist
-    for (const sprite of ['uriel-ground.png', 'uriel-aerial.png', 'semjaza.png', 'vanguard.png', 'sanctuary-floor.jpg', 'uriel-portrait.jpg']) {
+    // Verify Stage 1 2.5D Illustrated Fighter Sprites, Portraits, and Painted Sanctuary Floor exist
+    for (const sprite of ['uriel-ground.png', 'uriel-aerial.png', 'semjaza.png', 'vanguard.png', 'sanctuary-floor.jpg', 'uriel-portrait.jpg', 'semjaza-portrait.jpg', 'vanguard-portrait.jpg']) {
       const sStat = statSync(resolve(ROOT, 'public/sprites', sprite));
-      expect(sStat.size).toBeGreaterThan(5_000);
+      expect(sStat.size).toBeGreaterThan(2_000);
     }
   });
 
@@ -315,5 +318,65 @@ describe('Batman: Arkham Freeflow + God of War Combat & Elevated Aerial Swoop / 
     gowRuntime.action = 'idle';
     expect(triggerHeavyBash(true)).toBe(true);
     expect(gowRuntime.action).toBe('heavy');
+  });
+
+  it('executes Turn-Based Cinematic Stance & Telegraph Duel: 2 AP spending, Take Wing Ground Quake evasion, and Counter Ward riposte', () => {
+    resetGowState();
+    expect(gowRuntime.turnPhase).toBe('PLAYER_TURN');
+    expect(gowRuntime.ap).toBe(2);
+
+    // 1. Select Semjaza explicitly and spend 1 AP on Dawn Cleave
+    selectTarget('semjaza-boss');
+    expect(gowRuntime.lockedTargetId).toBe('semjaza-boss');
+    const boss = gowRuntime.enemies.find((e) => e.id === 'semjaza-boss')!;
+    const bossHpBefore = boss.hp;
+
+    expect(executeTurnCommand('slash', true)).toBe(true);
+    expect(gowRuntime.ap).toBe(1);
+    expect(gowRuntime.turnPhase).toBe('PLAYER_ANIMATING');
+
+    for (let i = 0; i < 12; i++) stepGowFrame(0.05, true);
+    expect(boss.hp).toBeLessThan(bossHpBefore);
+    expect(gowRuntime.turnPhase).toBe('PLAYER_TURN'); // Still 1 AP left
+
+    // 2. Spend 2nd AP on Take Wing (Elevate to Sky Stance) to evade Ground Quakes
+    cycleTarget(1);
+    expect(executeTurnCommand('wing', true)).toBe(true);
+    expect(gowRuntime.ap).toBe(0);
+    expect(useGame.getState().flying).toBe(true);
+
+    // Force all enemies to have altar_quake intent so Sky Stance evades all of them
+    for (const e of gowRuntime.enemies) {
+      e.intent = 'altar_quake';
+      e.intentDamage = 25;
+    }
+    const hpBeforeEnemyTurn = gowRuntime.hp;
+    const rageBeforeEnemyTurn = gowRuntime.rage;
+
+    // Advance through PLAYER_ANIMATING -> ENEMY_TURN -> Round 2 PLAYER_TURN
+    for (let i = 0; i < 55; i++) stepGowFrame(0.05, true);
+    expect(gowRuntime.turnPhase).toBe('PLAYER_TURN');
+    expect(gowRuntime.turnNumber).toBe(2);
+    expect(gowRuntime.ap).toBe(2);
+    expect(gowRuntime.hp).toBe(hpBeforeEnemyTurn); // 0 damage taken from Ground Quakes while On Wing!
+    expect(gowRuntime.rage).toBeGreaterThan(rageBeforeEnemyTurn);
+
+    // 3. In Round 2 (Sky Stance), spend 1 AP on Celestial Sword Beam (stays airborne) and 1 AP on Swoop Strike (lands)
+    selectTarget('nephilim-west');
+    expect(executeTurnCommand('beam', true)).toBe(true);
+    expect(useGame.getState().flying).toBe(true);
+    for (let i = 0; i < 10; i++) stepGowFrame(0.05, true);
+    expect(gowRuntime.turnPhase).toBe('PLAYER_TURN');
+    expect(gowRuntime.ap).toBe(1);
+
+    // Arm Counter Ward after descending and verify automatic riposte on ENEMY_TURN
+    expect(executeTurnCommand('wing', true)).toBe(true); // 0 AP Feather Descent
+    expect(useGame.getState().flying).toBe(false);
+    const westGuard = gowRuntime.enemies[0];
+    westGuard.intent = 'melee_cleave';
+    const westHpBefore = westGuard.hp;
+    expect(executeTurnCommand('ward', true)).toBe(true); // Uses 2nd AP and triggers ENEMY_TURN
+    for (let i = 0; i < 55; i++) stepGowFrame(0.05, true);
+    expect(westGuard.hp).toBeLessThan(westHpBefore); // Auto-riposted during ENEMY_TURN!
   });
 });

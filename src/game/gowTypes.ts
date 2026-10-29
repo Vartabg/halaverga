@@ -5,6 +5,9 @@ export type GowAction =
   | 'counter' | 'parry' | 'dodge' | 'runic' | 'rage_slam' | 'execute'
   | 'swoop' | 'sky_beam' | 'hurt';
 
+export type TurnPhase = 'PLAYER_TURN' | 'PLAYER_ANIMATING' | 'ENEMY_TURN';
+export type EnemyIntent = 'melee_cleave' | 'altar_quake' | 'sky_piercer';
+
 export const GOW_CLIPS = [
   'Idle_Loop', 'Walk_Loop', 'Jog_Fwd_Loop', 'Sprint_Loop', 'Roll',
   'Jump_Start', 'Jump_Loop', 'Jump_Land', 'Sword_Idle', 'Sword_Attack',
@@ -32,17 +35,17 @@ export type AttackSpec = {
 };
 
 export const ATTACK_SPECS: Record<Exclude<GowAction, 'idle' | 'parry' | 'dodge' | 'hurt'>, AttackSpec> = {
-  light1: { action: 'light1', clip: 'Sword_Attack', clipStart: 0.58, duration: 0.44, hitTime: 0.16, damage: 24, stun: 12, reach: 3.9, lungeSpeed: 6.5, lungeDuration: 0.2, timeScale: 1.65, slashTilt: 0.35, spinTurns: 0, label: 'DAWN CLEAVE' },
-  light2: { action: 'light2', clip: 'Punch_Jab', clipStart: 0.08, duration: 0.40, hitTime: 0.14, damage: 28, stun: 16, reach: 4.0, lungeSpeed: 7.2, lungeDuration: 0.2, timeScale: 1.75, slashTilt: -0.45, spinTurns: 0, label: 'AEGIS BACKHAND' },
-  light3: { action: 'light3', clip: 'Punch_Cross', clipStart: 0.12, duration: 0.46, hitTime: 0.18, damage: 34, stun: 22, reach: 4.5, lungeSpeed: 8.0, lungeDuration: 0.22, timeScale: 1.65, slashTilt: 0.08, spinTurns: 0, label: 'WHIRLWIND SLASH' },
-  light4: { action: 'light4', clip: 'Sword_Attack', clipStart: 0.42, duration: 0.54, hitTime: 0.24, damage: 52, stun: 34, reach: 4.8, lungeSpeed: 9.2, lungeDuration: 0.24, timeScale: 1.65, slashTilt: 1.42, spinTurns: 0, label: 'HEAVENS WRATH' },
-  heavy: { action: 'heavy', clip: 'Sword_Attack', clipStart: 0.45, duration: 0.52, hitTime: 0.22, damage: 32, stun: 48, reach: 4.2, lungeSpeed: 7.8, lungeDuration: 0.22, timeScale: 1.65, slashTilt: 1.52, spinTurns: 0, label: 'LEVIATHAN SLAM' },
-  counter: { action: 'counter', clip: 'Punch_Cross', clipStart: 0.12, duration: 0.46, hitTime: 0.15, damage: 36, stun: 55, reach: 4.6, lungeSpeed: 10.5, lungeDuration: 0.2, timeScale: 1.65, slashTilt: -0.25, spinTurns: 0, label: 'ARKHAM RIPOSTE' },
+  light1: { action: 'light1', clip: 'Sword_Attack', clipStart: 0.58, duration: 0.44, hitTime: 0.16, damage: 34, stun: 28, reach: 3.9, lungeSpeed: 6.5, lungeDuration: 0.2, timeScale: 1.65, slashTilt: 0.35, spinTurns: 0, label: 'DAWN CLEAVE' },
+  light2: { action: 'light2', clip: 'Punch_Jab', clipStart: 0.08, duration: 0.40, hitTime: 0.14, damage: 36, stun: 30, reach: 4.0, lungeSpeed: 7.2, lungeDuration: 0.2, timeScale: 1.75, slashTilt: -0.45, spinTurns: 0, label: 'AEGIS BACKHAND' },
+  light3: { action: 'light3', clip: 'Punch_Cross', clipStart: 0.12, duration: 0.46, hitTime: 0.18, damage: 40, stun: 34, reach: 4.5, lungeSpeed: 8.0, lungeDuration: 0.22, timeScale: 1.65, slashTilt: 0.08, spinTurns: 0, label: 'WHIRLWIND SLASH' },
+  light4: { action: 'light4', clip: 'Sword_Attack', clipStart: 0.42, duration: 0.54, hitTime: 0.24, damage: 52, stun: 40, reach: 4.8, lungeSpeed: 9.2, lungeDuration: 0.24, timeScale: 1.65, slashTilt: 1.42, spinTurns: 0, label: 'HEAVENS WRATH' },
+  heavy: { action: 'heavy', clip: 'Sword_Attack', clipStart: 0.45, duration: 0.52, hitTime: 0.22, damage: 44, stun: 48, reach: 4.2, lungeSpeed: 7.8, lungeDuration: 0.22, timeScale: 1.65, slashTilt: 1.52, spinTurns: 0, label: 'LEVIATHAN SLAM' },
+  counter: { action: 'counter', clip: 'Punch_Cross', clipStart: 0.12, duration: 0.46, hitTime: 0.15, damage: 42, stun: 55, reach: 4.6, lungeSpeed: 10.5, lungeDuration: 0.2, timeScale: 1.65, slashTilt: -0.25, spinTurns: 0, label: 'ARKHAM RIPOSTE' },
   runic: { action: 'runic', clip: 'Spell_Simple_Shoot', clipStart: 0.06, duration: 0.48, hitTime: 0.18, damage: 58, stun: 36, reach: 18.0, lungeSpeed: 0, lungeDuration: 0, timeScale: 1.35, slashTilt: 0, spinTurns: 0, label: 'URIEL FLAME' },
-  rage_slam: { action: 'rage_slam', clip: 'Jump_Land', clipStart: 0.05, duration: 0.58, hitTime: 0.24, damage: 72, stun: 55, reach: 7.0, lungeSpeed: 9.5, lungeDuration: 0.26, timeScale: 1.45, slashTilt: 0, spinTurns: 0, label: 'ARCHANGEL SLAM' },
+  rage_slam: { action: 'rage_slam', clip: 'Jump_Land', clipStart: 0.05, duration: 0.58, hitTime: 0.24, damage: 72, stun: 55, reach: 12.0, lungeSpeed: 9.5, lungeDuration: 0.26, timeScale: 1.45, slashTilt: 0, spinTurns: 0, label: 'DAWN JUDGEMENT' },
   execute: { action: 'execute', clip: 'Sword_Attack', clipStart: 0.42, duration: 0.62, hitTime: 0.26, damage: 140, stun: 0, reach: 4.5, lungeSpeed: 7.5, lungeDuration: 0.22, timeScale: 1.55, slashTilt: 1.35, spinTurns: 0, label: 'WATCHER EXECUTION' },
-  swoop: { action: 'swoop', clip: 'Sword_Attack', clipStart: 0.45, duration: 0.50, hitTime: 0.34, damage: 56, stun: 42, reach: 6.5, lungeSpeed: 24.0, lungeDuration: 0.34, timeScale: 1.65, slashTilt: 1.35, spinTurns: 0, label: 'ARCHANGEL SWOOP' },
-  sky_beam: { action: 'sky_beam', clip: 'Sword_Attack', clipStart: 0.58, duration: 0.38, hitTime: 0.12, damage: 38, stun: 24, reach: 28.0, lungeSpeed: 0, lungeDuration: 0, timeScale: 1.85, slashTilt: 0.25, spinTurns: 0, label: 'CELESTIAL SWORD BEAM' },
+  swoop: { action: 'swoop', clip: 'Sword_Attack', clipStart: 0.45, duration: 0.50, hitTime: 0.34, damage: 56, stun: 45, reach: 6.5, lungeSpeed: 24.0, lungeDuration: 0.34, timeScale: 1.65, slashTilt: 1.35, spinTurns: 0, label: 'AERIAL SWOOP STRIKE' },
+  sky_beam: { action: 'sky_beam', clip: 'Sword_Attack', clipStart: 0.58, duration: 0.38, hitTime: 0.12, damage: 38, stun: 28, reach: 28.0, lungeSpeed: 0, lungeDuration: 0, timeScale: 1.85, slashTilt: 0.25, spinTurns: 0, label: 'CELESTIAL SWORD BEAM' },
 };
 
 export type EnemyId = 'nephilim-west' | 'nephilim-east' | 'semjaza-boss';
@@ -54,6 +57,7 @@ export interface GowEnemy {
   hp: number; maxHp: number; stun: number; maxStun: number;
   state: EnemyState; stateTimer: number; stateDuration: number; hitDealt: boolean;
   cooldown: number; attackIndex: number; respawnTimer: number; clip: GowClipName; clipSpeed: number; flashTimer: number;
+  intent: EnemyIntent; intentDamage: number; intentLabel: string; portrait: string;
 }
 
 export interface GowProjectile {
@@ -75,33 +79,54 @@ export function createInitialEnemies(): GowEnemy[] {
   return [
     {
       id: 'nephilim-west', name: 'Azazel Vanguard', title: 'Fallen Guard', isBoss: false, scale: 1.18,
-      x: -4.2, y: 20, z: 56.5, vx: 0, vz: 0, spawnX: -4.2, spawnZ: 56.5, yaw: 0,
+      x: -4.2, y: 20, z: 57.5, vx: 0, vz: 0, spawnX: -4.2, spawnZ: 57.5, yaw: 0,
       hp: 140, maxHp: 140, stun: 0, maxStun: 100, state: 'idle', stateTimer: 0, stateDuration: 1,
       hitDealt: false, cooldown: 0.9, attackIndex: 0, respawnTimer: 0, clip: 'Sword_Idle', clipSpeed: 1, flashTimer: 0,
+      intent: 'melee_cleave', intentDamage: 16, intentLabel: '⚔️ CLEAVE 16 DMG · COUNTERABLE', portrait: '/sprites/vanguard-portrait.jpg',
     },
     {
       id: 'nephilim-east', name: 'Baraqel Vanguard', title: 'Fallen Guard', isBoss: false, scale: 1.18,
-      x: 4.2, y: 20, z: 56.5, vx: 0, vz: 0, spawnX: 4.2, spawnZ: 56.5, yaw: 0,
+      x: 4.2, y: 20, z: 57.5, vx: 0, vz: 0, spawnX: 4.2, spawnZ: 57.5, yaw: 0,
       hp: 140, maxHp: 140, stun: 0, maxStun: 100, state: 'idle', stateTimer: 0, stateDuration: 1,
       hitDealt: false, cooldown: 1.4, attackIndex: 0, respawnTimer: 0, clip: 'Sword_Idle', clipSpeed: 1, flashTimer: 0,
+      intent: 'altar_quake', intentDamage: 22, intentLabel: '🌋 QUAKE 22 DMG · EVADE ON WING', portrait: '/sprites/vanguard-portrait.jpg',
     },
     {
       id: 'semjaza-boss', name: 'Semjaza', title: 'Chief of the Two Hundred Watchers', isBoss: true, scale: 2.15,
-      x: 0, y: 20, z: 49.0, vx: 0, vz: 0, spawnX: 0, spawnZ: 49.0, yaw: 0,
+      x: 0, y: 20, z: 51.5, vx: 0, vz: 0, spawnX: 0, spawnZ: 51.5, yaw: 0,
       hp: 520, maxHp: 520, stun: 0, maxStun: 100, state: 'idle', stateTimer: 0, stateDuration: 1,
       hitDealt: false, cooldown: 1.8, attackIndex: 0, respawnTimer: 0, clip: 'Sword_Idle', clipSpeed: 1, flashTimer: 0,
+      intent: 'altar_quake', intentDamage: 28, intentLabel: '🌋 ALTAR QUAKE 28 DMG · GROUND', portrait: '/sprites/semjaza-portrait.jpg',
     },
   ];
 }
 
+export function rollNextEnemyIntents(turn: number, enemies: GowEnemy[]) {
+  const pool: { intent: EnemyIntent; dmg: number; label: string }[] = [
+    { intent: 'melee_cleave', dmg: 16, label: '⚔️ CLEAVE 16 DMG · COUNTERABLE' },
+    { intent: 'altar_quake', dmg: 22, label: '🌋 QUAKE 22 DMG · EVADE ON WING' },
+    { intent: 'sky_piercer', dmg: 18, label: '🏹 SKY BOLT 18 DMG · ANTI-AIR' },
+  ];
+  enemies.forEach((e, idx) => {
+    const pick = pool[(turn + idx) % pool.length];
+    e.intent = pick.intent;
+    e.intentDamage = e.isBoss ? pick.dmg + 8 : pick.dmg;
+    e.intentLabel = e.isBoss
+      ? pick.label.replace(String(pick.dmg), String(pick.dmg + 8))
+      : pick.label;
+  });
+}
+
 export const gowRuntime = {
   heroReady: false, hp: 100, maxHp: 100, rage: 40, maxRage: 100, rageActive: 0,
+  turnPhase: 'PLAYER_TURN' as TurnPhase, turnNumber: 1, ap: 2, maxAp: 2, guardWard: false,
+  activeEnemyIndex: -1, enemyTurnTimer: 0, returnAfterStrike: false, homeX: 0, homeZ: 64.5,
   action: 'idle' as GowAction, actionSeq: 0, actionTimer: 0, actionDuration: 0,
   hitDone: false, queuedLight: false, comboStep: 0, comboResetTimer: 0, comboHits: 0, comboBannerTimer: 0,
   lastMoveLabel: '', parryWindow: 0, dodgeInvuln: 0, runicCooldown: 0, hitstopTimer: 0, realmShiftTimer: 0,
   shockwaveTimer: 0, shockwaveX: 0, shockwaveY: 20, shockwaveZ: 55, shockwaveMaxR: 5, shockwaveColor: '#ffcf5c',
   slashTimer: 0, slashDuration: 0.28, slashTilt: 0, slashSpin: 0, slashColor: '#ffd166',
-  lockedTargetId: null as EnemyId | null, executableId: null as EnemyId | null, threatPrompt: '',
+  lockedTargetId: null as EnemyId | null, explicitLock: false, executableId: null as EnemyId | null, threatPrompt: '',
   threatTone: 'gold' as 'gold' | 'crimson' | 'stun',
   cursorWorldX: 0, cursorWorldZ: 55, cursorActiveTimer: 0, facingLeft: false,
   enemies: createInitialEnemies(),
