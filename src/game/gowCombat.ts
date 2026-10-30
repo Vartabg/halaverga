@@ -7,7 +7,9 @@ import { ATTACK_SPECS, createInitialEnemies, gowRuntime, type EnemyId, type GowE
 
 export function resetGowState() {
   Object.assign(gowRuntime, {
-    hp: 100, rage: 40, rageActive: 0, turnPhase: 'PLAYER_TURN', turnNumber: 1, ap: 2, maxAp: 2, guardWard: false, activeEnemyIndex: -1, enemyTurnTimer: 0, returnAfterStrike: false, homeX: 0, homeZ: 64.5,
+    hp: 100, rage: 40, rageActive: 0, demoMode: 'clash', ecoMode: true, cutInTimer: 0, cutInTitle: '', cutInSub: '', cutInPortrait: '/sprites/uriel-portrait.jpg',
+    oathTethers: [true, true], sigilPrism: false, sigilSwipeActive: false, sigilRibbonTimer: 0, divePhase: 'NONE', diveTimer: 0, collisionCooldown: 0,
+    turnPhase: 'PLAYER_TURN', turnNumber: 1, ap: 2, maxAp: 2, guardWard: false, activeEnemyIndex: -1, enemyTurnTimer: 0, returnAfterStrike: false, homeX: 0, homeZ: 64.5,
     action: 'idle', actionSeq: 0, actionTimer: 0, actionDuration: 0, hitDone: false, queuedLight: false, comboStep: 0, comboResetTimer: 0, comboHits: 0, comboBannerTimer: 0,
     lastMoveLabel: '', parryWindow: 0, dodgeInvuln: 0, runicCooldown: 0, hitstopTimer: 0, realmShiftTimer: 0, shockwaveTimer: 0, slashTimer: 0, lockedTargetId: null, explicitLock: false, executableId: null, threatPrompt: '',
     cursorActiveTimer: 0, facingLeft: false, enemies: createInitialEnemies(),
@@ -16,19 +18,10 @@ export function resetGowState() {
   for (const s of gowRuntime.sparks) s.active = false;
   gowRuntime.popups.length = 0; combatMotion.vx = combatMotion.vy = combatMotion.vz = combatMotion.timer = 0;
 }
-export function selectTarget(id: EnemyId) {
-  const e = gowRuntime.enemies.find(item => item.id === id && item.state !== 'dead');
-  if (e) { gowRuntime.lockedTargetId = e.id; gowRuntime.explicitLock = true; gowRuntime.facingLeft = e.x < runtime.position.x; }
-}
-export function cycleTarget(delta = 1) {
-  const live = gowRuntime.enemies.filter(e => e.state !== 'dead');
-  if (live.length) selectTarget(live[(live.findIndex(e => e.id === gowRuntime.lockedTargetId) + delta + live.length) % live.length].id);
-}
+export function selectTarget(id: EnemyId) { const e = gowRuntime.enemies.find(item => item.id === id && item.state !== 'dead'); if (e) { gowRuntime.lockedTargetId = e.id; gowRuntime.explicitLock = true; gowRuntime.facingLeft = e.x < runtime.position.x; } }
+export function cycleTarget(delta = 1) { const live = gowRuntime.enemies.filter(e => e.state !== 'dead'); if (live.length) selectTarget(live[(live.findIndex(e => e.id === gowRuntime.lockedTargetId) + delta + live.length) % live.length].id); }
 export function startEnemyTurn() { Object.assign(gowRuntime, { turnPhase: 'ENEMY_TURN', activeEnemyIndex: 0, enemyTurnTimer: 0, ap: 0 }); }
-export function pushPopup(text: string, tone: GowPopup['tone'], x: number, y: number, z: number) {
-  if (gowRuntime.popups.length >= 8) gowRuntime.popups.shift();
-  gowRuntime.popups.push({ id: gowRuntime.nextPopupId++, text, tone, x, y, z, age: 0 });
-}
+export function pushPopup(text: string, tone: GowPopup['tone'], x: number, y: number, z: number) { if (gowRuntime.popups.length >= 8) gowRuntime.popups.shift(); gowRuntime.popups.push({ id: gowRuntime.nextPopupId++, text, tone, x, y, z, age: 0 }); }
 export function spawnHitSparks(x: number, y: number, z: number, color: string, count = 6) {
   for (let i = 0, spawned = 0; i < gowRuntime.sparks.length && spawned < count; i++) {
     const s = gowRuntime.sparks[i]; if (s.active && s.life > 0.08) continue;
@@ -69,7 +62,6 @@ function orientAndLunge(baseSpeed: number, lungeDuration: number, reduced: boole
   }
   if (baseSpeed > 0 && lungeDuration > 0) Object.assign(combatMotion, { vx: -Math.sin(runtime.yaw) * baseSpeed, vz: -Math.cos(runtime.yaw) * baseSpeed, timer: lungeDuration });
 }
-
 function startSpecAttack(key: keyof typeof ATTACK_SPECS, reduced: boolean) {
   const spec = ATTACK_SPECS[key];
   Object.assign(gowRuntime, { action: spec.action, actionSeq: gowRuntime.actionSeq + 1, actionTimer: 0, actionDuration: spec.duration, hitDone: false, lastMoveLabel: spec.label, comboBannerTimer: 2.0 });
@@ -79,14 +71,16 @@ function startSpecAttack(key: keyof typeof ATTACK_SPECS, reduced: boolean) {
   }
   if (key !== 'swoop' && key !== 'sky_beam') orientAndLunge(spec.lungeSpeed, spec.lungeDuration, reduced);
 }
-
 export function applyHitToEnemy(e: GowEnemy, damage: number, stun: number, reduced: boolean, tag?: string) {
   if (e.state === 'dead') return;
-  const dmg = Math.round(damage * (gowRuntime.rageActive > 0 ? 1.35 : 1) * (e.state === 'stunned' ? 1.25 : 1));
+  const aegis = e.isBoss && gowRuntime.demoMode === 'sigil' && gowRuntime.oathTethers.some(Boolean) && tag !== 'OATH SHOCK' && tag !== 'PRISM REFLECT';
+  const dmg = Math.max(2, Math.round(damage * (aegis ? 0.35 : 1) * (gowRuntime.rageActive > 0 ? 1.35 : 1) * (e.state === 'stunned' ? 1.25 : 1)));
   e.hp = Math.max(0, e.hp - dmg); e.flashTimer = 0.22;
   gowRuntime.rage = Math.min(gowRuntime.maxRage, gowRuntime.rage + 10); gowRuntime.comboHits++; gowRuntime.comboBannerTimer = 2.2;
-  const dx = e.x - runtime.position.x, dz = e.z - runtime.position.z, dist = Math.max(0.1, Math.hypot(dx, dz)), kb = damage >= 45 || stun >= 40 ? 6.0 : 3.2;
-  e.vx = (dx / dist) * kb; e.vz = (dz / dist) * kb;
+  const boss = gowRuntime.enemies[2], useBossVec = gowRuntime.demoMode === 'clash' && !e.isBoss && boss && boss.state !== 'dead';
+  const vx = useBossVec ? boss.x - e.x : e.x - runtime.position.x, vz = useBossVec ? boss.z - e.z : e.z - runtime.position.z;
+  const dist = Math.max(0.1, Math.hypot(vx, vz)), kb = gowRuntime.demoMode === 'clash' && (damage >= 40 || tag === 'VECTOR RAM') ? 24.0 : damage >= 45 || stun >= 40 ? 6.5 : 3.2;
+  if (tag !== 'CHAIN COLLISION' && tag !== 'PILLAR SLAM') { e.vx = (vx / dist) * kb; e.vz = (vz / dist) * kb; }
   spawnHitSparks(e.x, e.y + 1.15 * e.scale, e.z, stun >= 30 ? '#ff9f1c' : '#ffd166', damage >= 45 ? 10 : 6); playImpactAudio(damage >= 32 || stun >= 30);
   if (e.hp <= 0) {
     Object.assign(e, { state: 'dead', stateTimer: 0, stateDuration: 2.6, respawnTimer: e.isBoss ? 7.0 : 5.0 });
@@ -97,7 +91,7 @@ export function applyHitToEnemy(e: GowEnemy, damage: number, stun: number, reduc
   e.stun = Math.min(e.maxStun, e.stun + stun);
   if (e.stun >= e.maxStun && e.state !== 'stunned') { Object.assign(e, { state: 'stunned', stateTimer: 0, stateDuration: 4.5 }); pushPopup('STUNNED · SKIP NEXT TURN!', 'stun', e.x, e.y + 2.1 * e.scale, e.z); }
   else if (e.state !== 'stunned' && (stun >= 20 || !e.isBoss || e.state === 'idle' || e.state === 'chase')) Object.assign(e, { state: 'stagger', stateTimer: 0, stateDuration: 0.52 });
-  pushPopup(tag ? `${tag} -${dmg}` : `-${dmg}`, stun >= 30 ? 'stun' : 'gold', e.x, e.y + 1.8 * e.scale, e.z);
+  pushPopup(aegis ? `OATH AEGIS -${dmg}` : tag ? `${tag} -${dmg}` : `-${dmg}`, stun >= 30 ? 'stun' : 'gold', e.x, e.y + 1.8 * e.scale, e.z);
 }
 export function triggerAerialSwoop(reduced = false): boolean {
   const px = runtime.position.x, py = runtime.position.y, pz = runtime.position.z, target = findFreeflowTarget(px, pz, 28.0), diveDur = 0.34;
@@ -122,7 +116,6 @@ export function triggerStunExecute(reduced = false): boolean {
   gowRuntime.hp = Math.min(gowRuntime.maxHp, gowRuntime.hp + 25); gowRuntime.rage = Math.min(gowRuntime.maxRage, gowRuntime.rage + 25);
   Object.assign(gowRuntime, { shockwaveTimer: 0.45, shockwaveColor: '#ffae42', shockwaveX: stunned.x, shockwaveY: stunned.y + 0.15, shockwaveZ: stunned.z, shockwaveMaxR: 4.8 }); return true;
 }
-
 export function triggerLightAttack(reduced = false): boolean {
   if (useGame.getState().flying) return triggerAerialSwoop(reduced);
   if (gowRuntime.action === 'idle' && triggerStunExecute(reduced)) return true;
@@ -174,7 +167,6 @@ export function triggerWingedRage(reduced = false): boolean {
   Object.assign(gowRuntime, { shockwaveTimer: 0.55, shockwaveColor: '#ffcf5c', shockwaveX: runtime.position.x, shockwaveY: runtime.position.y - 0.95, shockwaveZ: runtime.position.z, shockwaveMaxR: 7.2 });
   return true;
 }
-
 export function executeTurnCommand(cmd: 'slash' | 'ward' | 'wing' | 'swoop' | 'beam' | 'rage' | 'end', reduced = false): boolean {
   if (gowRuntime.turnPhase !== 'PLAYER_TURN') return false;
   if (cmd === 'end') { startEnemyTurn(); return true; }

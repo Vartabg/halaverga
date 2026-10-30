@@ -7,6 +7,8 @@ export type GowAction =
 
 export type TurnPhase = 'PLAYER_TURN' | 'PLAYER_ANIMATING' | 'ENEMY_TURN';
 export type EnemyIntent = 'melee_cleave' | 'altar_quake' | 'sky_piercer';
+export type DemoMode = 'clash' | 'sigil' | 'dive';
+export type DivePhase = 'NONE' | 'BREACH_AIM' | 'DIVING';
 
 export const GOW_CLIPS = [
   'Idle_Loop', 'Walk_Loop', 'Jog_Fwd_Loop', 'Sprint_Loop', 'Roll',
@@ -39,9 +41,9 @@ export const ATTACK_SPECS: Record<Exclude<GowAction, 'idle' | 'parry' | 'dodge' 
   light2: { action: 'light2', clip: 'Punch_Jab', clipStart: 0.08, duration: 0.40, hitTime: 0.14, damage: 36, stun: 30, reach: 4.0, lungeSpeed: 7.2, lungeDuration: 0.2, timeScale: 1.75, slashTilt: -0.45, spinTurns: 0, label: 'AEGIS BACKHAND' },
   light3: { action: 'light3', clip: 'Punch_Cross', clipStart: 0.12, duration: 0.46, hitTime: 0.18, damage: 40, stun: 34, reach: 4.5, lungeSpeed: 8.0, lungeDuration: 0.22, timeScale: 1.65, slashTilt: 0.08, spinTurns: 0, label: 'WHIRLWIND SLASH' },
   light4: { action: 'light4', clip: 'Sword_Attack', clipStart: 0.42, duration: 0.54, hitTime: 0.24, damage: 52, stun: 40, reach: 4.8, lungeSpeed: 9.2, lungeDuration: 0.24, timeScale: 1.65, slashTilt: 1.42, spinTurns: 0, label: 'HEAVENS WRATH' },
-  heavy: { action: 'heavy', clip: 'Sword_Attack', clipStart: 0.45, duration: 0.52, hitTime: 0.22, damage: 44, stun: 48, reach: 4.2, lungeSpeed: 7.8, lungeDuration: 0.22, timeScale: 1.65, slashTilt: 1.52, spinTurns: 0, label: 'LEVIATHAN SLAM' },
+  heavy: { action: 'heavy', clip: 'Sword_Attack', clipStart: 0.45, duration: 0.52, hitTime: 0.22, damage: 44, stun: 48, reach: 4.2, lungeSpeed: 7.8, lungeDuration: 0.22, timeScale: 1.65, slashTilt: 1.52, spinTurns: 0, label: 'VECTOR RAM' },
   counter: { action: 'counter', clip: 'Punch_Cross', clipStart: 0.12, duration: 0.46, hitTime: 0.15, damage: 42, stun: 55, reach: 4.6, lungeSpeed: 10.5, lungeDuration: 0.2, timeScale: 1.65, slashTilt: -0.25, spinTurns: 0, label: 'ARKHAM RIPOSTE' },
-  runic: { action: 'runic', clip: 'Spell_Simple_Shoot', clipStart: 0.06, duration: 0.48, hitTime: 0.18, damage: 58, stun: 36, reach: 18.0, lungeSpeed: 0, lungeDuration: 0, timeScale: 1.35, slashTilt: 0, spinTurns: 0, label: 'URIEL FLAME' },
+  runic: { action: 'runic', clip: 'Spell_Simple_Shoot', clipStart: 0.06, duration: 0.48, hitTime: 0.18, damage: 58, stun: 36, reach: 18.0, lungeSpeed: 0, lungeDuration: 0, timeScale: 1.35, slashTilt: 0, spinTurns: 0, label: 'STAR-FALL VECTOR' },
   rage_slam: { action: 'rage_slam', clip: 'Jump_Land', clipStart: 0.05, duration: 0.58, hitTime: 0.24, damage: 72, stun: 55, reach: 12.0, lungeSpeed: 9.5, lungeDuration: 0.26, timeScale: 1.45, slashTilt: 0, spinTurns: 0, label: 'DAWN JUDGEMENT' },
   execute: { action: 'execute', clip: 'Sword_Attack', clipStart: 0.42, duration: 0.62, hitTime: 0.26, damage: 140, stun: 0, reach: 4.5, lungeSpeed: 7.5, lungeDuration: 0.22, timeScale: 1.55, slashTilt: 1.35, spinTurns: 0, label: 'WATCHER EXECUTION' },
   swoop: { action: 'swoop', clip: 'Sword_Attack', clipStart: 0.45, duration: 0.50, hitTime: 0.34, damage: 56, stun: 45, reach: 6.5, lungeSpeed: 24.0, lungeDuration: 0.34, timeScale: 1.65, slashTilt: 1.35, spinTurns: 0, label: 'AERIAL SWOOP STRIKE' },
@@ -111,14 +113,18 @@ export function rollNextEnemyIntents(turn: number, enemies: GowEnemy[]) {
     const pick = pool[(turn + idx) % pool.length];
     e.intent = pick.intent;
     e.intentDamage = e.isBoss ? pick.dmg + 8 : pick.dmg;
-    e.intentLabel = e.isBoss
-      ? pick.label.replace(String(pick.dmg), String(pick.dmg + 8))
-      : pick.label;
+    e.intentLabel = e.isBoss ? pick.label.replace(String(pick.dmg), String(pick.dmg + 8)) : pick.label;
   });
 }
 
 export const gowRuntime = {
   heroReady: false, hp: 100, maxHp: 100, rage: 40, maxRage: 100, rageActive: 0,
+  demoMode: 'clash' as DemoMode, ecoMode: true,
+  cutInTimer: 0, cutInTitle: '', cutInSub: '', cutInPortrait: '/sprites/uriel-portrait.jpg',
+  oathTethers: [true, true] as [boolean, boolean], sigilPrism: false,
+  sigilSwipeActive: false, sigilStartX: 0, sigilStartZ: 0, sigilEndX: 0, sigilEndZ: 0, sigilRibbonTimer: 0,
+  divePhase: 'NONE' as DivePhase, diveTimer: 0, diveDuration: 0.65, diveStyle: 'meteor' as 'meteor' | 'flank' | 'solar',
+  collisionCooldown: 0,
   turnPhase: 'PLAYER_TURN' as TurnPhase, turnNumber: 1, ap: 2, maxAp: 2, guardWard: false,
   activeEnemyIndex: -1, enemyTurnTimer: 0, returnAfterStrike: false, homeX: 0, homeZ: 64.5,
   action: 'idle' as GowAction, actionSeq: 0, actionTimer: 0, actionDuration: 0,

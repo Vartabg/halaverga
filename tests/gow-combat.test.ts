@@ -18,6 +18,7 @@ import {
   triggerWingedRage,
 } from '@/game/gowCombat';
 import { stepGowFrame } from '@/game/gowEnemies';
+import { executeModeCommand, handleSigilSwipe, launchDiveBreach, switchDemoMode } from '@/game/gowPrototypeLab';
 import { ATTACK_SPECS, GOW_CLIPS, gowRuntime } from '@/game/gowTypes';
 import { advanceVelocity, combatMotion, stepIsoShooterVelocity } from '@/game/motion';
 import { runtime } from '@/game/runtime';
@@ -378,5 +379,58 @@ describe('Batman: Arkham Freeflow + God of War Combat & Elevated Aerial Swoop / 
     expect(executeTurnCommand('ward', true)).toBe(true); // Uses 2nd AP and triggers ENEMY_TURN
     for (let i = 0; i < 55; i++) stepGowFrame(0.05, true);
     expect(westGuard.hp).toBeLessThan(westHpBefore); // Auto-riposted during ENEMY_TURN!
+  });
+
+  it('switches across all 3 Prototype Lab modes: Diorama Clash chain collisions, Sigil Weaver oath-severing & prism reflect, and Dive-to-Duel spline breach', () => {
+    // 1. Mode 1: DIORAMA CLASH — Vector Ram launches Azazel Vanguard from default formation into Semjaza for Chain Collision
+    switchDemoMode('clash');
+    expect(gowRuntime.demoMode).toBe('clash');
+    const boss = gowRuntime.enemies[2];
+    const bossHpBefore = boss.hp;
+
+    selectTarget('nephilim-west');
+    expect(executeModeCommand(1, true)).toBe(true); // Vector Ram
+    for (let i = 0; i < 16; i++) stepGowFrame(0.04, true);
+    expect(boss.hp).toBeLessThan(bossHpBefore); // Chain collision damaged Semjaza!
+    expect(gowRuntime.cutInTitle).toContain('COLLISION');
+    expect(gowRuntime.cutInTimer).toBeGreaterThan(0);
+
+    // 2. Mode 2: SIGIL WEAVER — 3D Floor Swipe severs Oath-Tether & Enochian Prism reflects Watcher attack
+    switchDemoMode('sigil');
+    expect(gowRuntime.demoMode).toBe('sigil');
+    expect(gowRuntime.oathTethers).toEqual([true, true]);
+    const bossSigilHp = gowRuntime.enemies[2].hp;
+
+    // Swipe across West Vanguard (-4.2, 57.5) <-> Semjaza (0, 51.5) tether
+    expect(handleSigilSwipe(-5.0, 54.0, 1.0, 55.0, true)).toBe(true);
+    expect(gowRuntime.oathTethers[0]).toBe(false);
+    expect(gowRuntime.enemies[2].hp).toBeLessThan(bossSigilHp); // Oath-Shock damaged Semjaza
+    for (let i = 0; i < 12; i++) stepGowFrame(0.05, true);
+
+    // Spend 2nd AP on Enochian Prism (slot 3) -> triggers ENEMY_TURN and reflects first Watcher strike
+    const eastHpBefore = gowRuntime.enemies[1].hp;
+    gowRuntime.enemies[0].state = 'stunned'; // West stunned from tether sever
+    gowRuntime.enemies[1].intent = 'melee_cleave';
+    expect(executeModeCommand(3, true)).toBe(true);
+    expect(gowRuntime.sigilPrism).toBe(true);
+    for (let i = 0; i < 55; i++) stepGowFrame(0.05, true);
+    expect(gowRuntime.hp).toBe(100); // 100% reflected!
+    expect(gowRuntime.enemies[1].hp).toBeLessThan(eastHpBefore);
+
+    // 3. Mode 3: DIVE-TO-DUEL — High-altitude overlook (y = 33.5) -> Spline Meteor Breach -> AoE Sanctuary impact
+    switchDemoMode('dive');
+    expect(gowRuntime.demoMode).toBe('dive');
+    expect(gowRuntime.divePhase).toBe('BREACH_AIM');
+    expect(runtime.position.y).toBeCloseTo(33.5, 1);
+
+    const totalEnemyHpBefore = gowRuntime.enemies.reduce((acc, e) => acc + e.hp, 0);
+    expect(launchDiveBreach('meteor', true)).toBe(true);
+    expect(gowRuntime.divePhase).toBe('DIVING');
+    for (let i = 0; i < 20; i++) stepGowFrame(0.05, true);
+    expect(gowRuntime.divePhase).toBe('NONE');
+    expect(gowRuntime.turnPhase).toBe('PLAYER_TURN');
+    expect(runtime.position.y).toBeLessThan(23);
+    const totalEnemyHpAfter = gowRuntime.enemies.reduce((acc, e) => acc + e.hp, 0);
+    expect(totalEnemyHpAfter).toBeLessThan(totalEnemyHpBefore - 100);
   });
 });

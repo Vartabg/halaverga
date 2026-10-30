@@ -1,5 +1,19 @@
 .hud{position:absolute;inset:0;z-index:var(--z-hud);pointer-events:none;font-variant-numeric:tabular-nums;-webkit-user-select:none;user-select:none}
-.bossPlate{position:absolute;bottom:58px;left:50%;transform:translateX(-50%);width:min(660px,calc(100% - 370px));padding:10px 12px;background:#0d131a;border:1px solid #f2b84b88;border-radius:12px;box-shadow:0 12px 32px #05070acc;color:#f7f2e8}
+.cutInBanner{position:absolute;left:max(16px,env(safe-area-inset-left));bottom:154px;display:flex;align-items:center;gap:12px;width:min(340px,calc(100% - 32px));padding:9px 16px 9px 10px;background:linear-gradient(110deg,#0d131a 65%,#2b1d12 100%);border:2px solid #ffd166;box-shadow:0 16px 36px #000000cc;clip-path:polygon(0 0,100% 0,94% 100%,0 100%);pointer-events:none}
+@media(prefers-reduced-motion:no-preference){
+  .cutInBanner{animation:cutInSlide .22s cubic-bezier(.16,1,.3,1)}
+}
+@keyframes cutInSlide{from{opacity:0;transform:translateX(-24px) scale(.95)}to{opacity:1;transform:translateX(0) scale(1)}}
+.cutInPortrait{width:52px;height:52px;aspect-ratio:1 / 1;border-radius:8px;border:2px solid #ffd166;object-fit:cover;flex-shrink:0}
+.cutInCopy{display:flex;flex-direction:column;min-width:0}
+.cutInTitle{font-size:15px;font-weight:900;letter-spacing:.1em;text-transform:uppercase;color:#ffd166;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cutInSub{font-size:11px;font-weight:700;letter-spacing:.06em;color:#f7f2e8;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bossPlate{position:absolute;bottom:48px;left:50%;transform:translateX(-50%);width:min(680px,calc(100% - 360px));padding:10px 12px;background:#0d131a;border:1px solid #f2b84b88;border-radius:12px;box-shadow:0 12px 32px #05070acc;color:#f7f2e8}
+.labBar{display:grid;grid-template-columns:repeat(3,minmax(0,1fr)) auto;gap:6px;align-items:center;margin-bottom:8px;padding-bottom:7px;border-bottom:1px solid #ffffff24;pointer-events:auto}
+.labBtn{min-height:36px;padding:4px 8px;background:#141d29;border:1px solid #ffffff33;border-radius:7px;color:#f7f2e8;font-family:inherit;font-size:10.5px;font-weight:800;letter-spacing:.03em;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.labBtn:hover{border-color:#ffd166aa;background:#1c293a}
+.labBtnActive{background:#261f14;border:1.5px solid #ffd166;color:#ffd166;box-shadow:0 0 0 1px #ffd16644}
+.powerBadge{padding:5px 8px;border-radius:6px;background:#112222;border:1px solid #5ee6d088;color:#5ee6d0;font-size:9.5px;font-weight:800;letter-spacing:.05em;white-space:nowrap}
 .bossHeader{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:5px}
 .bossTitle{font-size:clamp(0.68rem, 0.55rem + 0.35vw, 0.82rem);font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#ffd166;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .bossNumbers{font-size:11px;font-weight:700;letter-spacing:.05em;color:#f7f2e8;white-space:nowrap}
@@ -37,7 +51,10 @@
   .bossPlate{top:calc(var(--hdr, 68px) + 42px);bottom:auto;width:min(620px,calc(100% - 24px))}
 }
 @media(max-width:720px){
-  .bossPlate{bottom:max(96px,calc(env(safe-area-inset-bottom) + 88px));top:auto;width:min(372px,calc(100% - 16px));padding:7px 8px}
+  .cutInBanner{display:none}
+  .bossPlate{bottom:max(88px,calc(env(safe-area-inset-bottom) + 82px));top:auto;width:min(376px,calc(100% - 16px));padding:7px 8px}
+  .labBar{grid-template-columns:repeat(3,minmax(0,1fr));gap:4px}
+  .powerBadge{display:none}
   .targetStrip{grid-template-columns:repeat(3,minmax(0,1fr));gap:4px}
   .targetPortrait{display:none}
   .commandRow{grid-template-columns:repeat(3,minmax(0,1fr));gap:4px}
@@ -45,10 +62,11 @@
   .portrait{width:32px;height:32px}
 }
 @media(max-height:500px) and (orientation:landscape){
-  .bossPlate{bottom:10px;top:auto;width:min(480px,68vw);padding:6px 10px}
+  .cutInBanner{display:none}
+  .bossPlate{bottom:8px;top:auto;width:min(520px,74vw);padding:5px 8px}
   .targetStrip{display:none}
   .playerPlate{display:none}
 }
 @media(forced-colors:active){
-  .bossPlate,.playerPlate,.targetCard,.cmdBtn,.endTurnBtn,.comboBadge{background:Canvas;color:CanvasText;border-color:CanvasText}
+  .bossPlate,.playerPlate,.targetCard,.cmdBtn,.endTurnBtn,.comboBadge,.labBtn,.cutInBanner{background:Canvas;color:CanvasText;border-color:CanvasText}
 }

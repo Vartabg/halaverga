@@ -5,6 +5,7 @@ import { useGame } from './store';
 import { heightAt } from '@/world/massifData';
 import { ATTACK_SPECS, gowRuntime, rollNextEnemyIntents, type GowEnemy } from './gowTypes';
 import { applyHitToEnemy, findFreeflowTarget, nearestLiveEnemy, pushPopup, spawnHitSparks, startEnemyTurn, triggerLightAttack } from './gowCombat';
+import { stepPrototypeLab, triggerCutIn } from './gowPrototypeLab';
 
 function spawnProjectile(fromPlayer: boolean, x: number, y: number, z: number, vx: number, vy: number, vz: number, damage: number, stun: number) {
   const slot = gowRuntime.projectiles.find(p => !p.active) ?? gowRuntime.projectiles[0];
@@ -17,7 +18,6 @@ function resolvePlayerStrike(reduced: boolean) {
   const spec = ATTACK_SPECS[act];
   if (gowRuntime.hitDone || gowRuntime.actionTimer < spec.hitTime) return;
   gowRuntime.hitDone = true;
-
   const px = runtime.position.x, py = runtime.position.y, pz = runtime.position.z;
   if (act === 'runic' || act === 'sky_beam') {
     const t = gowRuntime.enemies.find(e => e.id === gowRuntime.lockedTargetId && e.state !== 'dead') ?? nearestLiveEnemy(px, pz, 28);
@@ -28,13 +28,10 @@ function resolvePlayerStrike(reduced: boolean) {
     if (!reduced) { kick(runtime.shooter.camFx, 1.0, 0); punchFov(runtime.shooter.camFx, 'shot', 1.2); }
     return;
   }
-
   if (act === 'swoop') {
-    combatMotion.vy = 0;
-    if (useGame.getState().flying) useGame.setState({ flying: false, landing: false });
+    combatMotion.vy = 0; if (useGame.getState().flying) useGame.setState({ flying: false, landing: false });
     Object.assign(gowRuntime, { shockwaveTimer: 0.48, shockwaveColor: '#ffd166', shockwaveX: px, shockwaveY: 20.12, shockwaveZ: pz, shockwaveMaxR: 6.2 });
   }
-
   let landed = false;
   const fx = -Math.sin(runtime.yaw), fz = -Math.cos(runtime.yaw), isOmni = act === 'rage_slam' || act === 'light3' || act === 'swoop';
   for (const e of gowRuntime.enemies) {
@@ -43,17 +40,14 @@ function resolvePlayerStrike(reduced: boolean) {
     if (!isLocked && act !== 'rage_slam') {
       if (dist > spec.reach + e.scale * 0.55 || (!isOmni && (dist > 0.1 ? (dx / dist) * fx + (dz / dist) * fz : 1) < -0.15)) continue;
     }
-    const tag = act === 'execute' ? 'EXECUTION' : act === 'swoop' ? 'AERIAL SWOOP' : act === 'rage_slam' ? 'DAWN JUDGEMENT' : act === 'light4' ? 'WRATH' : act === 'heavy' ? 'CLEAVE' : undefined;
-    applyHitToEnemy(e, spec.damage, spec.stun, reduced, tag);
-    landed = true;
+    const tag = act === 'execute' ? 'EXECUTION' : act === 'swoop' ? 'AERIAL SWOOP' : act === 'rage_slam' ? 'DAWN JUDGEMENT' : act === 'light4' ? 'WRATH' : act === 'heavy' ? 'VECTOR RAM' : undefined;
+    applyHitToEnemy(e, spec.damage, spec.stun, reduced, tag); landed = true;
   }
-
   if (gowRuntime.returnAfterStrike && !gowRuntime.queuedLight) {
     gowRuntime.returnAfterStrike = false;
-    const rx = gowRuntime.homeX - px, rz = gowRuntime.homeZ - pz, rDist = Math.hypot(rx, rz);
-    if (rDist > 0.4) Object.assign(combatMotion, { vx: (rx / 0.22), vy: 0, vz: (rz / 0.22), timer: 0.22 });
+    const rx = gowRuntime.homeX - px, rz = gowRuntime.homeZ - pz;
+    if (Math.hypot(rx, rz) > 0.4) Object.assign(combatMotion, { vx: rx / 0.22, vy: 0, vz: rz / 0.22, timer: 0.22 });
   }
-
   const heavyHit = act === 'light3' || act === 'light4' || act === 'heavy' || act === 'execute' || act === 'rage_slam' || act === 'counter' || act === 'swoop';
   if (landed && !reduced) {
     gowRuntime.hitstopTimer = heavyHit ? 0.065 : 0.045;
@@ -65,17 +59,23 @@ function resolvePlayerStrike(reduced: boolean) {
 
 function damagePlayer(amount: number, source: GowEnemy, unblockable: boolean, reduced: boolean) {
   if (gowRuntime.dodgeInvuln > 0) { pushPopup('EVADED!', 'parry', runtime.position.x, runtime.position.y + 1.1, runtime.position.z); return; }
+  if (gowRuntime.sigilPrism) {
+    Object.assign(source, { state: 'stagger', stateTimer: 0, stateDuration: 1.25 });
+    applyHitToEnemy(source, 45, 50, reduced, 'PRISM REFLECT');
+    Object.assign(gowRuntime, { shockwaveTimer: 0.45, shockwaveColor: '#ffd166', shockwaveX: source.x, shockwaveY: source.y + 0.1, shockwaveZ: source.z, shockwaveMaxR: 5.8 });
+    triggerCutIn('PRISM REFLECT!', `${source.name.toUpperCase()} HIT BY OWN STRIKE`); return;
+  }
   if (!unblockable && (gowRuntime.guardWard || gowRuntime.parryWindow > 0)) {
     gowRuntime.guardWard = false; gowRuntime.parryWindow = 0;
     Object.assign(source, { state: 'stagger', stateTimer: 0, stateDuration: 1.15 });
     applyHitToEnemy(source, 42, 50, reduced, 'COUNTER RIPOSTE');
     Object.assign(gowRuntime, { shockwaveTimer: 0.42, shockwaveColor: '#5ee6d0', shockwaveX: source.x, shockwaveY: source.y + 0.1, shockwaveZ: source.z, shockwaveMaxR: 5.2 });
+    triggerCutIn('COUNTER RIPOSTE!', `${source.name.toUpperCase()} PARRIED (-42 DMG)`);
     if (!reduced) { gowRuntime.hitstopTimer = 0.075; punchFov(runtime.shooter.camFx, 'shot', 1.8); }
     return;
   }
   const finalDmg = gowRuntime.guardWard ? Math.max(4, Math.round(amount * 0.5)) : amount;
-  gowRuntime.guardWard = false;
-  gowRuntime.hp = Math.max(15, gowRuntime.hp - finalDmg); gowRuntime.rage = Math.min(gowRuntime.maxRage, gowRuntime.rage + 12); gowRuntime.comboHits = 0;
+  gowRuntime.guardWard = false; gowRuntime.hp = Math.max(15, gowRuntime.hp - finalDmg); gowRuntime.rage = Math.min(gowRuntime.maxRage, gowRuntime.rage + 12); gowRuntime.comboHits = 0;
   if (gowRuntime.action === 'idle') Object.assign(gowRuntime, { action: 'hurt', actionSeq: gowRuntime.actionSeq + 1, actionTimer: 0, actionDuration: 0.34 });
   pushPopup(`-${finalDmg}`, 'crimson', runtime.position.x, runtime.position.y + 1.0, runtime.position.z);
   if (!reduced) addTrauma(runtime.shooter.camFx, 0.32);
@@ -83,7 +83,7 @@ function damagePlayer(amount: number, source: GowEnemy, unblockable: boolean, re
 
 function stepSingleEnemy(e: GowEnemy, dt: number, px: number, py: number, pz: number, reduced: boolean) {
   e.flashTimer = Math.max(0, e.flashTimer - dt);
-  if (Math.hypot(e.vx, e.vz) > 0.05) { const damp = Math.exp(-10 * dt); e.x += e.vx * dt; e.z += e.vz * dt; e.vx *= damp; e.vz *= damp; }
+  if (Math.hypot(e.vx, e.vz) > 0.05) { const damp = Math.exp(-(gowRuntime.demoMode === 'clash' ? 2.8 : 8) * dt); e.x += e.vx * dt; e.z += e.vz * dt; e.vx *= damp; e.vz *= damp; }
   else if (e.state === 'idle') { e.x += (e.spawnX - e.x) * Math.min(1, dt * 4); e.z += (e.spawnZ - e.z) * Math.min(1, dt * 4); }
   const radFromCenter = Math.hypot(e.x, e.z - 55);
   if (radFromCenter > 19.2) { e.x *= 19.2 / radFromCenter; e.z = 55 + (e.z - 55) * (19.2 / radFromCenter); }
@@ -109,8 +109,7 @@ function stepSingleEnemy(e: GowEnemy, dt: number, px: number, py: number, pz: nu
         pushPopup('EVADED ON WING! +15 RAGE', 'parry', px, py + 1.2, pz);
         Object.assign(gowRuntime, { shockwaveTimer: 0.45, shockwaveColor: '#ff5436', shockwaveX: e.x, shockwaveY: e.y + 0.1, shockwaveZ: e.z, shockwaveMaxR: 5.8 });
       } else if (e.state === 'windup_spell') {
-        const boltDmg = useGame.getState().flying ? e.intentDamage : Math.round(e.intentDamage * 0.55);
-        damagePlayer(boltDmg, e, false, reduced);
+        damagePlayer(useGame.getState().flying ? e.intentDamage : Math.round(e.intentDamage * 0.55), e, false, reduced);
       } else {
         if (unblockable) Object.assign(gowRuntime, { shockwaveTimer: 0.45, shockwaveColor: '#ff5436', shockwaveX: e.x, shockwaveY: e.y + 0.1, shockwaveZ: e.z, shockwaveMaxR: 5.6 });
         damagePlayer(e.intentDamage || (unblockable ? 24 : 16), e, unblockable, reduced);
@@ -129,8 +128,7 @@ function stepEnemyTurnSequence(dt: number) {
     if (gowRuntime.enemyTurnTimer === 0) {
       if (e.state === 'stunned') {
         pushPopup(`${e.name.toUpperCase()} STUNNED · SKIP!`, 'stun', e.x, e.y + 2.0 * e.scale, e.z);
-        Object.assign(e, { state: 'idle', stun: 0, stateTimer: 0 });
-        gowRuntime.enemyTurnTimer = 0.01;
+        Object.assign(e, { state: 'idle', stun: 0, stateTimer: 0 }); gowRuntime.enemyTurnTimer = 0.01;
       } else {
         const ws = e.intent === 'altar_quake' ? 'windup_red' : e.intent === 'sky_piercer' ? 'windup_spell' : 'windup_yellow';
         Object.assign(e, { state: ws, stateTimer: 0, stateDuration: 0.64, hitDealt: false, vx: (runtime.position.x - e.x) * 0.4, vz: (runtime.position.z - e.z) * 0.4 });
@@ -142,7 +140,7 @@ function stepEnemyTurnSequence(dt: number) {
     return;
   }
   rollNextEnemyIntents(++gowRuntime.turnNumber, list);
-  Object.assign(gowRuntime, { turnPhase: 'PLAYER_TURN', ap: gowRuntime.maxAp, activeEnemyIndex: -1, enemyTurnTimer: 0, guardWard: false });
+  Object.assign(gowRuntime, { turnPhase: 'PLAYER_TURN', ap: gowRuntime.maxAp, activeEnemyIndex: -1, enemyTurnTimer: 0, guardWard: false, sigilPrism: false });
 }
 
 export function stepGowFrame(rawDt: number, reduced: boolean) {
@@ -160,12 +158,21 @@ export function stepGowFrame(rawDt: number, reduced: boolean) {
     if (gowRuntime.actionTimer >= gowRuntime.actionDuration) {
       const nextQueued = gowRuntime.queuedLight; gowRuntime.action = 'idle'; gowRuntime.actionTimer = 0;
       if (nextQueued) triggerLightAttack(reduced);
-      else if (gowRuntime.turnPhase === 'PLAYER_ANIMATING') { if (gowRuntime.ap <= 0) startEnemyTurn(); else gowRuntime.turnPhase = 'PLAYER_TURN'; }
+      else if (gowRuntime.turnPhase === 'PLAYER_ANIMATING' && gowRuntime.divePhase === 'NONE') { if (gowRuntime.ap <= 0) startEnemyTurn(); else gowRuntime.turnPhase = 'PLAYER_TURN'; }
     }
   }
   const px = runtime.position.x, py = runtime.position.y, pz = runtime.position.z, flying = useGame.getState().flying;
   if (gowRuntime.action === 'idle') findFreeflowTarget(px, pz, 28.0);
   const list = gowRuntime.enemies;
+  let execId = null as typeof gowRuntime.executableId, prompt = '';
+  for (const e of list) {
+    stepSingleEnemy(e, dt, px, py, pz, reduced);
+    if ((e.state === 'stunned' || (e.state === 'stagger' && e.stun >= e.maxStun)) && Math.hypot(e.x - px, e.z - pz) <= 6.2) { execId = e.id; prompt = 'EXECUTE [E]'; }
+    else if (!prompt && e.state === 'windup_red') prompt = '🌋 ALTAR QUAKE · EVADE ON WING [SPACE]';
+  }
+  if (flying && gowRuntime.lockedTargetId && gowRuntime.divePhase === 'NONE') prompt = '🦅 AERIAL LOCK • [1/CLICK] SWOOP STRIKE • [2/R-CLICK] SWORD BEAM';
+  gowRuntime.executableId = execId; if (prompt) gowRuntime.threatPrompt = prompt;
+  stepPrototypeLab(dt, reduced);
   for (let i = 0; i < list.length; i++) for (let j = i + 1; j < list.length; j++) {
     const a = list[i], b = list[j], sx = b.x - a.x, sz = b.z - a.z, sd = Math.hypot(sx, sz), minSep = (a.scale + b.scale) * 0.95;
     if (a.state !== 'dead' && b.state !== 'dead' && sd > 0.001 && sd < minSep) {
@@ -173,24 +180,13 @@ export function stepGowFrame(rawDt: number, reduced: boolean) {
     }
   }
   stepEnemyTurnSequence(dt);
-  let execId = null as typeof gowRuntime.executableId, prompt = '';
-  for (const e of list) {
-    stepSingleEnemy(e, dt, px, py, pz, reduced);
-    const d = Math.hypot(e.x - px, e.z - pz);
-    if ((e.state === 'stunned' || (e.state === 'stagger' && e.stun >= e.maxStun)) && d <= 6.2) { execId = e.id; prompt = 'EXECUTE [E]'; }
-    else if (!prompt && e.state === 'windup_red') prompt = '🌋 ALTAR QUAKE · EVADE ON WING [SPACE]';
-    else if (!prompt && e.state === 'windup_yellow') prompt = '⚡ ARKHAM COUNTER [Q / RIGHT-CLICK]';
-  }
-  if (flying && gowRuntime.lockedTargetId) prompt = '🦅 AERIAL LOCK • [1/CLICK] SWOOP STRIKE • [2/R-CLICK] SWORD BEAM';
-  else if (!prompt && gowRuntime.turnPhase === 'ENEMY_TURN') prompt = '⚔️ WATCHERS EXECUTING TELEGRAPHED INTENTS…';
-  gowRuntime.executableId = execId; gowRuntime.threatPrompt = prompt;
   for (const s of gowRuntime.sparks) if (s.active) { s.life -= dt; if (s.life <= 0) s.active = false; else { s.x += s.vx * dt; s.y += s.vy * dt; s.z += s.vz * dt; s.vy -= 9.8 * dt; } }
   for (const p of gowRuntime.projectiles) if (p.active) {
     p.life -= dt; p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt;
     if (p.life <= 0) { p.active = false; continue; }
     if (p.fromPlayer) {
       for (const e of list) if (e.state !== 'dead' && Math.hypot(e.x - p.x, (e.y + 1.0 * e.scale) - p.y, e.z - p.z) <= 2.4 * e.scale) {
-        applyHitToEnemy(e, p.damage, p.stun, reduced, p.damage === 38 ? 'SWORD BEAM' : 'URIEL FLAME'); p.active = false;
+        applyHitToEnemy(e, p.damage, p.stun, reduced, p.damage === 38 ? 'SWORD BEAM' : 'STAR-FALL VECTOR'); p.active = false;
         Object.assign(gowRuntime, { shockwaveTimer: 0.38, shockwaveColor: '#ffae42', shockwaveX: e.x, shockwaveZ: e.z }); break;
       }
       if (p.active && p.y <= 20.25) { p.active = false; spawnHitSparks(p.x, 20.2, p.z, '#ffd166', 6); Object.assign(gowRuntime, { shockwaveTimer: 0.35, shockwaveColor: '#ffd166', shockwaveX: p.x, shockwaveZ: p.z }); }
