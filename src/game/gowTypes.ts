@@ -75,8 +75,10 @@ export interface GowSpark {
 
 export interface GowPopup {
   id: number; text: string; tone: 'gold' | 'stun' | 'crimson' | 'parry';
-  x: number; y: number; z: number; age: number;
+  x: number; y: number; z: number; age: number; screenX: number; screenY: number;
 }
+
+export const PILLAR_ANGLES = [0.25, 0.25 + Math.PI * 0.75, 0.25 + Math.PI, 0.25 + Math.PI * 1.25, 0.25 + Math.PI * 1.5, 0.25 + Math.PI * 1.75] as const;
 
 export function createInitialEnemies(): GowEnemy[] {
   return [
@@ -125,8 +127,13 @@ export const gowRuntime = {
   phase2Awakened: false, collisionsTriggered: 0, duelEngaged: false,
   cutInTimer: 0, cutInTitle: '', cutInSub: '', cutInPortrait: '/sprites/cutin-uriel.jpg',
   oathTethers: [true, true] as [boolean, boolean], sigilPrism: false,
+  pillarIntact: [true, true, true, true, true, true] as boolean[],
+  pillarFlashTimers: [0, 0, 0, 0, 0, 0] as number[],
   sigilSwipeActive: false, sigilStartX: 0, sigilStartZ: 0, sigilEndX: 0, sigilEndZ: 0, sigilRibbonTimer: 0,
-  divePhase: 'NONE' as DivePhase, diveTimer: 0, diveDuration: 0.65, diveStyle: 'meteor' as 'meteor' | 'flank' | 'solar',
+  divePhase: 'NONE' as DivePhase, diveTimer: 0, diveDuration: 0.65,
+  diveStyle: 'meteor' as 'meteor' | 'flank' | 'solar',
+  divePreviewStyle: 'meteor' as 'meteor' | 'flank' | 'solar',
+  hoveredApCost: 0 as 0 | 1 | -3,
   collisionCooldown: 0,
   turnPhase: 'PLAYER_TURN' as TurnPhase, turnNumber: 1, ap: 2, maxAp: 2, guardWard: false,
   activeEnemyIndex: -1, enemyTurnTimer: 0, returnAfterStrike: false, homeX: 0, homeZ: 64.5,

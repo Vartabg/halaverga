@@ -1,7 +1,7 @@
 import { addTrauma, punchFov } from './cameraFx';
-import { playImpactAudio, playParryAudio, playRageAudio, playSwingAudio } from './gowAudio';
+import { playCollisionCrunchAudio, playDiveDopplerAudio, playImpactAudio, playParryAudio, playRageAudio, playSwingAudio, playTetherSnapAudio } from './gowAudio';
 import { applyHitToEnemy, executeTurnCommand, markDuelEngaged, pushPopup, resetGowState, selectTarget, spawnHitSparks, triggerHeavyBash, triggerRunicSpell } from './gowCombat';
-import { gowRuntime, type DemoMode } from './gowTypes';
+import { gowRuntime, PILLAR_ANGLES, type DemoMode } from './gowTypes';
 import { FOOT, setVec } from './motion';
 import { presentation } from './presentation';
 import { runtime, stopTrackpad } from './runtime';
@@ -46,6 +46,7 @@ export function stepKnockbackCollisions(reduced: boolean) {
       const b = list[j], d = Math.hypot(b.x - a.x, b.z - a.z), hitDist = Math.max(2.6, (a.scale + b.scale) * 0.99);
       if (d <= hitDist) {
         a.vx = a.vz = b.vx = b.vz = 0; gowRuntime.collisionCooldown = 0.45; gowRuntime.collisionsTriggered++;
+        playCollisionCrunchAudio();
         applyHitToEnemy(a, 38, 45, reduced, 'CHAIN COLLISION'); applyHitToEnemy(b, 42, 50, reduced, 'CHAIN COLLISION');
         Object.assign(gowRuntime, { shockwaveTimer: 0.52, shockwaveColor: '#ff9f1c', shockwaveX: (a.x + b.x) * 0.5, shockwaveY: 20.15, shockwaveZ: (a.z + b.z) * 0.5, shockwaveMaxR: 6.5 });
         triggerCutIn('CHAIN COLLISION!', `${a.name.split(' ')[0].toUpperCase()} CRASHED INTO ${b.name.split(' ')[0].toUpperCase()}`, '/sprites/cutin-semjaza.jpg');
@@ -54,9 +55,13 @@ export function stepKnockbackCollisions(reduced: boolean) {
     }
     if (Math.hypot(a.x, a.z - 55) >= 17.5) {
       a.vx = a.vz = 0; gowRuntime.collisionCooldown = 0.45; gowRuntime.collisionsTriggered++;
+      let bestP = 0, bestD = Infinity;
+      PILLAR_ANGLES.forEach((ang, idx) => { const pd = Math.hypot(a.x - Math.cos(ang) * 20.4, a.z - (55 + Math.sin(ang) * 20.4)); if (pd < bestD) { bestD = pd; bestP = idx; } });
+      gowRuntime.pillarIntact[bestP] = false; gowRuntime.pillarFlashTimers[bestP] = 0.48;
+      playCollisionCrunchAudio();
       applyHitToEnemy(a, 36, 50, reduced, 'PILLAR SLAM');
       Object.assign(gowRuntime, { shockwaveTimer: 0.48, shockwaveColor: '#ffd166', shockwaveX: a.x, shockwaveY: 20.15, shockwaveZ: a.z, shockwaveMaxR: 5.5 });
-      triggerCutIn('PILLAR SLAM!', `${a.name.toUpperCase()} SMASHED SANCTUARY PILLAR`, '/sprites/cutin-uriel.jpg');
+      triggerCutIn('OBELISK SHATTERED!', `${a.name.toUpperCase()} SMASHED SANCTUARY OBELISK`, '/sprites/cutin-uriel.jpg');
       return;
     }
   }
@@ -76,7 +81,7 @@ export function severTetherIndex(idx: 0 | 1, reduced: boolean): boolean {
     sigilStartX: mx - 2.6, sigilStartZ: mz - 1.2, sigilEndX: mx + 2.6, sigilEndZ: mz + 1.2, sigilRibbonTimer: 0.65,
     shockwaveTimer: 0.48, shockwaveColor: '#5ee6d0', shockwaveX: mx, shockwaveY: 20.15, shockwaveZ: mz,
   });
-  playParryAudio(); applyHitToEnemy(guard, 42, 55, reduced, 'OATH SEVERED');
+  playTetherSnapAudio(); applyHitToEnemy(guard, 42, 55, reduced, 'OATH SEVERED');
   if (boss && boss.state !== 'dead') applyHitToEnemy(boss, 28, 35, reduced, 'OATH SHOCK');
   triggerCutIn('OATH TETHER SEVERED!', `${guard.name.toUpperCase()} LINK SHATTERED`, '/sprites/cutin-uriel.jpg');
   return true;
@@ -100,7 +105,7 @@ export function handleSigilSwipe(x0: number, z0: number, x1: number, z1: number,
 export function launchDiveBreach(style: 'meteor' | 'flank' | 'solar', reduced: boolean): boolean {
   if (gowRuntime.divePhase !== 'BREACH_AIM') return false;
   Object.assign(gowRuntime, { divePhase: 'DIVING', diveStyle: style, diveTimer: 0, diveDuration: 0.62, turnPhase: 'PLAYER_ANIMATING' });
-  playSwingAudio(4);
+  playDiveDopplerAudio(); playSwingAudio(4);
   triggerCutIn(style === 'meteor' ? 'METEOR BREACH DIVE' : style === 'flank' ? 'WINGED FLANK GLIDE' : 'SOLAR HALO DROP', style === 'meteor' ? 'SHATTER ALL WATCHER SHIELDS' : style === 'flank' ? 'SKY STANCE • +3 AP & WARD' : '100% RAGE • SOLAR BURN AOE');
   if (!reduced) punchFov(runtime.shooter.camFx, 'shot', 2.2);
   return true;
@@ -145,6 +150,7 @@ export function stepPrototypeLab(dt: number, reduced: boolean) {
   gowRuntime.cutInTimer = Math.max(0, gowRuntime.cutInTimer - dt);
   gowRuntime.sigilRibbonTimer = Math.max(0, gowRuntime.sigilRibbonTimer - dt);
   gowRuntime.collisionCooldown = Math.max(0, gowRuntime.collisionCooldown - dt);
+  for (let i = 0; i < 6; i++) gowRuntime.pillarFlashTimers[i] = Math.max(0, (gowRuntime.pillarFlashTimers[i] ?? 0) - dt);
   stepKnockbackCollisions(reduced);
   for (let i = 0; i < 2; i++) if (gowRuntime.enemies[i]?.state === 'dead') gowRuntime.oathTethers[i] = false;
   if (gowRuntime.divePhase === 'BREACH_AIM') {

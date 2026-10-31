@@ -9,20 +9,24 @@ export function markDuelEngaged() { gowRuntime.duelEngaged = true; if (typeof wi
 export function resetGowState() {
   Object.assign(gowRuntime, {
     hp: 100, rage: 40, rageActive: 0, demoMode: 'clash', ecoMode: true, outcome: 'ONGOING', phase2Awakened: false, collisionsTriggered: 0, cutInTimer: 0, cutInTitle: '', cutInSub: '', cutInPortrait: '/sprites/cutin-uriel.jpg',
-    oathTethers: [true, true], sigilPrism: false, sigilSwipeActive: false, sigilRibbonTimer: 0, divePhase: 'NONE', diveTimer: 0, collisionCooldown: 0,
+    oathTethers: [true, true], sigilPrism: false, pillarIntact: [true, true, true, true, true, true], pillarFlashTimers: [0, 0, 0, 0, 0, 0],
+    sigilSwipeActive: false, sigilRibbonTimer: 0, divePhase: 'NONE', diveTimer: 0, divePreviewStyle: 'meteor', hoveredApCost: 0, collisionCooldown: 0,
     turnPhase: 'PLAYER_TURN', turnNumber: 1, ap: 2, maxAp: 2, guardWard: false, activeEnemyIndex: -1, enemyTurnTimer: 0, returnAfterStrike: false, homeX: 0, homeZ: 64.5,
     action: 'idle', actionSeq: 0, actionTimer: 0, actionDuration: 0, hitDone: false, queuedLight: false, comboStep: 0, comboResetTimer: 0, comboHits: 0, comboBannerTimer: 0,
     lastMoveLabel: '', parryWindow: 0, dodgeInvuln: 0, runicCooldown: 0, hitstopTimer: 0, realmShiftTimer: 0, shockwaveTimer: 0, slashTimer: 0, lockedTargetId: null, explicitLock: false, executableId: null, threatPrompt: '',
     cursorActiveTimer: 0, facingLeft: false, enemies: createInitialEnemies(),
   });
-  for (const p of gowRuntime.projectiles) p.active = false;
-  for (const s of gowRuntime.sparks) s.active = false;
-  gowRuntime.popups.length = 0; combatMotion.vx = combatMotion.vy = combatMotion.vz = combatMotion.timer = 0;
+    for (const p of gowRuntime.projectiles) p.active = false;
+    for (const s of gowRuntime.sparks) s.active = false;
+    gowRuntime.popups.length = 0; combatMotion.vx = combatMotion.vy = combatMotion.vz = combatMotion.timer = 0;
 }
 export function selectTarget(id: EnemyId) { const e = gowRuntime.enemies.find(item => item.id === id && item.state !== 'dead'); if (e) { gowRuntime.lockedTargetId = e.id; gowRuntime.explicitLock = true; gowRuntime.facingLeft = e.x < runtime.position.x; } }
 export function cycleTarget(delta = 1) { const live = gowRuntime.enemies.filter(e => e.state !== 'dead'); if (live.length) selectTarget(live[(live.findIndex(e => e.id === gowRuntime.lockedTargetId) + delta + live.length) % live.length].id); }
 export function startEnemyTurn() { Object.assign(gowRuntime, { turnPhase: 'ENEMY_TURN', activeEnemyIndex: 0, enemyTurnTimer: 0, ap: 0 }); }
-export function pushPopup(text: string, tone: GowPopup['tone'], x: number, y: number, z: number) { if (gowRuntime.popups.length >= 8) gowRuntime.popups.shift(); gowRuntime.popups.push({ id: gowRuntime.nextPopupId++, text, tone, x, y, z, age: 0 }); }
+export function pushPopup(text: string, tone: GowPopup['tone'], x: number, y: number, z: number) {
+  if (gowRuntime.popups.length >= 6) gowRuntime.popups.shift();
+  gowRuntime.popups.push({ id: gowRuntime.nextPopupId++, text, tone, x, y, z, age: 0, screenX: Math.max(18, Math.min(82, Math.round(50 + (x / 18) * 34))), screenY: Math.max(16, Math.min(72, Math.round(44 + ((z - 55) / 14) * 22 - (y - 20) * 2.2))) });
+}
 export function spawnHitSparks(x: number, y: number, z: number, color: string, count = 6) {
   for (let i = 0, spawned = 0; i < gowRuntime.sparks.length && spawned < count; i++) {
     const s = gowRuntime.sparks[i]; if (s.active && s.life > 0.08) continue;
@@ -84,8 +88,7 @@ export function applyHitToEnemy(e: GowEnemy, damage: number, stun: number, reduc
   if (tag !== 'CHAIN COLLISION' && tag !== 'PILLAR SLAM') { e.vx = (vx / dist) * kb; e.vz = (vz / dist) * kb; }
   spawnHitSparks(e.x, e.y + 1.15 * e.scale, e.z, stun >= 30 ? '#ff9f1c' : '#ffd166', damage >= 45 ? 10 : 6); playImpactAudio(damage >= 32 || stun >= 30);
   if (e.hp <= 0) {
-    Object.assign(e, { state: 'dead', stateTimer: 0, stateDuration: 2.6, respawnTimer: e.isBoss ? 999 : 5.0 });
-    pushPopup(`${e.name.toUpperCase()} FELLED`, 'gold', e.x, e.y + 2.2 * e.scale, e.z);
+    Object.assign(e, { state: 'dead', stateTimer: 0, stateDuration: 2.6, respawnTimer: e.isBoss ? 999 : 5.0 }); pushPopup(`${e.name.toUpperCase()} FELLED`, 'gold', e.x, e.y + 2.2 * e.scale, e.z);
     if (e.isBoss) Object.assign(gowRuntime, { outcome: 'VICTORY', cutInTimer: 2.2, cutInTitle: 'SANCTUARY CLEANSED!', cutInSub: 'SEMJAZA BOUND • MOUNT HERMON RECLAIMED', cutInPortrait: '/sprites/cutin-uriel.jpg' });
     if (!reduced) { punchFov(runtime.shooter.camFx, 'kill', 2.4); addTrauma(runtime.shooter.camFx, 0.55); }
     return;

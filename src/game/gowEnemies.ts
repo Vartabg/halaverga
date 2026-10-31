@@ -182,6 +182,7 @@ export function stepGowFrame(rawDt: number, reduced: boolean) {
     }
   }
   stepEnemyTurnSequence(dt);
+  for (let i = gowRuntime.popups.length - 1; i >= 0; i--) { gowRuntime.popups[i].age += dt; if (gowRuntime.popups[i].age > 1.25) gowRuntime.popups.splice(i, 1); }
   for (const s of gowRuntime.sparks) if (s.active) { s.life -= dt; if (s.life <= 0) s.active = false; else { s.x += s.vx * dt; s.y += s.vy * dt; s.z += s.vz * dt; s.vy -= 9.8 * dt; } }
   for (const p of gowRuntime.projectiles) if (p.active) {
     p.life -= dt; p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt;

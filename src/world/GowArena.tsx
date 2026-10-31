@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { type Group } from 'three';
+import { Vector3, type Group } from 'three';
 import { stepGowFrame } from '@/game/gowEnemies';
 import { resetGowState } from '@/game/gowCombat';
 import { useGowInput } from '@/game/gowInput';
@@ -14,10 +14,7 @@ import { createGowArena } from './gowArenaBuilder';
 
 export default function GowArena() {
   useGowInput();
-  const rootRef = useRef<Group>(null);
-  const lastEpoch = useRef(runtime.poseEpoch);
-  const phaseRef = useRef(0);
-
+  const rootRef = useRef<Group>(null), lastEpoch = useRef(runtime.poseEpoch), phaseRef = useRef(0), projVec = useMemo(() => new Vector3(), []);
   const arena = useMemo(() => createGowArena(), []);
 
   useEffect(() => {
@@ -28,47 +25,37 @@ export default function GowArena() {
     return () => arena.dispose();
   }, [arena]);
 
-  useFrame((_three, rawDt) => {
+  useFrame((stateThree, rawDt) => {
     const state = useGame.getState();
     if (runtime.poseEpoch !== lastEpoch.current) {
       lastEpoch.current = runtime.poseEpoch;
-      const keepMode = gowRuntime.demoMode;
-      resetGowState();
+      const keepMode = gowRuntime.demoMode; resetGowState();
       if (keepMode !== 'clash') switchDemoMode(keepMode);
     }
     const visible = state.started && state.shooter;
-    arena.container.visible = visible;
-    if (!visible) return;
-
+    arena.container.visible = visible; if (!visible) return;
     if (!state.paused) stepGowFrame(rawDt, state.reduced);
 
     const dt = state.paused || gowRuntime.hitstopTimer > 0 ? 0 : Math.min(0.1, rawDt);
-    const enemyTimeScale = gowRuntime.realmShiftTimer > 0 ? 0.28 : 1;
-    phaseRef.current += dt * enemyTimeScale * 4.5;
+    phaseRef.current += dt * (gowRuntime.realmShiftTimer > 0 ? 0.28 : 1) * 4.5;
 
     for (let i = 0; i < arena.instances.length; i++) {
       const inst = arena.instances[i], e = gowRuntime.enemies[i];
       if (!e) continue;
-      inst.wrapper.position.set(e.x, e.y, e.z);
-      inst.wrapper.rotation.set(0, 0, 0);
-
+      inst.wrapper.position.set(e.x, e.y, e.z); inst.wrapper.rotation.set(0, 0, 0);
       const isDead = e.state === 'dead';
       inst.wrapper.visible = !isDead || e.stateTimer < 0.85;
 
       const isWindupOrStrike = e.state === 'windup_yellow' || e.state === 'windup_red' || e.state === 'windup_spell' || e.state === 'strike';
-      const frame = isWindupOrStrike ? 1 : 0;
-      const flip = runtime.position.x < e.x - 0.15;
+      const frame = isWindupOrStrike ? 1 : 0, flip = runtime.position.x < e.x - 0.15;
       const useP2 = e.isBoss && (gowRuntime.phase2Awakened || (gowRuntime.demoMode === 'sigil' && !gowRuntime.oathTethers[0] && !gowRuntime.oathTethers[1])) && Boolean(arena.bossPhase2Tex.image);
       const activeTex = useP2 ? arena.bossPhase2Tex : inst.tex;
       if (inst.spriteMat.map !== activeTex) { inst.spriteMat.map = activeTex; inst.spriteMat.needsUpdate = true; }
-      activeTex.repeat.set(flip ? -0.5 : 0.5, 1);
-      activeTex.offset.set(frame * 0.5 + (flip ? 0.5 : 0), 0);
+      activeTex.repeat.set(flip ? -0.5 : 0.5, 1); activeTex.offset.set(frame * 0.5 + (flip ? 0.5 : 0), 0);
 
       const bob = state.reduced ? 0 : e.state === 'chase' ? Math.abs(Math.sin(phaseRef.current + i * 1.7)) * 0.14 : Math.sin(phaseRef.current * 0.45 + i) * 0.04;
-      const baseH = e.isBoss ? 2.35 : 1.65;
       const tiltZ = isDead ? 1.25 : e.state === 'stagger' || e.state === 'stunned' ? (flip ? -0.18 : 0.18) : isWindupOrStrike ? (flip ? 0.12 : -0.12) : 0;
-      inst.sprite.position.set(0, baseH + bob, 0);
-      inst.sprite.rotation.set(-0.52, 0, tiltZ);
+      inst.sprite.position.set(0, (e.isBoss ? 2.35 : 1.65) + bob, 0); inst.sprite.rotation.set(-0.52, 0, tiltZ);
 
       if (e.flashTimer > 0) inst.spriteMat.color.set('#fff4b8');
       else if (e.state === 'stunned') inst.spriteMat.color.set('#ffd166');
@@ -78,8 +65,7 @@ export default function GowArena() {
       const isYellow = e.state === 'windup_yellow', isRed = e.state === 'windup_red' || e.state === 'windup_spell';
       inst.telegraphRing.visible = isYellow || isRed;
       if (isYellow || isRed) {
-        inst.telegraphMat.color.set(isYellow ? '#ffd166' : '#ff3b30');
-        inst.telegraphMat.opacity = 0.78;
+        inst.telegraphMat.color.set(isYellow ? '#ffd166' : '#ff3b30'); inst.telegraphMat.opacity = 0.78;
         inst.telegraphRing.scale.setScalar(e.scale * Math.max(0.45, 1.45 - e.stateTimer * 0.9));
       }
 
@@ -150,11 +136,40 @@ export default function GowArena() {
       }
     }
 
+    for (let i = 0; i < arena.pillars.length; i++) {
+      const p = arena.pillars[i], intact = gowRuntime.pillarIntact[i] !== false, flash = (gowRuntime.pillarFlashTimers[i] ?? 0) > 0;
+      const curScaleY = intact ? p.hScale : p.hScale * 0.28;
+      p.shaft.scale.set(1, curScaleY, 1); p.shaft.position.y = 1.9 * curScaleY;
+      p.shaft.rotation.z = intact ? 0 : 0.22; p.cap.visible = intact;
+      p.runeMat.color.set(flash ? '#ffffff' : intact ? '#ffd166' : '#ff5436');
+    }
+
+    const pStyle = gowRuntime.divePreviewStyle;
+    const endX = pStyle === 'flank' ? -3.2 : 0, endY = pStyle === 'flank' ? 24.8 : 20.5, endZ = pStyle === 'meteor' ? 56.5 : 63.5;
+    const splineCol = pStyle === 'flank' ? '#5ee6d0' : pStyle === 'solar' ? '#ffd166' : '#ff9f1c';
+    arena.splineNodeMat.color.set(splineCol); arena.prismMat.color.set(gowRuntime.divePhase === 'BREACH_AIM' ? splineCol : '#5ee6d0');
+    for (let i = 0; i < arena.splineNodes.length; i++) {
+      const node = arena.splineNodes[i];
+      node.visible = gowRuntime.divePhase === 'BREACH_AIM';
+      if (node.visible) {
+        const t = (i + 1) / (arena.splineNodes.length + 1), ease = t * t * (3 - 2 * t);
+        node.position.set(endX * ease + (pStyle === 'flank' ? Math.sin(t * Math.PI) * -6.5 : 0), 33.5 + (endY - 33.5) * ease + Math.sin(t * Math.PI) * 2.5, 75.0 + (endZ - 75.0) * ease);
+        node.rotation.y = phaseRef.current + i * 0.5;
+        node.scale.setScalar(0.85 + Math.sin(phaseRef.current * 2 - i * 0.7) * 0.28);
+      }
+    }
+
     arena.prismMesh.visible = gowRuntime.sigilPrism || gowRuntime.divePhase === 'BREACH_AIM';
     if (arena.prismMesh.visible) {
-      if (gowRuntime.divePhase === 'BREACH_AIM') arena.prismMesh.position.set(0, 20.09, 56.5);
+      if (gowRuntime.divePhase === 'BREACH_AIM') arena.prismMesh.position.set(endX, 20.09, endZ);
       else arena.prismMesh.position.set(runtime.position.x, 20.09, runtime.position.z);
       arena.prismMesh.rotation.z += dt * 1.8;
+    }
+
+    for (const pop of gowRuntime.popups) {
+      projVec.set(pop.x, pop.y + pop.age * 1.15, pop.z).project(stateThree.camera);
+      pop.screenX = Math.max(12, Math.min(88, Math.round((projVec.x * 0.5 + 0.5) * 100)));
+      pop.screenY = Math.max(12, Math.min(78, Math.round((-projVec.y * 0.5 + 0.5) * 100)));
     }
 
     arena.cursorRing.visible = gowRuntime.cursorActiveTimer > 0;

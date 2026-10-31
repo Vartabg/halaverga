@@ -19,7 +19,7 @@ import {
 } from '@/game/gowCombat';
 import { stepGowFrame } from '@/game/gowEnemies';
 import { executeModeCommand, handleSigilSwipe, launchDiveBreach, switchDemoMode } from '@/game/gowPrototypeLab';
-import { ATTACK_SPECS, GOW_CLIPS, gowRuntime } from '@/game/gowTypes';
+import { ATTACK_SPECS, GOW_CLIPS, PILLAR_ANGLES, gowRuntime } from '@/game/gowTypes';
 import { advanceVelocity, combatMotion, stepIsoShooterVelocity } from '@/game/motion';
 import { runtime } from '@/game/runtime';
 import { useGame } from '@/game/store';
@@ -451,5 +451,23 @@ describe('Batman: Arkham Freeflow + God of War Combat & Elevated Aerial Swoop / 
     for (let i = 0; i < 12; i++) stepGowFrame(0.05, true);
     expect(gowRuntime.outcome).toBe('VICTORY');
     expect(gowRuntime.cutInTitle).toContain('SANCTUARY CLEANSED');
+
+    // 5. Atomic Passes 1, 3, 4, 6: Destructible Obelisk Pillar Slam, Projected World Popups, Dive Spline Preview, and AP Cost Preview
+    switchDemoMode('clash');
+    expect(PILLAR_ANGLES).toHaveLength(6);
+    expect(gowRuntime.pillarIntact).toEqual([true, true, true, true, true, true]);
+    expect(gowRuntime.divePreviewStyle).toBe('meteor');
+    expect(gowRuntime.hoveredApCost).toBe(0);
+
+    // Slam West Vanguard outward into the Sanctuary rim (r >= 17.5) and verify the nearest obelisk shatters
+    const west = gowRuntime.enemies[0];
+    west.x = 16.8;
+    west.z = 55.0;
+    west.vx = 28.0;
+    west.vz = 0;
+    stepGowFrame(0.05, true);
+    expect(gowRuntime.pillarIntact.includes(false)).toBe(true);
+    expect(gowRuntime.cutInTitle).toContain('OBELISK SHATTERED');
+    expect(gowRuntime.popups.some((p) => p.text.includes('PILLAR SLAM') && p.screenX > 0 && p.screenY > 0)).toBe(true);
   });
 });

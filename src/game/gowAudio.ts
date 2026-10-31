@@ -104,16 +104,71 @@ export function playRageAudio() {
     [184, 0.38, 0.1],
     [276, 0.34, 0.08],
   ] as const) {
-    const osc = ctx.createOscillator();
-    const g = ctx.createGain();
+    const osc = ctx.createOscillator(), g = ctx.createGain();
     osc.type = 'sawtooth';
     osc.frequency.setValueAtTime(freq, now);
     osc.frequency.exponentialRampToValueAtTime(freq * 0.72, now + dur);
     g.gain.setValueAtTime(amp, now);
     g.gain.exponentialRampToValueAtTime(0.001, now + dur);
-    osc.connect(g);
-    g.connect(ctx.destination);
-    osc.start(now);
-    osc.stop(now + dur + 0.01);
+    osc.connect(g); g.connect(ctx.destination);
+    osc.start(now); osc.stop(now + dur + 0.01);
+  }
+}
+
+export function playCollisionCrunchAudio() {
+  const ctx = getReadyAudio(false);
+  if (!ctx) return;
+  const now = ctx.currentTime;
+  for (const [type, f0, f1, dur, amp] of [
+    ['sine', 68, 24, 0.32, 0.26],
+    ['sawtooth', 420, 140, 0.18, 0.11],
+  ] as const) {
+    const osc = ctx.createOscillator(), g = ctx.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(f0, now);
+    osc.frequency.exponentialRampToValueAtTime(f1, now + dur);
+    g.gain.setValueAtTime(amp, now);
+    g.gain.exponentialRampToValueAtTime(0.001, now + dur);
+    osc.connect(g); g.connect(ctx.destination);
+    osc.start(now); osc.stop(now + dur + 0.01);
+  }
+}
+
+export function playTetherSnapAudio() {
+  const ctx = getReadyAudio(true);
+  if (!ctx) return;
+  const now = ctx.currentTime;
+  for (const [f0, f1, dur, amp] of [
+    [880, 1760, 0.22, 0.12],
+    [1320, 660, 0.26, 0.08],
+  ] as const) {
+    const osc = ctx.createOscillator(), g = ctx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(f0, now);
+    osc.frequency.exponentialRampToValueAtTime(f1, now + dur);
+    g.gain.setValueAtTime(amp, now);
+    g.gain.exponentialRampToValueAtTime(0.001, now + dur);
+    osc.connect(g); g.connect(ctx.destination);
+    osc.start(now); osc.stop(now + dur + 0.01);
+  }
+}
+
+export function playDiveDopplerAudio() {
+  const ctx = getReadyAudio(true);
+  if (!ctx) return;
+  const now = ctx.currentTime;
+  for (const [f0, f1, amp] of [
+    [640, 145, 0.13],
+    [320, 72, 0.16],
+  ] as const) {
+    const osc = ctx.createOscillator(), g = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(f0, now);
+    osc.frequency.exponentialRampToValueAtTime(f1, now + 0.56);
+    g.gain.setValueAtTime(0.001, now);
+    g.gain.linearRampToValueAtTime(amp, now + 0.08);
+    g.gain.exponentialRampToValueAtTime(0.001, now + 0.58);
+    osc.connect(g); g.connect(ctx.destination);
+    osc.start(now); osc.stop(now + 0.6);
   }
 }

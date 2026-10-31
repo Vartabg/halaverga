@@ -1,4 +1,7 @@
 .hud{position:absolute;inset:0;z-index:var(--z-hud);pointer-events:none;font-variant-numeric:tabular-nums;-webkit-user-select:none;user-select:none}
+.worldPopup{position:absolute;transform:translate(-50%,-100%);padding:3px 8px;border-radius:6px;background:#0d131ae6;border:1.5px solid #ffd166;color:#ffd166;font-size:11px;font-weight:900;letter-spacing:.06em;white-space:nowrap;box-shadow:0 6px 16px #000000cc;pointer-events:none}
+.worldPopup[data-tone=crimson]{border-color:#ff5436;color:#ff8a75}
+.worldPopup[data-tone=parry]{border-color:#5ee6d0;color:#5ee6d0}
 .cutInBanner{position:absolute;left:max(16px,env(safe-area-inset-left));bottom:158px;display:flex;align-items:center;gap:10px;width:min(336px,calc(50% - 356px));padding:7px 14px 7px 7px;background:linear-gradient(110deg,#0d131a 62%,#2b1d12 100%);border:2px solid #ffd166;box-shadow:0 16px 36px #000000cc;clip-path:polygon(0 0,100% 0,95% 100%,0 100%);pointer-events:none}
 @media(prefers-reduced-motion:no-preference){
   .cutInBanner{animation:cutInSlide .22s cubic-bezier(.16,1,.3,1)}
@@ -16,6 +19,11 @@
 .powerBadge{padding:5px 8px;border-radius:6px;background:#112222;border:1px solid #5ee6d088;color:#5ee6d0;font-size:9.5px;font-weight:800;letter-spacing:.05em;white-space:nowrap}
 .bossHeader{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:5px}
 .bossTitle{font-size:clamp(0.68rem, 0.55rem + 0.35vw, 0.82rem);font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#ffd166;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.apPips{display:inline-flex;gap:4px;font-size:13px;line-height:1;letter-spacing:.08em}
+.pipActive{color:#ffd166;text-shadow:0 0 8px #ffd16688}
+.pipPreview{color:#ff9f1c;text-shadow:0 0 10px #ff9f1ccc}
+.pipBonus{color:#5ee6d0;text-shadow:0 0 10px #5ee6d0cc}
+.pipEmpty{color:#ffffff40}
 .bossNumbers{font-size:11px;font-weight:700;letter-spacing:.05em;color:#f7f2e8;white-space:nowrap}
 .barTrack{width:100%;height:8px;background:#1d2633;border:1px solid #ffffff26;border-radius:999px;overflow:hidden;margin-bottom:6px}
 .hpFill{height:100%;background:linear-gradient(90deg,#b8292f,#ef476f);transition:width .12s ease}

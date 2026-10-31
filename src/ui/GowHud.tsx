@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { markDuelEngaged, selectTarget } from '@/game/gowCombat';
 import { executeModeCommand, switchDemoMode } from '@/game/gowPrototypeLab';
-import { gowRuntime, type DemoMode, type DivePhase, type DuelOutcome, type EnemyId, type TurnPhase } from '@/game/gowTypes';
+import { gowRuntime, type DemoMode, type DivePhase, type DuelOutcome, type EnemyId, type GowPopup, type TurnPhase } from '@/game/gowTypes';
 import { useGame } from '@/game/store';
 import styles from './GowHud.module.css';
 
@@ -15,12 +15,12 @@ interface EnemySnap {
 interface HudSnapshot {
   hp: number; rage: number; rageActive: boolean;
   demoMode: DemoMode; ecoMode: boolean; divePhase: DivePhase; outcome: DuelOutcome;
-  phase2Awakened: boolean; collisions: number;
+  phase2Awakened: boolean; collisions: number; hoveredApCost: 0 | 1 | -3;
   cutInTimer: number; cutInTitle: string; cutInSub: string; cutInPortrait: string;
   oathCount: number; sigilPrism: boolean;
   turnPhase: TurnPhase; turnNumber: number; ap: number; maxAp: number; guardWard: boolean;
   lockedId: EnemyId | null; bossHp: number; bossMaxHp: number; bossStun: number;
-  moveLabel: string; popupText: string; threatPrompt: string; enemies: EnemySnap[];
+  moveLabel: string; popupText: string; threatPrompt: string; enemies: EnemySnap[]; popups: GowPopup[];
 }
 
 function readSnapshot(): HudSnapshot {
@@ -29,7 +29,7 @@ function readSnapshot(): HudSnapshot {
   return {
     hp: Math.round(gowRuntime.hp), rage: Math.round(gowRuntime.rage), rageActive: gowRuntime.rageActive > 0,
     demoMode: gowRuntime.demoMode, ecoMode: gowRuntime.ecoMode, divePhase: gowRuntime.divePhase, outcome: gowRuntime.outcome,
-    phase2Awakened: gowRuntime.phase2Awakened, collisions: gowRuntime.collisionsTriggered,
+    phase2Awakened: gowRuntime.phase2Awakened, collisions: gowRuntime.collisionsTriggered, hoveredApCost: gowRuntime.hoveredApCost,
     cutInTimer: gowRuntime.cutInTimer, cutInTitle: gowRuntime.cutInTitle, cutInSub: gowRuntime.cutInSub, cutInPortrait: gowRuntime.cutInPortrait,
     oathCount: gowRuntime.oathTethers.filter(Boolean).length, sigilPrism: gowRuntime.sigilPrism,
     turnPhase: gowRuntime.turnPhase, turnNumber: gowRuntime.turnNumber, ap: gowRuntime.ap, maxAp: gowRuntime.maxAp,
@@ -37,6 +37,7 @@ function readSnapshot(): HudSnapshot {
     bossHp: Math.round(boss?.hp ?? 0), bossMaxHp: boss?.maxHp ?? 520, bossStun: Math.round(boss?.stun ?? 0),
     moveLabel: gowRuntime.comboBannerTimer > 0 ? gowRuntime.lastMoveLabel : '',
     popupText: latestPopup ? latestPopup.text : '', threatPrompt: gowRuntime.threatPrompt,
+    popups: gowRuntime.popups.slice(-4).map((p) => ({ ...p })),
     enemies: gowRuntime.enemies.map((e, idx) => ({
       id: e.id, name: e.isBoss ? 'Semjaza (Boss)' : e.name.replace(' Vanguard', ''),
       hp: Math.round(e.hp), maxHp: e.maxHp, stun: Math.round(e.stun), dead: e.state === 'dead', stunned: e.state === 'stunned',
@@ -49,29 +50,29 @@ function readSnapshot(): HudSnapshot {
 function getDeckSpec(snap: HudSnapshot, flying: boolean) {
   if (snap.demoMode === 'dive' && snap.divePhase === 'BREACH_AIM') {
     return [
-      { title: '☄️ Meteor Breach', meta: '0 AP • 45 AoE DMG + Stun', disabled: false },
-      { title: '⚡ Winged Flank', meta: '0 AP • Sky Stance + 3 AP', disabled: false },
-      { title: '☀️ Solar Halo Drop', meta: '0 AP • 100% Rage + Burn', disabled: false },
-      { title: '🎯 Dive Semjaza', meta: '0 AP • Direct Altar Crash', disabled: false },
-      { title: '⏭️ Skip Breach', meta: 'Watchers Act', disabled: false },
+      { title: '☄️ Meteor Breach', meta: '0 AP • 45 AoE DMG + Stun', disabled: false, cost: 0 as const, dive: 'meteor' as const },
+      { title: '⚡ Winged Flank', meta: '0 AP • Sky Stance + 3 AP', disabled: false, cost: -3 as const, dive: 'flank' as const },
+      { title: '☀️ Solar Halo Drop', meta: '0 AP • 100% Rage + Burn', disabled: false, cost: 0 as const, dive: 'solar' as const },
+      { title: '🎯 Dive Semjaza', meta: '0 AP • Direct Altar Crash', disabled: false, cost: 0 as const, dive: 'meteor' as const },
+      { title: '⏭️ Skip Breach', meta: 'Watchers Act', disabled: false, cost: 0 as const },
     ];
   }
   const noAp = snap.turnPhase !== 'PLAYER_TURN' || snap.ap < 1;
   if (snap.demoMode === 'sigil') {
     return [
-      { title: snap.oathCount > 0 ? '✂️ Sever Oath' : '⚔️ Dawn Cleave', meta: snap.oathCount > 0 ? `1 AP • Break Tether (${snap.oathCount} Left)` : '1 AP • 34 DMG Lunge', disabled: noAp },
-      { title: '⭐ Star-Fall Vector', meta: '1 AP • 58 DMG Orbital Beam', disabled: noAp },
-      { title: '🔺 Enochian Prism', meta: '1 AP • Reflect 100% (45 DMG)', disabled: noAp },
-      { title: '☀️ Dawn Judgement', meta: '1 AP • 35 Rage AoE', disabled: noAp || (snap.rage < 35 && !snap.rageActive) },
-      { title: '⏭️ End Turn', meta: 'Watchers Act', disabled: snap.turnPhase !== 'PLAYER_TURN' },
+      { title: snap.oathCount > 0 ? '✂️ Sever Oath' : '⚔️ Dawn Cleave', meta: snap.oathCount > 0 ? `1 AP • Break Tether (${snap.oathCount} Left)` : '1 AP • 34 DMG Lunge', disabled: noAp, cost: 1 as const },
+      { title: '⭐ Star-Fall Vector', meta: '1 AP • 58 DMG Orbital Beam', disabled: noAp, cost: 1 as const },
+      { title: '🔺 Enochian Prism', meta: '1 AP • Reflect 100% (45 DMG)', disabled: noAp, cost: 1 as const },
+      { title: '☀️ Dawn Judgement', meta: '1 AP • 35 Rage AoE', disabled: noAp || (snap.rage < 35 && !snap.rageActive), cost: 1 as const },
+      { title: '⏭️ End Turn', meta: 'Watchers Act', disabled: snap.turnPhase !== 'PLAYER_TURN', cost: 0 as const },
     ];
   }
   return [
-    { title: flying ? '🦅 Swoop Strike' : '💥 Vector Ram', meta: flying ? '1 AP • 56 DMG + Land' : '1 AP • 44 DMG Knockback', disabled: noAp },
-    { title: flying ? '✨ Sword Beam' : '🛡️ Counter Ward', meta: flying ? '1 AP • 38 DMG From Sky' : '1 AP • Riposte 42 DMG', disabled: noAp },
-    { title: flying ? '🕊️ Feather Descent' : '🪽 Take Wing', meta: flying ? '0 AP • Land + Ward' : '1 AP • Evade Quakes', disabled: snap.turnPhase !== 'PLAYER_TURN' || (!flying && snap.ap < 1) },
-    { title: '☀️ Dawn Judgement', meta: '1 AP • 35 Rage AoE', disabled: noAp || (snap.rage < 35 && !snap.rageActive) },
-    { title: snap.demoMode === 'dive' ? '🦅 Re-Ascend Dive' : '⏭️ End Turn', meta: snap.demoMode === 'dive' ? 'Return to Overlook' : 'Watchers Act', disabled: snap.turnPhase !== 'PLAYER_TURN' },
+    { title: flying ? '🦅 Swoop Strike' : '💥 Vector Ram', meta: flying ? '1 AP • 56 DMG + Land' : '1 AP • 44 DMG Knockback', disabled: noAp, cost: 1 as const },
+    { title: flying ? '✨ Sword Beam' : '🛡️ Counter Ward', meta: flying ? '1 AP • 38 DMG From Sky' : '1 AP • Riposte 42 DMG', disabled: noAp, cost: 1 as const },
+    { title: flying ? '🕊️ Feather Descent' : '🪽 Take Wing', meta: flying ? '0 AP • Land + Ward' : '1 AP • Evade Quakes', disabled: snap.turnPhase !== 'PLAYER_TURN' || (!flying && snap.ap < 1), cost: (flying ? 0 : 1) as 0 | 1 },
+    { title: '☀️ Dawn Judgement', meta: '1 AP • 35 Rage AoE', disabled: noAp || (snap.rage < 35 && !snap.rageActive), cost: 1 as const },
+    { title: snap.demoMode === 'dive' ? '🦅 Re-Ascend Dive' : '⏭️ End Turn', meta: snap.demoMode === 'dive' ? 'Return to Overlook' : 'Watchers Act', disabled: snap.turnPhase !== 'PLAYER_TURN', cost: 0 as const },
   ];
 }
 
@@ -100,13 +101,13 @@ export default function GowHud() {
 
   return (
     <div className={styles.hud} data-gow-hud="" data-testid="gow-hud" aria-hidden={showDeck ? undefined : 'true'}>
+      {snap.popups.map((p) => (
+        <div key={p.id} className={styles.worldPopup} data-testid="gow-floating-popup" data-tone={p.tone} style={{ left: `${p.screenX}%`, top: `${p.screenY}%` }} aria-hidden="true">{p.text}</div>
+      ))}
       {snap.cutInTimer > 0 ? (
         <div className={styles.cutInBanner} data-testid="gow-cutin-banner" aria-hidden="true">
           <img src={snap.cutInPortrait} alt="" className={styles.cutInPortrait} width={112} height={63} />
-          <div className={styles.cutInCopy}>
-            <span className={styles.cutInTitle}>{snap.cutInTitle}</span>
-            <span className={styles.cutInSub}>{snap.cutInSub}</span>
-          </div>
+          <div className={styles.cutInCopy}><span className={styles.cutInTitle}>{snap.cutInTitle}</span><span className={styles.cutInSub}>{snap.cutInSub}</span></div>
         </div>
       ) : null}
 
@@ -122,6 +123,12 @@ export default function GowHud() {
 
         <div className={styles.bossHeader}>
           <span className={styles.bossTitle}>{snap.outcome === 'VICTORY' ? '🏆 SANCTUARY CLEANSED • SEMJAZA BOUND' : snap.outcome === 'DEFEAT' ? '💀 FALLEN AT THE SUMMIT' : phaseBanner}</span>
+          <span className={styles.apPips} data-testid="gow-ap-pips" aria-hidden="true">
+            {[0, 1, 2].map((i) => {
+              const bonus = snap.hoveredApCost === -3, previewSpend = snap.hoveredApCost === 1 && i === snap.ap - 1, active = i < snap.ap;
+              return <span key={i} className={bonus ? styles.pipBonus : previewSpend ? styles.pipPreview : active ? styles.pipActive : styles.pipEmpty}>{bonus ? '✦' : previewSpend ? '◈' : active ? '◆' : '◇'}</span>;
+            })}
+          </span>
           <span className={styles.bossNumbers}>SEMJAZA HP {snap.bossHp}/{snap.bossMaxHp} {snap.phase2Awakened ? '• 🔥 PHASE II' : snap.demoMode === 'sigil' && snap.oathCount > 0 ? `• 🛡️ AEGIS (${snap.oathCount})` : `• STUN ${snap.bossStun}%`}</span>
         </div>
         <div className={styles.barTrack}><div className={styles.hpFill} style={{ width: `${bossPct}%` }} /></div>
@@ -138,16 +145,9 @@ export default function GowHud() {
           <>
             <div className={styles.targetStrip} data-testid="gow-target-strip">
               {snap.enemies.map((e) => (
-                <button
-                  key={e.id} type="button" disabled={e.dead}
-                  onMouseDown={(ev) => ev.preventDefault()} onClick={() => { markDuelEngaged(); selectTarget(e.id); setSnap(readSnapshot()); }}
-                  className={`${styles.targetCard} ${snap.lockedId === e.id ? styles.targetLocked : ''}`}
-                >
+                <button key={e.id} type="button" disabled={e.dead} onMouseDown={(ev) => ev.preventDefault()} onClick={() => { markDuelEngaged(); selectTarget(e.id); setSnap(readSnapshot()); }} className={`${styles.targetCard} ${snap.lockedId === e.id ? styles.targetLocked : ''}`}>
                   <img src={e.portrait} alt="" className={styles.targetPortrait} width={28} height={28} />
-                  <span className={styles.targetInfo}>
-                    <span className={styles.targetName}>{snap.lockedId === e.id ? `◎ ${e.name}` : e.name} ({e.hp} HP)</span>
-                    <span className={styles.targetIntent}>{e.intentLabel}</span>
-                  </span>
+                  <span className={styles.targetInfo}><span className={styles.targetName}>{snap.lockedId === e.id ? `◎ ${e.name}` : e.name} ({e.hp} HP)</span><span className={styles.targetIntent}>{e.intentLabel}</span></span>
                 </button>
               ))}
             </div>
@@ -156,11 +156,14 @@ export default function GowHud() {
               {deck.map((item, idx) => (
                 <button
                   key={item.title} type="button" disabled={item.disabled}
-                  onMouseDown={(ev) => ev.preventDefault()} onClick={() => { markDuelEngaged(); executeModeCommand((idx + 1) as 1 | 2 | 3 | 4 | 5, reduced); setSnap(readSnapshot()); }}
+                  onMouseEnter={() => { gowRuntime.hoveredApCost = item.cost; if ('dive' in item && item.dive) gowRuntime.divePreviewStyle = item.dive; setSnap(readSnapshot()); }}
+                  onFocus={() => { gowRuntime.hoveredApCost = item.cost; if ('dive' in item && item.dive) gowRuntime.divePreviewStyle = item.dive; setSnap(readSnapshot()); }}
+                  onMouseLeave={() => { gowRuntime.hoveredApCost = 0; setSnap(readSnapshot()); }}
+                  onBlur={() => { gowRuntime.hoveredApCost = 0; setSnap(readSnapshot()); }}
+                  onMouseDown={(ev) => ev.preventDefault()} onClick={() => { gowRuntime.hoveredApCost = 0; markDuelEngaged(); executeModeCommand((idx + 1) as 1 | 2 | 3 | 4 | 5, reduced); setSnap(readSnapshot()); }}
                   className={idx === 4 ? styles.endTurnBtn : styles.cmdBtn}
                 >
-                  <span className={styles.cmdTitle}>{item.title}</span>
-                  <span className={styles.cmdMeta}>{item.meta}</span>
+                  <span className={styles.cmdTitle}>{item.title}</span><span className={styles.cmdMeta}>{item.meta}</span>
                 </button>
               ))}
             </div>

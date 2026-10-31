@@ -4,11 +4,15 @@ import {
   RepeatWrapping, RingGeometry, SphereGeometry, SRGBColorSpace, Texture, TextureLoader,
 } from 'three';
 import { resetGowState } from '@/game/gowCombat';
-import { gowRuntime, type GowClipName, type GowEnemy } from '@/game/gowTypes';
+import { gowRuntime, PILLAR_ANGLES, type GowClipName, type GowEnemy } from '@/game/gowTypes';
 
 export interface EnemyInstance {
   id: string; wrapper: Group; sprite: Mesh; spriteMat: MeshBasicMaterial; tex: Texture;
   shadow: Mesh; telegraphRing: Mesh; telegraphMat: MeshBasicMaterial; stunBeacon: Mesh;
+}
+
+export interface ObeliskInstance {
+  group: Group; shaft: Mesh; cap: Mesh; runeRing: Mesh; runeMat: MeshBasicMaterial; hScale: number;
 }
 
 export function selectEnemyClip(e: GowEnemy): { clip: GowClipName; speed: number; start: number } {
@@ -34,14 +38,14 @@ export function createGowArena() {
   resetGowState();
   const container = new Group();
   const floorGeo = new CircleGeometry(20.6, 64), rimGeo = new RingGeometry(20.2, 20.9, 64);
-  const pillarGeo = new CylinderGeometry(0.75, 0.95, 3.6, 8);
+  const pillarGeo = new CylinderGeometry(0.54, 0.88, 3.8, 4), capGeo = new ConeGeometry(0.58, 0.95, 4), obeliskRingGeo = new RingGeometry(0.72, 0.96, 4);
   const bossQuadGeo = new PlaneGeometry(5.5, 5.5), guardQuadGeo = new PlaneGeometry(3.8, 3.8);
   const shadowGeo = new CircleGeometry(1.0, 24), ringGeo = new RingGeometry(0.95, 1.32, 32);
   const beaconGeo = new ConeGeometry(0.28, 0.65, 6), projGeo = new SphereGeometry(0.36, 12, 12);
   const shockGeo = new RingGeometry(0.6, 1.15, 36), slashGeo = new RingGeometry(1.2, 2.35, 28, 1, -1.25, 2.5);
   const lockGeo = new RingGeometry(0.88, 1.14, 32), cursorGeo = new RingGeometry(0.45, 0.62, 24);
   const sparkGeo = new OctahedronGeometry(0.095, 0), beamGeo = new PlaneGeometry(1.0, 0.24);
-  const prismGeo = new RingGeometry(1.9, 2.35, 3);
+  const prismGeo = new RingGeometry(1.9, 2.35, 3), splineNodeGeo = new OctahedronGeometry(0.26, 0);
 
   const floorTex = new Texture(); floorTex.colorSpace = SRGBColorSpace;
   const floorMat = new MeshBasicMaterial({ map: floorTex, color: '#f2e8d5', polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 });
@@ -50,13 +54,18 @@ export function createGowArena() {
   const rimMat = new MeshBasicMaterial({ color: '#ffd166', transparent: true, opacity: 0.45, side: DoubleSide });
   const rimMesh = new Mesh(rimGeo, rimMat); rimMesh.rotation.x = -Math.PI * 0.5; rimMesh.position.set(0, 20.03, 55); container.add(rimMesh);
 
-  const pillarMat = new MeshStandardMaterial({ color: '#6b655e', roughness: 0.85, metalness: 0.1 });
-  for (let i = 0; i < 8; i++) {
-    const a = (i / 8) * Math.PI * 2 + 0.25;
-    if (Math.sin(a) > 0.65) continue;
-    const p = new Mesh(pillarGeo, pillarMat), hScale = 0.75 + (i % 3) * 0.32;
-    p.scale.set(1, hScale, 1); p.position.set(Math.cos(a) * 20.4, 20.0 + 1.8 * hScale, 55 + Math.sin(a) * 20.4); container.add(p);
-  }
+  const pillarMat = new MeshStandardMaterial({ color: '#24202b', roughness: 0.65, metalness: 0.25 });
+  const capMat = new MeshBasicMaterial({ color: '#ffd166' });
+  const pillars: ObeliskInstance[] = PILLAR_ANGLES.map((a, idx) => {
+    const group = new Group(), hScale = 0.82 + (idx % 3) * 0.26;
+    group.position.set(Math.cos(a) * 20.4, 20.0, 55 + Math.sin(a) * 20.4);
+    const shaft = new Mesh(pillarGeo, pillarMat); shaft.rotation.y = Math.PI * 0.25; shaft.scale.set(1, hScale, 1); shaft.position.y = 1.9 * hScale; group.add(shaft);
+    const cap = new Mesh(capGeo, capMat); cap.rotation.y = Math.PI * 0.25; cap.position.y = 3.8 * hScale + 0.45; group.add(cap);
+    const runeMat = new MeshBasicMaterial({ color: '#ffd166', transparent: true, opacity: 0.85, side: DoubleSide });
+    const runeRing = new Mesh(obeliskRingGeo, runeMat); runeRing.rotation.set(-Math.PI * 0.5, 0, Math.PI * 0.25); runeRing.position.y = 0.08; group.add(runeRing);
+    container.add(group);
+    return { group, shaft, cap, runeRing, runeMat, hScale };
+  });
 
   const stunMat = new MeshBasicMaterial({ color: '#ffd166' });
   const shadowMat = new MeshBasicMaterial({ color: '#09070d', transparent: true, opacity: 0.46, depthWrite: false });
@@ -105,14 +114,17 @@ export function createGowArena() {
   const tetherMeshes: [Mesh, Mesh] = [new Mesh(beamGeo, tetherMat), new Mesh(beamGeo, tetherMat)];
   for (const tm of tetherMeshes) { tm.rotation.x = -Math.PI * 0.5; tm.visible = false; container.add(tm); }
   const prismMesh = new Mesh(prismGeo, prismMat); prismMesh.rotation.x = -Math.PI * 0.5; prismMesh.visible = false; container.add(prismMesh);
+  const splineNodeMat = new MeshBasicMaterial({ color: '#ff9f1c', transparent: true, opacity: 0.88 });
+  const splineNodes = Array.from({ length: 8 }, () => { const m = new Mesh(splineNodeGeo, splineNodeMat); m.visible = false; container.add(m); return m; });
 
   return {
-    container, instances, bossPhase2Tex, projMeshes, sparkMeshes, shockMesh, shockMat,
+    container, instances, pillars, bossPhase2Tex, projMeshes, sparkMeshes, shockMesh, shockMat,
     slashMesh, slashMat, lockRing, lockMat, cursorRing, playerProjMat, enemyProjMat,
-    kbLineMesh, kbLineMat, tetherMeshes, prismMesh,
+    kbLineMesh, kbLineMat, tetherMeshes, prismMesh, prismMat, splineNodes, splineNodeMat,
     dispose() {
-      for (const g of [floorGeo, rimGeo, pillarGeo, bossQuadGeo, guardQuadGeo, shadowGeo, ringGeo, beaconGeo, projGeo, shockGeo, slashGeo, lockGeo, cursorGeo, sparkGeo, beamGeo, prismGeo]) g.dispose();
-      for (const m of [floorMat, rimMat, pillarMat, stunMat, shadowMat, playerProjMat, enemyProjMat, shockMat, slashMat, lockMat, cursorMat, sparkMat, kbLineMat, tetherMat, prismMat]) m.dispose();
+      for (const g of [floorGeo, rimGeo, pillarGeo, capGeo, obeliskRingGeo, bossQuadGeo, guardQuadGeo, shadowGeo, ringGeo, beaconGeo, projGeo, shockGeo, slashGeo, lockGeo, cursorGeo, sparkGeo, beamGeo, prismGeo, splineNodeGeo]) g.dispose();
+      for (const m of [floorMat, rimMat, pillarMat, capMat, stunMat, shadowMat, playerProjMat, enemyProjMat, shockMat, slashMat, lockMat, cursorMat, sparkMat, kbLineMat, tetherMat, prismMat, splineNodeMat]) m.dispose();
+      for (const p of pillars) p.runeMat.dispose();
       floorTex.dispose(); bossPhase2Tex.dispose();
       for (const inst of instances) { inst.spriteMat.dispose(); inst.telegraphMat.dispose(); inst.tex.dispose(); }
     },
