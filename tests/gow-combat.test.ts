@@ -56,11 +56,14 @@ describe('God of War 65-bone Archangel GLB asset pipeline & clipStart windowing'
     expect(ATTACK_SPECS.swoop.clipStart).toBeGreaterThanOrEqual(0.42);
     expect(ATTACK_SPECS.sky_beam.clipStart).toBeGreaterThanOrEqual(0.42);
 
-    // Verify Stage 1 2.5D Illustrated Fighter Sprites, Portraits, and Painted Sanctuary Floor exist
-    for (const sprite of ['uriel-ground.png', 'uriel-aerial.png', 'semjaza.png', 'vanguard.png', 'sanctuary-floor.jpg', 'uriel-portrait.jpg', 'semjaza-portrait.jpg', 'vanguard-portrait.jpg']) {
+    // Verify Stage 1 & Pass 2 2.5D Illustrated Fighter Sprites, Widescreen Cut-In Panels, Phase 2 Boss Sheet, and Painted Sanctuary Floor exist
+    for (const sprite of ['uriel-ground.png', 'uriel-aerial.png', 'semjaza.png', 'semjaza-phase2.png', 'vanguard.png', 'sanctuary-floor.jpg', 'uriel-portrait.jpg', 'semjaza-portrait.jpg', 'vanguard-portrait.jpg', 'cutin-uriel.jpg', 'cutin-semjaza.jpg']) {
       const sStat = statSync(resolve(ROOT, 'public/sprites', sprite));
       expect(sStat.size).toBeGreaterThan(2_000);
     }
+    // Verify legacy world and flight overlay components are preserved as reusable modules
+    expect(statSync(resolve(ROOT, 'src/world/LegacySanctuaryFlora.tsx')).size).toBeGreaterThan(100);
+    expect(statSync(resolve(ROOT, 'src/ui/LegacyFlightOverlay.tsx')).size).toBeGreaterThan(200);
   });
 
   it('steps screen-space isometric velocity, settles Wing Hover at y = 24.8 m, and locks onto cursor coordinates', () => {
@@ -432,5 +435,21 @@ describe('Batman: Arkham Freeflow + God of War Combat & Elevated Aerial Swoop / 
     expect(runtime.position.y).toBeLessThan(23);
     const totalEnemyHpAfter = gowRuntime.enemies.reduce((acc, e) => acc + e.hp, 0);
     expect(totalEnemyHpAfter).toBeLessThan(totalEnemyHpBefore - 100);
+
+    // 4. Pass 3: Semjaza Phase 2 Awakening (hp <= 260) and Victory Climax (hp <= 0)
+    switchDemoMode('clash');
+    const semjaza = gowRuntime.enemies[2];
+    semjaza.hp = 270;
+    selectTarget('semjaza-boss');
+    expect(executeTurnCommand('slash', true)).toBe(true);
+    for (let i = 0; i < 12; i++) stepGowFrame(0.05, true);
+    expect(gowRuntime.phase2Awakened).toBe(true);
+    expect(gowRuntime.cutInPortrait).toBe('/sprites/cutin-semjaza.jpg');
+
+    semjaza.hp = 20;
+    expect(executeTurnCommand('slash', true)).toBe(true);
+    for (let i = 0; i < 12; i++) stepGowFrame(0.05, true);
+    expect(gowRuntime.outcome).toBe('VICTORY');
+    expect(gowRuntime.cutInTitle).toContain('SANCTUARY CLEANSED');
   });
 });

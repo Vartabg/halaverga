@@ -9,6 +9,7 @@ export type TurnPhase = 'PLAYER_TURN' | 'PLAYER_ANIMATING' | 'ENEMY_TURN';
 export type EnemyIntent = 'melee_cleave' | 'altar_quake' | 'sky_piercer';
 export type DemoMode = 'clash' | 'sigil' | 'dive';
 export type DivePhase = 'NONE' | 'BREACH_AIM' | 'DIVING';
+export type DuelOutcome = 'ONGOING' | 'VICTORY' | 'DEFEAT';
 
 export const GOW_CLIPS = [
   'Idle_Loop', 'Walk_Loop', 'Jog_Fwd_Loop', 'Sprint_Loop', 'Roll',
@@ -111,16 +112,18 @@ export function rollNextEnemyIntents(turn: number, enemies: GowEnemy[]) {
   ];
   enemies.forEach((e, idx) => {
     const pick = pool[(turn + idx) % pool.length];
+    const bonus = e.isBoss ? (gowRuntime.phase2Awakened ? 14 : 8) : 0;
     e.intent = pick.intent;
-    e.intentDamage = e.isBoss ? pick.dmg + 8 : pick.dmg;
-    e.intentLabel = e.isBoss ? pick.label.replace(String(pick.dmg), String(pick.dmg + 8)) : pick.label;
+    e.intentDamage = pick.dmg + bonus;
+    e.intentLabel = bonus ? pick.label.replace(String(pick.dmg), String(pick.dmg + bonus)) + (gowRuntime.phase2Awakened ? ' · PHASE II' : '') : pick.label;
   });
 }
 
 export const gowRuntime = {
   heroReady: false, hp: 100, maxHp: 100, rage: 40, maxRage: 100, rageActive: 0,
-  demoMode: 'clash' as DemoMode, ecoMode: true,
-  cutInTimer: 0, cutInTitle: '', cutInSub: '', cutInPortrait: '/sprites/uriel-portrait.jpg',
+  demoMode: 'clash' as DemoMode, ecoMode: true, outcome: 'ONGOING' as DuelOutcome,
+  phase2Awakened: false, collisionsTriggered: 0, duelEngaged: false,
+  cutInTimer: 0, cutInTitle: '', cutInSub: '', cutInPortrait: '/sprites/cutin-uriel.jpg',
   oathTethers: [true, true] as [boolean, boolean], sigilPrism: false,
   sigilSwipeActive: false, sigilStartX: 0, sigilStartZ: 0, sigilEndX: 0, sigilEndZ: 0, sigilRibbonTimer: 0,
   divePhase: 'NONE' as DivePhase, diveTimer: 0, diveDuration: 0.65, diveStyle: 'meteor' as 'meteor' | 'flank' | 'solar',

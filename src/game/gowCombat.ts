@@ -5,9 +5,10 @@ import { readIntent, runtime, stopTrackpad } from './runtime';
 import { useGame } from './store';
 import { ATTACK_SPECS, createInitialEnemies, gowRuntime, type EnemyId, type GowEnemy, type GowPopup } from './gowTypes';
 
+export function markDuelEngaged() { gowRuntime.duelEngaged = true; if (typeof window !== 'undefined') { (window as unknown as { __gowDuelEngaged?: boolean }).__gowDuelEngaged = true; window.dispatchEvent(new Event('gow-duel-engaged')); } }
 export function resetGowState() {
   Object.assign(gowRuntime, {
-    hp: 100, rage: 40, rageActive: 0, demoMode: 'clash', ecoMode: true, cutInTimer: 0, cutInTitle: '', cutInSub: '', cutInPortrait: '/sprites/uriel-portrait.jpg',
+    hp: 100, rage: 40, rageActive: 0, demoMode: 'clash', ecoMode: true, outcome: 'ONGOING', phase2Awakened: false, collisionsTriggered: 0, cutInTimer: 0, cutInTitle: '', cutInSub: '', cutInPortrait: '/sprites/cutin-uriel.jpg',
     oathTethers: [true, true], sigilPrism: false, sigilSwipeActive: false, sigilRibbonTimer: 0, divePhase: 'NONE', diveTimer: 0, collisionCooldown: 0,
     turnPhase: 'PLAYER_TURN', turnNumber: 1, ap: 2, maxAp: 2, guardWard: false, activeEnemyIndex: -1, enemyTurnTimer: 0, returnAfterStrike: false, homeX: 0, homeZ: 64.5,
     action: 'idle', actionSeq: 0, actionTimer: 0, actionDuration: 0, hitDone: false, queuedLight: false, comboStep: 0, comboResetTimer: 0, comboHits: 0, comboBannerTimer: 0,
@@ -83,10 +84,16 @@ export function applyHitToEnemy(e: GowEnemy, damage: number, stun: number, reduc
   if (tag !== 'CHAIN COLLISION' && tag !== 'PILLAR SLAM') { e.vx = (vx / dist) * kb; e.vz = (vz / dist) * kb; }
   spawnHitSparks(e.x, e.y + 1.15 * e.scale, e.z, stun >= 30 ? '#ff9f1c' : '#ffd166', damage >= 45 ? 10 : 6); playImpactAudio(damage >= 32 || stun >= 30);
   if (e.hp <= 0) {
-    Object.assign(e, { state: 'dead', stateTimer: 0, stateDuration: 2.6, respawnTimer: e.isBoss ? 7.0 : 5.0 });
+    Object.assign(e, { state: 'dead', stateTimer: 0, stateDuration: 2.6, respawnTimer: e.isBoss ? 999 : 5.0 });
     pushPopup(`${e.name.toUpperCase()} FELLED`, 'gold', e.x, e.y + 2.2 * e.scale, e.z);
+    if (e.isBoss) Object.assign(gowRuntime, { outcome: 'VICTORY', cutInTimer: 2.2, cutInTitle: 'SANCTUARY CLEANSED!', cutInSub: 'SEMJAZA BOUND • MOUNT HERMON RECLAIMED', cutInPortrait: '/sprites/cutin-uriel.jpg' });
     if (!reduced) { punchFov(runtime.shooter.camFx, 'kill', 2.4); addTrauma(runtime.shooter.camFx, 0.55); }
     return;
+  }
+  if (e.isBoss && e.hp <= e.maxHp * 0.5 && !gowRuntime.phase2Awakened) {
+    gowRuntime.phase2Awakened = true; e.stun = Math.max(0, e.stun - 40); e.intentDamage += 6; e.intentLabel = '🔥 OATH UNBOUND 34 DMG · PHASE II';
+    Object.assign(gowRuntime, { cutInTimer: 1.85, cutInTitle: 'SEMJAZA ASCENDANT!', cutInSub: 'PHASE II • THE OATH OF HERMON UNBOUND', cutInPortrait: '/sprites/cutin-semjaza.jpg', shockwaveTimer: 0.55, shockwaveColor: '#ff5436', shockwaveX: e.x, shockwaveY: e.y + 0.15, shockwaveZ: e.z, shockwaveMaxR: 7.0 });
+    pushPopup('🔥 PHASE II • MOLTEN ASCENDANT!', 'crimson', e.x, e.y + 2.3 * e.scale, e.z);
   }
   e.stun = Math.min(e.maxStun, e.stun + stun);
   if (e.stun >= e.maxStun && e.state !== 'stunned') { Object.assign(e, { state: 'stunned', stateTimer: 0, stateDuration: 4.5 }); pushPopup('STUNNED · SKIP NEXT TURN!', 'stun', e.x, e.y + 2.1 * e.scale, e.z); }
@@ -164,11 +171,10 @@ export function triggerWingedRage(reduced = false): boolean {
   if (gowRuntime.rage < 35 && gowRuntime.rageActive <= 0) return false;
   if (gowRuntime.rageActive <= 0) { gowRuntime.rage = Math.max(0, gowRuntime.rage - 35); gowRuntime.rageActive = 8.0; gowRuntime.hp = Math.min(gowRuntime.maxHp, gowRuntime.hp + 35); }
   startSpecAttack('rage_slam', reduced); playRageAudio();
-  Object.assign(gowRuntime, { shockwaveTimer: 0.55, shockwaveColor: '#ffcf5c', shockwaveX: runtime.position.x, shockwaveY: runtime.position.y - 0.95, shockwaveZ: runtime.position.z, shockwaveMaxR: 7.2 });
-  return true;
+  Object.assign(gowRuntime, { shockwaveTimer: 0.55, shockwaveColor: '#ffcf5c', shockwaveX: runtime.position.x, shockwaveY: runtime.position.y - 0.95, shockwaveZ: runtime.position.z, shockwaveMaxR: 7.2 }); return true;
 }
 export function executeTurnCommand(cmd: 'slash' | 'ward' | 'wing' | 'swoop' | 'beam' | 'rage' | 'end', reduced = false): boolean {
-  if (gowRuntime.turnPhase !== 'PLAYER_TURN') return false;
+  if (gowRuntime.outcome !== 'ONGOING' || gowRuntime.turnPhase !== 'PLAYER_TURN') return false;
   if (cmd === 'end') { startEnemyTurn(); return true; }
   const flying = useGame.getState().flying;
   if (cmd === 'wing') {
@@ -186,6 +192,5 @@ export function executeTurnCommand(cmd: 'slash' | 'ward' | 'wing' | 'swoop' | 'b
   if (cmd === 'ward') return triggerParry(reduced);
   if (cmd === 'beam') return triggerSkySwordBeam(reduced);
   if (cmd === 'swoop' || (cmd === 'slash' && flying)) { Object.assign(gowRuntime, { returnAfterStrike: true, homeX: 0, homeZ: 64.0 }); return triggerAerialSwoop(reduced); }
-  Object.assign(gowRuntime, { returnAfterStrike: true, homeX: runtime.position.x, homeZ: runtime.position.z });
-  return triggerLightAttack(reduced);
+  Object.assign(gowRuntime, { returnAfterStrike: true, homeX: runtime.position.x, homeZ: runtime.position.z }); return triggerLightAttack(reduced);
 }

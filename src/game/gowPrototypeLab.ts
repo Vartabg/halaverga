@@ -1,37 +1,37 @@
 import { addTrauma, punchFov } from './cameraFx';
 import { playImpactAudio, playParryAudio, playRageAudio, playSwingAudio } from './gowAudio';
-import { applyHitToEnemy, executeTurnCommand, pushPopup, resetGowState, selectTarget, spawnHitSparks, triggerHeavyBash, triggerRunicSpell } from './gowCombat';
+import { applyHitToEnemy, executeTurnCommand, markDuelEngaged, pushPopup, resetGowState, selectTarget, spawnHitSparks, triggerHeavyBash, triggerRunicSpell } from './gowCombat';
 import { gowRuntime, type DemoMode } from './gowTypes';
 import { FOOT, setVec } from './motion';
 import { presentation } from './presentation';
 import { runtime, stopTrackpad } from './runtime';
 import { useGame } from './store';
 
-export function triggerCutIn(title: string, sub: string, portrait = '/sprites/uriel-portrait.jpg') {
+export function triggerCutIn(title: string, sub: string, portrait = '/sprites/cutin-uriel.jpg') {
   Object.assign(gowRuntime, { cutInTimer: 1.45, cutInTitle: title, cutInSub: sub, cutInPortrait: portrait });
 }
 
 export function switchDemoMode(mode: DemoMode) {
-  resetGowState(); gowRuntime.demoMode = mode; stopTrackpad(); runtime.landGoal = null;
+  markDuelEngaged(); resetGowState(); gowRuntime.demoMode = mode; stopTrackpad(); runtime.landGoal = null;
   if (mode === 'clash') {
     useGame.setState({ flying: false, landing: false });
     setVec(runtime.position, 0, 20 + FOOT, 64.5); setVec(presentation.position, 0, 20 + FOOT, 64.5);
     selectTarget('nephilim-west');
     gowRuntime.threatPrompt = '💥 DIORAMA CLASH • LAUNCH VANGUARDS INTO SEMJAZA OR PILLARS';
-    triggerCutIn('DIORAMA CLASH', 'KNOCKBACK CHAIN COLLISIONS ACTIVE', '/sprites/uriel-portrait.jpg');
+    triggerCutIn('DIORAMA CLASH', 'KNOCKBACK CHAIN COLLISIONS ACTIVE', '/sprites/cutin-uriel.jpg');
   } else if (mode === 'sigil') {
     useGame.setState({ flying: false, landing: false });
     setVec(runtime.position, 0, 20 + FOOT, 64.5); setVec(presentation.position, 0, 20 + FOOT, 64.5);
     gowRuntime.oathTethers = [true, true]; gowRuntime.sigilPrism = false; selectTarget('nephilim-west');
     gowRuntime.threatPrompt = '📐 SIGIL WEAVER • SWIPE CRIMSON OATH-TETHERS OR CAST PRISM';
-    triggerCutIn('SIGIL WEAVER', 'OATH TETHERS SHIELD SEMJAZA • SEVER THEM!', '/sprites/semjaza-portrait.jpg');
+    triggerCutIn('SIGIL WEAVER', 'OATH TETHERS SHIELD SEMJAZA • SEVER THEM!', '/sprites/cutin-semjaza.jpg');
   } else {
     useGame.setState({ flying: true, landing: false });
     Object.assign(gowRuntime, { divePhase: 'BREACH_AIM', diveTimer: 0, ap: 2 });
     setVec(runtime.position, 0, 33.5, 75.0); setVec(runtime.velocity, 0, 0, 0); setVec(presentation.position, 0, 33.5, 75.0);
     selectTarget('semjaza-boss');
     gowRuntime.threatPrompt = '🦅 DIVE-TO-DUEL • CHOOSE SPLINE BREACH TRAJECTORY';
-    triggerCutIn('SUMMIT OVERLOOK', 'SELECT SPLINE BREACH VECTOR BELOW', '/sprites/uriel-portrait.jpg');
+    triggerCutIn('SUMMIT OVERLOOK', 'SELECT SPLINE BREACH VECTOR BELOW', '/sprites/cutin-uriel.jpg');
   }
 }
 
@@ -45,18 +45,18 @@ export function stepKnockbackCollisions(reduced: boolean) {
       if (i === j || list[j].state === 'dead') continue;
       const b = list[j], d = Math.hypot(b.x - a.x, b.z - a.z), hitDist = Math.max(2.6, (a.scale + b.scale) * 0.99);
       if (d <= hitDist) {
-        a.vx = a.vz = b.vx = b.vz = 0; gowRuntime.collisionCooldown = 0.45;
+        a.vx = a.vz = b.vx = b.vz = 0; gowRuntime.collisionCooldown = 0.45; gowRuntime.collisionsTriggered++;
         applyHitToEnemy(a, 38, 45, reduced, 'CHAIN COLLISION'); applyHitToEnemy(b, 42, 50, reduced, 'CHAIN COLLISION');
         Object.assign(gowRuntime, { shockwaveTimer: 0.52, shockwaveColor: '#ff9f1c', shockwaveX: (a.x + b.x) * 0.5, shockwaveY: 20.15, shockwaveZ: (a.z + b.z) * 0.5, shockwaveMaxR: 6.5 });
-        triggerCutIn('CHAIN COLLISION!', `${a.name.split(' ')[0].toUpperCase()} CRASHED INTO ${b.name.split(' ')[0].toUpperCase()}`, '/sprites/semjaza-portrait.jpg');
+        triggerCutIn('CHAIN COLLISION!', `${a.name.split(' ')[0].toUpperCase()} CRASHED INTO ${b.name.split(' ')[0].toUpperCase()}`, '/sprites/cutin-semjaza.jpg');
         return;
       }
     }
     if (Math.hypot(a.x, a.z - 55) >= 17.5) {
-      a.vx = a.vz = 0; gowRuntime.collisionCooldown = 0.45;
+      a.vx = a.vz = 0; gowRuntime.collisionCooldown = 0.45; gowRuntime.collisionsTriggered++;
       applyHitToEnemy(a, 36, 50, reduced, 'PILLAR SLAM');
       Object.assign(gowRuntime, { shockwaveTimer: 0.48, shockwaveColor: '#ffd166', shockwaveX: a.x, shockwaveY: 20.15, shockwaveZ: a.z, shockwaveMaxR: 5.5 });
-      triggerCutIn('PILLAR SLAM!', `${a.name.toUpperCase()} SMASHED SANCTUARY PILLAR`, '/sprites/uriel-portrait.jpg');
+      triggerCutIn('PILLAR SLAM!', `${a.name.toUpperCase()} SMASHED SANCTUARY PILLAR`, '/sprites/cutin-uriel.jpg');
       return;
     }
   }
@@ -70,7 +70,7 @@ function segmentsIntersect(ax: number, az: number, bx: number, bz: number, cx: n
 export function severTetherIndex(idx: 0 | 1, reduced: boolean): boolean {
   if (gowRuntime.turnPhase !== 'PLAYER_TURN' || gowRuntime.ap < 1 || !gowRuntime.oathTethers[idx]) return false;
   const guard = gowRuntime.enemies[idx], boss = gowRuntime.enemies[2], mx = (guard.x + boss.x) * 0.5, mz = (guard.z + boss.z) * 0.5;
-  gowRuntime.oathTethers[idx] = false; gowRuntime.ap -= 1;
+  gowRuntime.oathTethers[idx] = false; gowRuntime.ap -= 1; gowRuntime.collisionsTriggered++;
   Object.assign(gowRuntime, {
     turnPhase: 'PLAYER_ANIMATING', action: 'sky_beam', actionSeq: gowRuntime.actionSeq + 1, actionTimer: 0, actionDuration: 0.38, hitDone: true,
     sigilStartX: mx - 2.6, sigilStartZ: mz - 1.2, sigilEndX: mx + 2.6, sigilEndZ: mz + 1.2, sigilRibbonTimer: 0.65,
@@ -78,7 +78,7 @@ export function severTetherIndex(idx: 0 | 1, reduced: boolean): boolean {
   });
   playParryAudio(); applyHitToEnemy(guard, 42, 55, reduced, 'OATH SEVERED');
   if (boss && boss.state !== 'dead') applyHitToEnemy(boss, 28, 35, reduced, 'OATH SHOCK');
-  triggerCutIn('OATH TETHER SEVERED!', `${guard.name.toUpperCase()} LINK SHATTERED`, '/sprites/uriel-portrait.jpg');
+  triggerCutIn('OATH TETHER SEVERED!', `${guard.name.toUpperCase()} LINK SHATTERED`, '/sprites/cutin-uriel.jpg');
   return true;
 }
 
@@ -107,6 +107,8 @@ export function launchDiveBreach(style: 'meteor' | 'flank' | 'solar', reduced: b
 }
 
 export function executeModeCommand(slot: 1 | 2 | 3 | 4 | 5, reduced = false): boolean {
+  markDuelEngaged();
+  if (gowRuntime.outcome !== 'ONGOING') { switchDemoMode(gowRuntime.demoMode); return true; }
   const mode = gowRuntime.demoMode, flying = useGame.getState().flying;
   if (slot === 5) { if (mode === 'dive' && gowRuntime.divePhase === 'NONE') { switchDemoMode('dive'); return true; } return executeTurnCommand('end', reduced); }
   if (mode === 'dive' && gowRuntime.divePhase === 'BREACH_AIM') return launchDiveBreach(slot === 2 ? 'flank' : slot === 3 ? 'solar' : 'meteor', reduced);

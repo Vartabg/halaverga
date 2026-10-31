@@ -86,10 +86,12 @@ export function createGowArena() {
     return { id: e.id, wrapper, sprite, spriteMat, tex, shadow, telegraphRing, telegraphMat, stunBeacon };
   });
 
+  const bossPhase2Tex = setupSpriteTex(new Texture());
   if (typeof window !== 'undefined') {
     const loader = new TextureLoader();
     loader.load('/sprites/sanctuary-floor.jpg', (t) => { floorTex.image = t.image; floorTex.colorSpace = SRGBColorSpace; floorTex.needsUpdate = true; });
     loader.load('/sprites/semjaza.png', (t) => { for (const inst of instances) if (inst.id === 'semjaza-boss') { inst.tex.image = t.image; setupSpriteTex(inst.tex); } });
+    loader.load('/sprites/semjaza-phase2.png', (t) => { bossPhase2Tex.image = t.image; setupSpriteTex(bossPhase2Tex); });
     loader.load('/sprites/vanguard.png', (t) => { for (const inst of instances) if (inst.id !== 'semjaza-boss') { inst.tex.image = t.image; setupSpriteTex(inst.tex); } });
   }
 
@@ -105,13 +107,13 @@ export function createGowArena() {
   const prismMesh = new Mesh(prismGeo, prismMat); prismMesh.rotation.x = -Math.PI * 0.5; prismMesh.visible = false; container.add(prismMesh);
 
   return {
-    container, instances, projMeshes, sparkMeshes, shockMesh, shockMat,
+    container, instances, bossPhase2Tex, projMeshes, sparkMeshes, shockMesh, shockMat,
     slashMesh, slashMat, lockRing, lockMat, cursorRing, playerProjMat, enemyProjMat,
     kbLineMesh, kbLineMat, tetherMeshes, prismMesh,
     dispose() {
       for (const g of [floorGeo, rimGeo, pillarGeo, bossQuadGeo, guardQuadGeo, shadowGeo, ringGeo, beaconGeo, projGeo, shockGeo, slashGeo, lockGeo, cursorGeo, sparkGeo, beamGeo, prismGeo]) g.dispose();
       for (const m of [floorMat, rimMat, pillarMat, stunMat, shadowMat, playerProjMat, enemyProjMat, shockMat, slashMat, lockMat, cursorMat, sparkMat, kbLineMat, tetherMat, prismMat]) m.dispose();
-      floorTex.dispose();
+      floorTex.dispose(); bossPhase2Tex.dispose();
       for (const inst of instances) { inst.spriteMat.dispose(); inst.telegraphMat.dispose(); inst.tex.dispose(); }
     },
   };

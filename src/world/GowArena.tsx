@@ -58,8 +58,11 @@ export default function GowArena() {
       const isWindupOrStrike = e.state === 'windup_yellow' || e.state === 'windup_red' || e.state === 'windup_spell' || e.state === 'strike';
       const frame = isWindupOrStrike ? 1 : 0;
       const flip = runtime.position.x < e.x - 0.15;
-      inst.tex.repeat.set(flip ? -0.5 : 0.5, 1);
-      inst.tex.offset.set(frame * 0.5 + (flip ? 0.5 : 0), 0);
+      const useP2 = e.isBoss && (gowRuntime.phase2Awakened || (gowRuntime.demoMode === 'sigil' && !gowRuntime.oathTethers[0] && !gowRuntime.oathTethers[1])) && Boolean(arena.bossPhase2Tex.image);
+      const activeTex = useP2 ? arena.bossPhase2Tex : inst.tex;
+      if (inst.spriteMat.map !== activeTex) { inst.spriteMat.map = activeTex; inst.spriteMat.needsUpdate = true; }
+      activeTex.repeat.set(flip ? -0.5 : 0.5, 1);
+      activeTex.offset.set(frame * 0.5 + (flip ? 0.5 : 0), 0);
 
       const bob = state.reduced ? 0 : e.state === 'chase' ? Math.abs(Math.sin(phaseRef.current + i * 1.7)) * 0.14 : Math.sin(phaseRef.current * 0.45 + i) * 0.04;
       const baseH = e.isBoss ? 2.35 : 1.65;

@@ -60,22 +60,23 @@ function resolvePlayerStrike(reduced: boolean) {
 function damagePlayer(amount: number, source: GowEnemy, unblockable: boolean, reduced: boolean) {
   if (gowRuntime.dodgeInvuln > 0) { pushPopup('EVADED!', 'parry', runtime.position.x, runtime.position.y + 1.1, runtime.position.z); return; }
   if (gowRuntime.sigilPrism) {
-    Object.assign(source, { state: 'stagger', stateTimer: 0, stateDuration: 1.25 });
+    gowRuntime.collisionsTriggered++; Object.assign(source, { state: 'stagger', stateTimer: 0, stateDuration: 1.25 });
     applyHitToEnemy(source, 45, 50, reduced, 'PRISM REFLECT');
     Object.assign(gowRuntime, { shockwaveTimer: 0.45, shockwaveColor: '#ffd166', shockwaveX: source.x, shockwaveY: source.y + 0.1, shockwaveZ: source.z, shockwaveMaxR: 5.8 });
-    triggerCutIn('PRISM REFLECT!', `${source.name.toUpperCase()} HIT BY OWN STRIKE`); return;
+    triggerCutIn('PRISM REFLECT!', `${source.name.toUpperCase()} HIT BY OWN STRIKE`, '/sprites/cutin-uriel.jpg'); return;
   }
   if (!unblockable && (gowRuntime.guardWard || gowRuntime.parryWindow > 0)) {
-    gowRuntime.guardWard = false; gowRuntime.parryWindow = 0;
+    gowRuntime.guardWard = false; gowRuntime.parryWindow = 0; gowRuntime.collisionsTriggered++;
     Object.assign(source, { state: 'stagger', stateTimer: 0, stateDuration: 1.15 });
     applyHitToEnemy(source, 42, 50, reduced, 'COUNTER RIPOSTE');
     Object.assign(gowRuntime, { shockwaveTimer: 0.42, shockwaveColor: '#5ee6d0', shockwaveX: source.x, shockwaveY: source.y + 0.1, shockwaveZ: source.z, shockwaveMaxR: 5.2 });
-    triggerCutIn('COUNTER RIPOSTE!', `${source.name.toUpperCase()} PARRIED (-42 DMG)`);
+    triggerCutIn('COUNTER RIPOSTE!', `${source.name.toUpperCase()} PARRIED (-42 DMG)`, '/sprites/cutin-uriel.jpg');
     if (!reduced) { gowRuntime.hitstopTimer = 0.075; punchFov(runtime.shooter.camFx, 'shot', 1.8); }
     return;
   }
   const finalDmg = gowRuntime.guardWard ? Math.max(4, Math.round(amount * 0.5)) : amount;
-  gowRuntime.guardWard = false; gowRuntime.hp = Math.max(15, gowRuntime.hp - finalDmg); gowRuntime.rage = Math.min(gowRuntime.maxRage, gowRuntime.rage + 12); gowRuntime.comboHits = 0;
+  gowRuntime.guardWard = false; gowRuntime.hp = Math.max(0, gowRuntime.hp - finalDmg); gowRuntime.rage = Math.min(gowRuntime.maxRage, gowRuntime.rage + 12); gowRuntime.comboHits = 0;
+  if (gowRuntime.hp <= 0) { gowRuntime.outcome = 'DEFEAT'; triggerCutIn('FALLEN AT THE SUMMIT', 'URIEL OVERWHELMED BY THE WATCHERS', '/sprites/cutin-semjaza.jpg'); }
   if (gowRuntime.action === 'idle') Object.assign(gowRuntime, { action: 'hurt', actionSeq: gowRuntime.actionSeq + 1, actionTimer: 0, actionDuration: 0.34 });
   pushPopup(`-${finalDmg}`, 'crimson', runtime.position.x, runtime.position.y + 1.0, runtime.position.z);
   if (!reduced) addTrauma(runtime.shooter.camFx, 0.32);
@@ -89,6 +90,7 @@ function stepSingleEnemy(e: GowEnemy, dt: number, px: number, py: number, pz: nu
   if (radFromCenter > 19.2) { e.x *= 19.2 / radFromCenter; e.z = 55 + (e.z - 55) * (19.2 / radFromCenter); }
   e.y = radFromCenter < 18 ? 20.0 : Math.max(20.0, heightAt(e.x, e.z));
   if (e.state === 'dead') {
+    if (gowRuntime.outcome !== 'ONGOING') return;
     e.stateTimer += dt; e.respawnTimer -= dt;
     if (e.respawnTimer <= 0) Object.assign(e, { hp: e.maxHp, stun: 0, x: e.spawnX, z: e.spawnZ, vx: 0, vz: 0, state: 'idle', stateTimer: 0 });
     return;

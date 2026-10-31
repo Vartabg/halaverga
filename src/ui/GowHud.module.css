@@ -1,10 +1,10 @@
 .hud{position:absolute;inset:0;z-index:var(--z-hud);pointer-events:none;font-variant-numeric:tabular-nums;-webkit-user-select:none;user-select:none}
-.cutInBanner{position:absolute;left:max(16px,env(safe-area-inset-left));bottom:154px;display:flex;align-items:center;gap:12px;width:min(340px,calc(100% - 32px));padding:9px 16px 9px 10px;background:linear-gradient(110deg,#0d131a 65%,#2b1d12 100%);border:2px solid #ffd166;box-shadow:0 16px 36px #000000cc;clip-path:polygon(0 0,100% 0,94% 100%,0 100%);pointer-events:none}
+.cutInBanner{position:absolute;left:max(16px,env(safe-area-inset-left));bottom:158px;display:flex;align-items:center;gap:10px;width:min(336px,calc(50% - 356px));padding:7px 14px 7px 7px;background:linear-gradient(110deg,#0d131a 62%,#2b1d12 100%);border:2px solid #ffd166;box-shadow:0 16px 36px #000000cc;clip-path:polygon(0 0,100% 0,95% 100%,0 100%);pointer-events:none}
 @media(prefers-reduced-motion:no-preference){
   .cutInBanner{animation:cutInSlide .22s cubic-bezier(.16,1,.3,1)}
 }
 @keyframes cutInSlide{from{opacity:0;transform:translateX(-24px) scale(.95)}to{opacity:1;transform:translateX(0) scale(1)}}
-.cutInPortrait{width:52px;height:52px;aspect-ratio:1 / 1;border-radius:8px;border:2px solid #ffd166;object-fit:cover;flex-shrink:0}
+.cutInPortrait{width:112px;height:63px;aspect-ratio:16 / 9;border-radius:6px;border:1.5px solid #ffd166;object-fit:cover;flex-shrink:0}
 .cutInCopy{display:flex;flex-direction:column;min-width:0}
 .cutInTitle{font-size:15px;font-weight:900;letter-spacing:.1em;text-transform:uppercase;color:#ffd166;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .cutInSub{font-size:11px;font-weight:700;letter-spacing:.06em;color:#f7f2e8;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -38,6 +38,9 @@
 .endTurnBtn:hover:not(:disabled){background:#382228;border-color:#ff758f}
 .cmdTitle{font-size:10.5px;font-weight:800;letter-spacing:.03em;color:#ffd166;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
 .cmdMeta{font-size:9px;font-weight:600;color:#e2ece9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;margin-top:2px}
+.outcomePanel{display:flex;flex-direction:column;gap:8px;margin-top:8px;padding:10px;background:#141d29;border:1px solid #ffd16688;border-radius:8px;pointer-events:auto;text-align:center}
+.outcomeSummary{font-size:11px;font-weight:700;letter-spacing:.05em;color:#f7f2e8}
+.outcomeActions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .playerPlate{position:absolute;left:max(16px,env(safe-area-inset-left));bottom:max(22px,env(safe-area-inset-bottom));width:min(276px,calc(100% - 32px));padding:10px 12px;background:#0d131a;border:1px solid #f2b84b88;border-radius:12px;box-shadow:0 10px 28px #05070acc;color:#f7f2e8}
 .heroHeader{display:flex;align-items:center;gap:10px}
 .portrait{width:44px;height:44px;aspect-ratio:1 / 1;border-radius:8px;border:1.5px solid #ffd166;object-fit:cover;flex-shrink:0;box-shadow:0 4px 12px #00000080}

@@ -6,6 +6,7 @@ import { useCityMaterials } from './cityMaterials';
 import Reclamation from './Reclamation';
 import Village from './Village';
 import MassifTerrain from './MassifTerrain';
+import LegacySanctuaryFlora from './LegacySanctuaryFlora';
 export default function HermonCity() {
   const city = useMemo(makeCity, []);
   const materials = useCityMaterials();
@@ -14,10 +15,12 @@ export default function HermonCity() {
   }, [city, materials]);
   return <>
     <RigidBody type="fixed" colliders={false}>
-      <mesh name="sanctuary-props" geometry={city.geometry} material={materials} receiveShadow castShadow dispose={null} />
       <MassifTerrain chunks={city.terrains} />
-      <Reclamation />
-      <Village />
+      <LegacySanctuaryFlora>
+        <mesh name="sanctuary-props" geometry={city.geometry} material={materials} receiveShadow castShadow dispose={null} />
+        <Reclamation />
+        <Village />
+      </LegacySanctuaryFlora>
       {city.solids.map((s, i) => s.kind === 'frame' ? null : <CuboidCollider key={i} args={s.size} position={s.position} rotation={s.rotation} />)}
     </RigidBody>
     <RigidBody type="fixed" colliders={false} collisionGroups={FRAME_GROUPS}>

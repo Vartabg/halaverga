@@ -12,7 +12,6 @@ import { useFieldGuide } from './useFieldGuide';
 import { touchMode } from '@/game/pointerMode';
 import { unlockBlasterAudio } from './audioUnlock';
 import { useAudio } from './useAudio';
-import { trackpadPill } from './trackpadPill';
 import { coarsePointer } from './hintQueue';
 import { labFault } from './labSwitch';
 import { secondFingerTap } from './secondFingerTap';
@@ -24,6 +23,7 @@ import FlowWelcome from './FlowWelcome';
 import PauseCard from './PauseCard';
 import SheetLost from './SheetLost';
 import Landing, { Brand } from './Landing';
+import LegacyFlightOverlay from './LegacyFlightOverlay';
 import styles from './Experience.module.css';
 const Scene = dynamic(() => import('@/world/Scene'), { ssr: false });
 // The blaster HUD is its own chunk: the landing page's first load carries no shooter UI. It is warmed once the setting is on.
@@ -37,10 +37,6 @@ const loadTouch = () => import('./TouchControls');
 // The controls lessons (one mount, standard controls only: they publish their line to the one hint slot). Its own small chunk, warmed after hydration.
 const loadHint = () => import('./ControlsHint');
 const ControlsHint = dynamic(loadHint, { ssr: false, loading: () => null });
-// The Flow and Simple trackpad panels are passive and belong to non-default profiles (the free cursor is the desktop default): their own
-// chunks, fetched only when that profile is on after Begin. A chunk that fails to load leaves the panel out; the controls themselves are not in it.
-const FlowHud = dynamic(() => import('./FlowHud'), { ssr: false, loading: () => null });
-const SimpleTrackpadHud = dynamic(() => import('./SimpleTrackpadHud'), { ssr: false, loading: () => null });
 // Flight settings open only after Begin, so they are a chunk warmed then: settings copy never grows the landing first load.
 const loadPanel = () => import('./TestPanel');
 // The Gesture Lab (Draw, Conduct, Brush) replaces the standard controls only while chosen. Its surface is held in state like the
@@ -120,9 +116,8 @@ export default function Experience() {
     clearWorldCache();
     setFailed(false); setSceneKey(v => v + 1); state.set({ ready: false, flying: false, landing: false });
   };
-  const standard = lab === 'standard', playing = state.started && !state.paused, twin = state.touchScheme === 'twin';
+  const standard = lab === 'standard', playing = state.started && !state.paused;
   const ready = state.ready && touchReady && (standard || !!LabControls);
-  const pill = standard && trackpadPill({ steering: state.trackpadSteering, shooter: state.shooter, cruising: state.trackpadFlying, flying: state.flying, canLand: state.canLand });
   useMessageClock();
   return <>
     <a className="skip" href="#field-guide" onClick={() => { pause(); state.set({ journal: true }); }}>Skip to text field guide</a>
@@ -160,16 +155,7 @@ export default function Experience() {
           {standard && <Optional><ControlsHint coarse={coarsePointer()} /></Optional>}
           <HintSlot />
           <Telemetry />
-          {/* Twin touch: the cluster's Rise/Descend replace Lift/Land, so CSS hides this under html[data-input=touch]. */}
-          {/* In a lab scheme Lift/Land is always shown (data-twin false): the lab has no Rise/Descend. */}
-          <div className={styles.actions} data-ghost-avoid="" data-shooter={String(state.shooter)} data-twin={String(twin && standard)}>
-            {/* A mouse click activates Lift/Land without focusing it, so the next Space still reaches flight (Tab + Space works). */}
-            <button className={styles.action} onMouseDown={e => { if (!touchMode()) e.preventDefault(); }} onClick={() => { runtime.lift = true; }}><span aria-hidden="true">{state.flying ? '↓' : '↑'}</span>{state.landing ? 'Cancel landing' : state.flying ? 'Land' : 'Lift'}</button>
-          </div>
-          {standard && state.desktopMode === 'trackpad' && state.trackpadSteering === 'flow' && <Optional><FlowHud /></Optional>}
-          {standard && state.desktopMode === 'trackpad' && state.trackpadSteering === 'simple' && <Optional><SimpleTrackpadHud /></Optional>}
-          {/* The desktop legend: a control caption, not advice, so it stays at the bottom and steps aside for a limit cue. */}
-          {state.desktopMode === 'trackpad' && pill && !state.limitHint && <div className={styles.legend} data-testid="legend">{pill}</div>}
+          <LegacyFlightOverlay />
         </>}
         {state.paused && !state.panel && !guide.Guide && !failed && !state.voteOpen && !state.controlsOpen && <PauseCard ready={ready} onEnter={enter} note={guide.note} />}
         {!failed && <Optional><VoteLayer onResume={enter} /></Optional>}

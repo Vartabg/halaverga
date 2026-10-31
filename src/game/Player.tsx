@@ -55,7 +55,10 @@ export default function Player() {
     const safe = safety.current;
     // Allow Rapier's first broad-phase update before querying a persisted checkpoint.
     if (warmup.current++ === 0) return;
-    const current = b.translation();
+    let current = b.translation();
+    if (state.shooter && Math.hypot(current.x - runtime.position.x, current.y - runtime.position.y, current.z - runtime.position.z) > 1.5) {
+      b.setTranslation(runtime.position, true); b.setNextKinematicTranslation(runtime.position); current = runtime.position;
+    }
     if ((warmup.current === 2 && !safe.canLand({ ...current, y: current.y - FOOT })) || !safe.isClear(current)) {
       const checkpoint = safe.checkpoint(state.checkpoint);
       b.setTranslation(checkpoint, true); b.setNextKinematicTranslation(checkpoint);
@@ -175,10 +178,11 @@ export default function Player() {
         if (target.y > 1 && target.distanceTo(runtime.position) < 30 && safe.canLand(target) && safe.pathClear(runtime.position, goal)) runtime.landTarget = target;
       }
       const terminal = nearestTerminal(runtime.position);
-      const nearTerminal = terminal !== null;
+      const duelHide = state.shooter && typeof window !== 'undefined' && Boolean((window as unknown as { __gowDuelEngaged?: boolean }).__gowDuelEngaged);
+      const nearTerminal = !duelHide && terminal !== null;
       runtime.location = locationName(next, terminal);
-      const nearGround = flying && probeBelow(world, rapier, col, safe, runtime.position, FOOT + LAND_WINDOW) !== null;
-      useGame.setState({ canLand: !!runtime.landTarget, nearTerminal, nearGround, limitCue: runtime.clearance.cue, limitHint: limitHint(flying ? runtime.clearance.cue : '', inputKind(touchMode(), state.trackpadSteering, state.desktopMode)), clearanceActive: runtime.clearance.active });
+      const nearGround = !duelHide && flying && probeBelow(world, rapier, col, safe, runtime.position, FOOT + LAND_WINDOW) !== null;
+      useGame.setState({ canLand: !duelHide && !!runtime.landTarget, nearTerminal, nearGround, limitCue: runtime.clearance.cue, limitHint: limitHint(flying ? runtime.clearance.cue : '', inputKind(touchMode(), state.trackpadSteering, state.desktopMode)), clearanceActive: runtime.clearance.active });
     }
   });
   return <RigidBody ref={body} type="kinematicPosition" colliders={false} position={[spawn.current.x, spawn.current.y, spawn.current.z]}>

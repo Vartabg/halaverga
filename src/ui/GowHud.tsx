@@ -1,9 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { selectTarget } from '@/game/gowCombat';
+import { markDuelEngaged, selectTarget } from '@/game/gowCombat';
 import { executeModeCommand, switchDemoMode } from '@/game/gowPrototypeLab';
-import { gowRuntime, type DemoMode, type DivePhase, type EnemyId, type TurnPhase } from '@/game/gowTypes';
+import { gowRuntime, type DemoMode, type DivePhase, type DuelOutcome, type EnemyId, type TurnPhase } from '@/game/gowTypes';
 import { useGame } from '@/game/store';
 import styles from './GowHud.module.css';
 
@@ -14,7 +14,8 @@ interface EnemySnap {
 
 interface HudSnapshot {
   hp: number; rage: number; rageActive: boolean;
-  demoMode: DemoMode; ecoMode: boolean; divePhase: DivePhase;
+  demoMode: DemoMode; ecoMode: boolean; divePhase: DivePhase; outcome: DuelOutcome;
+  phase2Awakened: boolean; collisions: number;
   cutInTimer: number; cutInTitle: string; cutInSub: string; cutInPortrait: string;
   oathCount: number; sigilPrism: boolean;
   turnPhase: TurnPhase; turnNumber: number; ap: number; maxAp: number; guardWard: boolean;
@@ -27,7 +28,8 @@ function readSnapshot(): HudSnapshot {
   const latestPopup = gowRuntime.popups[gowRuntime.popups.length - 1];
   return {
     hp: Math.round(gowRuntime.hp), rage: Math.round(gowRuntime.rage), rageActive: gowRuntime.rageActive > 0,
-    demoMode: gowRuntime.demoMode, ecoMode: gowRuntime.ecoMode, divePhase: gowRuntime.divePhase,
+    demoMode: gowRuntime.demoMode, ecoMode: gowRuntime.ecoMode, divePhase: gowRuntime.divePhase, outcome: gowRuntime.outcome,
+    phase2Awakened: gowRuntime.phase2Awakened, collisions: gowRuntime.collisionsTriggered,
     cutInTimer: gowRuntime.cutInTimer, cutInTitle: gowRuntime.cutInTitle, cutInSub: gowRuntime.cutInSub, cutInPortrait: gowRuntime.cutInPortrait,
     oathCount: gowRuntime.oathTethers.filter(Boolean).length, sigilPrism: gowRuntime.sigilPrism,
     turnPhase: gowRuntime.turnPhase, turnNumber: gowRuntime.turnNumber, ap: gowRuntime.ap, maxAp: gowRuntime.maxAp,
@@ -100,7 +102,7 @@ export default function GowHud() {
     <div className={styles.hud} data-gow-hud="" data-testid="gow-hud" aria-hidden={showDeck ? undefined : 'true'}>
       {snap.cutInTimer > 0 ? (
         <div className={styles.cutInBanner} data-testid="gow-cutin-banner" aria-hidden="true">
-          <img src={snap.cutInPortrait} alt="" className={styles.cutInPortrait} width={52} height={52} />
+          <img src={snap.cutInPortrait} alt="" className={styles.cutInPortrait} width={112} height={63} />
           <div className={styles.cutInCopy}>
             <span className={styles.cutInTitle}>{snap.cutInTitle}</span>
             <span className={styles.cutInSub}>{snap.cutInSub}</span>
@@ -112,31 +114,33 @@ export default function GowHud() {
         {showDeck ? (
           <div className={styles.labBar} data-testid="gow-demo-switcher">
             {([['clash', '💥 1 · Diorama Clash'], ['sigil', '📐 2 · Sigil Weaver'], ['dive', '🦅 3 · Dive-to-Duel']] as const).map(([mode, label]) => (
-              <button
-                key={mode} type="button" aria-pressed={snap.demoMode === mode}
-                onMouseDown={(ev) => ev.preventDefault()} onClick={() => { switchDemoMode(mode); setSnap(readSnapshot()); }}
-                className={`${styles.labBtn} ${snap.demoMode === mode ? styles.labBtnActive : ''}`}
-              >
-                {label}
-              </button>
+              <button key={mode} type="button" aria-pressed={snap.demoMode === mode} onMouseDown={(ev) => ev.preventDefault()} onClick={() => { switchDemoMode(mode); setSnap(readSnapshot()); }} className={`${styles.labBtn} ${snap.demoMode === mode ? styles.labBtnActive : ''}`}>{label}</button>
             ))}
             <span className={styles.powerBadge} data-testid="gow-power-badge">{snap.ecoMode ? '⚡ ECO 12FPS' : '🔥 BURST 60FPS'}</span>
           </div>
         ) : null}
 
         <div className={styles.bossHeader}>
-          <span className={styles.bossTitle}>{phaseBanner}</span>
-          <span className={styles.bossNumbers}>SEMJAZA HP {snap.bossHp}/{snap.bossMaxHp} {snap.demoMode === 'sigil' && snap.oathCount > 0 ? `• 🛡️ AEGIS (${snap.oathCount})` : `• STUN ${snap.bossStun}%`}</span>
+          <span className={styles.bossTitle}>{snap.outcome === 'VICTORY' ? '🏆 SANCTUARY CLEANSED • SEMJAZA BOUND' : snap.outcome === 'DEFEAT' ? '💀 FALLEN AT THE SUMMIT' : phaseBanner}</span>
+          <span className={styles.bossNumbers}>SEMJAZA HP {snap.bossHp}/{snap.bossMaxHp} {snap.phase2Awakened ? '• 🔥 PHASE II' : snap.demoMode === 'sigil' && snap.oathCount > 0 ? `• 🛡️ AEGIS (${snap.oathCount})` : `• STUN ${snap.bossStun}%`}</span>
         </div>
         <div className={styles.barTrack}><div className={styles.hpFill} style={{ width: `${bossPct}%` }} /></div>
 
-        {showDeck ? (
+        {showDeck && snap.outcome !== 'ONGOING' ? (
+          <div className={styles.outcomePanel} data-testid="gow-outcome-panel">
+            <span className={styles.outcomeSummary}>{snap.outcome === 'VICTORY' ? 'Mount Hermon Reclaimed' : 'The Watchers Held the Altar'} • Rounds: {snap.turnNumber} • Chain Impacts / Reflections: {snap.collisions}</span>
+            <div className={styles.outcomeActions}>
+              <button type="button" className={styles.cmdBtn} onClick={() => { switchDemoMode(snap.demoMode); setSnap(readSnapshot()); }}><span className={styles.cmdTitle}>🔄 Play Again</span></button>
+              <button type="button" className={styles.cmdBtn} onClick={() => { switchDemoMode(snap.demoMode === 'clash' ? 'sigil' : snap.demoMode === 'sigil' ? 'dive' : 'clash'); setSnap(readSnapshot()); }}><span className={styles.cmdTitle}>⏭️ Try Next Demo Mode</span></button>
+            </div>
+          </div>
+        ) : showDeck ? (
           <>
             <div className={styles.targetStrip} data-testid="gow-target-strip">
               {snap.enemies.map((e) => (
                 <button
                   key={e.id} type="button" disabled={e.dead}
-                  onMouseDown={(ev) => ev.preventDefault()} onClick={() => { selectTarget(e.id); setSnap(readSnapshot()); }}
+                  onMouseDown={(ev) => ev.preventDefault()} onClick={() => { markDuelEngaged(); selectTarget(e.id); setSnap(readSnapshot()); }}
                   className={`${styles.targetCard} ${snap.lockedId === e.id ? styles.targetLocked : ''}`}
                 >
                   <img src={e.portrait} alt="" className={styles.targetPortrait} width={28} height={28} />
@@ -152,7 +156,7 @@ export default function GowHud() {
               {deck.map((item, idx) => (
                 <button
                   key={item.title} type="button" disabled={item.disabled}
-                  onMouseDown={(ev) => ev.preventDefault()} onClick={() => { executeModeCommand((idx + 1) as 1 | 2 | 3 | 4 | 5, reduced); setSnap(readSnapshot()); }}
+                  onMouseDown={(ev) => ev.preventDefault()} onClick={() => { markDuelEngaged(); executeModeCommand((idx + 1) as 1 | 2 | 3 | 4 | 5, reduced); setSnap(readSnapshot()); }}
                   className={idx === 4 ? styles.endTurnBtn : styles.cmdBtn}
                 >
                   <span className={styles.cmdTitle}>{item.title}</span>
