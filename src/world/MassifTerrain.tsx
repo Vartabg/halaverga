@@ -8,8 +8,10 @@ export default function MassifTerrain({ chunks, shadows = true }: { chunks: Terr
   const material = useMemo(paintInkMaterial, []);
   useEffect(() => () => material.dispose(), [material]);
   return <>
-    {chunks.map(chunk => <mesh key={chunk.id} name={chunk.id} geometry={chunk.geometry} material={material}
-      castShadow={shadows} receiveShadow={shadows} dispose={null} />)}
+    <group name="hermon-massif-visuals">
+      {chunks.map(chunk => <mesh key={chunk.id} name={chunk.id} geometry={chunk.geometry} material={material}
+        castShadow={shadows} receiveShadow={shadows} dispose={null} />)}
+    </group>
     {chunks.map(chunk => <TrimeshCollider key={chunk.id} args={[chunk.vertices, chunk.indices]} />)}
   </>;
 }
