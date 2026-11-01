@@ -3,9 +3,7 @@ import { AdditiveBlending, BoxGeometry, BufferGeometry, Color, DataTexture, Icos
   type WebGLProgramParametersWithUniforms } from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
-export const DRONE_COLORS = { body: '#1f1618', plate: '#8c6232', eyeIdle: '#ffaa2b', eyeAlert: '#ff2418', telegraph: '#fff7de', rim: '#ff8822', flash: '#ffffff' } as const;
-/** Wheel radius and crown offset: the crossed brass wheels sit inside the .95 m hit sphere. */
-const ARM_R = .58, ARM_Y = .04;
+export const DRONE_COLORS = { body: '#1a1228', plate: '#f0b243', eyeIdle: '#ffcf54', eyeAlert: '#ff321b', telegraph: '#fff7de', rim: '#ff9024', flash: '#ffffff' } as const;
 
 function merge(parts: BufferGeometry[]) {
   const flat = parts.map(g => g.index ? g.toNonIndexed() : g), out = mergeGeometries(flat);
@@ -13,20 +11,47 @@ function merge(parts: BufferGeometry[]) {
   if (!out) throw new Error('drone geometry merge failed');
   return out;
 }
-/** A Fallen Watcher sentinel, facing -Z: dark obsidian core, crossed burning brass wheels, and the eye at eyeCenter(). Game fiction:
- * 1 Enoch's Ophanim are holy (61:10, 71:7), so the enemies are never called that. */
+/** A Biblical Ophanim Watcher sentinel, facing -Z: faceted obsidian core, seraphic wing-blades,
+ * interlocking gyroscopic wheels of fire with cherubic eyes all round, and the blazing eye at eyeCenter().
+ * Stays strictly inside the .95 m hit sphere with zero spherical robot shell. */
 export function buildDroneGeometry() {
-  const parts: BufferGeometry[] = [new IcosahedronGeometry(.54, 1)];
-  for (const deg of [45, 135]) parts.push(new BoxGeometry(ARM_R * 2.15, .09, .14).rotateZ(.32).rotateY(deg * Math.PI / 180).translate(0, ARM_Y, 0));
-  const tilts: [number, number][] = [[.62, .25], [-.62, -.25], [.28, -.68], [-.28, .68]];
-  for (let k = 0; k < 4; k++) {
-    const [rx, rz] = tilts[k], a = Math.PI / 4 + k * Math.PI / 2;
-    parts.push(new TorusGeometry(.54, .038, 6, 16).rotateX(rx).rotateZ(rz).translate(Math.cos(a) * .28, ARM_Y, Math.sin(a) * .28));
+  const bodyParts: BufferGeometry[] = [new IcosahedronGeometry(.36, 1)];
+  for (const side of [-1, 1]) {
+    for (const tier of [-1, 0, 1]) {
+      const wing = new BoxGeometry(.62, .04, .15);
+      wing.rotateZ(side * (.36 + tier * .28));
+      wing.rotateY(side * -.24);
+      wing.translate(side * .48, tier * .16, .06);
+      bodyParts.push(wing);
+    }
   }
-  parts.push(new SphereGeometry(.62, 12, 6, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2));
+  for (const [rx, rz] of [[.62, .28], [-.62, -.28]] as const) {
+    bodyParts.push(new TorusGeometry(.58, .038, 6, 14).rotateX(rx).rotateZ(rz));
+  }
+  for (let k = 0; k < 4; k++) {
+    const a = k * Math.PI / 2;
+    const eyeGem = new SphereGeometry(.045, 5, 4);
+    eyeGem.translate(Math.cos(a) * .58, Math.sin(a) * .58, 0);
+    eyeGem.rotateX(.62); eyeGem.rotateZ(.28);
+    bodyParts.push(eyeGem);
+  }
+  const plateParts: BufferGeometry[] = [];
+  for (const [rx, rz] of [[.28, -.68], [-.28, .68]] as const) {
+    plateParts.push(new TorusGeometry(.72, .042, 6, 14).rotateX(rx).rotateZ(rz));
+  }
+  for (let k = 0; k < 6; k++) {
+    const a = k * Math.PI / 3;
+    const spoke = new BoxGeometry(.05, .24, .06);
+    spoke.rotateZ(-a);
+    spoke.translate(Math.sin(a) * .72, Math.cos(a) * .72, 0);
+    plateParts.push(spoke);
+    const gem = new SphereGeometry(.045, 5, 4);
+    gem.translate(Math.sin(a) * .72, Math.cos(a) * .72, 0);
+    plateParts.push(gem);
+  }
   return {
-    body: merge(parts),
-    plate: merge([new SphereGeometry(.64, 12, 5, 0, Math.PI * 2, 0, Math.PI * .42)]),
+    body: merge(bodyParts),
+    plate: merge(plateParts),
     eye: new SphereGeometry(.32, 12, 8),
     halo: new PlaneGeometry(1, 1),
   };
@@ -71,6 +96,8 @@ function flashRim(material: MeshStandardMaterial, rim: number) {
       totalEmissiveRadiance += vec3(vFlash) * 1.6 + uRim * pow(1.0 - saturate(dot(normal, normalize(vViewPosition))), 3.0);
       float exposed = smoothstep(0.18, 0.5, vLocal.y) + 0.25 * smoothstep(0.35, 0.0, abs(vLocal.y));
       totalEmissiveRadiance += uEmber * exposed * vDamage * 3.0;
+      float droneInk = smoothstep(0.24, 0.54, length(fwidth(normal)));
+      diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.05, 0.03, 0.10), droneInk * 0.85);
     `);
   };
   material.customProgramCacheKey = () => CACHE_KEY;

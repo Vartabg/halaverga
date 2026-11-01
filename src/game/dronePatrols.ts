@@ -11,7 +11,7 @@ export const PATROLS: readonly Patrol[] = [
   // Starting values: 12.0 m from solids, 6.8 m from the route, 3.4 m/s peak.
   { id: 'canal-mid', c: { x: -6, y: 16, z: 24 }, r: { x: 4, y: 1.5, z: 6 }, omega: .5, phase: 3.1 },
   // omega .7 -> .75 lifts the peak from 2.52 to 2.70 m/s; 8.4 m from solids.
-  { id: 'viaduct-gap', c: { x: 0, y: 21, z: -1 }, r: { x: 3, y: 1, z: 2.5 }, omega: .75, phase: .6 },
+  { id: 'viaduct-gap', c: { x: 0, y: 23, z: -1 }, r: { x: 3, y: 1, z: 2.5 }, omega: .75, phase: .6 },
   // c.y 70 -> 75: the route's ascent -> roof leg runs at y 69 through the ring (1 m at y 70); now 12.7-14.7 m above the roof.
   { id: 'tower-orbit', c: { x: 36, y: 75, z: -38 }, r: { x: 18, y: 1, z: 18 }, omega: .18, phase: 2.2 },
   // Open-world patrols (utilising MAX_DRONES = 8): the north canal avenue and the west/east basins outside the central ridges.

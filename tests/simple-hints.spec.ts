@@ -48,7 +48,7 @@ for (const size of [{ width: 1440, height: 1000 }, { width: 640, height: 900 }])
     const el = document.querySelector('[data-testid=hint-live]'); return !el || !el.closest('[aria-hidden="true"]');
   })).toBe(true);
   // Never repeats: after a reload only the panel's reminder remains.
-  await page.keyboard.press('Escape'); await page.reload(); await page.getByRole('button', { name: 'Begin expedition' }).click();
+  await page.keyboard.press('Escape'); await page.reload(); await page.getByRole('button', { name: 'Ascend Mount Hermon' }).click();
   await expect(page.getByTestId('shooter-hud')).toBeAttached(); await page.waitForTimeout(400);
   await expect(hint(page)).toHaveCount(0);
   await expect(page.getByTestId('simple-trackpad-hud')).toContainText('CLICK THE SCENE TO LOOK FREELY');
@@ -183,10 +183,10 @@ for (const viewport of [{ width: 393, height: 852 }, { width: 852, height: 393 }
     await touch.down(2, t.lookPoint); await touch.drag(2, 60, 0); await touch.up(2);
     await expect(hint(page)).toHaveText('Tap Lift off to fly', { timeout: 3000 }); await page.waitForTimeout(1000);
     await touch.down(4, centre((await t.rise.boundingBox())!)); await page.waitForTimeout(100); await touch.up(4);
-    await expect(hint(page)).toHaveText('Aim at drones · Fire to shoot', { timeout: 3000 });
+    await expect(hint(page)).toHaveText('Aim at Watchers · Fire shoots', { timeout: 3000 });
     expect((await saved(page)).touch).toBe(3);
-    await page.reload(); await page.getByRole('button', { name: 'Begin expedition' }).tap();
-    await expect(hint(page)).toHaveText('Aim at drones · Fire to shoot');
+    await page.reload(); await page.getByRole('button', { name: 'Ascend Mount Hermon' }).tap();
+    await expect(hint(page)).toHaveText('Aim at Watchers · Fire shoots');
     expect(t.errors).toEqual([]); await t.context.close();
   });
   test('with auto-fire off the last step names the Fire button; a finished series shows nothing', async ({ browser }) => {

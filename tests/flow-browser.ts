@@ -7,7 +7,7 @@ export const position = async (p: Page): Promise<number[]> => JSON.parse((await 
 export const selected = async (p: Page) => Number(await hud(p).getAttribute('data-selected-speed'));
 export async function beginFlow(page: Page, camera = 'third') {
   await page.addInitScript(camera => localStorage.setItem('halaverga-flight-v1', JSON.stringify({ flowIntroSeen: true, camera })), camera);
-  await page.goto('/?trackpad=flow'); await page.getByRole('button', { name: 'Begin expedition' }).click();
+  await page.goto('/?trackpad=flow'); await page.getByRole('button', { name: 'Ascend Mount Hermon' }).click();
   const ground = await position(page);
   await page.mouse.click(720, 500); await expect(hud(page)).toHaveAttribute('data-capture', 'engaged');
   await expect(telemetry(page)).toHaveAttribute('data-flying', 'true');

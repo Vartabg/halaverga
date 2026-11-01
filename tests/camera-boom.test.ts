@@ -32,11 +32,10 @@ describe('camera boom at the district edge', () => {
       expect(old).toBeLessThan(length - .5);
     });
   }
-  it('still stops at a real city solid', () => {
-    const s = new Sim({ x: 0, y: 40, z: 60 }, { city: true }); sims.push(s);
-    // Look for any building face along +x from the arrival terrace and check the boom shortens against it.
-    const cast = (x: number) => boom(s, { x, y: 25, z: 60.7 }, new Vector3(1, 0, 0), 30, undefined, boomBlocks);
-    const xs = [60, 80, 100, 120, 130, 135, 140, 145], lengths = xs.map(cast);
-    expect(Math.min(...lengths)).toBeLessThan(30);
+  it('still stops at the real summit cliff', () => {
+    const s = new Sim({ x: 0, y: 50, z: -38 }, { city: true }); sims.push(s);
+    const cast = (x: number) => boom(s, { x, y: 50, z: -38 }, new Vector3(1, 0, 0), 60, undefined, boomBlocks);
+    const lengths = [-15, -5, 5, 15].map(cast);
+    expect(Math.min(...lengths)).toBeLessThan(60);
   });
 });

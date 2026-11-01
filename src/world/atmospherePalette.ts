@@ -81,7 +81,7 @@ export function acesFilmic(c: Rgb, exposure = EXPOSURE): Rgb {
 /** The water body as it appears on screen (display linear): the foot of a distant range mists toward the water, not toward the sky. */
 export const SEA_BODY = acesFilmic(WATER_BODY);
 /** Most of the light now: the dawn firmament from above, the rock and snow of the summit from below. */
-export const HEMISPHERE = { sky: '#b9c4de', ground: '#6b655c', intensity: 2.2 };
+export const HEMISPHERE = { sky: '#b9c4de', ground: '#746252', intensity: 2.2 };
 
 const clamp01 = (x: number) => Math.min(1, Math.max(0, x));
 const smooth = (a: number, b: number, x: number) => { const t = clamp01((x - a) / (b - a)); return t * t * (3 - 2 * t); };

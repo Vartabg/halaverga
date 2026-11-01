@@ -56,6 +56,20 @@ export function bakeTower(out: Buffers, stand: Stand, specs: Spec[]) {
     g.applyMatrix4(new Matrix4().compose(new Vector3(...spec.at), new Quaternion().setFromEuler(new Euler(0, 0, spec.tilt ?? 0)), new Vector3(1, 1, 1)).premultiply(frame));
     g.computeBoundingBox();
     const bb = g.boundingBox!; parts.push({ kind: spec.kind, min: [bb.min.x, bb.min.y, bb.min.z], max: [bb.max.x, bb.max.y, bb.max.z], shear: spec.shear ?? 0 });
+    if (spec.size[2] < 80) {
+      const cx = Math.abs(spec.at[0]) > 15 ? (bb.min.x + bb.max.x) * .5 : stand.x;
+      const cz = Math.abs(spec.at[0]) > 15 ? (bb.min.z + bb.max.z) * .5 : stand.z;
+      const capFit = spec.kind === 'slab' || spec.kind === 'stub' ? Math.min(1, specs[0].size[0] / Math.max(1, spec.size[0])) : 1;
+      for (let i = 0; i < pos.count; i++) {
+        const vx = pos.getX(i), vy = pos.getY(i), vz = pos.getZ(i);
+        if (vy > 0) {
+          const tY = Math.min(1, Math.max(0, (vy - 1.2) / Math.max(10, total - 1.2)));
+          const kTaper = (1.22 - 1.08 * Math.pow(tY, .76)) * capFit;
+          pos.setXYZ(i, cx + (vx - cx) * kTaper, vy, cz + (vz - cz) * kTaper);
+        }
+      }
+      g.computeVertexNormals();
+    }
     const nor = g.attributes.normal, idx = g.index!.array, [lite, own] = paint(spec.kind, stand.layer), wall = WALLED.includes(spec.kind) ? 1 : 0;
     const steel = wall === 0 && spec.kind !== 'floor' && spec.kind !== 'slab' && spec.kind !== 'rubble', burn = spec.burn ?? 0;
     for (let f = 0; f < 6; f++) {

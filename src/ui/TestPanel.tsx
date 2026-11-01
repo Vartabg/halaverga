@@ -88,7 +88,7 @@ export default function TestPanel({ onClose, onResume, ready }: { onClose: () =>
     <label className={styles.check}><input type="checkbox" checked={!state.muted} onChange={e => {
       // Unmute first: the unlock reads the muted flag (and the blaster setting) before touching the audio session.
       save({ muted: !e.target.checked }); if (e.target.checked) unlockBlasterAudio();
-    }} /> Suit and wind audio</label>
+    }} /> Celestial fire and wind audio</label>
     <MoreControls />
     <p className={styles.muted}>Reduced motion keeps a fixed field of view, removes camera easing and softens the character’s poses. Flight itself remains player-controlled.</p>
     {anyCoarse && <ScreenDiagnostics />}
@@ -101,7 +101,7 @@ export default function TestPanel({ onClose, onResume, ready }: { onClose: () =>
         const a = document.createElement('a'); a.href = url; a.download = 'halaverga-playtest.json'; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
       }}>Download measurements</button>
     </details>
-    <button className={styles.secondary} onClick={() => { runtime.reset = true; onClose(); }}>Return to arrival terrace</button>
+    <button className={styles.secondary} onClick={() => { runtime.reset = true; onClose(); }}>Return to summit altar</button>
     <div className={styles.modalFoot} data-testid="settings-foot"><button className={styles.primary} aria-label="Resume flight" disabled={!ready} onClick={onResume}>Resume</button></div>
   </Modal>;
 }

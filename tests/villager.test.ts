@@ -29,4 +29,8 @@ describe('village opening figure', () => {
     expect(src).not.toMatch(/wing|cannon|suit\.glb|CuboidCollider|#f4e2b8|#e8d5b8/i);
     expect(src).not.toMatch(/Semjaza|Azazel|Kokabiel/);
   });
+
+  it('keeps the blocky box villager retired from the active Hermon sanctuary scene', () => {
+    expect(readFileSync('src/world/HermonCity.tsx', 'utf8')).not.toContain('<Villager />');
+  });
 });

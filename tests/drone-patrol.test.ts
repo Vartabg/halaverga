@@ -6,13 +6,15 @@ import { START, WORLD } from '../src/game/motion';
 import { BUILDING_ROUTE } from '../src/game/navigation';
 import { forwardOf, type Vec3 } from '../src/game/combat';
 import { PATROLS, flyInStart, patrolPeakSpeed, patrolPosition } from '../src/game/dronePatrols';
+import { heightAt } from '../src/world/massifData';
 type Box = { c: Vector3; h: Vector3; inv: Quaternion };
 let boxes: Box[];
 beforeAll(() => {
   const city = makeCity(), field = makeField();
-  city.geometry.dispose(); field.geometries.forEach(g => g.dispose());
+  city.geometry.dispose(); city.terrains.forEach(t => t.geometry.dispose()); field.geometries.forEach(g => g.dispose());
   boxes = [...city.solids, ...field.solids].map(s => ({ c: new Vector3(...s.position), h: new Vector3(...s.size),
     inv: new Quaternion().setFromEuler(new Euler(...s.rotation)).invert() }));
+  boxes.push({ c: new Vector3(0, 6, -1), h: new Vector3(33, 9, 5.5), inv: new Quaternion() });
 });
 const local = new Vector3();
 /** Distance from p to the nearest solid OBB: into the box frame, then clamp to the half-extents. */
@@ -23,7 +25,7 @@ function solidDistance(p: Vec3) {
     const dx = Math.max(0, Math.abs(local.x) - b.h.x), dy = Math.max(0, Math.abs(local.y) - b.h.y), dz = Math.max(0, Math.abs(local.z) - b.h.z);
     best = Math.min(best, Math.hypot(dx, dy, dz));
   }
-  return best;
+  return Math.min(best, p.y - heightAt(p.x, p.z));
 }
 function routeDistance(p: Vec3) {
   let best = Infinity;

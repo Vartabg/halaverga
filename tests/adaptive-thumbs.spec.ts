@@ -6,7 +6,7 @@ for (const first of ['left', 'right'] as const) for (const released of ['left', 
     const context = await browser.newContext({ viewport, isMobile: true, hasTouch: true });
     const page = await context.newPage(), errors: string[] = []; await seed(page, CLASSIC);
     page.on('pageerror', e => errors.push(e.message));
-    await page.goto('/'); await page.getByRole('button', { name: 'Begin expedition' }).tap();
+    await page.goto('/'); await page.getByRole('button', { name: 'Ascend Mount Hermon' }).tap();
     const cdp = await context.newCDPSession(page), surface = page.getByTestId('flight-surface');
     const telemetry = page.getByTestId('flight-telemetry');
     const value = async (key: string) => Number(await telemetry.getAttribute(`data-${key}`));
@@ -44,7 +44,7 @@ for (const first of ['left', 'right'] as const) for (const released of ['left', 
 }
 test('neutral dual thumbs look without launching; cancellation and extra contacts cannot latch flight', async ({ browser }) => {
   const context = await browser.newContext({ viewport: { width: 393, height: 852 }, isMobile: true, hasTouch: true });
-  const page = await context.newPage(); await seed(page, CLASSIC); await page.goto('/'); await page.getByRole('button', { name: 'Begin expedition' }).tap();
+  const page = await context.newPage(); await seed(page, CLASSIC); await page.goto('/'); await page.getByRole('button', { name: 'Ascend Mount Hermon' }).tap();
   const cdp = await context.newCDPSession(page), surface = page.getByTestId('flight-surface'), telemetry = page.getByTestId('flight-telemetry');
   const left = { id: 1, x: 90, y: 650 }, right = { id: 2, x: 290, y: 650 };
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [left, right] });
@@ -73,7 +73,7 @@ test('neutral dual thumbs look without launching; cancellation and extra contact
 // Limits plan S8: a hand that a third finger blocked, or that pause/resume released, used to stay dead until every finger lifted.
 async function classicPage(browser: import('@playwright/test').Browser) {
   const context = await browser.newContext({ viewport: { width: 393, height: 852 }, isMobile: true, hasTouch: true });
-  const page = await context.newPage(); await seed(page, CLASSIC); await page.goto('/'); await page.getByRole('button', { name: 'Begin expedition' }).tap();
+  const page = await context.newPage(); await seed(page, CLASSIC); await page.goto('/'); await page.getByRole('button', { name: 'Ascend Mount Hermon' }).tap();
   const cdp = await context.newCDPSession(page), surface = page.getByTestId('flight-surface'), telemetry = page.getByTestId('flight-telemetry');
   return { context, page, cdp, surface, telemetry, speed: async () => Number(await telemetry.getAttribute('data-speed')),
     send: (type: 'touchStart' | 'touchMove' | 'touchEnd' | 'touchCancel', points: { id: number; x: number; y: number }[]) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: points }) };

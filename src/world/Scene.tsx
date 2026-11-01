@@ -3,36 +3,33 @@ import { Suspense, lazy, useEffect, useRef } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Physics } from '@react-three/rapier';
 import { ACESFilmicToneMapping, type DirectionalLight } from 'three';
-import City from './City';
+import City from './HermonCity';
 import RuinField from './RuinField';
 import DistrictBoundary from './DistrictBoundary';
 import { Sky, Water } from './Atmosphere';
 import Skyline from './Skyline';
 import Drift from './Drift';
 import Suit from './Suit';
+import WindCurrents from './WindCurrents';
+import WingTrails from './WingTrails';
 import Player from '@/game/Player';
 import CameraRig from '@/game/CameraRig';
 import FlightPresentation from '@/game/FlightPresentation';
-import Shooter from '@/game/Shooter';
-import { shooterFault } from '@/game/shooterFault';
 import Boundary from '@/ui/Boundary';
-import Drones from './Drones';
-import ShotFx from './ShotFx';
-import ImpactFx from './ImpactFx';
-import ArmCannon from './ArmCannon';
 import { useGame } from '@/game/store';
 import { clearInput, runtime } from '@/game/runtime';
 import EnvironmentLight from './EnvironmentLight';
 import { EXPOSURE, FOG, HEMISPHERE, SUN_COLOR, SUN_INTENSITY, SUN_POSITION } from './atmospherePalette';
 import { labFault } from '@/ui/labSwitch';
-import { useTouchCapable } from '@/ui/useTouchCapable';
-// The Gesture Lab's scene parts load only when a lab scheme is on (spec 10): the drone screen history (-9), Draw's world probe
-// (-45) and ribbon, and the hero trail. The standard controls fetch only the drone screen history, and only for the classic one
-// thumb with the blaster on (tap a drone to blast, 2026-09-26).
+import { gowRuntime } from '@/game/gowTypes';
+
 const GestureTrack = lazy(() => import('./GestureTrack'));
 const DrawProbe = lazy(() => import('./DrawProbe'));
 const GestureRibbon = lazy(() => import('./GestureRibbon'));
 const HeroTrail = lazy(() => import('./HeroTrail'));
+const GowArena = lazy(() => import('./GowArena'));
+const GeoWorldLayer = lazy(() => import('./GeoWorldLayer'));
+
 function GraphicsRecovery({ onLoss, sun }: { onLoss: () => void; sun: React.RefObject<DirectionalLight | null> }) {
   const { gl, invalidate } = useThree();
   useEffect(() => {
@@ -50,27 +47,16 @@ function GraphicsRecovery({ onLoss, sun }: { onLoss: () => void; sun: React.RefO
   });
   return null;
 }
-/** The blaster, its arm cannon and the Watcher sentinels, mounted only while the setting is on (so arm-cannon.glb is fetched only
- * then). A render or load error turns the blaster off; flight continues. */
-function ShooterLayer() {
-  const shooter = useGame(s => s.shooter);
-  return shooter ? <Boundary fallback={null} onError={() => shooterFault('render', null)}><Shooter /><Drones /><ShotFx /><ImpactFx />
-    <Suspense fallback={null}><ArmCannon /></Suspense></Boundary> : null;
-}
-/** Standard on the classic one thumb, blaster on, touch-capable device: the drone screen history alone (the tap pick reads it).
- *  A desktop that has never shown touch mounts nothing here, so its Standard stays as it was. A failure only leaves it out. */
-function TapTrack() {
-  const on = useGame(s => s.shooter && s.touchScheme === 'classic' && s.controlLab === 'standard'), capable = useTouchCapable();
-  return on && capable ? <Boundary fallback={null} onError={() => {}}><Suspense fallback={null}><GestureTrack /></Suspense></Boundary> : null;
-}
+
 /** Mounted inside Physics (DrawProbe queries the world). A load or render error returns the session to the standard controls. */
 function LabLayer() {
   const lab = useGame(s => s.controlLab);
-  if (lab === 'standard') return <TapTrack />;
+  if (lab === 'standard') return null;
   return <Boundary key={lab} fallback={null} onError={() => labFault('The Gesture Lab scene failed. Standard controls are on.')}>
     <Suspense fallback={null}><GestureTrack />{lab === 'draw' && <><DrawProbe /><GestureRibbon /></>}<HeroTrail /></Suspense>
   </Boundary>;
 }
+
 export default function Scene({ onLoss }: { onLoss: () => void }) {
   const paused = useGame(s => s.paused), quality = useGame(s => s.quality), sun = useRef<DirectionalLight>(null);
   return <Canvas aria-label="Three-dimensional Mount Hermon at dawn. Text description and keyboard controls are available in the field guide."
@@ -88,7 +74,9 @@ export default function Scene({ onLoss }: { onLoss: () => void }) {
     <Suspense fallback={null}>
       <Physics paused={paused} timeStep={1 / 60} updatePriority={-50} gravity={[0, -22, 0]}>
         <City /><RuinField /><DistrictBoundary /><Player /><FlightPresentation /><Suit /><CameraRig />
-        <ShooterLayer /><LabLayer />
+        <WindCurrents /><WingTrails /><LabLayer />
+        <Boundary fallback={null} onError={() => {}}><Suspense fallback={null}><GeoWorldLayer /></Suspense></Boundary>
+        {gowRuntime.duelEngaged && <Boundary fallback={null} onError={() => {}}><Suspense fallback={null}><GowArena /></Suspense></Boundary>}
       </Physics>
     </Suspense>
   </Canvas>;

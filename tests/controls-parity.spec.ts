@@ -173,7 +173,7 @@ test('?controls=<id> stays this session only: the saved choice is untouched, a p
   await page.reload();
   const after = await page.evaluate(() => JSON.parse(localStorage.getItem('halaverga-flight-v1') || '{}'));
   expect(after.trackpadSteering ?? 'free').toBe('free');
-  await page.goto('/'); await page.getByRole('button', { name: 'Begin expedition' }).click();
+  await page.goto('/'); await page.getByRole('button', { name: 'Ascend Mount Hermon' }).click();
   await expect(trigger(page)).toHaveAccessibleName(controlName('Cursor'));
   expect(t.errors).toEqual([]); await t.context.close();
 });

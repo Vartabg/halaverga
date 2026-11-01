@@ -14,7 +14,7 @@ export const seed = (p: Page, saved: Record<string, unknown>) =>
     if (!sessionStorage.getItem('halaverga-seeded')) { sessionStorage.setItem('halaverga-seeded', '1'); localStorage.setItem('halaverga-flight-v1', JSON.stringify(s)); }
   }, saved);
 export async function begin(page: Page, url = '/') {
-  await page.goto(url); await page.getByRole('button', { name: 'Begin expedition' }).click();
+  await page.goto(url); await page.getByRole('button', { name: 'Ascend Mount Hermon' }).click();
   await expect(page.getByRole('button', { name: 'Pause expedition' })).toBeVisible();
 }
 export async function resume(page: Page) {
@@ -33,7 +33,7 @@ export async function autoTouchPage(browser: Browser, viewport: Viewport, saved?
   page.on('pageerror', e => errors.push(e.message));
   await seed(page, { ...CLASSIC, ...saved });
   if (init) await page.addInitScript(init);
-  await page.goto(url); await page.getByRole('button', { name: 'Begin expedition' }).tap();
+  await page.goto(url); await page.getByRole('button', { name: 'Ascend Mount Hermon' }).tap();
   await expect(page.getByRole('button', { name: 'Pause expedition' })).toBeVisible();
   const cdp = await context.newCDPSession(page);
   const send = (type: 'touchStart' | 'touchMove' | 'touchEnd' | 'touchCancel', points: Touch[]) =>
@@ -66,7 +66,7 @@ export async function twinTouchPage(browser: Browser, viewport: Viewport, saved?
   // A Playwright page keeps its about:blank entry (length 2), so the fresh tab's length is simulated.
   if (fresh) await page.addInitScript(() => Object.defineProperty(History.prototype, 'length', { configurable: true, get: () => 1 }));
   else await page.goto('data:text/html,<title>before</title>');
-  await page.goto(url); await page.getByRole('button', { name: 'Begin expedition' }).tap();
+  await page.goto(url); await page.getByRole('button', { name: 'Ascend Mount Hermon' }).tap();
   await expect(page.getByRole('button', { name: 'Pause expedition' })).toBeVisible();
   const send = (type: 'touchStart' | 'touchMove' | 'touchEnd' | 'touchCancel', points: Touch[]) =>
     cdp.send('Input.dispatchTouchEvent', { type, touchPoints: points.map(p => ({ ...p })) });

@@ -4,7 +4,7 @@ import { WORLD, type Vec } from './motion';
 // yaw 2 rad/s (2.6 at surge; the pilot's own edge hold stays 1.5), faces 2.2, pitch 2.2. A pinned suit waits `delay` (0.36 s) before it
 // turns, so a pilot about to turn is never fought.
 export const STEER = { yaw: 2, zone: 6, zoneSpeed: .75, delay: .36, ramp: .15, fast: .6, outWall: .6, startWall: .3, faceMaxS: 3, outFace: .75, face: 2.2,
-  stallSpeed: .4, into: .1, pressS: .2, minIn: 1, ttc: 4, hug: 2.5, yieldYaw: .5, yieldPitch: .4, hold: .2, gap: .15, faceLostS: .8, wedgeS: .6, wedgeMaxS: 2.5, wedgeFree: 2,
+  stallSpeed: .4, into: .1, pressS: .2, minIn: 1, ttc: 4, hug: 2.5, yieldYaw: .5, yieldPitch: .4, hold: .2, gap: .15, faceLostS: .8, wedgeS: .6, wedgeMaxS: 2.5, wedgeFree: 2, exitFloor: 2,
   pitch: 2.2, peelTarget: .8, peelInto: .35, peelZone: 4, touch: .8, touchInto: .03, touchS: .25, settleClear: 8, settleRise: 20, settle: 1 } as const;
 export interface Contact { active: boolean; normal: Vec }
 export interface SteerIn {

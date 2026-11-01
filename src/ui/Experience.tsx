@@ -12,7 +12,6 @@ import { useFieldGuide } from './useFieldGuide';
 import { touchMode } from '@/game/pointerMode';
 import { unlockBlasterAudio } from './audioUnlock';
 import { useAudio } from './useAudio';
-import { trackpadPill } from './trackpadPill';
 import { coarsePointer } from './hintQueue';
 import { labFault } from './labSwitch';
 import { secondFingerTap } from './secondFingerTap';
@@ -24,12 +23,12 @@ import FlowWelcome from './FlowWelcome';
 import PauseCard from './PauseCard';
 import SheetLost from './SheetLost';
 import Landing, { Brand } from './Landing';
+import LegacyFlightOverlay from './LegacyFlightOverlay';
 import styles from './Experience.module.css';
 const Scene = dynamic(() => import('@/world/Scene'), { ssr: false });
-// The blaster HUD is its own chunk: the landing page's first load carries no shooter UI. It is warmed once the setting is on.
-const Reticle = () => <div className={styles.reticle} aria-hidden="true"><span /></div>;
-const loadHud = () => import('./ShooterHud');
-const ShooterHud = dynamic(loadHud, { ssr: false, loading: Reticle });
+// The Geo Flight HUD is its own chunk: the landing page's first load carries no HUD UI.
+const loadHud = () => import('./GeoFlightHud');
+const GeoFlightHud = dynamic(loadHud, { ssr: false, loading: () => null });
 // The touch controls (stick, look, cluster) are a chunk too: loaded right after hydration, and Begin waits for them.
 // The loaded component is held in state (not next/dynamic, whose React.lazy suspends on every first mount), so the surface is
 // there on the very frame Begin starts play and the first click or touch never lands on nothing. No static import of
@@ -38,10 +37,6 @@ const loadTouch = () => import('./TouchControls');
 // The controls lessons (one mount, standard controls only: they publish their line to the one hint slot). Its own small chunk, warmed after hydration.
 const loadHint = () => import('./ControlsHint');
 const ControlsHint = dynamic(loadHint, { ssr: false, loading: () => null });
-// The Flow and Simple trackpad panels are passive and belong to non-default profiles (the free cursor is the desktop default): their own
-// chunks, fetched only when that profile is on after Begin. A chunk that fails to load leaves the panel out; the controls themselves are not in it.
-const FlowHud = dynamic(() => import('./FlowHud'), { ssr: false, loading: () => null });
-const SimpleTrackpadHud = dynamic(() => import('./SimpleTrackpadHud'), { ssr: false, loading: () => null });
 // Flight settings open only after Begin, so they are a chunk warmed then: settings copy never grows the landing first load.
 const loadPanel = () => import('./TestPanel');
 // The Gesture Lab (Draw, Conduct, Brush) replaces the standard controls only while chosen. Its surface is held in state like the
@@ -69,6 +64,7 @@ export default function Experience() {
     let cancelled = false;
     hydrateGame();
     const query = new URLSearchParams(location.search), profile = query.get('trackpad'), blaster = query.get('shooter');
+    if (query.get('duel') === '1') (window as unknown as { __gowDuelEngaged?: boolean }).__gowDuelEngaged = true;
     // ?shooter=1 / 0 overrides the saved setting for this session only.
     if (blaster === '1') { clearShooterFault(); overrideShooter(true); } else if (blaster === '0') overrideShooter(false);
     if (profile === 'simple' || profile === 'flow' || profile === 'free' || profile === 'captured') useGame.setState({ desktopMode: 'trackpad', trackpadSteering: profile });
@@ -84,7 +80,7 @@ export default function Experience() {
   // Warm the blaster HUD chunk after hydration so the first aim never waits on it; with the blaster off nothing is requested.
   useEffect(() => { if (hydrated && state.shooter) void loadHud().catch(() => {}); }, [hydrated, state.shooter]);
   useEffect(() => { if (hydrated) void loadHint().catch(() => {}); }, [hydrated]);
-  useEffect(() => { if (state.started) void loadPanel().catch(() => {}); }, [state.started]);
+  useEffect(() => { if (state.started || state.panel) void loadPanel().catch(() => {}); }, [state.started, state.panel]);
   useEffect(() => {
     if (hydrated && lab !== 'standard' && !LabControls) void loadLab().then(m => setLabControls(() => m.default)).catch(() => labFault(LAB_LOAD_FAILED));
   }, [hydrated, lab, LabControls]);
@@ -121,9 +117,8 @@ export default function Experience() {
     clearWorldCache();
     setFailed(false); setSceneKey(v => v + 1); state.set({ ready: false, flying: false, landing: false });
   };
-  const standard = lab === 'standard', playing = state.started && !state.paused, twin = state.touchScheme === 'twin';
+  const standard = lab === 'standard', playing = state.started && !state.paused;
   const ready = state.ready && touchReady && (standard || !!LabControls);
-  const pill = standard && trackpadPill({ steering: state.trackpadSteering, shooter: state.shooter, cruising: state.trackpadFlying, flying: state.flying, canLand: state.canLand });
   useMessageClock();
   return <>
     <a className="skip" href="#field-guide" onClick={() => { pause(); state.set({ journal: true }); }}>Skip to text field guide</a>
@@ -148,7 +143,7 @@ export default function Experience() {
       {bar && <><span id="field-guide" className="sr-only" tabIndex={-1} /><Boundary fallback={<SheetLost />} onError={skip}><ControlsEntry part="sheet" /></Boundary></>}
       {state.started && <div className={styles.bandProbe} data-band="" aria-hidden="true" />}
       {/* The title, the start card (with the first-visit demo note) and the footer, or the failed world's card (Landing.tsx). */}
-      <Landing started={state.started} failed={failed} ready={ready} zoomNote={state.zoomNote} note={guide.note} onEnter={enter} onRetry={retry}><Optional><ControlsEntry part="note" /></Optional></Landing>
+      <Landing started={state.started} failed={failed} ready={ready} zoomNote={state.zoomNote} note={guide.note} onEnter={enter} onRetry={retry} onSettings={() => { pause(); state.set({ panel: true }); }} onGuide={() => { pause(); state.set({ journal: true }); }}><Optional><ControlsEntry part="note" /></Optional></Landing>
       {state.started && <>
         {/* A fresh mount per pause state, as on main: the desktop trackpad hooks keep per-session refs (capture, strokes) that
             must reset on resume. inputEpoch moves only in desktop mode; touch controls re-anchor themselves on rotation. */}
@@ -156,21 +151,12 @@ export default function Experience() {
           : playing && LabControls && <LabControls key={`${lab}-${state.inputEpoch}`} scheme={lab as LabProps['scheme']} onError={() => labFault(LAB_FAILED)} />}
         {playing && <>
           {state.tapControls && <TapControls key={state.inputEpoch} />}
-          {state.shooter ? <Boundary fallback={<Reticle />} onError={() => shooterFault('hud', null)}><ShooterHud /></Boundary> : <Reticle />}
+          {state.shooter && <Optional><GeoFlightHud /></Optional>}
           {/* The controls lessons and the one hint slot under the top row: one line at a time (hintQueue.pickHint). */}
           {standard && <Optional><ControlsHint coarse={coarsePointer()} /></Optional>}
           <HintSlot />
           <Telemetry />
-          {/* Twin touch: the cluster's Rise/Descend replace Lift/Land, so CSS hides this under html[data-input=touch]. */}
-          {/* In a lab scheme Lift/Land is always shown (data-twin false): the lab has no Rise/Descend. */}
-          <div className={styles.actions} data-ghost-avoid="" data-shooter={String(state.shooter)} data-twin={String(twin && standard)}>
-            {/* A mouse click activates Lift/Land without focusing it, so the next Space still reaches flight (Tab + Space works). */}
-            <button className={styles.action} onMouseDown={e => { if (!touchMode()) e.preventDefault(); }} onClick={() => { runtime.lift = true; }}><span aria-hidden="true">{state.flying ? '↓' : '↑'}</span>{state.landing ? 'Cancel landing' : state.flying ? 'Land' : 'Lift'}</button>
-          </div>
-          {standard && state.desktopMode === 'trackpad' && state.trackpadSteering === 'flow' && <Optional><FlowHud /></Optional>}
-          {standard && state.desktopMode === 'trackpad' && state.trackpadSteering === 'simple' && <Optional><SimpleTrackpadHud /></Optional>}
-          {/* The desktop legend: a control caption, not advice, so it stays at the bottom and steps aside for a limit cue. */}
-          {state.desktopMode === 'trackpad' && pill && !state.limitHint && <div className={styles.legend} data-testid="legend">{pill}</div>}
+          <LegacyFlightOverlay />
         </>}
         {state.paused && !state.panel && !guide.Guide && !failed && !state.voteOpen && !state.controlsOpen && <PauseCard ready={ready} onEnter={enter} note={guide.note} />}
         {!failed && <Optional><VoteLayer onResume={enter} /></Optional>}
