@@ -27,7 +27,7 @@ export default function CameraRig() {
     if (state.paused && initialized.current && !resized) return;
     const elapsed = state.paused ? 0 : Math.min(dt, .05), shooter = runtime.shooter, fx = shooter.camFx, aim = shooter.aim, reduced = state.reduced;
     const blend = reduced ? 0 : aim.blend;
-    const iso = state.shooter && state.camera === 'third';
+    const iso = gowRuntime.duelEngaged && state.camera === 'third';
     const diving = iso && gowRuntime.divePhase !== 'NONE';
     const baseP = diving ? -0.56 : iso ? -0.68 : pose.viewPitch, baseY = iso ? 0 : pose.viewYaw;
     rotation.set(fx.kickP === 0 ? baseP : baseP + fx.kickP, fx.kickY === 0 ? baseY : baseY + fx.kickY, 0);

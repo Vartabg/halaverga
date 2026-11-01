@@ -23,6 +23,7 @@ import { levelFlight, probeBelow, touchBlockedStep, touchLandStep, LAND_WINDOW }
 import { gestureBase, gestureBefore, gestureOffset, gestureVelocity } from './gesture/applyGesture';
 import { clearGesture, gesture } from './gesture/bus';
 import { createGestureCtx } from './gestureCtx';
+import { gowRuntime } from './gowTypes';
 const direction = new Vector3(), baseScratch = { x: 0, y: 0, z: 0 };
 export default function Player() {
   const body = useRef<RapierRigidBody>(null), collider = useRef<RapierCollider>(null);
@@ -55,8 +56,9 @@ export default function Player() {
     const safe = safety.current;
     // Allow Rapier's first broad-phase update before querying a persisted checkpoint.
     if (warmup.current++ === 0) return;
+    const duel = gowRuntime.duelEngaged;
     let current = b.translation();
-    if (state.shooter && Math.hypot(current.x - runtime.position.x, current.y - runtime.position.y, current.z - runtime.position.z) > 1.5) {
+    if (duel && Math.hypot(current.x - runtime.position.x, current.y - runtime.position.y, current.z - runtime.position.z) > 1.5) {
       b.setTranslation(runtime.position, true); b.setNextKinematicTranslation(runtime.position); current = runtime.position;
     }
     if ((warmup.current === 2 && !safe.canLand({ ...current, y: current.y - FOOT })) || !safe.isClear(current)) {
@@ -80,7 +82,7 @@ export default function Player() {
     // The lab scheme steps first (its request, lift or land, and its turn rates), so readIntent sees this step's gesture intent.
     const p = b.translation(); gesture.reduced = state.reduced; gestureBefore(dt, p, gctx, runtime);
     const intent = readIntent(), k = runtime.keys, pointerFlight = runtime.thumb.active || runtime.trackpad.active;
-    if (!state.shooter) {
+    if (!duel) {
       applyEdgeTurns(dt, state); thumbTurn(dt);
       runtime.yaw += (Number(k.has('ArrowLeft')) - Number(k.has('ArrowRight'))) * dt * 1.5;
       runtime.pitch = Math.max(-1.3, Math.min(1.25, runtime.pitch + (Number(k.has('ArrowUp')) - Number(k.has('ArrowDown'))) * dt * 1.2));
@@ -89,10 +91,10 @@ export default function Player() {
     }
     if (runtime.landGoal && (moving(intent) || (gesture.live && gesture.velocityOn))) { runtime.landGoal = null; useGame.setState({ landing: false }); }
     let flying = state.flying;
-    if (runtime.lift || (!state.shooter && pointerFlight && moving(intent) && !flying)) {
+    if (runtime.lift || (!duel && pointerFlight && moving(intent) && !flying)) {
       runtime.lift = false;
-      if (!flying) { flying = true; liftTime.current = state.shooter ? 0 : .4; runtime.velocity.y = 6; useGame.setState({ flying: true }); }
-      else if (state.shooter) { flying = false; runtime.landGoal = null; runtime.velocity.y = -12; useGame.setState({ flying: false, landing: false }); }
+      if (!flying) { flying = true; liftTime.current = duel ? 0 : .4; runtime.velocity.y = 6; useGame.setState({ flying: true }); }
+      else if (duel) { flying = false; runtime.landGoal = null; runtime.velocity.y = -12; useGame.setState({ flying: false, landing: false }); }
       else if (runtime.landGoal) { runtime.landGoal = null; useGame.setState({ landing: false }); }
       else if (runtime.landTarget) { runtime.landGoal = runtime.landTarget.clone().add(new Vector3(0, FOOT, 0)); landingStall.current = 0; clearGesture(); useGame.setState({ landing: true }); }
       else useGame.setState({ message: 'Aim at a nearby flat rooftop or terrace to land.' });
@@ -100,22 +102,22 @@ export default function Player() {
     const gestureThrust = runtime.thumb.active || (runtime.trackpad.active && state.trackpadSteering !== 'simple');
     const mode = state.shooter ? moveMode(runtime.shooter) : 0, surge = runtime.surge || gestureThrust || runtime.stick.boost || gesture.surge;
     const level = levelFlight(state);
-    driveLimits(runtime, { on: !state.shooter && flying && !runtime.landGoal && mode !== 2 && !(gesture.live && gesture.velocityOn), dt, p, v: runtime.velocity, speed: runtime.speed, intent,
+    driveLimits(runtime, { on: !duel && flying && !runtime.landGoal && mode !== 2 && !(gesture.live && gesture.velocityOn), dt, p, v: runtime.velocity, speed: runtime.speed, intent,
       surge, level, aiming: state.shooter && runtime.shooter.input.fire, contact: runtime.clearance, scrape, safe });
     const fp = level ? 0 : runtime.pitch, vb = gestureBase(runtime.velocity, baseScratch);
-    carve(vb, runtime.yaw, dt, !state.shooter && flying && !runtime.landGoal && !runtime.thumb.active && (moving(intent) || surge || gesture.live), runtime.poseEpoch);
-    let v = state.shooter ? stepIsoShooterVelocity(vb, intent, p, flying, surge, dt)
+    carve(vb, runtime.yaw, dt, !duel && flying && !runtime.landGoal && !runtime.thumb.active && (moving(intent) || surge || gesture.live), runtime.poseEpoch);
+    let v = duel ? stepIsoShooterVelocity(vb, intent, p, flying, surge, dt)
       : runtime.landGoal ? landingVelocity(p, runtime.landGoal)
       : mode === 2 ? aimVelocity(vb, intent, runtime.yaw, fp, flying, dt)
       : advanceVelocity(vb, intent, runtime.yaw, fp, flying, surge, dt);
-    if (!state.shooter) {
+    if (!duel) {
       gestureVelocity(v, runtime.landGoal, flying);
       if (liftTime.current > 0) { v.y = 6; liftTime.current -= dt; }
       gestureOffset(v, flying && !runtime.landGoal);
     }
     const from = { ...runtime.velocity }, chosen = v;
     runtime.clearance.active = false; runtime.clearance.cue = '';
-    if (!state.shooter && flying && !runtime.landGoal) {
+    if (!duel && flying && !runtime.landGoal) {
       const limited = limitStep(safe, p, v, flightTarget(intent, runtime.yaw, fp, flying, surge), from); v = limited.velocity; runtime.clearance.cue = limited.cue;
       if (limited.contact) {
         runtime.clearance.active = true;
@@ -126,7 +128,7 @@ export default function Player() {
     setVec(runtime.velocity, v.x, v.y, v.z);
     if (flying) { c.disableSnapToGround(); c.disableAutostep(); c.setMaxSlopeClimbAngle(Math.PI / 2); c.setMinSlopeSlideAngle(0); }
     else { c.enableSnapToGround(.3); c.enableAutostep(.35, .2, true); c.setMaxSlopeClimbAngle(Math.PI / 4); c.setMinSlopeSlideAngle(Math.PI / 6); }
-    const movement = boundMovement(p, { x: v.x * dt, y: v.y * dt, z: v.z * dt }, flying, state.shooter);
+    const movement = boundMovement(p, { x: v.x * dt, y: v.y * dt, z: v.z * dt }, flying, duel);
     c.computeColliderMovement(col, movement);
     const actual = c.computedMovement(); readScrape(c, scrape);
     for (let i = 0; i < c.numComputedCollisions(); i++) {
@@ -178,11 +180,10 @@ export default function Player() {
         if (target.y > 1 && target.distanceTo(runtime.position) < 30 && safe.canLand(target) && safe.pathClear(runtime.position, goal)) runtime.landTarget = target;
       }
       const terminal = nearestTerminal(runtime.position);
-      const duelHide = state.shooter && typeof window !== 'undefined' && Boolean((window as unknown as { __gowDuelEngaged?: boolean }).__gowDuelEngaged);
-      const nearTerminal = !duelHide && terminal !== null;
+      const nearTerminal = !duel && terminal !== null;
       runtime.location = locationName(next, terminal);
-      const nearGround = !duelHide && flying && probeBelow(world, rapier, col, safe, runtime.position, FOOT + LAND_WINDOW) !== null;
-      useGame.setState({ canLand: !duelHide && !!runtime.landTarget, nearTerminal, nearGround, limitCue: runtime.clearance.cue, limitHint: limitHint(flying ? runtime.clearance.cue : '', inputKind(touchMode(), state.trackpadSteering, state.desktopMode)), clearanceActive: runtime.clearance.active });
+      const nearGround = !duel && flying && probeBelow(world, rapier, col, safe, runtime.position, FOOT + LAND_WINDOW) !== null;
+      useGame.setState({ canLand: !duel && !!runtime.landTarget, nearTerminal, nearGround, limitCue: runtime.clearance.cue, limitHint: limitHint(flying ? runtime.clearance.cue : '', inputKind(touchMode(), state.trackpadSteering, state.desktopMode)), clearanceActive: runtime.clearance.active });
     }
   });
   return <RigidBody ref={body} type="kinematicPosition" colliders={false} position={[spawn.current.x, spawn.current.y, spawn.current.z]}>

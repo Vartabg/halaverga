@@ -26,9 +26,9 @@ import Landing, { Brand } from './Landing';
 import LegacyFlightOverlay from './LegacyFlightOverlay';
 import styles from './Experience.module.css';
 const Scene = dynamic(() => import('@/world/Scene'), { ssr: false });
-// The blaster HUD is its own chunk: the landing page's first load carries no shooter UI. It is warmed once the setting is on.
-const loadHud = () => import('./GowHud');
-const GowHud = dynamic(loadHud, { ssr: false, loading: () => null });
+// The Geo Flight HUD is its own chunk: the landing page's first load carries no HUD UI.
+const loadHud = () => import('./GeoFlightHud');
+const GeoFlightHud = dynamic(loadHud, { ssr: false, loading: () => null });
 // The touch controls (stick, look, cluster) are a chunk too: loaded right after hydration, and Begin waits for them.
 // The loaded component is held in state (not next/dynamic, whose React.lazy suspends on every first mount), so the surface is
 // there on the very frame Begin starts play and the first click or touch never lands on nothing. No static import of
@@ -64,6 +64,7 @@ export default function Experience() {
     let cancelled = false;
     hydrateGame();
     const query = new URLSearchParams(location.search), profile = query.get('trackpad'), blaster = query.get('shooter');
+    if (query.get('duel') === '1') (window as unknown as { __gowDuelEngaged?: boolean }).__gowDuelEngaged = true;
     // ?shooter=1 / 0 overrides the saved setting for this session only.
     if (blaster === '1') { clearShooterFault(); overrideShooter(true); } else if (blaster === '0') overrideShooter(false);
     if (profile === 'simple' || profile === 'flow' || profile === 'free' || profile === 'captured') useGame.setState({ desktopMode: 'trackpad', trackpadSteering: profile });
@@ -150,7 +151,7 @@ export default function Experience() {
           : playing && LabControls && <LabControls key={`${lab}-${state.inputEpoch}`} scheme={lab as LabProps['scheme']} onError={() => labFault(LAB_FAILED)} />}
         {playing && <>
           {state.tapControls && <TapControls key={state.inputEpoch} />}
-          {state.shooter && <Optional><GowHud /></Optional>}
+          {state.shooter && <Optional><GeoFlightHud /></Optional>}
           {/* The controls lessons and the one hint slot under the top row: one line at a time (hintQueue.pickHint). */}
           {standard && <Optional><ControlsHint coarse={coarsePointer()} /></Optional>}
           <HintSlot />

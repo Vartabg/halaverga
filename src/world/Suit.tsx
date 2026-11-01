@@ -47,7 +47,7 @@ export default function Suit() {
     advanceFlightMix(mix, pose, input, dt);
     // Visual only: the roll banks the model into the curve of the travel; the camera, physics and presentation pose never read it.
     const roll = advanceSuitRoll(turn.current, pose, input, m.hero, mix.flare, dt), v = input.velocity;
-    rig.root.visible = state.camera === 'third' && (!state.shooter || !gowRuntime.heroReady);
+    rig.root.visible = state.camera === 'third' && !gowRuntime.duelEngaged;
     rig.root.position.copy(pose.position);
     orientSuit(rig.root, pose, m, roll, speedFade(Math.sqrt(v.x * v.x + v.z * v.z)), pose.spin);
     applySuitPose(rig.joints, pose, m, state.reduced);
@@ -68,6 +68,6 @@ export default function Suit() {
   }, -20);
   return <>
     <primitive object={rig.root} dispose={null} />
-    <Boundary fallback={null} onError={() => {}}><Suspense fallback={null}><GowWarrior /></Suspense></Boundary>
+    {gowRuntime.duelEngaged && <Boundary fallback={null} onError={() => {}}><Suspense fallback={null}><GowWarrior /></Suspense></Boundary>}
   </>;
 }
