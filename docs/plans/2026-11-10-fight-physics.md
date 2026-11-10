@@ -8,7 +8,7 @@ After playing the three-cut sword string (2026-11-10):
 
 > ok looks better, we need to add the physics to the fight scenes and some level of realism to give the effect of flying in space that thrill and rush, right now it just has no game engine mechanics and any sense of realism as to what the flight+attack+look of the sword and its battles look like
 
-Read as three asks: real physics in the fight, a sense of speed in flight, and a sword whose look and motion are believable. "Flying in space" is read as flying through the air of the approved setting (Mount Hermon at dawn), not a move to outer space. If he meant outer space, that is a setting change and needs his word.
+Read as three asks: real physics in the fight, a sense of speed in flight, and a sword whose look and motion are believable. "Flying in space" means flying through the air of the approved setting (Mount Hermon at dawn), not outer space: Garo confirmed it when asked ("Air on Hermon", 2026-11-10).
 
 ## Who it is for and what should happen
 
@@ -66,7 +66,7 @@ One reviewer in a fresh conversation, read-only, given the commit, this note and
 
 ## Accepted, rejected, undecided
 
-- **Accepted by Garo**: the three-cut string as the direction (2026-11-09); "looks better" (2026-11-10).
+- **Accepted by Garo**: the three-cut string as the direction (2026-11-09); "looks better" (2026-11-10); the setting stays the air over Hermon ("Air on Hermon", 2026-11-10).
 - **Rejected by Garo**: fights with "no game engine mechanics" and no "sense of realism" in flight, attack and the sword's look.
 - **Undecided**: everything in this note. Whether hits should throw demons this far; whether wardens should be physical too; how strong the streaks should be; whether the angel should take knock-back.
 
