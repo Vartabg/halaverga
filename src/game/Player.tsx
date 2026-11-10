@@ -5,8 +5,7 @@ import { Vector3 } from 'three';
 import { useGame, persistGame } from './store';
 import { runtime, readIntent, clearInput, arrowLook } from './runtime';
 import { advanceVelocity, boundMovement, flightTarget, landingVelocity, moving, setVec, START, FOOT } from './motion';
-import { presentation } from './presentation';
-import { applyEdgeTurns, thumbTurn } from './edgeTurn';
+import { presentation } from './presentation'; import { applyEdgeTurns, thumbTurn } from './edgeTurn';
 import { carve } from './carve';
 import { FlightSafety } from './FlightSafety';
 import { CLEARANCE, locationName, nearestTerminal, removeInward } from './navigation';
@@ -21,8 +20,8 @@ import { moveMode } from './combat';
 import { aimVelocity } from './aimMotion';
 import { levelFlight, probeBelow, touchBlockedStep, touchLandStep, LAND_WINDOW } from './touchFlight';
 import { gestureBase, gestureBefore, gestureOffset, gestureVelocity } from './gesture/applyGesture';
-import { clearGesture, gesture } from './gesture/bus';
-import { createGestureCtx } from './gestureCtx';
+import { cancelStrike, strikeVelocity } from './strike';
+import { clearGesture, gesture } from './gesture/bus'; import { createGestureCtx } from './gestureCtx';
 const direction = new Vector3(), baseScratch = { x: 0, y: 0, z: 0 };
 export default function Player() {
   const body = useRef<RapierRigidBody>(null), collider = useRef<RapierCollider>(null);
@@ -118,6 +117,7 @@ export default function Player() {
       : mode === 2 ? aimVelocity(vb, intent, runtime.yaw, fp, flying, dt)
       : advanceVelocity(vb, intent, runtime.yaw, fp, flying, surge, dt);
     gestureVelocity(v, runtime.landGoal, flying);
+    if (runtime.landGoal) cancelStrike(); else if (flying) strikeVelocity(v, p, dt, state.reduced);
     if (liftTime.current > 0) { v.y = 6; liftTime.current -= dt; }
     gestureOffset(v, flying && !runtime.landGoal);
     const from = { ...runtime.velocity }, chosen = v;

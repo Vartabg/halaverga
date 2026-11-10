@@ -39,7 +39,7 @@ describe('the cue arrives early enough to act', () => {
     }
     expect(bad.length, report(bad)).toBe(0);
   });
-  it(`hill and facade faces: the solid cue shows at least ${LEAD} s before the stop`, () => {
+  it(`steep massif faces: the solid cue shows at least ${LEAD} s before the stop`, () => {
     const bad: string[] = [];
     for (const c of CLIFFS.filter(x => x.id.includes('face head-on'))) for (const v of [8, 13, 34]) {
       const m = verdict(`${c.id} ${v} m/s`, watch(cliffSim(c, v), v, q => solidDist(q, q.p), 'solid')); if (m) bad.push(m);

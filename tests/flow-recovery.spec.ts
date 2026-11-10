@@ -29,7 +29,7 @@ test('a canceled pending request cannot capture or launch after pause', async ({
       return new Promise<void>((resolve, reject) => setTimeout(() => { Promise.resolve(original.call(this, options)).then(resolve, reject); }, 200));
     };
   });
-  await page.goto('/?trackpad=flow'); await page.getByRole('button', { name: 'Begin expedition' }).click();
+  await page.goto('/?trackpad=flow'); await page.getByRole('button', { name: 'Ascend Mount Hermon' }).click();
   await page.mouse.click(720, 500); await page.keyboard.press('Escape');
   await expect(page.getByRole('button', { name: 'Resume flight' })).toBeVisible();
   await page.waitForTimeout(500); expect(await page.evaluate(() => document.pointerLockElement)).toBeNull();
@@ -38,7 +38,7 @@ test('a canceled pending request cannot capture or launch after pause', async ({
 });
 test('an interrupted uncompleted press cannot engage when released', async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('halaverga-flight-v1', JSON.stringify({ flowIntroSeen: true })));
-  await page.goto('/?trackpad=flow'); await page.getByRole('button', { name: 'Begin expedition' }).click();
+  await page.goto('/?trackpad=flow'); await page.getByRole('button', { name: 'Ascend Mount Hermon' }).click();
   await page.mouse.move(720, 500); await page.mouse.down(); await page.setViewportSize({ width: 1300, height: 900 }); await page.mouse.up();
   expect(await page.evaluate(() => document.pointerLockElement)).toBeNull();
   const resume = page.getByRole('button', { name: 'Resume flight' }); if (await resume.isVisible()) await resume.click();
@@ -50,7 +50,7 @@ test('capture rejection offers classic free cursor without launching', async ({ 
     localStorage.setItem('halaverga-flight-v1', JSON.stringify({ flowIntroSeen: true }));
     Element.prototype.requestPointerLock = () => Promise.reject(new Error('test rejection'));
   });
-  await page.goto('/?trackpad=flow'); await page.getByRole('button', { name: 'Begin expedition' }).click();
+  await page.goto('/?trackpad=flow'); await page.getByRole('button', { name: 'Ascend Mount Hermon' }).click();
   await page.mouse.click(720, 500);
   await expect(page.getByText('Flow could not capture the pointer.', { exact: false }).first()).toBeVisible();
   await expect.poll(() => speed(page)).toBeLessThan(.1);
@@ -68,7 +68,7 @@ test('a deliberate retry after capture rejection enters hover and clears the fai
       return original.call(this, options);
     };
   });
-  await page.goto('/?trackpad=flow'); await page.getByRole('button', { name: 'Begin expedition' }).click();
+  await page.goto('/?trackpad=flow'); await page.getByRole('button', { name: 'Ascend Mount Hermon' }).click();
   await page.mouse.click(720, 500); await expect(page.getByRole('button', { name: 'Use free cursor controls' })).toBeVisible();
   await page.mouse.click(720, 500); await expect(hud(page)).toHaveAttribute('data-capture', 'engaged');
   await expect(page.getByRole('button', { name: 'Use free cursor controls' })).not.toBeVisible();
@@ -87,7 +87,7 @@ test('Flow graphics recovery returns with no capture or selected speed', async (
   await expect.poll(() => speed(page)).toBeLessThan(.1);
 });
 test('Flow introduction calibrates, persists sensitivity, starts guided practice, and remains accessible', async ({ page }) => {
-  await page.goto('/?trackpad=flow'); await page.getByRole('button', { name: 'Begin expedition' }).click();
+  await page.goto('/?trackpad=flow'); await page.getByRole('button', { name: 'Ascend Mount Hermon' }).click();
   await expect(page.getByRole('dialog', { name: 'Find your flow' })).toBeVisible();
   const slider = page.getByRole('slider', { name: 'Looking sensitivity', exact: false }); await slider.fill('1.4');
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
@@ -100,7 +100,7 @@ test('Flow introduction calibrates, persists sensitivity, starts guided practice
   await page.mouse.wheel(0, 80); await expect.poll(() => speed(page)).toBeGreaterThan(.5);
   await expect(hud(page)).toContainText('Press once'); await page.mouse.click(800, 500);
   await expect(hud(page)).toContainText('That’s Flow');
-  await page.keyboard.press('Escape'); await page.reload(); await page.getByRole('button', { name: 'Begin expedition' }).click();
+  await page.keyboard.press('Escape'); await page.reload(); await page.getByRole('button', { name: 'Ascend Mount Hermon' }).click();
   await expect(page.getByRole('dialog')).not.toBeVisible();
   await openSettings(page);
   await expect(page.getByRole('slider', { name: 'Looking sensitivity', exact: false })).toHaveValue('1.4');

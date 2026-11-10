@@ -7,7 +7,7 @@ async function begin(page: Page, steering = 'captured', camera = 'third', extra:
   await page.addInitScript(({ steering, camera, extra }) => {
     if (!localStorage.getItem('halaverga-flight-v1')) localStorage.setItem('halaverga-flight-v1', JSON.stringify({ trackpadSteering: steering, camera, controlsVersion: 2, shooter: false, ...extra }));
   }, { steering, camera, extra });
-  await page.goto('/'); await page.getByRole('button', { name: 'Begin expedition' }).click();
+  await page.goto('/'); await page.getByRole('button', { name: 'Ascend Mount Hermon' }).click();
 }
 for (const camera of ['first', 'third']) test(`captured trackpad cruises, steers, scrolls and releases without a keyboard in ${camera} person`, async ({ page }) => {
   const errors: string[] = []; page.on('pageerror', e => errors.push(e.message));
@@ -49,7 +49,7 @@ test('momentum is ignored and recent edge turns stop; classic and reverse settin
   await closeAndResume(page);
   await page.mouse.click(720, 500); await expect.poll(() => speed(page)).toBeGreaterThan(11);
   await page.mouse.wheel(0, -80); await expect.poll(() => speed(page)).toBeLessThan(10);
-  await page.reload(); await page.getByRole('button', { name: 'Begin expedition' }).click();
+  await page.reload(); await page.getByRole('button', { name: 'Ascend Mount Hermon' }).click();
   await openSettings(page);
   await expect(page.getByLabel('Expressive hero poses')).not.toBeChecked();
   await expect(page.getByLabel('Reverse scroll direction')).toBeChecked();

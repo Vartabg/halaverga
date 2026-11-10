@@ -21,7 +21,7 @@ export type BlasterSkin = { meshes: BlasterMesh[]; on: boolean; buildMs: number;
 const inverse = new Matrix4();
 function kindOf(mesh: SkinnedMesh): Kind {
   const m = mesh.material as Material | Material[], name = Array.isArray(m) ? m[0]?.name : m.name;
-  return name === 'skin' ? 'anatomy' : name === 'textile' ? 'undersuit' : 'other';
+  return name === 'skin' || name === 'Living skin' ? 'anatomy' : name === 'textile' || name === 'Ivory linen' ? 'undersuit' : 'other';
 }
 /** Bind head of skeleton bone `i`: the translation of inverse(boneInverse), never the current (posed) joint. */
 function bindHead(mesh: SkinnedMesh, i: number) {

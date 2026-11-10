@@ -11,7 +11,7 @@ test('WebKit (not iPhone validation): gesturestart during touch play is prevente
   try {
     const context = await browser.newContext({ baseURL, viewport: { width: 852, height: 393 }, hasTouch: true });
     const page = await context.newPage();
-    await page.goto('/'); await page.getByRole('button', { name: 'Begin expedition' }).click();
+    await page.goto('/'); await page.getByRole('button', { name: 'Ascend Mount Hermon' }).click();
     await expect(page.getByRole('button', { name: 'Pause expedition' })).toBeVisible();
     // Force touch mode: the mode follows the last pointer type, and a synthetic touch pointer is enough for the guard.
     await page.evaluate(() => document.body.dispatchEvent(new PointerEvent('pointerdown', { pointerType: 'touch', bubbles: true })));

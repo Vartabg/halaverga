@@ -20,7 +20,7 @@ export const BOUNDARY_GROUPS = 0x0002ffff, SHOT_GROUPS = 0x00040001;
 export const FRAME_GROUPS = 0x0009ffff;
 /** Rapier QueryFilterFlags.ONLY_FIXED (verified in rapier3d-compat 0.19.2): excludes the kinematic player capsule. */
 export const ONLY_FIXED = 6;
-export const DRONE_RADIUS = .9, EYE_RADIUS = .32, EYE_FORWARD = .72, DRONE_HP = 6;
+export const DRONE_RADIUS = .9, EYE_RADIUS = .32, EYE_FORWARD = .72, EYE_UP = .737, DRONE_HP = 6;
 export const HEAT = { max: 100, lock: 1.6, ventAt: .8, ventHalf: .11 } as const;
 /** Seconds after the last shot that still count as combat (arm and HUD pose) and as engaged (magnet, perception). Neither has any
  *  movement or look effect: firing never caps speed or stiffens the view (Garo 2026-09-26). */
@@ -36,6 +36,7 @@ export type ShooterInput = {
   fire: boolean; fireSource: FireSource; aim: boolean; aimLatched: boolean;
   /** Bumped on every fire press (never reset), so a press and release inside one frame still fires once. */
   pressSerial: number; touchId: number | null; lookSource: LookSource; tapFireUntil: number; /** The current or most recent trigger hold was auto-fire's (not 'engaged': the magnet and perception ignore it). */ auto: boolean;
+  cmd: number; cmdKind: number; cmdTarget: number; shield: number;
 };
 export type WeaponState = {
   acc: number; heat: number; spreadHeat: number; lock: number; lockT: number; sinceShot: number;
@@ -66,7 +67,7 @@ export type DroneField = {
   yaw: Float32Array; pitch: Float32Array; tiltX: Float32Array; tiltZ: Float32Array;
   hp: Int8Array; broken: Uint8Array; flash: Float32Array; tint: Float32Array; lastHit: Float32Array; flashHist: Float64Array;
   knock: Vec3[]; knockV: Vec3[]; wobble: Float32Array; wobbleV: Float32Array;
-  dwell: Float32Array; cooldown: Float32Array; losT: Float32Array; los: Uint8Array; unseenT: Float32Array; side: Int8Array;
+  dwell: Float32Array; cooldown: Float32Array; losT: Float32Array; los: Uint8Array; unseenT: Float32Array; side: Int8Array; held: Uint8Array;
 };
 export type ShooterStats = { shots: number; hits: number; kills: number; chain: number; lastKillT: number };
 export type ShooterState = {
@@ -84,13 +85,13 @@ export function createDroneField(): DroneField {
     hp: new Int8Array(MAX_DRONES), broken: new Uint8Array(MAX_DRONES), flash: f(), tint: f(), lastHit: f().fill(-1e9),
     flashHist: new Float64Array(MAX_DRONES * 3).fill(-Infinity),
     knock: list(v3), knockV: list(v3), wobble: f(), wobbleV: f(),
-    dwell: f(), cooldown: f(), losT: f(), los: new Uint8Array(MAX_DRONES), unseenT: f(), side: new Int8Array(MAX_DRONES),
+    dwell: f(), cooldown: f(), losT: f(), los: new Uint8Array(MAX_DRONES), unseenT: f(), side: new Int8Array(MAX_DRONES), held: new Uint8Array(MAX_DRONES),
   };
 }
 export function createShooter(): ShooterState {
   return {
     clock: 0,
-    input: { fire: false, fireSource: 'none', aim: false, aimLatched: false, pressSerial: 0, touchId: null, lookSource: 'trackpad', tapFireUntil: 0, auto: false },
+    input: { fire: false, fireSource: 'none', aim: false, aimLatched: false, pressSerial: 0, touchId: null, lookSource: 'trackpad', tapFireUntil: 0, auto: false, cmd: 0, cmdKind: 0, cmdTarget: -1, shield: 0 },
     weapon: { acc: 0, heat: 0, spreadHeat: 0, lock: 0, lockT: 0, sinceShot: Infinity, handledPress: 0, pending: false, moveMul: 1, shots: 0, justOverheated: false, justVented: false },
     aim: { origin: v3(), dir: { x: 0, y: 0, z: -1 }, right: { x: 1, y: 0, z: 0 }, up: { x: 0, y: 1, z: 0 }, valid: false, fov: 65, hipFov: 65,
       point: v3(), dist: SHOT_RANGE, blocked: false, blend: 0, fireHold: 0, spreadHalf: 0, combat: false, acquired: false, target: -1 },

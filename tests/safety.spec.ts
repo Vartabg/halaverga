@@ -3,7 +3,7 @@ import { WORLD } from '../src/game/motion';
 import { legend } from './lab-browser';
 test('an old checkpoint inside a building restores to the arrival terrace', async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('halaverga-flight-v1', JSON.stringify({ checkpoint: { x: -62, y: 33.3, z: 16 }, shooter: false })));
-  await page.goto('/'); await page.getByRole('button', { name: 'Begin expedition' }).click();
+  await page.goto('/'); await page.getByRole('button', { name: 'Ascend Mount Hermon' }).click();
   const telemetry = page.getByTestId('flight-telemetry');
   await expect(page.getByText('Suit restored to a clear landing.').first()).toBeVisible();
   await expect.poll(async () => JSON.parse((await telemetry.getAttribute('data-position'))!)[2]).toBeCloseTo(65, 1);
@@ -13,7 +13,7 @@ test('an old checkpoint inside a building restores to the arrival terrace', asyn
 test('the district edge eases the suit to a stop, names the fix, and a hands-off suit turns away instead of staying pinned', async ({ page }) => {
   test.setTimeout(90000); // the 2026-10-06 box: a 500 m surge before the edge
   const errors: string[] = []; page.on('pageerror', e => errors.push(e.message));
-  await page.goto('/?shooter=0'); await page.getByRole('button', { name: 'Begin expedition' }).click();
+  await page.goto('/?shooter=0'); await page.getByRole('button', { name: 'Ascend Mount Hermon' }).click();
   await page.keyboard.press('Space'); await page.waitForTimeout(500);
   await page.keyboard.down('KeyW'); await page.keyboard.press('Shift');
   const telemetry = page.getByTestId('flight-telemetry');

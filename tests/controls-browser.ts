@@ -60,7 +60,7 @@ export const sheet = (p: Page) => p.getByTestId('controls-sheet');
 export const row = (p: Page, id: ControlId) => sheet(p).locator(`[data-control="${id}"]`);
 export const rows = (p: Page) => sheet(p).locator('[data-control]');
 export const rowIds = (p: Page) => rows(p).evaluateAll(els => els.map(e => e.getAttribute('data-control')));
-export const paused = (p: Page) => p.getByRole('region', { name: 'Expedition paused' });
+export const paused = (p: Page) => p.getByRole('region', { name: 'Ascent paused' });
 export const controlId = (p: Page) => p.evaluate(() => document.documentElement.dataset.controlId ?? null);
 export const saved = (p: Page) => p.evaluate(() => JSON.parse(localStorage.getItem('halaverga-flight-v1') ?? '{}') as Record<string, unknown>);
 /** Opens the sheet with a click (or tap) on the trigger and waits for it. */

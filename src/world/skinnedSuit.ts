@@ -44,7 +44,7 @@ export function buildSkinnedSuit(source: Object3D) {
       const mapping = object.skeleton.bones.map(bone => boneIndex(bone.name));
       if (!materials.has(object.material)) materials.set(object.material, object.material.clone());
       const geometry = object.geometry.clone();
-      const mesh = new SkinnedMesh(geometry, materials.get(object.material)!); meshes.push(mesh);
+      const mesh = new SkinnedMesh(geometry, materials.get(object.material)!); mesh.name = object.name; meshes.push(mesh);
       geometry.applyMatrix4(object.matrixWorld);
       const remapped = geometry.getAttribute('skinIndex');
       for (let vertex = 0; vertex < indices.count; vertex++) {

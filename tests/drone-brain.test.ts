@@ -1,7 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { Euler, Quaternion, Vector3 } from 'three';
-import { makeCity } from '../src/world/cityData';
+import { heightAt } from '../src/world/massifData';
 import { EVENT_RING, MAX_DRONES, PHASE, createShooter, readEvents, type ShooterState, type ShotEvent, type Vec3 } from '../src/game/combat';
 import { PATROLS, patrolPeakSpeed, patrolPosition } from '../src/game/dronePatrols';
 import { startTelegraph } from '../src/game/droneDodge';
@@ -76,21 +75,15 @@ describe('drone alert', () => {
     expect(s.drones.phase[2]).toBe(PHASE.alert); expect(s.drones.anchor[2]).toEqual(before); expect(s.drones.home[2]).toEqual(before);
     expect(len(sub(s.drones.anchor[2], PATROLS[2].c))).toBeGreaterThan(1);
   });
-  it('keeps tower-orbit anchors at least 5.7 m from the tower OBB, wherever it notices the player', () => {
-    const city = makeCity(); city.geometry.dispose();
-    const tower = city.solids.filter(b => b.kind === 'building' && Math.abs(b.position[0] - 36) < 8 && Math.abs(b.position[2] + 38) < 8);
-    expect(tower.length).toBe(2);
-    const obb = (p: Vec3) => Math.min(...tower.map(b => {
-      const l = new Vector3(p.x, p.y, p.z).sub(new Vector3(...b.position)).applyQuaternion(new Quaternion().setFromEuler(new Euler(...b.rotation)).invert());
-      return Math.hypot(Math.max(0, Math.abs(l.x) - b.size[0]), Math.max(0, Math.abs(l.y) - b.size[1]), Math.max(0, Math.abs(l.z) - b.size[2]));
-    }));
+  it('keeps summit-orbit anchors at least 5.7 m above the massif, wherever it notices the player', () => {
+    const clearance = (p: Vec3) => p.y - heightAt(p.x, p.z);
     for (let n = 0; n < 8; n++) {
       s = createShooter(); sim = createDroneSim(s); only(4); cursor = { last: 0 };
       blocked = () => true; viewFrom(4); step(n * 4.4); blocked = null;
       expect(s.drones.phase[4]).toBe(PHASE.patrol);
       viewFrom(4); step(.3);
       expect(s.drones.phase[4]).toBe(PHASE.alert);
-      expect(obb(s.drones.anchor[4]), `sample ${n}`).toBeGreaterThanOrEqual(5.7);
+      expect(clearance(s.drones.anchor[4]), `sample ${n}`).toBeGreaterThanOrEqual(5.7);
     }
   });
 });

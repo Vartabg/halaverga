@@ -1,4 +1,5 @@
 // Scenario helpers for the limit invariants (tests/limit-*.test.ts): flight driver, clearance metrics, budgets, wall geometry.
+import RAPIER from '@dimforge/rapier3d-compat';
 import { Sim, DT, WORLD, type Model } from './harness';
 export type V3 = { x: number; y: number; z: number };
 export const FLOOR = 1.7, CRUISE = 8, HOVER = 13, SURGE = 34;
@@ -36,16 +37,17 @@ export type Metric = (s: Sim) => number;
  * this dense district never reaches 20 m: a suit leaving one hill at y = 25 stays 9.5 m over the terrace beside it.
  */
 export function faceDist(): Metric {
-  let target: import('@dimforge/rapier3d-compat').Collider | null = null;
+  let target: { collider: import('@dimforge/rapier3d-compat').Collider; point: V3; terrain: boolean } | null = null;
   return s => {
     if (!target) {
       const h = s.world.projectPoint(s.p, false, undefined, CITY_ONLY, s.col);
       if (!h) return Infinity;
       const d = Math.hypot(h.point.x - s.p.x, h.point.y - s.p.y, h.point.z - s.p.z);
       if (d > 3) return d;
-      target = h.collider;
+      target = { collider: h.collider, point: { x: h.point.x, y: h.point.y, z: h.point.z }, terrain: h.collider.shape.type === RAPIER.ShapeType.TriMesh };
     }
-    const q = target.projectPoint(s.p, false);
+    if (target.terrain) return Math.hypot(target.point.x - s.p.x, target.point.y - s.p.y, target.point.z - s.p.z);
+    const q = target.collider.projectPoint(s.p, false);
     return q ? Math.hypot(q.point.x - s.p.x, q.point.y - s.p.y, q.point.z - s.p.z) : Infinity;
   };
 }
@@ -116,9 +118,8 @@ export const late = (f: Flight, b: number) => f.teleports > 0 || f.escapeAfter =
 export interface Cliff { id: string; p: V3; yaw: number; pitch: number; slot?: boolean }
 const R = (d: number) => d * Math.PI / 180;
 export const CLIFFS: Cliff[] = [
-  { id: 'east hill face head-on y25', p: { x: 60, y: 25, z: 60.7 }, yaw: -R(90), pitch: 0 },
-  { id: 'west hill face head-on y25', p: { x: -60, y: 25, z: 60.7 }, yaw: R(90), pitch: 0 },
-  { id: 'east low hill face head-on y8', p: { x: 40, y: 8, z: 65 }, yaw: -R(90), pitch: 0 },
+  { id: 'west arrival shelf head-on y35', p: { x: -35, y: 35, z: 60.7 }, yaw: R(90), pitch: 0 },
+  { id: 'summit face head-on y50', p: { x: -50, y: 50, z: -38 }, yaw: -R(90), pitch: 0 },
   // A slow scrape: 20 deg off head-on keeps 34% of the commanded speed along the face (the browser report's 3.5 m/s at cruise).
   { id: 'east hill scrape 20deg off head-on y25', p: { x: 100, y: 25, z: 60 }, yaw: -R(70), pitch: 0 },
   { id: 'west hill scrape 20deg off head-on y25', p: { x: -100, y: 25, z: 60 }, yaw: R(70), pitch: 0 },

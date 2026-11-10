@@ -79,7 +79,7 @@ test('a tap on the rightmost 4 px of Pause opens the pause card (no touchstart g
 test('zoom guard: Resume while pinch-zoomed resets the zoom or explains, and never starts zoomed', async ({ browser }) => {
   const t = await twinTouchPage(browser, L), { page, cdp } = t;
   await pauseButton(page).tap(); await expect(pauseCard(page)).toBeVisible();
-  const card = centre((await page.getByRole('region', { name: 'Expedition paused' }).boundingBox())!);
+  const card = centre((await page.getByRole('region', { name: 'Ascent paused' }).boundingBox())!);
   await cdp.send('Input.synthesizePinchGesture', { x: Math.round(card.x), y: Math.round(card.y), scaleFactor: 2, relativeSpeed: 600, gestureSourceType: 'touch' });
   const scale = () => page.evaluate(() => visualViewport!.scale);
   await expect.poll(scale).toBeGreaterThan(1.5);
@@ -118,7 +118,7 @@ test('a back swipe while Flight settings is open leaves no stale "Leave the game
   await closeAndResume(page, true); await expect(pauseButton(page)).toBeVisible();
   expect(await page.evaluate(() => (history.state as { halavergaPlay?: number } | null)?.halavergaPlay)).toBe(1); // re-armed
   await pauseButton(page).tap();
-  await expect(page.getByRole('region', { name: 'Expedition paused' })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Ascent paused' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Leave the game?' })).toHaveCount(0);
   expect(t.errors).toEqual([]); await t.context.close();
 });
@@ -132,7 +132,7 @@ test('pointer mode follows the last pointer: after a mouse press a blur pauses, 
 });
 test('desktop: Begin pushes no history entry, no fixed page, Back shows no Leave card, and a blur still pauses', async ({ page }) => {
   await page.goto('/'); const length = await page.evaluate(() => history.length);
-  await page.getByRole('button', { name: 'Begin expedition' }).click(); await expect(pauseButton(page)).toBeVisible();
+  await page.getByRole('button', { name: 'Ascend Mount Hermon' }).click(); await expect(pauseButton(page)).toBeVisible();
   expect(await page.evaluate(() => history.length)).toBe(length);
   expect(await page.evaluate(() => (history.state as { halavergaPlay?: number } | null)?.halavergaPlay)).toBeUndefined();
   expect(await page.evaluate(() => document.documentElement.hasAttribute('data-playing'))).toBe(false); // no fixed page on a desktop
