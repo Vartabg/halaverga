@@ -17,7 +17,7 @@ beforeAll(() => {
   boxes.push({ c: new Vector3(0, 6, -1), h: new Vector3(33, 9, 5.5), inv: new Quaternion() });
 });
 const local = new Vector3();
-/** Distance from p to the nearest solid OBB: into the box frame, then clamp to the half-extents. */
+/** Distance from p to the nearest solid OBB (into the box frame, then clamp to the half-extents), or to the mountain below. */
 function solidDistance(p: Vec3) {
   let best = Infinity;
   for (const b of boxes) {
@@ -65,6 +65,9 @@ describe('drone patrol paths', () => {
     expect(route, 'route clearance').toBeGreaterThanOrEqual(5);
     const peak = patrolPeakSpeed(p);
     expect(peak).toBeGreaterThanOrEqual(2.5); expect(peak).toBeLessThanOrEqual(5.5);
+  });
+  it('keeps every combat patrol in the portrait fighting band rather than pulling chains to the ceiling', () => {
+    for (const p of PATROLS) for (const at of samples(p)) { expect(at.y).toBeGreaterThan(23); expect(at.y).toBeLessThan(47); }
   });
   it('measures peak speed numerically, matching finite differences', () => {
     for (const p of PATROLS) {

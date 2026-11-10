@@ -1,0 +1,11 @@
+{
+  "browser": "Mac Chrome, emulated phone viewport",
+  "width": 393,
+  "height": 852,
+  "resources": {
+    "drawCalls": 48,
+    "triangles": 239448,
+    "geometries": 55,
+    "textures": 39
+  }
+}

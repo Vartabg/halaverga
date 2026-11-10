@@ -11,6 +11,7 @@ export const presentation = {
   suitClip: 'ground',
   /** The whole-body turn roll on show (rad, positive rolls left), written by the suit each frame for telemetry. */
   suitRoll: 0,
+  /** Obstacle-selected wing folds, sampled by telemetry; never consumed by player or camera. */
   wingTuck: { left: 0, right: 0 },
   /** Body aim weight 0..1 (max of the ADS blend and the hip-fire hold) the pose was last advanced with; 0 with the shooter off. */
   aim: 0,

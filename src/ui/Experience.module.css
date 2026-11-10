@@ -150,3 +150,6 @@
 /* Gesture Lab: no crosshair (the finger aims); the lab surface replaces the flight surface. Classic one thumb on a touch screen
    (tap a drone to blast) hides it the same way. */
 :global(html[data-controls]) .reticle,:global(html[data-input=touch][data-touch-blast]) .reticle{display:none}
+
+/* Entry controls name the actual default input on phones, without adding a hydration dependency. */
+.coarseHint{display:none}@media(pointer:coarse){.fineHint{display:none}.coarseHint{display:inline}}

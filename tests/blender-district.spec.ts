@@ -2,23 +2,23 @@ import { expect, test } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import { openSettings, closeAndResume } from './lab-browser';
 
-test('the continuous massif and default covenant bracer load together and celestial fire works', async ({ page }) => {
+test('the continuous massif and the flaming sword load together and commands work', async ({ page }) => {
   const loaded = new Set<string>();
   page.on('response', r => { if (r.ok() && r.url().endsWith('.glb')) loaded.add(new URL(r.url()).pathname); });
   await page.goto('/');
   await page.getByRole('button', { name: 'Ascend Mount Hermon' }).click();
   const hud = page.getByTestId('shooter-hud');
-  await expect(hud).toHaveAttribute('data-cannon', 'shown');
-  await page.keyboard.down('KeyC');
+  // No arm cannon: each C is one command on the reticle (docs/research/combat-texts.md).
+  for (let k = 0; k < 3; k++) { await page.keyboard.press('KeyC'); await page.waitForTimeout(650); }
   await expect.poll(async () => Number(await hud.getAttribute('data-shots'))).toBeGreaterThan(2);
-  await page.keyboard.up('KeyC');
   expect(loaded.has('/models/angel.glb')).toBe(true);
-  expect(loaded.has('/models/arm-cannon.glb')).toBe(true);
+  expect(loaded.has('/models/abyssal.glb')).toBe(true);
+  expect(loaded.has('/models/arm-cannon.glb')).toBe(false);
   expect(loaded.has('/models/environment/meridian-district.glb')).toBe(false);
 });
 
-// The archangel model, blocked once: the scene fails, Reload scene fetches it again (not the cached error) and flight works.
-for (const model of ['/models/angel.glb']) {
+// Each world model, blocked once: the scene fails, Reload scene fetches it again (not the cached error) and flight works.
+for (const model of ['/models/angel.glb', '/models/abyssal.glb']) {
   test(`${model} download failure recovers through Reload scene`, async ({ page }) => {
     let fail = true, requests = 0;
     await page.route(`**${model}`, route => { requests++; return fail ? route.abort() : route.continue(); });
@@ -58,4 +58,5 @@ test('scene resources settle after repeated high/low quality switches', async ({
   expect(resources[3]).toEqual(resources[1]);
   expect(resources[4].geometries).toBe(resources[3].geometries);
   expect(errors).toEqual([]);
+  await test.info().attach('sanctuary-render-resources', { body: JSON.stringify(resources, null, 2), contentType: 'application/json' });
 });

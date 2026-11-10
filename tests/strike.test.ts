@@ -14,6 +14,11 @@ describe('sword strike dive', () => {
     for (let k = 0; k < 40; k++) { v.x = v.y = v.z = 0; strikeVelocity(v, p, 1 / 60, false); }
     expect(strike.phase).toBe(0); expect(strikeVelocity(v, p, 1 / 60, false)).toBe(false);
   });
+  it('enters a strike from incoming travel instead of snapping direction or dumping speed', () => {
+    cancelStrike(); const p = { x: 0, y: 0, z: 0 }, v = { x: 60, y: 0, z: 0 };
+    beginStrike(0, { x: 0, y: 0, z: -30 }, 30); strikeVelocity(v, p, 1 / 60, false);
+    expect(v.x).toBeGreaterThan(58); expect(Math.abs(v.z)).toBeLessThan(4); expect(Math.hypot(v.x, v.y, v.z)).toBeGreaterThanOrEqual(60);
+  });
   it('a dive that never connects gives up after its time and carries on', () => {
     cancelStrike(); const p = { x: 0, y: 0, z: 0 }, v = { x: 0, y: 0, z: 0 };
     beginStrike(0, { x: 0, y: 0, z: -500 });
@@ -21,7 +26,7 @@ describe('sword strike dive', () => {
     expect(strike.phase).toBe(2); expect(strike.landed).toBe(false);
   });
   it('a long dive zips faster, capped', () => {
-    cancelStrike(); beginStrike(0, { x: 0, y: 0, z: -30 }, 30); expect(strike.speed).toBeCloseTo(30 / STRIKE.dive, 3);
+    cancelStrike(); beginStrike(0, { x: 0, y: 0, z: -50 }, 50); expect(strike.speed).toBeCloseTo(50 / STRIKE.dive, 3);
     beginStrike(0, { x: 0, y: 0, z: -400 }, 400); expect(strike.speed).toBe(STRIKE.maxSpeed);
   });
   it('a finishing blow brakes to a hover instead of carrying through', () => {
@@ -29,6 +34,13 @@ describe('sword strike dive', () => {
     beginStrike(0, { x: 0, y: 0, z: -30 }, 30); landStrike(false);
     for (let k = 0; k < 20 && strike.phase !== 0; k++) { v.z = -130; strikeVelocity(v, p, 1 / 60, false); }
     expect(v.z).toBe(0); expect(strike.phase).toBe(0);
+  });
+  it('carries a fast hit into a steerable exit and lets held flight continue through a finisher', () => {
+    cancelStrike(); const p = { x: 0, y: 0, z: 0 }, v = { x: 0, y: 0, z: -100 };
+    beginStrike(0, { x: 0, y: 0, z: -70 }, 70);
+    strike.dir.x = 0; strike.dir.y = 0; strike.dir.z = -1; landStrike(false);
+    for (let k = 0; k < 24 && strike.phase; k++) strikeVelocity(v, p, 1 / 60, true, true);
+    expect(strike.phase).toBe(0); expect(Math.hypot(v.x, v.y, v.z)).toBeGreaterThan(75);
   });
   it('reduced motion strikes without the freeze', () => {
     cancelStrike(); const p = { x: 0, y: 0, z: 0 }, v = { x: 0, y: 0, z: 0 };

@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { DRONE_RADIUS, EYE_FORWARD, EYE_RADIUS, WATER_LEVEL, mulberry32, type DroneTarget, type Vec3 } from '../src/game/combat';
+import { DRONE_RADIUS, EYE_RADIUS, WATER_LEVEL, mulberry32, type DroneTarget, type Vec3 } from '../src/game/combat';
 import { angleTo, angularRadius, coneSample, hitDrones, projectedStart, raySphere, raySphereSpan, rayWater, type DroneHit, type Span } from '../src/game/shotMath';
 const v = (x: number, y: number, z: number): Vec3 => ({ x, y, z });
 const unit = (x: number, y: number, z: number) => { const l = Math.hypot(x, y, z); return v(x / l, y / l, z / l); };
 const deg = Math.PI / 180;
 /** Drone at c whose eye faces `face` (unit). */
+// Synthetic protruding weak point exercises the generic ray solver; actual anatomical alignment has its own asset tests.
+const EYE_FORWARD = .72;
 const drone = (c: Vec3, face: Vec3, alive = true): DroneTarget => ({ c, r: DRONE_RADIUS, eye: v(c.x + face.x * EYE_FORWARD, c.y + face.y * EYE_FORWARD, c.z + face.z * EYE_FORWARD), eyeR: EYE_RADIUS, alive, los: true });
 const hit = (): DroneHit => ({ index: -1, t: 0, weak: false });
 

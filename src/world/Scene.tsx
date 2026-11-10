@@ -1,6 +1,7 @@
 'use client';
 import { Suspense, lazy, useEffect, useRef } from 'react';
-import { Canvas, useFrame, useThree } from '@react-three/fiber';
+import { Canvas, useFrame, useLoader, useThree } from '@react-three/fiber';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { Physics } from '@react-three/rapier';
 import { ACESFilmicToneMapping, type DirectionalLight } from 'three';
 import City from './HermonCity';
@@ -9,7 +10,11 @@ import DistrictBoundary from './DistrictBoundary';
 import { Sky, Water } from './Atmosphere';
 import Skyline from './Skyline';
 import Drift from './Drift';
-import Suit from './Suit';
+import SealedGround from './SealedGround';
+import Battle from './Battle';
+import Banishment from './Banishment';
+import FlamingSword from './FlamingSword';
+import Suit, { ADVERSARY_URL } from './Suit';
 import Player from '@/game/Player';
 import CameraRig from '@/game/CameraRig';
 import FlightPresentation from '@/game/FlightPresentation';
@@ -19,7 +24,6 @@ import Boundary from '@/ui/Boundary';
 import Drones from './Drones';
 import ShotFx from './ShotFx';
 import ImpactFx from './ImpactFx';
-import ArmCannon from './ArmCannon';
 import { useGame } from '@/game/store';
 import { clearInput, runtime } from '@/game/runtime';
 import EnvironmentLight from './EnvironmentLight';
@@ -33,9 +37,6 @@ const GestureTrack = lazy(() => import('./GestureTrack'));
 const DrawProbe = lazy(() => import('./DrawProbe'));
 const GestureRibbon = lazy(() => import('./GestureRibbon'));
 const HeroTrail = lazy(() => import('./HeroTrail'));
-const FlamingSword = lazy(() => import('./FlamingSword'));
-const Banishment = lazy(() => import('./Banishment'));
-const Battle = lazy(() => import('./Battle'));
 function GraphicsRecovery({ onLoss, sun }: { onLoss: () => void; sun: React.RefObject<DirectionalLight | null> }) {
   const { gl, invalidate } = useThree();
   useEffect(() => {
@@ -53,12 +54,17 @@ function GraphicsRecovery({ onLoss, sun }: { onLoss: () => void; sun: React.RefO
   });
   return null;
 }
-/** The blaster, its arm cannon and the Watcher sentinels, mounted only while the setting is on (so arm-cannon.glb is fetched only
- * then). A render or load error turns the blaster off; flight continues. */
+/** The fight: the demons, their attacks, the sword and the casting down, mounted only while the setting is on. A render error
+ * turns the fight off; flight continues. */
 function ShooterLayer() {
   const shooter = useGame(s => s.shooter);
-  return shooter ? <Boundary fallback={null} onError={() => shooterFault('render', null)}><Shooter /><Drones /><ShotFx /><ImpactFx />
-    <Suspense fallback={null}><ArmCannon /><FlamingSword /><Banishment /><Battle /></Suspense></Boundary> : null;
+  return shooter ? <ShooterAssets /> : null;
+}
+function ShooterAssets() {
+  // A missing demon model is a reloadable world download failure. Load outside the optional fault boundary.
+  useLoader(GLTFLoader, ADVERSARY_URL);
+  return <Boundary fallback={null} onError={() => shooterFault('render', null)}><Shooter /><Drones /><ShotFx /><ImpactFx /><Battle />
+    <Banishment /><FlamingSword /></Boundary>;
 }
 /** Standard on the classic one thumb, blaster on, touch-capable device: the drone screen history alone (the tap pick reads it).
  *  A desktop that has never shown touch mounts nothing here, so its Standard stays as it was. A failure only leaves it out. */
@@ -76,7 +82,7 @@ function LabLayer() {
 }
 export default function Scene({ onLoss }: { onLoss: () => void }) {
   const paused = useGame(s => s.paused), quality = useGame(s => s.quality), sun = useRef<DirectionalLight>(null);
-  return <Canvas aria-label="Three-dimensional Mount Hermon at dawn. Text description and keyboard controls are available in the field guide."
+  return <Canvas aria-label="Three-dimensional Mount Hermon at dawn. A winged angel fights the host of the fallen Watchers. Text description and keyboard controls are available in the field guide."
     role="img" frameloop="demand" dpr={quality === 'high' ? [1, 1.5] : 1} shadows={quality === 'high' ? 'percentage' : false}
     camera={{ position: [0, 24, 72], fov: 65, near: .1, far: 650 }}
     gl={{ antialias: true, alpha: false, powerPreference: 'high-performance', stencil: false }}
@@ -87,7 +93,7 @@ export default function Scene({ onLoss }: { onLoss: () => void }) {
     <directionalLight ref={sun} position={SUN_POSITION} color={SUN_COLOR} intensity={SUN_INTENSITY} castShadow={quality === 'high'}
       shadow-mapSize={[2048, 2048]} shadow-camera-left={-110} shadow-camera-right={110}
       shadow-camera-top={110} shadow-camera-bottom={-110} shadow-camera-far={380} shadow-bias={-.0002} shadow-normalBias={.09} />
-    <EnvironmentLight /><Sky /><Water /><Skyline /><Drift />
+    <EnvironmentLight /><Sky /><Water /><Skyline /><Drift /><SealedGround />
     <Suspense fallback={null}>
       <Physics paused={paused} timeStep={1 / 60} updatePriority={-50} gravity={[0, -22, 0]}>
         <City /><RuinField /><DistrictBoundary /><Player /><FlightPresentation /><Suit /><CameraRig />

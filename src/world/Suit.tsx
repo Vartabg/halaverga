@@ -21,7 +21,6 @@ import { createAngelMotion, stepAngelMotion } from './angelMotion';
 import { strike } from '@/game/strike';
 import { cannonLink } from './cannonContract';
 import { beginSuitSprings, createSuitSprings, followBody, followWings, stepClothSway } from './suitSprings';
-
 export const SUIT_URL = '/models/angel.glb';
 export const ADVERSARY_URL = '/models/abyssal.glb';
 /** Reload scene: forget every model the world loads, so a failed download is fetched again instead of replaying the cached error.
@@ -32,7 +31,6 @@ export function clearWorldCache() {
 }
 const input = { flying: false, landing: false, paused: true, reduced: false, velocity: runtime.velocity, turn: runtime.turn };
 const moveInput = { dt: 0, paused: true, flying: false, ground: 1, speed: 0, sword: false };
-
 export default function Suit() {
   const { world, rapier } = useRapier();
   const motion = useRef({ hero: 1, epoch: -1 }), animation = useRef(createSuitAnimation()), flight = useRef(createFlightMix()), turn = useRef(createSuitRoll());
@@ -45,6 +43,7 @@ export default function Suit() {
     return w;
   }, [rig]);
   const clearance = useMemo(() => createWingClearance(wings, world, rapier), [wings, world, rapier]);
+  // The blaster block's per-frame inputs (suitBlaster.ts), rewritten in place each frame.
   const springs = useMemo(() => createSuitSprings(rig.root, rig.joints, wings), [rig, wings]);
   const regalia = useMemo(() => angelRegalia(rig.root, rig.joints, springs.cloth.at, springs.hair.at), [rig, springs]);
   const frame = useMemo(() => ({ dt: 0, paused: true, reduced: false, epoch: 0, ground: 1, command: 0 }), []);

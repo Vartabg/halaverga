@@ -10,7 +10,7 @@ test('landing can be cancelled and then completed', async ({ page }) => {
   const telemetry = page.getByTestId('flight-telemetry');
   await expect(telemetry).toHaveAttribute('data-flying', 'true');
   await expect(page.getByRole('button', { name: 'Land', exact: true })).toBeVisible();
-  await page.waitForTimeout(600); await page.getByRole('button', { name: 'Land', exact: true }).click();
+  await page.keyboard.press('KeyB'); await page.waitForTimeout(1000); await page.getByRole('button', { name: 'Land', exact: true }).click();
   await expect(telemetry).toHaveAttribute('data-flying', 'false', { timeout: 10000 });
 });
 test('graphics loss preserves the field guide and reloads the scene', async ({ page }) => {
@@ -31,8 +31,10 @@ test('touch release and orientation: input released, no pause card, the suit set
   const cdp = await context.newCDPSession(page), telemetry = page.getByTestId('flight-telemetry');
   const speed = async () => Number(await telemetry.getAttribute('data-speed'));
   const drag = async () => {
-    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: 90, y: 650, id: 1 }] });
-    await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: 90, y: 580, id: 1 }] });
+    const b = (await page.getByRole('button', { name: 'Hold to fly', exact: true }).boundingBox())!;
+    const p = { id: 1, x: b.x + b.width / 2, y: b.y + b.height / 2 };
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [p] });
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ ...p, y: p.y - 40 }] });
     await page.waitForTimeout(750); expect(await speed()).toBeGreaterThan(3);
   };
   await drag();
@@ -49,7 +51,7 @@ test('touch release and orientation: input released, no pause card, the suit set
 });
 test('suit asset failure recovers through Reload scene', async ({ page }) => {
   let failSuit = true;
-  await page.route('**/models/suit.glb', route => failSuit ? route.abort() : route.continue());
+  await page.route('**/models/angel.glb', route => failSuit ? route.abort() : route.continue());
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'The world needs a moment.' })).toBeVisible();
   failSuit = false;

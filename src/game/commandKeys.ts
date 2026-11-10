@@ -1,4 +1,4 @@
-// War in Heaven keys, kept in the scene chunk (the landing page carries only shooterKeys.ts): 1 rebuke, 2 sword, 3 bind, 4 cast on
+// Fight keys, kept in the scene chunk (the landing page carries only shooterKeys.ts): 1 rebuke, 2 sword, 3 bind, 4 cast on
 // the demon under the centre reticle; hold V for the shield of faith. C and a click take the next step (Shooter.tsx turns the old
 // trigger press into a context command).
 import { type ShooterState } from './combat';

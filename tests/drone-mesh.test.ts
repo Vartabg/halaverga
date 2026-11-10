@@ -1,7 +1,8 @@
-import { describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { Box3, BufferGeometry, MeshStandardMaterial, ShaderLib, Sphere, Vector3, type DataTexture, type WebGLProgramParametersWithUniforms, type WebGLRenderer } from 'three';
 import { DRONE_RADIUS } from '../src/game/combat';
 import { buildDroneGeometry, createDroneMaterials, minWorldSize } from '../src/world/droneMesh';
+import { loadSuit } from './load-suit';
 
 const tris = (g: BufferGeometry) => (g.index ? g.index.count : g.attributes.position.count) / 3;
 const maxRadius = (g: BufferGeometry) => {
@@ -13,11 +14,14 @@ const alphaAt = (tex: DataTexture, x: number, y: number) => (tex.image.data as U
 const rOf = (x: number) => Math.abs((x + .5) / 32 - 1);
 
 describe('drone geometry', () => {
-  const g = buildDroneGeometry();
-  it('stays within 1400 triangles per drone (body + plate + eye + halo + ring)', () => {
-    const total = tris(g.body) + tris(g.plate) + tris(g.eye) + tris(g.halo) * 2;
-    expect(total).toBeGreaterThan(900);
-    expect(total).toBeLessThanOrEqual(1400);
+  let g: ReturnType<typeof buildDroneGeometry>;
+  beforeAll(async () => { g = buildDroneGeometry((await loadSuit('abyssal')).scene); });
+  afterAll(() => Object.values(g).forEach(geo => geo.dispose()));
+  it('stays within the 26000 triangle character budget including its animated wings', () => {
+    const total = tris(g.body) + tris(g.plate) + tris(g.wingL) + tris(g.wingR) + tris(g.eye) + tris(g.halo) * 2;
+    expect(total).toBeGreaterThan(15000);
+    expect(tris(g.wingL) + tris(g.wingR)).toBeGreaterThan(50);
+    expect(total).toBeLessThanOrEqual(26000);
   });
   it('merges to consistent non-indexed attributes with normals', () => {
     for (const geo of [g.body, g.plate]) {
@@ -25,16 +29,16 @@ describe('drone geometry', () => {
       expect(geo.attributes.normal.count).toBe(geo.attributes.position.count);
     }
   });
-  it('keeps body and plate inside a .95 m radius, close to the hit sphere', () => {
-    expect(maxRadius(g.body)).toBeLessThanOrEqual(.95);
-    expect(maxRadius(g.plate)).toBeLessThanOrEqual(.95);
+  it('keeps body and armour close to the hit sphere; decorative wings sit outside it', () => {
+    expect(maxRadius(g.body)).toBeLessThanOrEqual(1.05);
+    expect(maxRadius(g.plate)).toBeLessThanOrEqual(1.35); // curved crown horns extend past the body hit sphere
     expect(maxRadius(g.body)).toBeGreaterThan(DRONE_RADIUS * .8);
   });
-  it('centres the eye at the origin', () => {
+  it('keeps the paired eyes and fiery maw inside the .32 m weak-point sphere', () => {
     const box = new Box3().setFromBufferAttribute(g.eye.attributes.position as never), c = box.getCenter(new Vector3());
-    expect(c.length()).toBeLessThan(1e-6);
+    expect(c.length()).toBeLessThan(.08);
     g.eye.computeBoundingSphere();
-    expect((g.eye.boundingSphere as Sphere).radius).toBeCloseTo(.32, 5);
+    expect((g.eye.boundingSphere as Sphere).radius).toBeLessThan(.32);
   });
 });
 
@@ -43,7 +47,8 @@ describe('drone materials', () => {
     const m = createDroneMaterials();
     for (const mat of [m.body, m.plate]) {
       expect(mat).toBeInstanceOf(MeshStandardMaterial);
-      expect(mat.metalness).toBe(.6); expect(mat.roughness).toBe(.45);
+      expect(mat.vertexColors).toBe(true);
+      expect(mat.metalness).toBe(mat === m.body ? .13 : .38); expect(mat.roughness).toBe(mat === m.body ? .73 : .47);
       expect(typeof mat.onBeforeCompile).toBe('function');
       const key = mat.customProgramCacheKey();
       expect(key).toBe(mat.customProgramCacheKey());
@@ -58,6 +63,8 @@ describe('drone materials', () => {
       expect(at).toBeGreaterThan(fs.indexOf('#include <emissivemap_fragment>'));
       expect(fs.startsWith('varying float vFlash;\nuniform vec3 uRim;')).toBe(true);
       expect(shader.uniforms.uRim).toBeDefined();
+      expect(fs).toContain('1.0 - smoothstep(0.0, 0.35, abs(vLocal.y))');
+      expect(shader.vertexShader).toContain('uHostClock');
     }
     expect(m.body.customProgramCacheKey()).toBe(m.plate.customProgramCacheKey());
     const rim = (mat: MeshStandardMaterial) => {
@@ -94,7 +101,7 @@ describe('drone materials', () => {
   });
   it('dispose() disposes every material and texture', () => {
     const m = createDroneMaterials(), seen = new Set<unknown>();
-    const all = [m.body, m.plate, m.eye, m.halo, m.ring, m.haloTexture, m.ringTexture];
+    const all = [m.body, m.plate, m.eye, m.halo, m.ring, m.haloTexture, m.ringTexture, m.wings.texture];
     all.forEach(o => o.addEventListener('dispose', () => seen.add(o)));
     m.dispose();
     expect(seen.size).toBe(all.length);

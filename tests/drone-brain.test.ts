@@ -1,3 +1,4 @@
+import { EYE_UP, EYE_FORWARD } from '../src/game/combat';
 import { readFileSync } from 'node:fs';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { heightAt } from '../src/world/massifData';
@@ -264,7 +265,7 @@ describe('drone damage and respawn', () => {
     const t = s.targets[1], f = s.drones;
     expect(t.c).toEqual(v(f.pos[1].x + f.knock[1].x, f.pos[1].y + f.knock[1].y, f.pos[1].z + f.knock[1].z));
     expect(t.alive).toBe(true); expect(t.los).toBe(true); expect(s.targets[0].alive).toBe(false);
-    expect(len(sub(t.eye, t.c))).toBeCloseTo(.72, 6);
+    expect(len(sub(t.eye, t.c))).toBeCloseTo(Math.hypot(EYE_UP, EYE_FORWARD), 6);
   });
 });
 describe('drone flash gate', () => {

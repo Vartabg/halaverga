@@ -22,7 +22,7 @@ const std = { controlLab: 'standard' } as const;
 // so its line names Space; the twin Fire button is hidden while auto-fire (the default) is on, so the line names only Rise, Descend and Aim.
 export const CONTROL_TYPES: readonly ControlType[] = [
   { id: 'one-finger', label: 'One finger', families: ['touch'], settings: { ...std, touchScheme: 'classic' },
-    line: 'Hold to fly, slide to steer, tap a Watcher to smite it.' },
+    line: 'Hold to fly, slide to steer, tap a demon to strike it.' },
   { id: 'twin-stick', label: 'Twin stick', families: ['touch'], settings: { ...std, touchScheme: 'twin' },
     line: 'Left thumb moves, right thumb looks; buttons rise, descend and aim.' },
   { id: 'cursor', label: 'Cursor', families: ['desktop'], settings: { ...std, desktopMode: 'trackpad', trackpadSteering: 'free' },
@@ -34,13 +34,13 @@ export const CONTROL_TYPES: readonly ControlType[] = [
   { id: 'captured', label: 'Captured', families: ['desktop'], settings: { ...std, desktopMode: 'trackpad', trackpadSteering: 'captured' },
     line: 'Click to cruise with unlimited turning; the pointer hides.', hint: 'Esc gives the pointer back.' },
   { id: 'mouse-keys', label: 'Mouse + keys', families: ['desktop'], settings: { ...std, desktopMode: 'mouse' },
-    line: 'Click to capture the mouse, W A S D to move, click to fire.', hint: 'Esc gives the mouse back.' },
+    line: 'Click to capture the mouse, W A S D to move, click a demon.', hint: 'Esc gives the mouse back.' },
   { id: 'draw', label: 'Draw', families: both, settings: { controlLab: 'draw' },
     line: 'Draw a line to fly it. Draw a circle to turn around.' },
   { id: 'conduct', label: 'Conduct', families: both, settings: { controlLab: 'conduct' },
     line: 'Rest a finger (or the pointer) to steer. Stir to speed up.' },
   { id: 'brush', label: 'Brush', families: both, settings: { controlLab: 'brush' },
-    line: 'Swipe to turn, loop big to whirl around. Circle Watchers to lock on.' },
+    line: 'Swipe to turn, loop big to whirl around. Circle demons to lock on.' },
 ];
 export const DEFAULT_CONTROL: Readonly<Record<ControlFamily, ControlId>> = { touch: 'one-finger', desktop: 'cursor' };
 

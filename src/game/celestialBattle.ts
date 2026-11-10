@@ -1,4 +1,5 @@
 import { PHASE, type ShooterState, type Vec3 } from './combat';
+import { isElite } from './encounter';
 
 export const BATTLE = { goal: 8, ward: 3, bolts: 12, speed: 19, windup: .9, cadence: 4.8, range: 65, grace: 2.5 } as const;
 type Bolt = { live: boolean; age: number; p: Vec3; v: Vec3 };
@@ -68,6 +69,7 @@ export function stepBattle(b: BattleState, s: ShooterState, player: Vec3, dt: nu
   if (b.clock < b.nextAttack) return;
   let nearest: number = BATTLE.range;
   for (let i = 0; i < f.count; i++) {
+    if (isElite(i)) continue; // Wardens own distinct, telegraphed attacks in wardenAttacks.ts.
     if (f.hp[i] <= 0 || f.held[i] || f.phase[i] === PHASE.arriving || f.phase[i] === PHASE.dying || f.phase[i] === PHASE.dead) continue;
     const p = f.pos[i], d = Math.hypot(p.x - player.x, p.y - player.y, p.z - player.z);
     if (d < nearest && lineClear(p, player)) { b.charging = i; nearest = d; }

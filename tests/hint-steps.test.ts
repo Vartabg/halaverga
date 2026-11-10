@@ -51,20 +51,20 @@ describe('hintText', () => {
   it('teaches the twin sticks in four steps, the last one by blaster and auto-fire', () => {
     expect(HINT_STEPS.touch).toBe(4);
     expect([0, 1, 2].map(k => hintText('touch', k, on))).toEqual(['Left thumb: move', 'Right thumb: look', 'Tap Lift off to fly']);
-    expect(hintText('touch', 3, on)).toBe('Aim at Watchers · Fire shoots');
-    expect(hintText('touch', 3, { autoFire: true, captured: false, shooter: true })).toBe('Aim at Watchers · Fire shoots');
-    expect(hintText('touch', 3, { autoFire: false, captured: false, shooter: true })).toBe('Hold Fire to shoot');
+    expect(hintText('touch', 3, on)).toBe('Fire: next step');
+    expect(hintText('touch', 3, { autoFire: true, captured: false, shooter: true })).toBe('Fire: next step');
+    expect(hintText('touch', 3, { autoFire: false, captured: false, shooter: true })).toBe('Fire: next step');
     for (const autoFire of [true, false]) expect(hintText('touch', 3, { autoFire, captured: false, shooter: false })).toBe('Hold Descend to land');
   });
   it('keeps the desktop and line copy', () => {
-    const simple = ['Click the scene to start', 'Slide to look', 'Click to shoot', 'WASD to fly · Space lifts'];
-    const mouse = ['Click the scene to start', 'Move the mouse to look', 'Click to shoot', 'WASD to fly · Space lifts'];
+    const simple = ['Click the scene to start', 'Slide to look', 'Click: strike', 'WASD to fly · Space lifts'];
+    const mouse = ['Click the scene to start', 'Move the mouse to look', 'Click: strike', 'WASD to fly · Space lifts'];
     for (let k = 1; k < 4; k++) { expect(hintText('simple', k, cap)).toBe(simple[k]); expect(hintText('mouse', k, cap)).toBe(mouse[k]); }
     expect(hintText('simple', 0, on)).toBe(simple[0]); expect(hintText('mouse', 0, on)).toBe(mouse[0]);
     expect(hintText('tap', 0, on)).toBe('Tap pad: Fire and Aim toggle');
-    expect(hintText('line', 0, on)).toBe('Hold C to fire');
-    expect(hintText('classic', 0, on)).toBe('Drag to fly · tap a Watcher');
-    expect(hintText('drag', 0, on)).toBe('Drag to fly'); expect(HINT_TEXT.drag).toBe('Drag to fly');
+    expect(hintText('line', 0, on)).toBe('C: next step');
+    expect(hintText('classic', 0, on)).toBe('Drag to look · hold Fly');
+    expect(hintText('drag', 0, on)).toBe('Drag to look · hold Fly'); expect(HINT_TEXT.drag).toBe('Drag to look · hold Fly');
     expect(hintText('none', 0, on)).toBeNull();
   });
   it('shows nothing once a series is done', () => {

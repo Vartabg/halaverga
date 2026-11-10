@@ -53,8 +53,9 @@ describe('the angel motion layer', () => {
     beginStrike(0, { x: 0, y: 0, z: -40 }, 40);
     for (let i = 0; i < 40; i++) stepAngelMotion(m, clips, rig.joints, flight());
     expect(m.act).toBe('slash'); expect(m.actT).toBeCloseTo(SLASH.raised, 6); expect(m.weight).toBe(1);
-    landStrike(true); emit(FX.sword);
-    stepAngelMotion(m, clips, rig.joints, flight()); expect(m.actT).toBeGreaterThan(SLASH.raised);
+    landStrike(true); emit(FX.sword); emit(FX.bind);
+    stepAngelMotion(m, clips, rig.joints, flight()); expect(m.act).toBe('slash'); expect(m.actT).toBeGreaterThan(SLASH.raised);
+    emit(FX.cast); stepAngelMotion(m, clips, rig.joints, flight()); expect(m.act).toBe('slash');
     for (let i = 0; i < 120; i++) stepAngelMotion(m, clips, rig.joints, flight());
     expect(m.act).toBe(''); expect(m.weight).toBe(0); rig.dispose();
   });

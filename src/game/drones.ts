@@ -1,10 +1,11 @@
-import { DRONE_HP, DRONE_RADIUS, EYE_RADIUS, MAX_DRONES, PHASE, SNAP, droneAlive, eyeCenter, flashGate, mulberry32, pushEvent,
+import { eyeCenter, adversaryFacing } from './adversaryPose';
+import { DRONE_HP, DRONE_RADIUS, EYE_RADIUS, MAX_DRONES, PHASE, SNAP, droneAlive, flashGate, mulberry32, pushEvent,
   springStep, type LookSource, type ShooterState, type Vec3 } from './combat';
 import { avoid, face, limitAccel } from './droneSteer';
 import { START } from './motion';
 import { PATROLS, flyInStart, patrolPosition } from './dronePatrols';
 import { DRONE, advanceDodge, dodgeDwell, ease, lean, startTelegraph } from './droneDodge';
-// Fallen Watcher sentinels: passive (they never fire). They patrol, notice the player, telegraph, dodge, flinch and break apart.
+// The Watchers' host, patrol layer: passive here (attacks live in celestialBattle.ts and wardenAttacks.ts). They patrol, notice the player, telegraph, dodge, flinch and break apart.
 // Pure and allocation-free per frame. This module and droneDodge.ts are the only writers of s.drones.
 export { DRONE };
 export type DroneSim = { rng: () => number; time: number; dodger: number; prev: Vec3[]; vel: Vec3[]; cam: Vec3; camSpeed: number; camSet: boolean; flyStart: Vec3[]; flyEnd: Vec3[]; flyDur: Float32Array; respawnAt: Float32Array };
@@ -25,7 +26,7 @@ const period = (i: number) => 2 * Math.PI / PATROLS[i].omega;
 export function createDroneSim(s: ShooterState, seed = 2033): DroneSim {
   const f = s.drones, list = () => Array.from({ length: MAX_DRONES }, v3);
   f.count = PATROLS.length;
-  f.flashHist.fill(-Infinity); f.lastHit.fill(-1e9);
+  f.flashHist.fill(-Infinity); f.lastHit.fill(-1e9); f.held.fill(0);
   for (let i = 0; i < f.count; i++) {
     f.patrol[i] = i; f.patrolT[i] = 0; f.phase[i] = PHASE.patrol; f.phaseT[i] = 0; f.hp[i] = DRONE_HP; f.broken[i] = 0;
     const p = patrolPosition(PATROLS[i], 0, f.pos[i]);
@@ -82,6 +83,8 @@ export function advanceDrones(s: ShooterState, sim: DroneSim, ctx: DroneContext,
       f.losT[i] += DRONE.losInterval;
       f.los[i] = dist(ctx.camera, p) <= DRONE.loseRange && clear(ctx.camera, p) ? 1 : 0;
     }
+    // Thrown down, bound or being cast (banish.ts moves it): no patrol, orbit or dodge.
+    if (f.held[i]) { copy(sim.prev[i], p); continue; }
     const toPlayer = dist(p, ctx.player); let follow = false, eyeOnPlayer = false;
     if (ph === PHASE.patrol) {
       f.patrolT[i] = (f.patrolT[i] + dt) % period(f.patrol[i]);
@@ -151,7 +154,7 @@ function respawn(s: ShooterState, sim: DroneSim, ctx: DroneContext, i: number, c
   if (k === 8) flyInStart(end, ctx.player, 0, start);
   const v = sim.vel[i]; v.x = v.y = v.z = 0; copy(f.pos[i], start); copy(sim.prev[i], start);
   zero(f.knock[i]); zero(f.knockV[i]); f.wobble[i] = f.wobbleV[i] = 0;
-  f.hp[i] = DRONE_HP; f.broken[i] = 0; f.flash[i] = f.tint[i] = 0; f.dwell[i] = 0; f.unseenT[i] = 0; f.tiltX[i] = f.tiltZ[i] = 0;
+  f.hp[i] = DRONE_HP; f.broken[i] = 0; f.held[i] = 0; f.flash[i] = f.tint[i] = 0; f.dwell[i] = 0; f.unseenT[i] = 0; f.tiltX[i] = f.tiltZ[i] = 0;
   f.phase[i] = PHASE.arriving; f.phaseT[i] = 0;
   pushEvent(s, 'arrive', start, end, null, i);
 }
@@ -189,6 +192,7 @@ export function buildTargets(s: ShooterState): number {
     const t = s.targets[i], p = f.pos[i], k = f.knock[i];
     t.c.x = p.x + k.x; t.c.y = p.y + k.y; t.c.z = p.z + k.z; t.r = DRONE_RADIUS;
     eyeCenter(f, i, t.eye); t.eyeR = EYE_RADIUS; t.alive = droneAlive(f, i); t.los = f.los[i] === 1;
+    if (t.facing) adversaryFacing(f, i, t.facing);
   }
   return f.count;
 }

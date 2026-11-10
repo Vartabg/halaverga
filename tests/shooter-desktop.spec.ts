@@ -144,7 +144,7 @@ test('turning the blaster off mid-aim restores the reticle; ?shooter=0 has no HU
   await begin(page); await expect(reticle(page)).toHaveCount(0);
   await page.keyboard.down('KeyQ'); await expect(hud(page)).toHaveAttribute('data-aiming', 'true');
   await openSettings(page);
-  await page.getByLabel('Celestial fire (sentinels and shooting)').uncheck(); await closeAndResume(page);
+  await page.getByLabel('The fight (demons and the sword)').uncheck(); await closeAndResume(page);
   await page.keyboard.up('KeyQ');
   await expect(hud(page)).toHaveCount(0); await expect(reticle(page)).toHaveCount(1);
   await page.goto('/?shooter=0'); await page.getByRole('button', { name: 'Ascend Mount Hermon' }).click();

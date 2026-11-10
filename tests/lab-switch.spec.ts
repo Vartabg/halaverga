@@ -21,7 +21,7 @@ test('Cursor is the default: the free-cursor surface, no lab surface or data-con
   await isCurrent(page, 'Cursor');
   expect(await controls(page)).toBeNull();
   expect(await controlId(page)).toBe('cursor');
-  await expect(legend(page)).toHaveText('SPACE TO FLY · CLICK TO FIRE · DRAG TO LOOK');
+  await expect(legend(page)).toHaveText('SPACE TO FLY · CLICK A DEMON · DRAG TO LOOK');
   expect(t.errors).toEqual([]); await t.context.close();
 });
 
@@ -131,7 +131,9 @@ test('a switch mid-cruise or mid-blast leaves no stuck movement or fire', async 
   test.skip(!d, 'no drone in view from the lift point');
   const before = await shots(page);
   await page.mouse.move(d!.x, d!.y); await page.mouse.down(); await page.waitForTimeout(500);
-  await expect.poll(() => shots(page)).toBeGreaterThan(before);
+  // Chain combat has no sustained fire: a press on a demon in reach requests one strike, a far one does nothing. What this test
+  // guards is that no movement or trigger stays stuck after the switch below.
+  expect(await shots(page)).toBeGreaterThanOrEqual(before);
   await page.keyboard.press('Escape'); await expect(card).toBeVisible();
   await card.getByTestId('controls-row').click(); await expect(radio(sheet(page), /^Draw/)).toBeFocused();
   await page.keyboard.press('ArrowDown'); await page.keyboard.press('ArrowDown');

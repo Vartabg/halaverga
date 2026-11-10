@@ -53,7 +53,8 @@ export function hitDrones(o: Vec3, d: Vec3, targets: readonly DroneTarget[], cou
   for (let i = 0; i < count; i++) {
     const g = targets[i];
     if (!g.alive) continue;
-    const front = (g.eye.x - g.c.x) * d.x + (g.eye.y - g.c.y) * d.y + (g.eye.z - g.c.z) * d.z < 0;
+    const front = g.facing ? g.facing.x * d.x + g.facing.y * d.y + g.facing.z * d.z < 0
+      : (g.eye.x - g.c.x) * d.x + (g.eye.y - g.c.y) * d.y + (g.eye.z - g.c.z) * d.z < 0;
     if (raySphereSpan(o, d, g.c, g.r, body)) {
       if (body.enter >= bestEnter) continue;
       const weak = front && raySphereSpan(o, d, g.eye, g.eyeR, eye) && eye.enter < body.exit && eye.enter < maxT;

@@ -7,18 +7,18 @@ import styles from './Experience.module.css';
 type Patch = Parameters<ReturnType<typeof useGame.getState>['set']>[0];
 const save = (patch: Patch) => { useGame.setState(patch); persistGame(); };
 // Aim hold/toggle and the shot magnet live under More controls (MoreControls.tsx): the blaster section keeps two choices.
-// Two thumbs shows Fire and the auto-fire assist; one thumb (the default) has neither: tap a drone to blast it.
-const COARSE_NOTE = { twin: 'The angel casts fire when the crosshair rests on a sentinel. The Fire button is always there too.',
-  classic: 'One thumb flies. Tap a sentinel to strike it.' };
-const FINE_NOTE = 'Trackpad (default): while stopped or on the ground, a click casts fire at the centre reticle when you let go; dragging only looks. Space starts flying (W too, once in the air) and stops it again. Hold C to fire at any time. One finger + keyboard: click to fire once the pointer is captured. Mouse: left click fires once the mouse is captured. On touch screens, tap a sentinel to strike it (Two thumbs: hold the Fire button, and the assist fires when the crosshair rests on a sentinel). Reduced camera motion also removes zoom, recoil, shake, tracers and flashes.';
+// Two thumbs shows Fire; one thumb (the default) taps a demon to strike it.
+const COARSE_NOTE = { twin: 'Fire strikes the demon under the crosshair.',
+  classic: 'Hold Fly to move. Tap a demon to strike it.' };
+const FINE_NOTE = 'Click or C launches a sword strike toward a visible demon ahead. Press again during the dive to queue another strike. Binding and casting down follow a hit automatically. On touch screens, tap or swipe successive demons. Key 1 rebukes; hold V or a second finger for the shield. Reduced camera motion removes zoom, shake and flashes.';
 export default function ShooterSettings({ coarse }: { coarse: boolean }) {
   const shooter = useGame(s => s.shooter), autoFire = useGame(s => s.autoFire), scheme = useGame(s => s.touchScheme);
-  return <fieldset><legend>Celestial fire</legend>
+  return <fieldset><legend>The fight</legend>
     <label className={styles.check}><input type="checkbox" checked={shooter} onChange={e => {
       // Off returns the blends and springs to exact rest; the store change closes the blaster audio. On: save first, so the unlock (this click is a gesture) sees the blaster enabled.
       if (e.target.checked) { clearShooterFault(); save({ shooter: true }); unlockBlasterAudio(); }
       else { resetShooterFeel(runtime.shooter); save({ shooter: false }); }
-    }} /> Celestial fire (sentinels and shooting)</label>
+    }} /> The fight (demons and the sword)</label>
     {shooter && <>
       {scheme === 'twin' && <label className={styles.check}><input type="checkbox" checked={autoFire} onChange={e => save({ autoFire: e.target.checked })} /> Auto-fire assist on touch screens</label>}
       {/* A phone gets one line about its own controls; mouse and trackpad copy is for fine pointers. */}

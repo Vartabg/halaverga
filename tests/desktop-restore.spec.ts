@@ -6,10 +6,10 @@ import { begin, heading, resume, seed, shots, speed, telemetry } from './shooter
 // and W (in the air) or Space starts flying. Seeded with Garo's live save: the 'simple' default from before controls version 4.
 // A non-touch desktop (hasTouch false) at a full desktop size and at his 325 px Claude pane.
 const GARO = { trackpadSteering: 'simple', controlsVersion: 3, hintProgress: { touch: 0, simple: 0, mouse: 0 } };
-const GROUND = 'SPACE TO FLY · CLICK TO FIRE · DRAG TO LOOK';
+const GROUND = 'SPACE TO FLY · CLICK A DEMON · DRAG TO LOOK';
 // Hovering: W or Space flies; with a surface in reach Space lands, so the pill names only W.
-const HOVER = /^(W OR SPACE TO FLY|W TO FLY · SPACE TO LAND) · CLICK TO FIRE · DRAG TO LOOK$/;
-const CRUISE = 'MOVE TO STEER · SCROLL FOR SPEED · CLICK TO HOVER · HOLD C TO FIRE';
+const HOVER = /^(W OR SPACE TO FLY|W TO FLY · SPACE TO LAND) · CLICK A DEMON · DRAG TO LOOK$/;
+const CRUISE = 'MOVE TO STEER · SCROLL FOR SPEED · CLICK TO HOVER · C TO REBUKE';
 const pill = legend;
 const scene = (p: Page) => p.getByTestId('flight-surface');
 const locked = (p: Page) => p.evaluate(() => !!document.pointerLockElement);
@@ -34,13 +34,17 @@ for (const viewport of [{ width: 1440, height: 900 }, { width: 325, height: 928 
     expect(await scene(page).evaluate(e => getComputedStyle(e).cursor)).not.toBe('none');
     expect(await page.evaluate(() => document.documentElement.dataset.playing ?? null)).toBeNull();
 
-    // A clean click is exactly one shot, never a pointer lock, never a takeoff.
+    // An empty-sky click is exactly one command, never a pointer lock or takeoff.
+    // Clicking a reachable demon now deliberately launches a sword attack (covered by combat-flow.spec.ts).
+    await page.keyboard.down('ArrowUp'); await page.waitForTimeout(1300); await page.keyboard.up('ArrowUp');
     await page.mouse.move(a.x, a.y); await page.mouse.click(a.x, a.y);
     await expect.poll(() => shots(page)).toBe(1);
     await settle(page); expect(await shots(page)).toBe(1);
     expect(await locked(page)).toBe(false);
     await expect(telemetry(page)).toHaveAttribute('data-flying', 'false');
     await expect(scene(page)).toHaveAttribute('data-trackpad-active', 'false');
+
+    await page.keyboard.down('ArrowDown'); await page.waitForTimeout(1300); await page.keyboard.up('ArrowDown');
 
     // Space lifts and cruises.
     await page.keyboard.press('Space');

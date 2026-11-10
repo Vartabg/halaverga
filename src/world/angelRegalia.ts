@@ -12,7 +12,8 @@ const HADES_FRAG = `
   gl_FragColor.rgb = mix(celCol, vec3(0.05, 0.03, 0.09), edgeInk * 0.85);
   #include <dithering_fragment>`;
 
-/** Art direction additions to the fitted GLB: a fine nimbus, Hades cel-and-ink shading, and movement in its authored cloth and hair. */
+/** Art direction additions to the fitted GLB: a fine nimbus, cel-and-ink shading, and movement in its authored cloth and hair. sway and
+ * hair are the body-local spring offsets (suitSprings.ts) at the hem and at the hair ends; the shaders weight them along each surface. */
 export function angelRegalia(body: Object3D, joints: Object3D[], sway = new Vector3(), hair = new Vector3()) {
   const releaseSurface = characterSurface(body);
   const root = new Group(), flutter = { value: 0 };
@@ -54,15 +55,9 @@ export function angelRegalia(body: Object3D, joints: Object3D[], sway = new Vect
     };
     m.customProgramCacheKey = () => 'celestial-hades-v2-' + m.name; m.needsUpdate = true;
   });
+  // The springs (suitSprings.ts) own sway and hair; this only advances the hem flutter.
   return {
-    step(dt: number, still: boolean, vx = 0, vy = 0, vz = 0) {
-      if (!still) {
-        flutter.value += Math.min(dt, .04);
-        const k = Math.min(1, dt * 8);
-        sway.set(sway.x + (-vx * .006 - sway.x) * k, sway.y + (-vy * .004 - sway.y) * k, sway.z + (-vz * .006 - sway.z) * k);
-        hair.set(hair.x + (-vx * .002 - hair.x) * k, hair.y + (-vy * .002 - hair.y) * k, hair.z + (-vz * .002 - hair.z) * k);
-      }
-    },
+    step(dt: number, still: boolean) { if (!still) flutter.value += Math.min(dt, .04); },
     dispose() {
       releaseSurface(); root.removeFromParent(); rings.forEach(m => m.geometry.dispose()); gold.dispose();
       patched.forEach(m => { m.onBeforeCompile = () => {}; });

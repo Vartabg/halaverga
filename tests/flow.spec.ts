@@ -69,9 +69,9 @@ test('aiming changes climb/dive and the character follows the view', async ({ pa
 test('a primary press cancels assisted landing and retains free looking', async ({ page }) => {
   await beginFlow(page); await page.mouse.move(720, 840, { steps: 15 });
   await expect(page.getByText('SURFACE IN REACH · LAND', { exact: true })).toBeVisible();
-  await page.keyboard.press('Space'); await expect(telemetry(page)).toContainText('APPROACH');
+  await page.keyboard.press('Space'); await expect(telemetry(page)).toContainText('ALIGHTING');
   await page.mouse.down(); await page.mouse.up();
-  await expect(telemetry(page)).not.toContainText('APPROACH');
+  await expect(telemetry(page)).not.toContainText('ALIGHTING');
   await expect(hud(page)).toHaveAttribute('data-capture', 'engaged');
   await expect.poll(() => speed(page)).toBeLessThan(.1);
 });
