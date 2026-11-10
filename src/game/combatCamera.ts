@@ -54,6 +54,10 @@ export function stepCombatCamera(s: CombatCamera, i: CombatCameraInput) {
 export function rememberCombatPilot(s: CombatCamera, yaw: number, pitch: number) { s.pilotYaw = yaw; s.pilotPitch = pitch; }
 export const combatCameraReadout = { target: -1, phase: 0, age: 0, weight: 0, manual: 0, yaw: 0, pitch: 0, heroX: 0, heroY: 0, targetX: 0, targetY: 0, finisher: -1 };
 
+/** How far (m) a point lies ahead of a pilot heading, on the ground plane; negative once it is behind. The view only follows a
+ * cast-down demon while it is ahead, so it never swings round to look backward when the angel flies past where it struck. */
+export const aheadOf = (yaw: number, from: Vec3, to: Vec3) => (to.x - from.x) * -Math.sin(yaw) + (to.z - from.z) * -Math.cos(yaw);
+export const WATCH_AHEAD = 2;
 export const createFinisherFocus = () => ({ target: -1, active: false, cancelled: false });
 /** Keep the opening, rather than a falling victim, in view. A deliberate exit cancels this finisher's framing until it ends. */
 export function stepFinisherFocus(s: ReturnType<typeof createFinisherFocus>, i: { last: number; mode: number; phase: number; brake: boolean; steering: boolean; manual: boolean }) {

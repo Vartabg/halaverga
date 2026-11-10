@@ -19,10 +19,13 @@ test('the CC0 angel dives into a live demon and continues the banishment loop', 
   }
   expect(found).toBe(true); expect(models.has('/models/angel.glb')).toBe(true);
   const before = Number(await hud.getAttribute('data-banish-fx'));
+  const at = async () => JSON.parse((await telemetry.getAttribute('data-position'))!) as number[], from = await at();
   await page.keyboard.press('Digit2');
-  await expect.poll(async () => Number(await telemetry.getAttribute('data-speed')), { timeout: 5000 }).toBeGreaterThan(40);
-  await page.screenshot({ path: test.info().outputPath('compact-wing-dive.png') });
+  await page.waitForTimeout(120); await page.screenshot({ path: test.info().outputPath('compact-wing-dive.png') });
   await expect.poll(async () => Number(await hud.getAttribute('data-banish-fx')), { timeout: 5000 }).toBeGreaterThan(before);
+  // The dive carried the angel to the demon. The telemetry samples every 350 ms and a short dive now ends on the demon inside one
+  // sample (the sword string holds the angel there), so the distance travelled is checked, not a speed reading.
+  await expect.poll(async () => { const p = await at(); return Math.hypot(p[0] - from[0], p[1] - from[1], p[2] - from[2]); }, { timeout: 3000 }).toBeGreaterThan(1.5);
   await finishString(page); // the rising cut and the casting blow
   await expect.poll(async () => Number(await hud.getAttribute('data-banished')), { timeout: 10000 }).toBeGreaterThan(0);
   await page.keyboard.up('KeyV'); expect(errors).toEqual([]);

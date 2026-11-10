@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef } from 'react';
 import { useFrame, useLoader } from '@react-three/fiber';
 import { useRapier } from '@react-three/rapier';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { Vector3, type PerspectiveCamera } from 'three';
+import { Vector3, type Object3D, type PerspectiveCamera } from 'three';
 import { wingTips } from './rushData';
 import { presentation as pose } from '@/game/presentation';
 import { runtime } from '@/game/runtime';
@@ -33,6 +33,10 @@ export function clearWorldCache() {
 const input = { flying: false, landing: false, paused: true, reduced: false, velocity: runtime.velocity, turn: runtime.turn };
 const moveInput = { dt: 0, paused: true, flying: false, ground: 1, speed: 0, sword: false, reduced: false };
 const wrist = new Vector3(), hand = new Vector3();
+function publishTip(bones: readonly Object3D[], out: { x: number; y: number; z: number }) {
+  bones[2].getWorldPosition(wrist); bones[3].getWorldPosition(hand);
+  out.x = hand.x + (hand.x - wrist.x) * 1.4; out.y = hand.y + (hand.y - wrist.y) * 1.4; out.z = hand.z + (hand.z - wrist.z) * 1.4;
+}
 export default function Suit() {
   const { world, rapier } = useRapier();
   const motion = useRef({ hero: 1, epoch: -1 }), animation = useRef(createSuitAnimation()), flight = useRef(createFlightMix()), turn = useRef(createSuitRoll());
@@ -89,10 +93,7 @@ export default function Suit() {
     pose.wingTuck.left = wings.tuck.left; pose.wingTuck.right = wings.tuck.right;
     // The wingtips in the world, for the vapour they pull at speed (FlightRush.tsx): the hand joint, carried out along the hand.
     wingTips.live = rig.root.visible && state.flying;
-    if (wingTips.live) for (const [wing, out] of [[wings.left, wingTips.left], [wings.right, wingTips.right]] as const) {
-      wing.bones[2].getWorldPosition(wrist); wing.bones[3].getWorldPosition(hand);
-      out.x = hand.x + (hand.x - wrist.x) * 1.4; out.y = hand.y + (hand.y - wrist.y) * 1.4; out.z = hand.z + (hand.z - wrist.z) * 1.4;
-    }
+    if (wingTips.live) { publishTip(wings.left.bones, wingTips.left); publishTip(wings.right.bones, wingTips.right); }
     pose.suitClip = mix.label; pose.suitRoll = roll;
   }, -20);
   return <primitive object={rig.root} dispose={null} />;

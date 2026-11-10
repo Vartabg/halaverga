@@ -20,6 +20,11 @@ export function createRibbon(sections: number, color: string) {
       const o = head * 6; points[o] = ax; points[o + 1] = ay; points[o + 2] = az; points[o + 3] = bx; points[o + 4] = by; points[o + 5] = bz;
       age[head] = 0; power[head] = Math.min(1, Math.max(0, strength)); head = (head + 1) % sections; count = Math.min(sections, count + 1);
     },
+    /** Moves the newest cross-section without adding one: between samples the ribbon's head stays on the blade or the wingtip. */
+    lead(ax: number, ay: number, az: number, bx: number, by: number, bz: number) {
+      if (!count) return; const o = ((head - 1 + sections) % sections) * 6;
+      points[o] = ax; points[o + 1] = ay; points[o + 2] = az; points[o + 3] = bx; points[o + 4] = by; points[o + 5] = bz;
+    },
     /** Ages every section by dt and rewrites the buffers, newest first; a section older than `life` seconds is dark. */
     update(dt: number, life: number) {
       let lit = 0, last = 0;

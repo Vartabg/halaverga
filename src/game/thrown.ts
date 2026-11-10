@@ -8,11 +8,12 @@ import { REEL } from './swordString';
 import { heightAt } from '@/world/massifData';
 
 /** gravity m/s2 (the world's own). float: gravity scale while a wounded demon reels, so it hangs for the next cut. drag 1/s.
- * bounce / grip: restitution and tangential loss on contact. stride: longest sub-step (m). wall: a contact this far under the
- * surface is a cliff face, not a slope. thud: slowest contact (m/s) that counts as an impact. settle / timeout: seconds a cast-down
- * demon lies where it struck, and the longest a cast may last. reach / share / keep: demon-to-demon contact. */
-export const THROWN = { gravity: 22, float: .34, drag: 1.5, spikeDrag: .12, bounce: .38, grip: .4, radius: .9, stride: 1.2, wall: 1.6,
-  thud: 7, settle: .38, timeout: 2.4, reach: 1.9, share: .35, keep: .65 } as const;
+ * bounce / grip: restitution and tangential loss on a real impact. rub: friction (1/s) while it rests or slides, so a body on a
+ * slope behaves the same at any frame rate. stride: longest sub-step (m). wall: a contact this far under the
+ * surface is a cliff face, not a slope. thud: slowest contact (m/s) that counts as an impact. settle / spent / timeout: seconds a
+ * cast-down demon lies where it landed, how much of its speed is left once it has, and the longest a cast may last. reach / share / keep: demon-to-demon contact. */
+export const THROWN = { gravity: 22, float: .34, drag: 1.5, spikeDrag: .12, bounce: .38, grip: .4, rub: 3, radius: .9, stride: 1.2, wall: 1.6,
+  thud: 7, settle: .38, spent: .4, timeout: 2.4, reach: 1.9, share: .35, keep: .65 } as const;
 /** The hardest contact of a step: speed into the surface, where, the surface normal, and the demon struck (-1: the world). */
 export type Impact = { speed: number; x: number; y: number; z: number; nx: number; ny: number; nz: number; other: number };
 const impact: Impact = { speed: 0, x: 0, y: 0, z: 0, nx: 0, ny: 1, nz: 0, other: -1 };
@@ -29,7 +30,7 @@ export function stepBody(p: Vec3, v: Vec3, dt: number, gravity: number, drag: nu
     const under = floorAt(p.x, p.z) + THROWN.radius - p.y;
     if (under <= 0) continue;
     let nx = 0, ny = 1, nz = 0;
-    if (under > THROWN.wall) {
+    if (under > THROWN.wall && Math.hypot(v.x, v.z) > .01) {
       // A cliff face: step back out of the rock and bounce off the face, never up onto the top of it.
       p.x -= v.x * h; p.y -= v.y * h; p.z -= v.z * h;
       const gx = floorAt(p.x + 2, p.z) - floorAt(p.x - 2, p.z), gz = floorAt(p.x, p.z + 2) - floorAt(p.x, p.z - 2), g = Math.hypot(gx, gz);
@@ -44,7 +45,7 @@ export function stepBody(p: Vec3, v: Vec3, dt: number, gravity: number, drag: nu
     if (into >= 0) continue;
     // Reflect what goes into the surface (with loss) and let the surface drag on what slides along it.
     // A hard strike spends itself in the ground: the harder it lands, the less of it comes back.
-    const tx = v.x - into * nx, ty = v.y - into * ny, tz = v.z - into * nz, keep = 1 - THROWN.grip;
+    const tx = v.x - into * nx, ty = v.y - into * ny, tz = v.z - into * nz, keep = -into > THROWN.thud ? 1 - THROWN.grip : Math.exp(-THROWN.rub * h);
     const back = THROWN.bounce * Math.max(.35, Math.min(1, 1 - (-into - 10) / 80));
     v.x = tx * keep - into * back * nx; v.y = ty * keep - into * back * ny; v.z = tz * keep - into * back * nz;
     if (-into > hard) { hard = -into; impact.speed = hard; impact.x = p.x; impact.y = p.y - THROWN.radius * ny; impact.z = p.z; impact.nx = nx; impact.ny = ny; impact.nz = nz; impact.other = -1; }

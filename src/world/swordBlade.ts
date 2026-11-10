@@ -8,11 +8,12 @@ export const BLADE = 1.22, GUARD = .1;
 /** A diamond-section blade: a long tapering body and a point, wide and thin. `wide` scales the section (the fire uses a fatter one). */
 function bladeShape(wide: number, length: number) {
   const body = length * .72, tip = length - body;
-  const lower = new CylinderGeometry(.03, .041, body, 4, 1).translate(0, -GUARD - body / 2, 0);
+  const lower = new CylinderGeometry(.041, .03, body, 4, 1).translate(0, -GUARD - body / 2, 0); // widest at the guard
   const point = new ConeGeometry(.03, tip, 4, 1).rotateX(Math.PI).translate(0, -GUARD - body - tip / 2, 0);
-  // Four sides turned so an edge, not a face, leads the cut; then flattened into a blade.
+  // Four sides with their corners on the axes: flattened, that is a diamond section with an edge to each side and a ridge down
+  // each face.
   const g = mergeGeometries([lower, point])!; lower.dispose(); point.dispose();
-  return g.rotateY(Math.PI / 4).scale(wide, 1, wide * .3);
+  return g.scale(wide, 1, wide * .3);
 }
 export function swordGeometry(): BufferGeometry {
   const parts = [bladeShape(1.25, BLADE), new BoxGeometry(.27, .034, .05).translate(0, -GUARD + .012, 0),
@@ -52,7 +53,7 @@ export function flameMaterial() {
         float body = smoothstep(.3, .85, n + .32 - along * .22 + uFlare * .3);
         vec3 fire = mix(vec3(1., .4, .07), vec3(1., .88, .55), body);
         float a = body * (.5 + .4 * uFlare) * (1. - along * .3);
-        gl_FragColor = vec4(fire * a, a);
+        gl_FragColor = vec4(fire, a); // additive blending multiplies by alpha once
       }`,
   });
 }

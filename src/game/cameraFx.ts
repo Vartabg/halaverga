@@ -94,7 +94,7 @@ export const diveFov = (speed: number) => Math.max(0, Math.min(6, (speed - 100) 
 /** The air shakes the view a little at speed: a floor under the hit shake, from nothing at 45 m/s to its most at 100 and over. It
  * is a floor, not an addition, so a still or slow angel leaves the camera exactly at rest. */
 export function rumble(fx: CamFx, speed: number) {
-  const floor = Math.min(.34, Math.max(0, (speed - 45) / 160));
+  const floor = Math.min(.24, Math.max(0, (speed - 45) / 160));
   if (fx.trauma < floor) fx.trauma = floor;
 }
 /** CameraRig's damped base FOV (MathUtils.damp at CAM.fovRate, inlined to stay three-free). A hip change (rotation, resize) shifts

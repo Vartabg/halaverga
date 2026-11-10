@@ -77,7 +77,7 @@ function apply(b: BanishState, s: ShooterState, player: Vec3, kind: number, targ
   } else if (kind === COMMAND.cast) {
     if (m !== MODE.bound) { cue(b, m === MODE.down ? 'notBound' : 'notDown'); return; }
     if (d > BANISH.castRange) { cue(b, 'far'); return; }
-    b.mode[i] = MODE.cast; b.timer[i] = 0; b.base[i].x = p.x; b.base[i].y = p.y; b.base[i].z = p.z;
+    b.mode[i] = MODE.cast; b.timer[i] = 0; b.hit[i] = 0; b.struck[i] = 0; closeString(b, i); b.base[i].x = p.x; b.base[i].y = p.y; b.base[i].z = p.z;
     emit(b, FX.cast, i, player, p);
     return;
   }
@@ -86,13 +86,14 @@ function apply(b: BanishState, s: ShooterState, player: Vec3, kind: number, targ
 const ease = (from: number, to: number, rate: number, dt: number) => to + (from - to) * Math.exp(-rate * dt);
 const at: Vec3 = { x: 0, y: 0, z: 0 }, off: Vec3 = { x: 0, y: 0, z: 0 };
 /** A thrown demon struck something hard enough to matter: the effect (drawn on the surface it struck), and a shake by how hard
- * and how near. True when it was the mountain or the water, not another demon. */
+ * and how near. True when it landed (ground or water), not when it hit a cliff face or another demon. */
 function struck(b: BanishState, s: ShooterState, i: number, hit: Impact | null, player: Vec3) {
   if (!hit || hit.speed < THROWN.thud) return false;
   at.x = hit.x; at.y = hit.y; at.z = hit.z; off.x = hit.x + hit.nx; off.y = hit.y + hit.ny; off.z = hit.z + hit.nz;
-  emit(b, FX.impact, i, off, at, Math.round(hit.speed));
-  addTrauma(s.camFx, Math.min(.5, hit.speed / 110) * Math.max(0, 1 - dist(at, player) / 90));
-  return hit.other < 0;
+  // A shove between demons is drawn dim and does not shake the view: only the mountain takes the full effect.
+  emit(b, FX.impact, i, off, at, Math.round(hit.other < 0 ? hit.speed : Math.min(hit.speed, 15)));
+  if (hit.other < 0) addTrauma(s.camFx, Math.min(.5, hit.speed / 110) * Math.max(0, 1 - dist(at, player) / 90));
+  return hit.other < 0 && hit.ny > .5; // ground or water: a cliff face throws it back, it has not landed
 }
 
 /** One frame: consumes a new command, then advances each demon's stagger, fall, chain and casting. */
@@ -144,11 +145,13 @@ export function stepBanish(b: BanishState, s: ShooterState, player: Vec3, dt: nu
         // Cast down for real: the blow's velocity, gravity and the mountain decide where it strikes (thrown.ts). It lies there a
         // moment, then it is gone.
         b.timer[i] += dt;
-        if (struck(b, s, i, spikeDemon(b, s, i, dt), player) && !b.hit[i]) b.hit[i] = b.clock;
+        if (struck(b, s, i, spikeDemon(b, s, i, dt), player) && !b.hit[i]) {
+          b.hit[i] = b.clock; const v = b.vel[i]; v.x *= THROWN.spent; v.y *= THROWN.spent; v.z *= THROWN.spent; // it lies where it landed
+        }
         done = b.hit[i] > 0 && b.clock - b.hit[i] >= THROWN.settle || b.timer[i] > THROWN.timeout;
       }
       if (done) {
-        b.mode[i] = MODE.free; b.resist[i] = BANISH.resistance; f.held[i] = 0;
+        b.mode[i] = MODE.free; b.resist[i] = BANISH.resistance; f.held[i] = 0; b.hit[i] = 0;
         f.phase[i] = PHASE.dying; f.phaseT[i] = 0; s.stats.kills++; s.stats.lastKillT = s.clock;
         b.armor[i] = armorFor(i); emit(b, FX.seal, i, base, p);
         if (isElite(i) && dist(p, player) < 90) addTrauma(s.camFx, .45); // the ground takes the blow

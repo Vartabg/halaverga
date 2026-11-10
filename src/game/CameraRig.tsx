@@ -12,7 +12,7 @@ import { banish, MODE } from './banishState';
 import { isElite } from './encounter';
 import { flightFeel } from './flightFeel';
 import { clearCombatSight, createCombatSight } from './combatSight';
-import { createCombatCamera, stepCombatCamera, createFinisherFocus, stepFinisherFocus, rememberCombatPilot, combatCameraReadout as readout } from './combatCamera';
+import { createCombatCamera, stepCombatCamera, createFinisherFocus, stepFinisherFocus, rememberCombatPilot, aheadOf, WATCH_AHEAD, combatCameraReadout as readout } from './combatCamera';
 const rotation = new Euler(0, 0, 0, 'YXZ'), q = new Quaternion(), desired = new Vector3(), dir = new Vector3(), head = new Vector3();
 const shakeEuler = new Euler(0, 0, 0, 'YXZ'), shake = new Quaternion(), axis = new Vector3();
 // Speed-widened FOV, damped on its own so the ADS drop and shot punches never compound into the damp. Synced to c.fov on init.
@@ -49,9 +49,10 @@ export default function CameraRig() {
     // A lesser demon cast down: the view follows it most of the way to where it strikes, without turning the pilot, and comes
     // back when it is gone. Looking elsewhere takes the view back at once (the planner's manual override).
     const cast = banish.last, free = finisher < 0 && !stringing && strike.phase !== 1;
-    const falling = free && cast >= 0 && !isElite(cast) && banish.mode[cast] === MODE.cast;
-    if (falling) { const c = shooter.targets[cast].c, eye = pose.position.y + .65; level.x = c.x; level.y = eye + (c.y - eye) * .6; level.z = c.z; linger = .45; }
-    else linger = free ? Math.max(0, linger - elapsed) : 0; // held a beat on where it struck, so the burst is seen
+    const falling = free && cast >= 0 && !isElite(cast) && banish.mode[cast] === MODE.cast && aheadOf(runtime.yaw, pose.position, shooter.drones.pos[cast]) > WATCH_AHEAD;
+    if (falling) { const c = shooter.drones.pos[cast], eye = pose.position.y + .65; level.x = c.x; level.y = eye + (c.y - eye) * .6; level.z = c.z; linger = .45; }
+    // Held a beat on where it struck, so the burst is seen; dropped at once if the angel has flown past it.
+    else linger = free && aheadOf(runtime.yaw, pose.position, level) > WATCH_AHEAD ? Math.max(0, linger - elapsed) : 0;
     const watching = falling || linger > 0;
     const framed = stringing || watching;
     const focus = finisher >= 0 ? banish.base[finisher] : framed ? level : strike.aim, phase = finisher >= 0 || framed ? 1 : strike.phase;

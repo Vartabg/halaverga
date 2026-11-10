@@ -45,9 +45,27 @@ describe('a thrown body', () => {
       const v = { x: (rng() - .5) * 180, y: (rng() - .7) * 140, z: (rng() - .5) * 180 };
       fly(p, v, 1.5, THROWN.gravity, THROWN.spikeDrag);
       for (const c of [p.x, p.y, p.z, v.x, v.y, v.z]) expect(Number.isFinite(c)).toBe(true);
-      // A body stopped against a cliff may sit within a stride of the face; it is never deep inside the mountain.
-      expect(floorAt(p.x, p.z) + THROWN.radius - p.y, `throw ${n}`).toBeLessThan(THROWN.wall + .01);
+      // Every step ends on or above the surface: a slope pushes the body out, a cliff face sends it back where it came from.
+      expect(floorAt(p.x, p.z) + THROWN.radius - p.y, `throw ${n}`).toBeLessThan(1e-6);
     }
+  });
+});
+describe('a body at rest or sliding', () => {
+  const slide = (hz: number) => {
+    const p = { x: 0, y: floorAt(0, 0) + THROWN.radius, z: 0 }, v = { x: 0, y: 0, z: -30 }; // along the level gorge water
+    for (let n = 0; n < hz; n++) stepBody(p, v, 1 / hz, THROWN.gravity, 0);
+    return { speed: Math.hypot(v.x, v.z), travelled: -p.z };
+  };
+  it('loses its slide to friction at the same rate whatever the frame rate', () => {
+    const slow = slide(30), fast = slide(120);
+    expect(slow.speed).toBeLessThan(5); expect(fast.speed).toBeLessThan(5); // one second of rubbing takes most of 30 m/s
+    expect(Math.abs(slow.travelled - fast.travelled)).toBeLessThan(slow.travelled * .2);
+    expect(slow.travelled).toBeGreaterThan(5); // it slides; a contact does not stop it dead
+  });
+  it('treats a body with no sideways speed as landing, never as hitting a wall, so it cannot freeze inside the ground', () => {
+    const p = { x: 0, y: floorAt(0, 0) - 5, z: 0 }, v = { x: 0, y: 0, z: 0 }; // started inside the ground
+    stepBody(p, v, 1 / 60, THROWN.gravity, 0);
+    expect(p.y).toBeCloseTo(floorAt(0, 0) + THROWN.radius, 6); expect(Number.isFinite(v.y)).toBe(true);
   });
 });
 describe('a demon the sword has thrown', () => {

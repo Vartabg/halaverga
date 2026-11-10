@@ -19,7 +19,7 @@ export default function FlightRush() {
     const rng = mulberry32(1906), seeds = Array.from({ length: RUSH.streaks }, () => ({ angle: rng() * Math.PI * 2, radius: RUSH.inner + (RUSH.outer - RUSH.inner) * Math.sqrt(rng()), along: rng(), gain: .45 + rng() * .55 }));
     for (let i = 0; i < RUSH.streaks; i++) streaks.setColorAt(i, c.setRGB(0, 0, 0));
     streaks.instanceColor!.setUsage(DynamicDrawUsage);
-    return { streaks, seeds, trails: [createRibbon(26, '#dfeaff'), createRibbon(26, '#dfeaff')], yaw: runtime.yaw, pitch: runtime.pitch, turn: 0 };
+    return { streaks, seeds, trails: [createRibbon(28, '#dfeaff'), createRibbon(28, '#dfeaff')], yaw: runtime.yaw, pitch: runtime.pitch, turn: 0, since: 0 };
   }, []);
   useEffect(() => () => { parts.streaks.geometry.dispose(); (parts.streaks.material as MeshBasicMaterial).dispose(); parts.streaks.dispose(); parts.trails.forEach(t => t.dispose()); }, [parts]);
   useFrame(({ camera }, delta) => {
@@ -48,9 +48,11 @@ export default function FlightRush() {
       parts.streaks.instanceMatrix.needsUpdate = true; parts.streaks.instanceColor!.needsUpdate = true;
     }
     const vapour = flying && wingTips.live ? vapourStrength(speed, parts.turn, state.reduced) : 0;
+    parts.since += dt; const sample = parts.since >= RUSH.step; if (sample) parts.since = 0;
     for (let n = 0; n < 2; n++) {
       const trail = parts.trails[n], tip = n ? wingTips.right : wingTips.left;
-      if (vapour > .02) trail.push(tip.x, tip.y + .05, tip.z, tip.x, tip.y - .05, tip.z, vapour * .4);
+      if (vapour > .02 && sample) trail.push(tip.x, tip.y + .05, tip.z, tip.x, tip.y - .05, tip.z, vapour * .4);
+      else if (vapour > .02) trail.lead(tip.x, tip.y + .05, tip.z, tip.x, tip.y - .05, tip.z);
       if (state.paused) continue;
       if (!flying) trail.clear(); else trail.update(dt, RUSH.life);
     }

@@ -116,6 +116,34 @@ describe('the sword string', () => {
     strikeVelocity({ x: 0, y: 0, z: 0 }, above, strike.minTime + .01, false); stepBanish(b, s, { ...s.targets[0].c, y: s.targets[0].c.y + 2 }, 1 / 60);
     expect(b.mode[0]).toBe(MODE.cast); expect(b.vel[0].x).toBeGreaterThan(35); expect(Math.abs(b.vel[0].z)).toBeLessThan(1e-6); expect(b.vel[0].y).toBeLessThan(-20);
   });
+  // ---- found by the second independent review, 2026-11-10 ----
+  it('does not count a cliff face as landing: a demon thrown into the summit wall falls on and dies on the ground, not in the air', () => {
+    const { s, b, run } = setup(), f = s.drones;
+    Object.assign(f.pos[0], { x: 0, y: 30, z: -40 }); f.held[0] = 1; b.mode[0] = MODE.cast; b.timer[0] = 0; b.hit[0] = 0;
+    Object.assign(b.vel[0], { x: 70, y: 0, z: 0 }); // straight at the 61 m terrace wall
+    run(.3);
+    const wall = b.fx.find(e => e.kind === FX.impact && e.serial > 0)!;
+    expect(wall).toBeDefined(); expect(Math.abs(wall.from.y - wall.to.y)).toBeLessThan(.01); // an upright surface
+    expect(b.hit[0]).toBe(0); expect(s.stats.kills).toBe(0); // struck, thrown back, still falling
+    run(2.4);
+    expect(s.stats.kills).toBe(1);
+    const seal = b.fx.find(e => e.kind === FX.seal && e.serial > 0)!;
+    expect(seal.to.y - floorAt(seal.to.x, seal.to.z)).toBeLessThan(2.5); // it ended on the ground
+  });
+  it('lies where it landed: most of its speed is spent on the ground, and the landing clock is cleared for the next demon in that place', () => {
+    const { s, b, near, run } = setup();
+    landCut(b, s, 0, near); landCut(b, s, 0, near); landCut(b, s, 0, near);
+    run(1.8); expect(s.stats.kills).toBe(1); expect(b.hit[0]).toBe(0);
+    const seal = b.fx.find(e => e.kind === FX.seal && e.serial > 0)!;
+    expect(seal.to.y - floorAt(seal.to.x, seal.to.z)).toBeLessThan(2);
+  });
+  it('does not finish a demon cast by the rite the instant it starts, even where an earlier one landed', () => {
+    const { s, b, near } = setup();
+    b.hit[0] = 99; b.mode[0] = MODE.bound; b.timer[0] = 0; s.drones.held[0] = 1; // a stale landing clock from an earlier demon
+    requestCommand(s, COMMAND.cast, 0); stepBanish(b, s, near, 1 / 60);
+    expect(b.mode[0]).toBe(MODE.cast); expect(b.hit[0]).toBe(0);
+    stepBanish(b, s, near, 1 / 60); expect(b.mode[0]).toBe(MODE.cast); expect(s.stats.kills).toBe(0);
+  });
   it('makes the demon carry each wound differently, and straightens it when it recovers', () => {
     const { s, b, near, run } = setup();
     landCut(b, s, 0, near); run(.4);

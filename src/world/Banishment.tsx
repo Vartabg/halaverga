@@ -92,7 +92,7 @@ export default function Banishment() {
     // Standing states: chains around a bound demon with a line into the abyss below; a slow pale halo on one thrown down.
     let chains = 0, lines = 0;
     for (let i = 0; i < s.drones.count; i++) {
-      const m = b.mode[i], p = s.targets[i].c;
+      const m = b.mode[i], p = m === MODE.cast ? s.drones.pos[i] : s.targets[i].c; // a thrown demon: this frame's place
       if (m !== MODE.bound && m !== MODE.down && m !== MODE.cast) continue;
       at.set(p.x, p.y, p.z);
       if (m === MODE.down) {

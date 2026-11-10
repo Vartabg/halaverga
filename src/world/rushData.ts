@@ -2,8 +2,8 @@
 // the tests can read the curves without a renderer.
 const smooth = (a: number, b: number, x: number) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 /** from / full: the speeds (m/s) between which the air streaks come in. Vapour comes off the wingtips at speed, sooner in a hard
- * bank or a pull-up. tube: the streaks' inner and outer radius around the line of flight, and the length of air they fill (m). */
-export const RUSH = { from: 14, full: 62, vapourFrom: 24, vapourFull: 70, streaks: 72, inner: 2.4, outer: 10, tube: 46, life: .42 } as const;
+ * bank or a pull-up. step: seconds between trail samples, the same on a 60 and a 120 Hz screen. tube: the streaks' inner and outer radius around the line of flight, and the length of air they fill (m). */
+export const RUSH = { from: 14, full: 62, vapourFrom: 24, vapourFull: 70, streaks: 72, inner: 2.4, outer: 10, tube: 46, life: .42, step: 1 / 60 } as const;
 /** 0 to 1: how strongly the air streaks past. Nothing while slow or under reduced motion. */
 export const streakStrength = (speed: number, reduced: boolean) => reduced ? 0 : smooth(RUSH.from, RUSH.full, speed);
 /** 0 to 1: vapour off the wingtips, from speed and from how hard the angel is turning or pulling (rad/s). */
