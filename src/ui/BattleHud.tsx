@@ -15,9 +15,9 @@ import styles from './BattleHud.module.css';
 const CUES: Record<Cue, string> = { '': '', far: 'Too far · fly closer', notDown: 'Strike it down before you bind it', notBound: 'This demon is already being cast down', noTarget: '', guarded: 'Warden guarded · defend, then strike the opening' };
 /** The next move for the demon last engaged, by its state: touch wording, then keyboard/mouse wording. */
 const NEXT: Record<number, [string, string]> = {
-  [-1]: ['Tap a demon · strike through it', 'Face the host · click to strike'],
-  [MODE.free]: ['Tap a demon · strike through it', 'Face the host · click to strike'],
-  [MODE.staggered]: ['Tap the next demon · chain!', 'Click again · chain!'],
+  [-1]: ['Tap a demon · three cuts cast it down', 'Face the host · click to strike'],
+  [MODE.free]: ['Tap a demon · three cuts cast it down', 'Face the host · click to strike'],
+  [MODE.staggered]: ['Tap it again · next cut', 'Click again · next cut'],
   [MODE.down]: ['Circle it · bind it in chains', 'Click · bind it in chains'],
   [MODE.bound]: ['Tap the next demon · keep moving', 'Click again · chain to the next demon'],
   [MODE.cast]: ['Tap the next demon · keep moving', 'Click again · chain to the next demon'],

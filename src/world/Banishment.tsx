@@ -5,6 +5,7 @@ import { useEffect, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { AdditiveBlending, Color, CylinderGeometry, DynamicDrawUsage, InstancedMesh, Matrix4, MeshBasicMaterial,
   Quaternion, RingGeometry, TorusGeometry, Vector3, type BufferGeometry } from 'three';
+import { slashGeometry } from './slashGeometry';
 import { MAX_DRONES, type Vec3 } from '@/game/combat';
 import { banish, FX, MODE } from '@/game/banish';
 import { battle } from '@/game/celestialBattle';
@@ -13,6 +14,7 @@ import { runtime } from '@/game/runtime';
 import { useGame } from '@/game/store';
 import { combatAudio } from '@/ui/combatAudio';
 import { castDuration, isElite } from '@/game/encounter';
+import { CUTS } from '@/game/swordString';
 
 const GOLD = new Color('#ffd27a'), FIRE = new Color('#ff7a2a'), CRIMSON = new Color('#ff3b1f'), PALE = new Color('#f4ecd8');
 const m4 = new Matrix4(), q = new Quaternion(), tilt = new Quaternion(), at = new Vector3(), sc = new Vector3(), c = new Color();
@@ -24,17 +26,17 @@ function pool(geometry: BufferGeometry, n: number) {
   for (let i = 0; i < n; i++) mesh.setColorAt(i, c.setRGB(0, 0, 0));
   mesh.instanceColor!.setUsage(DynamicDrawUsage); mesh.count = 0; return mesh;
 }
-type Slot = { kind: number; t: number; from: Vec3; to: Vec3; drone: number };
+type Slot = { kind: number; t: number; from: Vec3; to: Vec3; drone: number; n: number };
 const ACTIVE = 12, LIFE: Record<number, number> = { [FX.rebuke]: .55, [FX.sword]: .48, [FX.armor]: .7, [FX.seal]: 1.4, [FX.bind]: .5, [FX.down]: .5, [FX.cast]: .4 };
 
 export default function Banishment() {
   const parts = useMemo(() => ({
     rings: pool(new TorusGeometry(1, .07, 6, 40), ACTIVE * 3),
-    arcs: pool(new RingGeometry(1.5, 2.1, 28, 1, 0, Math.PI * 1.15), ACTIVE),
+    arcs: pool(slashGeometry(), ACTIVE),
     chains: pool(new TorusGeometry(1.25, .06, 5, 28), MAX_DRONES * 2),
     lines: pool(new CylinderGeometry(.05, .05, 1, 5, 1, true), MAX_DRONES),
     shield: pool(new RingGeometry(.78, .95, 48), 1),
-    slots: Array.from({ length: ACTIVE }, (): Slot => ({ kind: 0, t: -1e9, from: { x: 0, y: 0, z: 0 }, to: { x: 0, y: 0, z: 0 }, drone: -1 })),
+    slots: Array.from({ length: ACTIVE }, (): Slot => ({ kind: 0, t: -1e9, from: { x: 0, y: 0, z: 0 }, to: { x: 0, y: 0, z: 0 }, drone: -1, n: 0 })),
     seen: { last: 0 }, next: 0, quench: -1e9,
   }), []);
   const list = [parts.rings, parts.arcs, parts.chains, parts.lines, parts.shield];
@@ -43,15 +45,15 @@ export default function Banishment() {
     const b = banish, s = runtime.shooter, now = b.clock, reduced = useGame.getState().reduced;
     for (let n = Math.max(parts.seen.last + 1, b.fxSerial - b.fx.length + 1); n <= b.fxSerial; n++) {
       const e = b.fx[(n - 1) % b.fx.length];
-      combatAudio(e.kind, isElite(e.drone), banish.combo, b.guardTime[e.drone] > 0);
+      combatAudio(e.kind, isElite(e.drone), banish.combo, b.guardTime[e.drone] > 0, e.n);
       if (e.kind === FX.quench) { parts.quench = e.t; continue; }
       const slot = parts.slots[parts.next++ % ACTIVE];
-      slot.kind = e.kind; slot.t = e.t; slot.drone = e.drone; Object.assign(slot.from, e.from); Object.assign(slot.to, e.to);
+      slot.kind = e.kind; slot.t = e.t; slot.drone = e.drone; slot.n = e.n; Object.assign(slot.from, e.from); Object.assign(slot.to, e.to);
     }
     parts.seen.last = b.fxSerial;
     let rings = 0, arcs = 0;
     for (const slot of parts.slots) {
-      const age = now - slot.t, life = LIFE[slot.kind] ?? 0;
+      const age = now - slot.t, life = (LIFE[slot.kind] ?? 0) * (slot.kind === FX.sword ? 1 + .22 * slot.n : 1);
       if (!(age >= 0 && age < life)) continue;
       const u = age / life, fade = 1 - u;
       if (slot.kind === FX.rebuke) {
@@ -61,10 +63,14 @@ export default function Banishment() {
         sc.setScalar(k < 1 ? .5 + k : 1.5 + (age - .2) * 7);
         parts.rings.setMatrixAt(rings, m4.compose(at, camera.quaternion, sc)); parts.rings.setColorAt(rings++, c.copy(GOLD).multiplyScalar(fade * 1.6));
       } else if (slot.kind === FX.sword || slot.kind === FX.armor) {
-        const target = slot.to;
-        at.set(target.x, target.y, target.z); tilt.setFromAxisAngle(look.set(0, 0, 1), (reduced ? 0 : u * 2.4) - .6 + slot.t * 7 % 3);
-        q.copy(camera.quaternion).multiply(tilt); sc.setScalar(reduced ? 1.1 : 1 + u * .6);
-        parts.arcs.setMatrixAt(arcs, m4.compose(at, q, sc)); parts.arcs.setColorAt(arcs++, c.copy(slot.kind === FX.armor ? GOLD : FIRE).multiplyScalar(fade * 1.7));
+        // Each cut of the string draws its own stroke: a long flat crescent at that cut's angle, swept through as it fades
+        // (level for the cross cut, climbing for the rising cut, upright and largest for the casting blow).
+        const target = slot.to, cut = CUTS[slot.n] ?? CUTS[0], sweep = reduced ? 0 : (u - .35) * (cut.arc < 0 ? -1.1 : 1.1);
+        at.set(target.x, target.y, target.z); tilt.setFromAxisAngle(look.set(0, 0, 1), cut.arc + sweep);
+        const grow = (reduced ? 1.1 : .8 + u * .9) * cut.arcScale;
+        q.copy(camera.quaternion).multiply(tilt); sc.set(2.3 * grow, 1.15 * grow, 1);
+        const tint = slot.kind === FX.armor ? c.copy(GOLD) : c.copy(FIRE).lerp(PALE, slot.n * .28);
+        parts.arcs.setMatrixAt(arcs, m4.compose(at, q, sc)); parts.arcs.setColorAt(arcs++, tint.multiplyScalar(fade * (1.7 + .5 * slot.n)));
       } else if (slot.kind === FX.seal || slot.kind === FX.cast || slot.kind === FX.bind || slot.kind === FX.down) {
         // The abyss closing (crimson to gold, flat), a bind flash, or the pale ring of a demon thrown down.
         const p = slot.kind === FX.seal ? slot.to : slot.drone >= 0 ? s.targets[slot.drone].c : slot.to;

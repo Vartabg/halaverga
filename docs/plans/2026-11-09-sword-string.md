@@ -1,0 +1,56 @@
+# Design note: the sword string
+
+- **Date**: 2026-11-09. **Branch**: `codex/hermon-war`. **Status**: playable proof, waiting on Garo's feel check. Not reviewed independently yet.
+
+## What Garo said
+
+After playing the merged Hermon fight (2026-11-09):
+
+- "ok its better but the sword strikes need improvement and sequencing that rivals the videogames with similar weapons"
+- "the battle sequences arent videogame like"
+
+Earlier, still standing (2026-10-19): the benchmark is feeling the mechanics and the momentum; a strike may move the angel; get the feel right before the art.
+
+## Who it is for and what should happen
+
+The player, on a phone or a desktop, should be able to press a short rhythm on one demon and see a sequence of different sword blows land with rising weight, ending in a finishing blow, and then be back in flight at speed. The action-to-result relationship: each press is one cut, each cut looks and feels different from the last, the demon visibly reacts to each, and the third ends it.
+
+## What was there
+
+One move. A press dived the angel at a demon, one cut landed, and the demon was bound and cast down automatically. A "chain" was the same dive again at the next demon. One slash animation, one random-angle arc, a 45 ms hit-stop.
+
+## Options compared (by what the player does)
+
+1. **String on one demon (built).** Press three times on the same demon: cross cut, rising cut, casting blow. The angel stays on the demon between cuts and gets its arrival speed back on the last. Looking at another demon and pressing breaks off to it.
+2. **Fly-through passes (not built).** No string. Each pass through a demon is one cut, and the cut depends on how you arrive: diving gives a downward blow, climbing a launcher, level a cross cut. The sequence comes from the flying.
+3. **Drawn cuts (not built).** On the phone the direction of the swipe across the demon chooses the cut. The stroke recogniser from October (`combatStroke.ts`) already tells tap, swipe, circle and flick apart.
+
+Option 1 was built first because it answers the request most directly with the least new input to learn: the controls are unchanged (tap, click or C), only what a repeated press does. Options 2 and 3 can sit on top of it later; neither is ruled out.
+
+## What the proof does
+
+| Cut | Before it lands | When it lands | On screen |
+|---|---|---|---|
+| 1 Cross cut | the dive, as before | 55 ms hit-stop; the demon is shoved along the blow and held; the angel stops on it | level crescent, amber |
+| 2 Rising cut | a 0.17 s step-in | 80 ms hit-stop; the demon is lifted about 2.5 m and hangs; the angel rises above it | climbing crescent, larger, paler |
+| 3 Casting blow | a 0.24 s step-in from above | 140 ms hit-stop, the hardest camera jolt; the demon is bound and cast down; the angel leaves the way it looks at the speed its opener arrived with | upright crescent, largest, near white |
+
+- The next cut stays open for 1.15 s. A press during a cut is remembered (the existing one-press buffer).
+- A demon left alone for 2.6 s shakes its wounds off.
+- The ring on the target names the next cut: STRIKE, CUT 2, FINISH.
+- Sound: the first two cuts ring lighter and climb in pitch; the last keeps the full blow.
+- Body: the one library sword clip (Quaternius `Sword_Attack`, CC0) plays at a different speed for each cut, with a chest wind-up and swing-through that differs per cut.
+- Wardens keep their armour duel; their two armour hits draw as cuts 1 and 2 and their exposed blow as the casting blow.
+- Numbers live in one table: `src/game/swordString.ts` (`CUTS`, `STRING`).
+
+## Accepted, rejected, undecided
+
+- **Accepted by Garo**: nothing about this proof yet.
+- **Rejected by Garo**: the single dive-and-cut fight ("arent videogame like").
+- **Undecided**: three cuts or more; whether the string should need timing or accept mashing; options 2 and 3; whether wardens should take strings too; new sword animations.
+
+## Known limits
+
+- There is one sword animation in the free packs on this machine (Universal Animation Library 1 has a single `Sword_Attack`). Distinct body motion per cut would need more clips: a download, or a purchase, both Garo's call.
+- A fight to eight now takes about three times as many landed cuts as before. Not tuned.
+- Not checked on a physical iPhone. Checked: unit tests, and the fight's browser tests on desktop and at 393x852 and 852x393.

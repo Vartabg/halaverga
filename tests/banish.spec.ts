@@ -1,3 +1,4 @@
+import { finishString } from './flight-support';
 import { expect, test, type Page } from '@playwright/test';
 // War in Heaven, played with the keyboard (docs/research/combat-texts.md): hold V for the shield, find a demon under the reticle,
 // rebuke it and keep pressing C (the next step: rebuke or sword, bind once it is down, then cast) until the abyss takes it.
@@ -21,7 +22,10 @@ test('rebuke, sword, bind and cast banish a demon while the shield holds', async
   expect(found).toBe(true);
   await expect(page.getByText('“May the Lord rebuke you!”')).toBeVisible();
   await test.info().attach('rebuke', { body: await page.screenshot(), contentType: 'image/png' });
-  await page.keyboard.press('KeyC');
+  // Three cuts cast a demon down (swordString.ts): the opener, then one press for each cut that follows.
+  const opened = await fx(page); await page.keyboard.press('KeyC');
+  await expect.poll(() => fx(page), { timeout: 5000 }).toBeGreaterThan(opened);
+  await finishString(page);
   await expect.poll(async () => Number(await hud(page).getAttribute('data-banished')), { timeout: 10000 }).toBeGreaterThan(0);
   await test.info().attach('sealed', { body: await page.screenshot(), contentType: 'image/png' });
   await page.keyboard.up('KeyV');

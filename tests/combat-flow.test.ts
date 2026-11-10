@@ -24,13 +24,15 @@ beforeEach(() => { flowPaths.fill(1); flowVisible.fill(1); cancelStrike(); reset
 it('buffers a chosen second demon, waits for impact, then carries into it without a circle', () => {
   const { s, b, step, command } = setup();
   command(0); command(1); expect(strike.target).toBe(0); expect(strike.queued).toBe(true);
-  step(s.targets[0].c); expect(b.mode[0]).toBe(MODE.bound); expect(b.combo).toBe(1);
+  // The opener wounds demon 0 and holds the angel on it; the buffered press then breaks off to the chosen second demon.
+  step(s.targets[0].c); expect(b.wounds[0]).toBe(1); expect(b.mode[0]).toBe(MODE.staggered); expect(b.combo).toBe(1);
   const v = { x: 0, y: 0, z: -60 };
   for (let i = 0; i < 12 && strike.target !== 1; i++) { strikeVelocity(v, s.targets[0].c, 1 / 60, false); step(s.targets[0].c); }
-  expect(strike.target).toBe(1); expect(strike.phase).toBe(1); expect(Math.hypot(v.x, v.y, v.z)).toBeGreaterThan(25);
-  step(s.targets[1].c); expect(b.combo).toBe(2); expect(b.mode[1]).toBe(MODE.bound);
+  expect(strike.target).toBe(1); expect(strike.phase).toBe(1); expect(strike.lunge).toBe(false); // a fresh dive, not a step-in
+  strikeVelocity(v, s.targets[0].c, .14, false); expect(Math.hypot(v.x, v.y, v.z)).toBeGreaterThan(25);
+  step(s.targets[1].c); expect(b.combo).toBe(2); expect(b.wounds[1]).toBe(1); expect(b.mode[1]).toBe(MODE.staggered);
   for (let i = 0; i < 100; i++) step();
-  expect(s.stats.kills).toBe(2); expect(s.stats.shots).toBe(2);
+  expect(s.stats.kills).toBe(0); expect(s.stats.shots).toBe(2);
   expect(strike.queued).toBe(false); // the buffer is one request, never auto-play.
 });
 it('directional assist excludes casting, occluded, rear and distant demons', () => {

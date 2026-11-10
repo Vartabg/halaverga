@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { banish, MODE } from '@/game/banishState';
 import { flowTarget } from '@/game/combatFlow';
 import { strike } from '@/game/strike';
+import { LAST } from '@/game/swordString';
 import { runtime } from '@/game/runtime';
 import { useGame } from '@/game/store';
 import { aimFrameFrom, createAimFrame, project } from '@/game/gesture/screenRay';
@@ -48,7 +49,8 @@ export default function CombatTarget() {
         }
         ring.current.style.transform = `rotate(${Math.atan2(dy, dx)}rad)`;
       } else if (el.dataset.edge !== 'false') { ring.current.style.cssText = ''; ring.current.textContent = ''; }
-      const text = active ? 'STRIKING' : queued ? 'QUEUED' : banish.combo > 0 ? 'CHAIN' : edge ? 'TURN' : 'STRIKE';
+      const wounds = banish.wounds[i] ?? 0;
+      const text = active ? 'STRIKING' : queued ? 'QUEUED' : edge ? 'TURN' : wounds >= LAST ? 'FINISH' : wounds > 0 ? `CUT ${wounds + 1}` : banish.combo > 0 ? 'CHAIN' : 'STRIKE';
       if (label.current.textContent !== text) label.current.textContent = text;
       el.style.transform = `translate(${point.x}px,${point.y}px)`;
       el.dataset.target = String(i); el.dataset.x = point.x.toFixed(1); el.dataset.y = point.y.toFixed(1);

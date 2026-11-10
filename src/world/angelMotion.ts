@@ -6,13 +6,17 @@ import { Vector3, type Object3D } from 'three';
 import { banish, FX } from '../game/banishState';
 import { strike } from '../game/strike';
 import { blendAngelClip, clipTime, FULL, UPPER_BODY, type AngelClips } from './angelClips';
+import { CUTS, cutFor } from '../game/swordString';
+import { BONE_NAMES } from './suitSkeleton';
 
-/** Sword_Attack: the blade is high over the head at .36 s and through the cut by .55 s; the cut plays faster than authored. */
-export const SLASH = { raised: .36, rate: 1.5, fadeIn: .08, fadeOut: .25 } as const;
+/** Sword_Attack: the blade is high over the head at .36 s and through the cut by .55 s; the cut plays faster than authored. A string
+ * cut (swordString.ts) starts `lead` before the raised blade, so it rises during the step-in, and plays at that cut's own rate. */
+export const SLASH = { raised: .36, rate: 1.5, fadeIn: .08, fadeOut: .25, lead: .14 } as const;
+const CHEST = BONE_NAMES.indexOf('chest');
 const GESTURES: Readonly<Record<number, string>> = { [FX.sword]: 'slash', [FX.rebuke]: 'rebuke', [FX.bind]: 'rebuke', [FX.cast]: 'cast' };
 
 export function createAngelMotion() {
-  return { idle: 0, idleT: 0, act: '', actT: 0, since: 0, weight: 0, serial: -1, phase: 0, hip: new Vector3(), rest: new Vector3() };
+  return { idle: 0, idleT: 0, act: '', actT: 0, since: 0, weight: 0, serial: -1, phase: 0, cut: 0, hip: new Vector3(), rest: new Vector3() };
 }
 export type AngelMotion = ReturnType<typeof createAngelMotion>;
 export type AngelMotionInput = { dt: number; paused: boolean; flying: boolean; ground: number; speed: number; sword: boolean };
@@ -21,7 +25,10 @@ function begin(m: AngelMotion, name: string, at = 0) { m.act = name; m.actT = at
 
 /** Starts gestures from new strikes and combat effects. Effects already in the ring when the angel mounted are skipped. */
 function trigger(m: AngelMotion, clips: AngelClips) {
-  if (strike.phase === 1 && m.phase !== 1 && clips.slash) begin(m, 'slash');
+  if (strike.phase === 1 && m.phase !== 1 && clips.slash) {
+    const i = strike.target; m.cut = i >= 0 ? cutFor(banish, i, banish.armor[i] > 0, banish.armor[i]) : 0;
+    begin(m, 'slash', strike.lunge ? SLASH.raised - SLASH.lead : 0);
+  }
   m.phase = strike.phase;
   let newest = m.serial;
   for (const e of banish.fx) {
@@ -31,7 +38,7 @@ function trigger(m: AngelMotion, clips: AngelClips) {
     if (!name || !clips[name]) continue;
     if (name !== 'slash' && (strike.phase !== 0 || m.act === 'slash')) continue; // automatic chains cannot replace the contact cut with a ritual pose.
     // Contact during the dive releases the raised sword into the cut; a stroke out of nowhere starts at the raised blade.
-    if (name === 'slash') { if (m.act === 'slash') m.actT = Math.max(m.actT, SLASH.raised); else begin(m, 'slash', SLASH.raised); }
+    if (name === 'slash') { m.cut = e.n; if (m.act === 'slash') m.actT = Math.max(m.actT, SLASH.raised); else begin(m, 'slash', SLASH.raised); }
     else begin(m, name);
   }
   m.serial = newest;
@@ -44,7 +51,7 @@ export function stepAngelMotion(m: AngelMotion, clips: AngelClips, joints: reado
   m.weight = 0;
   if (m.act) {
     const clip = clips[m.act], cutting = m.act !== 'slash' || m.actT >= SLASH.raised;
-    m.actT += dt * (m.act === 'slash' && cutting ? SLASH.rate : 1); m.since += dt;
+    m.actT += dt * (m.act === 'slash' && cutting ? CUTS[m.cut]?.rate ?? SLASH.rate : 1); m.since += dt;
     if (m.act === 'slash' && strike.phase === 1 && !strike.landed) m.actT = Math.min(m.actT, SLASH.raised);
     const left = clip.duration - m.actT;
     if (left <= 0) m.act = '';
@@ -60,6 +67,9 @@ export function stepAngelMotion(m: AngelMotion, clips: AngelClips, joints: reado
     // On the ground the move's weight shift takes over from the idle's; in flight the pelvis is the flight pose's.
     if (grounded) m.hip.multiplyScalar(1 - m.weight);
     blendAngelClip(joints, clips[m.act], clipTime(clips[m.act], m.actT, false), m.weight, grounded ? FULL : UPPER_BODY, m.hip);
+    // One library cut, three strokes: the chest winds up one way and swings through the other, by this cut's amount.
+    const twist = m.act === 'slash' ? CUTS[m.cut]?.roll ?? 0 : 0;
+    if (twist && CHEST >= 0) joints[CHEST].rotateY(twist * m.weight * (1 - 2 * Math.min(1, Math.max(0, (m.actT - SLASH.raised) / .3))));
   }
   joints[0].position.copy(m.rest).add(m.hip);
 }

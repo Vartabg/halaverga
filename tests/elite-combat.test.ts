@@ -18,7 +18,7 @@ function setup(i = 5) {
   const tick = (seconds: number, at = near) => { for (let n = 0; n < Math.ceil(seconds * 60); n++) { battle.clock += 1 / 60; stepBanish(b, s, at, 1 / 60); } };
   const contact = () => { cancelStrike(); requestCommand(s, COMMAND.sword, i); stepBanish(b, s, near, 1 / 60);
     expect([1, 2]).toContain(strike.phase);
-    if (strike.phase === 1) { strikeVelocity({ x: 0, y: 0, z: -40 }, near, .05, false); stepBanish(b, s, s.targets[i].c, 1 / 60); }
+    if (strike.phase === 1) { strikeVelocity({ x: 0, y: 0, z: -40 }, near, Math.max(.05, strike.minTime + .01), false); stepBanish(b, s, s.targets[i].c, 1 / 60); }
     expect(strike.landed).toBe(true); };
   return { s, b, near, tick, contact, i };
 }
@@ -49,7 +49,7 @@ it('does not turn retaliation into hidden damage or an attack from outside the e
   expect(battle.charging).toBe(-1); expect(battle.ward).toBe(3); expect(b.retaliate[i]).toBe(0); expect(s.drones.held[i]).toBe(0);
 });
 it('keeps lesser demons quick and lets an in-progress banishment finish after Brake cancels the strike', () => {
-  const { s, b, i, tick, contact } = setup(0); contact(); expect(b.mode[i]).toBe(MODE.bound);
+  const { s, b, i, tick, contact } = setup(0); contact(); contact(); expect(b.mode[i]).toBe(MODE.staggered); contact(); expect(b.mode[i]).toBe(MODE.bound);
   cancelStrike(); tick(1.5); expect(s.stats.kills).toBe(1); expect(s.drones.held[i]).toBe(0);
 });
 it('regroup clears guard/reaction work and restores both wardens without changing the lesser loop', () => {

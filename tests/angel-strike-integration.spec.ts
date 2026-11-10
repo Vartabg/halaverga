@@ -1,3 +1,4 @@
+import { finishString } from './flight-support';
 import { expect, test } from '@playwright/test';
 
 test('the CC0 angel dives into a live demon and continues the banishment loop', async ({ page }) => {
@@ -22,6 +23,7 @@ test('the CC0 angel dives into a live demon and continues the banishment loop', 
   await expect.poll(async () => Number(await telemetry.getAttribute('data-speed')), { timeout: 5000 }).toBeGreaterThan(40);
   await page.screenshot({ path: test.info().outputPath('compact-wing-dive.png') });
   await expect.poll(async () => Number(await hud.getAttribute('data-banish-fx')), { timeout: 5000 }).toBeGreaterThan(before);
+  await finishString(page); // the rising cut and the casting blow
   await expect.poll(async () => Number(await hud.getAttribute('data-banished')), { timeout: 10000 }).toBeGreaterThan(0);
   await page.keyboard.up('KeyV'); expect(errors).toEqual([]);
 });

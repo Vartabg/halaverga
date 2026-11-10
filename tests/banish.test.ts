@@ -5,6 +5,7 @@ import { createDroneSim, buildTargets } from '../src/game/drones';
 import { BANISH, MODE, createBanish, resetBanish, stepBanish } from '../src/game/banish';
 import { resetBattle, battle, shielded } from '../src/game/celestialBattle';
 import { cancelStrike, strike } from '../src/game/strike';
+import { landCut } from './sword-support';
 
 function setup() {
   const s = createShooter(); createDroneSim(s); buildTargets(s);
@@ -18,15 +19,19 @@ function setup() {
   return { s, b, near, far, act, blow };
 }
 describe('textual banishment loop', () => {
-  it('rebuke interrupts, then a physical sword hit binds and automatically casts without more commands', () => {
+  it('rebuke interrupts, then the third sword cut binds and automatically casts without more commands', () => {
     const { s, b, near, act } = setup();
     act(COMMAND.rebuke);
     expect(b.mode[0]).toBe(MODE.staggered); expect(b.resist[0]).toBe(BANISH.resistance - 1); expect(b.rebukeT).toBe(b.clock);
     act(COMMAND.sword); expect(b.resist[0]).toBe(BANISH.resistance - 1); // diving, not yet struck
-    stepBanish(b, s, { ...s.targets[0].c }, 1 / 60); expect(b.resist[0]).toBe(0); expect(strike.phase).toBe(2);
+    stepBanish(b, s, { ...s.targets[0].c }, 1 / 60); expect(strike.phase).toBe(2);
     expect(s.camFx.trauma).toBeGreaterThan(0);
+    // The opener wounds; it does not bind (swordString.ts).
+    expect(b.wounds[0]).toBe(1); expect(b.mode[0]).toBe(MODE.staggered); expect(s.drones.held[0]).toBe(1); expect(b.combo).toBe(1);
+    landCut(b, s, 0, near); expect(b.wounds[0]).toBe(2); expect(b.mode[0]).toBe(MODE.staggered);
+    landCut(b, s, 0, near); expect(b.resist[0]).toBe(0);
     expect(b.mode[0]).toBe(MODE.bound); expect(s.drones.held[0]).toBe(1);
-    expect(strike.halt).toBe(false); expect(b.combo).toBe(1);
+    expect(strike.halt).toBe(false); expect(b.combo).toBe(3);
     for (let t = 0; t < BANISH.castTime + .3; t += 1 / 60) stepBanish(b, s, near, 1 / 60);
     expect(s.drones.phase[0]).toBe(PHASE.dying); expect(s.stats.kills).toBe(1); expect(s.drones.held[0]).toBe(0);
   });
@@ -36,9 +41,10 @@ describe('textual banishment loop', () => {
     act(COMMAND.sword, far); expect(b.cue).toBe('far');
     act(COMMAND.cast); expect(b.cue).toBe('notDown');
   });
-  it('a sword hit on a free demon finishes it without a mandatory rebuke or ritual gesture', () => {
+  it('three sword cuts on a free demon finish it without a mandatory rebuke or ritual gesture', () => {
     const { s, b, near, blow } = setup();
-    blow(COMMAND.flick); expect(b.resist[0]).toBe(0); expect(b.mode[0]).toBe(MODE.bound);
+    blow(COMMAND.flick); expect(b.wounds[0]).toBe(1); landCut(b, s, 0, near); landCut(b, s, 0, near);
+    expect(b.resist[0]).toBe(0); expect(b.mode[0]).toBe(MODE.bound);
     for (let t = 0; t < 1.5; t += 1 / 30) stepBanish(b, s, near, 1 / 30);
     expect(s.stats.kills).toBe(1); expect(s.drones.phase[0]).toBe(PHASE.dying);
   });

@@ -22,3 +22,11 @@ export async function flyTo(page: Page, destination: Point, radius = 5) {
   const p = JSON.parse((await t.getAttribute('data-position'))!) as Point;
   expect(Math.hypot(...p.map((v, i) => v - destination[i])), `real flight reaches ${destination}`).toBeLessThan(radius + 4);
 }
+/** Presses the strike key for each remaining cut of the sword string (three cuts cast a demon down), waiting for each to land. */
+export async function finishString(page: Page, cuts = 2) {
+  const hud = page.getByTestId('battle-hud'), landed = async () => Number(await hud.getAttribute('data-banish-fx'));
+  for (let n = 0; n < cuts; n++) {
+    const before = await landed(); await page.waitForTimeout(140); await page.keyboard.press('KeyC');
+    await expect.poll(landed, { timeout: 5000, message: `cut ${n + 2} of the string lands` }).toBeGreaterThan(before);
+  }
+}
