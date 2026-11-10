@@ -6,7 +6,10 @@ import { FX, MODE, createBanish, resetBanish, stepBanish } from '../src/game/ban
 import { resetBattle } from '../src/game/celestialBattle';
 import { flowPaths, flowVisible } from '../src/game/combatFlow';
 import { STRIKE, cancelStrike, strike, strikeVelocity } from '../src/game/strike';
-import { CUTS, LAST, STRING, cutFor, stringOpen, stringTarget } from '../src/game/swordString';
+import { CUTS, LAST, REEL, STRING, cutFor, stringOpen, stringTarget } from '../src/game/swordString';
+import { castDuration } from '../src/game/encounter';
+import { restingHeight } from '../src/game/wardenElevation';
+import { BANISH } from '../src/game/banishState';
 import { landCut, settle } from './sword-support';
 
 function setup() {
@@ -83,8 +86,38 @@ describe('the sword string', () => {
     stepBanish(b, s, { ...s.targets[0].c }, 1 / 60); expect(b.string.speed).toBeGreaterThan(100);
     landCut(b, s, 0, near); s.aim.dir = { x: 1, y: 0, z: 0 };
     landCut(b, s, 0, near);
+    // It hangs over the blow for a beat, held even against flight input, then is released.
+    expect(strike.hold).toBe(STRING.finish); expect(strike.dir.x).toBeCloseTo(1, 5);
+    const v = { x: 0, y: 0, z: 0 }; strikeVelocity(v, near, .2, false, true); strikeVelocity(v, near, STRING.finish - .05, false, true);
+    expect(strike.phase).toBe(2); expect(Math.hypot(v.x, v.y, v.z)).toBeLessThan(4);
+    strikeVelocity(v, near, .1, false, true); strikeVelocity(v, near, 1 / 60, false, true);
     expect(strike.hold).toBe(0); expect(strike.carrySpeed).toBeGreaterThan(80); expect(strike.carrySpeed).toBeLessThanOrEqual(90);
-    expect(strike.dir.x).toBeCloseTo(1, 5); expect(STRIKE.exitSpeed).toBeLessThan(strike.carrySpeed);
+    expect(v.x).toBeGreaterThan(75); expect(STRIKE.exitSpeed).toBeLessThan(strike.carrySpeed);
+  });
+  it('drives the demon into the ground with the casting blow: a quick fall that ends where it can be seen, and shakes the view', () => {
+    const { s, b, near, run } = setup();
+    landCut(b, s, 0, near); landCut(b, s, 0, near); landCut(b, s, 0, near);
+    const at = { ...s.drones.pos[0] }, floor = restingHeight(at.x, at.z, 0) + BANISH.castRest;
+    expect(castDuration(0)).toBeLessThan(.8); expect(at.y).toBeGreaterThan(floor + 5);
+    s.camFx.trauma = 0; run(.25 + castDuration(0));
+    expect(s.stats.kills).toBe(1); expect(s.drones.pos[0].y).toBeCloseTo(floor, 3); expect(s.camFx.trauma).toBeGreaterThan(0);
+    const seal = b.fx.find(e => e.kind === FX.seal && e.serial > 0)!;
+    expect(seal.to.y).toBeCloseTo(floor, 3); // the ring is thrown out on the ground, not in the air where it was bound
+  });
+  it('makes the demon carry each wound differently, and straightens it when it recovers', () => {
+    const { s, b, near, run } = setup();
+    landCut(b, s, 0, near); run(.4);
+    expect(Math.abs(s.drones.tiltZ[0])).toBeGreaterThan(.5); expect(s.drones.tiltX[0]).toBeGreaterThan(.3); // knocked askew
+    landCut(b, s, 0, near); run(.4);
+    expect(s.drones.tiltX[0]).toBeLessThan(-.9); // thrown onto its back
+    expect(REEL[1].x).not.toBe(REEL[2].x);
+    run(STRING.recover + .2); expect(s.drones.tiltX[0]).toBe(0); expect(s.drones.tiltZ[0]).toBe(0);
+  });
+  it('gives each cut its own whole-body move: a twirl, a lean back, a flip', () => {
+    expect(CUTS[0].twirl).toBe(1); expect(CUTS[0].flip).toBe(0);
+    expect(CUTS[1].flip).toBeLessThan(0); expect(Math.abs(CUTS[1].flip)).toBeLessThan(1); // a lean: out and back
+    expect(CUTS[2].flip).toBe(1);
+    for (const cut of CUTS) { expect(cut.spin).toBeGreaterThan(.25); expect(cut.spin).toBeLessThanOrEqual(.45); }
   });
   it('counts a warden\'s armour as its first two cuts, so its exposed blow is the casting blow', () => {
     const { b } = setup();

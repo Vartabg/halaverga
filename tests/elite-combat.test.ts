@@ -5,6 +5,8 @@ import { createBanish, resetBanish, stepBanish, MODE, FX } from '../src/game/ban
 import { requestCommand, COMMAND } from '../src/game/commands';
 import { battle, resetBattle } from '../src/game/celestialBattle';
 import { ELITE, castDuration } from '../src/game/encounter';
+import { restingHeight } from '../src/game/wardenElevation';
+import { BANISH } from '../src/game/banishState';
 import { cancelStrike, strike, strikeVelocity } from '../src/game/strike';
 import { flowTarget } from '../src/game/combatFlow';
 import { WA } from '../src/game/banishState';
@@ -34,7 +36,8 @@ it('gives a warden two armor exchanges, a visible retaliation, then the longer b
   contact(); expect(b.armor[i]).toBe(0); expect(b.mode[i]).toBe(MODE.bound);
   tick(ELITE.bind + .1); expect(b.mode[i]).toBe(MODE.cast);
   tick(1.2); expect(s.stats.kills).toBe(0);
-  tick(castDuration(i)); expect(s.stats.kills).toBe(1); expect(s.drones.pos[i].y).toBeLessThan(0);
+  // Cast down to the ground below it (here the gorge water), where the blow is seen: not somewhere beneath the world.
+  tick(castDuration(i)); expect(s.stats.kills).toBe(1); expect(s.drones.pos[i].y).toBeCloseTo(restingHeight(0, 0, 0) + BANISH.castRest, 3);
   expect(s.drones.phase[i]).toBe(PHASE.dying); expect(b.armor[i]).toBe(2);
 });
 it('does not let queued or repeated strikes bypass an armor response; other targets remain available', () => {

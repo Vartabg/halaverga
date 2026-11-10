@@ -6,6 +6,7 @@ import { useFrame } from '@react-three/fiber';
 import { AdditiveBlending, BoxGeometry, Color, Group, Mesh, MeshBasicMaterial, MeshStandardMaterial } from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { banish, FX } from '@/game/banish';
+import { strike as dive } from '@/game/strike';
 import { cannonLink } from './cannonContract';
 import { SWORD_GRIP, swordGripRotation } from './swordGrip';
 
@@ -34,9 +35,10 @@ export default function FlamingSword() {
     // Brightest on the newest sword stroke, settling back to a steady burn.
     let strike = 1e9;
     for (const e of banish.fx) if (e.kind === FX.sword && e.serial > 0) strike = Math.min(strike, banish.clock - e.t);
-    const flare = Math.max(0, 1 - strike / .4);
+    // The blade also burns longer and wider while a cut is on its way in, so the stroke can be read from behind the angel.
+    const flare = Math.max(dive.phase === 1 ? .75 : 0, 1 - strike / .4);
     (sword.shell.material as MeshBasicMaterial).opacity = .3 + .6 * flare;
-    sword.shell.scale.set(1 + flare * .8, 1, 1 + flare * .8);
+    sword.shell.scale.set(1 + flare * 1.6, 1 + flare * .45, 1 + flare * 1.6);
   }, -18);
   return null;
 }

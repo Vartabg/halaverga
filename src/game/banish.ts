@@ -5,14 +5,15 @@
 import { PHASE, droneAlive, type ShooterState, type Vec3 } from './combat';
 import { COMMAND } from './commands';
 import { battle, BATTLE } from './celestialBattle';
-import { punchFov } from './cameraFx';
+import { addTrauma, punchFov } from './cameraFx';
+import { restingHeight } from './wardenElevation';
 import { STRIKE, aimStrike, beginStrike, cancelStrike, strike as dive } from './strike';
 
 export { BANISH, MODE, FX, REBUKE_LINE, createBanish, banish, type BanishFx, type BanishState, type Cue } from './banishState';
 import { BANISH, MODE, FX, type BanishState } from './banishState';
 import { cue, dist, emit, interrupt, jolt, throwDown } from './banishHits';
 import { landBlow } from './swordBlow';
-import { CUTS, closeString, cutFor, stepPop, stringOpen, stringTarget } from './swordString';
+import { CUTS, closeString, cutFor, reel, stringOpen, stringTarget } from './swordString';
 import { flowPaths, flowTarget } from './combatFlow';
 import { armorFor, castDuration, isElite } from './encounter';
 import { stepEliteGuards } from './eliteCombat';
@@ -126,8 +127,8 @@ export function stepBanish(b: BanishState, s: ShooterState, player: Vec3, dt: nu
     if (!droneAlive(f, i)) { if (m) { b.mode[i] = MODE.free; b.resist[i] = BANISH.resistance; f.held[i] = 0; } closeString(b, i); continue; }
     if (m === MODE.staggered) {
       // A wounded demon hangs where the last cut sent it; left alone, it shakes the wounds off and flies again.
-      if (b.wounds[i]) stepPop(b, p, i, dt);
-      if ((b.timer[i] -= dt) <= 0) { b.mode[i] = MODE.free; if (b.wounds[i]) { closeString(b, i); f.held[i] = 0; } }
+      if (b.wounds[i]) reel(b, f, i, dt);
+      if ((b.timer[i] -= dt) <= 0) { b.mode[i] = MODE.free; if (b.wounds[i]) { closeString(b, i); f.held[i] = 0; f.tiltX[i] = f.tiltZ[i] = 0; } }
     } else if (m === MODE.bound && b.timer[i] < 0) {
       b.timer[i] = Math.min(0, b.timer[i] + dt);
       if (b.timer[i] === 0) { b.mode[i] = MODE.cast; emit(b, FX.cast, i, player, p); }
@@ -136,12 +137,15 @@ export function stepBanish(b: BanishState, s: ShooterState, player: Vec3, dt: nu
       f.tiltX[i] = ease(f.tiltX[i], .85, 6, dt);
       if (m === MODE.down && (b.timer[i] -= dt) <= 0) { b.mode[i] = MODE.free; b.resist[i] = BANISH.recover; f.held[i] = 0; }
     } else if (m === MODE.cast) {
-      const u = (b.timer[i] += dt) / castDuration(i);
-      p.x = base.x; p.y = base.y - Math.max(BANISH.castDepth, base.y + 6) * u * u; p.z = base.z;
+      // Cast down: driven into the mountain below it (or the gorge water), faster the further it falls. It ends at the ground,
+      // where the blow can be seen, not somewhere beneath it.
+      const u = Math.min(1, (b.timer[i] += dt) / castDuration(i)), floor = restingHeight(base.x, base.z, 0) + BANISH.castRest;
+      p.x = base.x; p.y = base.y + (Math.min(floor, base.y) - base.y) * u * u; p.z = base.z;
       if (u >= 1) {
         b.mode[i] = MODE.free; b.resist[i] = BANISH.resistance; f.held[i] = 0;
         f.phase[i] = PHASE.dying; f.phaseT[i] = 0; s.stats.kills++; s.stats.lastKillT = s.clock;
-        b.armor[i] = armorFor(i); emit(b, FX.seal, i, base, base);
+        b.armor[i] = armorFor(i); emit(b, FX.seal, i, base, p);
+        if (dist(p, player) < 90) addTrauma(s.camFx, isElite(i) ? .45 : .22); // the ground takes the blow
       }
     }
   }

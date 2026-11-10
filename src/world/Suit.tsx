@@ -17,7 +17,7 @@ import { alignArchangelWings, createArchangelWings, stepArchangelWings } from '.
 import { angelRegalia } from './angelRegalia';
 import { createWingClearance } from './wingClearance';
 import { bindAngelClips } from './angelClips';
-import { createAngelMotion, stepAngelMotion } from './angelMotion';
+import { createAngelMotion, stepAngelMotion, turnBody } from './angelMotion';
 import { strike } from '@/game/strike';
 import { cannonLink } from './cannonContract';
 import { beginSuitSprings, createSuitSprings, followBody, followWings, stepClothSway } from './suitSprings';
@@ -30,7 +30,7 @@ export function clearWorldCache() {
   useLoader.clear(GLTFLoader, ADVERSARY_URL);
 }
 const input = { flying: false, landing: false, paused: true, reduced: false, velocity: runtime.velocity, turn: runtime.turn };
-const moveInput = { dt: 0, paused: true, flying: false, ground: 1, speed: 0, sword: false };
+const moveInput = { dt: 0, paused: true, flying: false, ground: 1, speed: 0, sword: false, reduced: false };
 export default function Suit() {
   const { world, rapier } = useRapier();
   const motion = useRef({ hero: 1, epoch: -1 }), animation = useRef(createSuitAnimation()), flight = useRef(createFlightMix()), turn = useRef(createSuitRoll());
@@ -75,8 +75,8 @@ export default function Suit() {
     f.camera.x = cam.position.x; f.camera.y = cam.position.y; f.camera.z = cam.position.z;
     stepSuitBlaster(f, dt);
     // Library clips (idle, the sword cut, the command gestures) over everything above; the springs below follow them through.
-    Object.assign(moveInput, { dt, paused: state.paused, flying: state.flying, ground: life.ground, speed: Math.hypot(v.x, v.z), sword: cannonLink.forearm !== null });
-    stepAngelMotion(moves.current, clips, rig.joints, moveInput);
+    Object.assign(moveInput, { dt, paused: state.paused, flying: state.flying, ground: life.ground, speed: Math.hypot(v.x, v.z), sword: cannonLink.forearm !== null, reduced: state.reduced });
+    stepAngelMotion(moves.current, clips, rig.joints, moveInput); turnBody(rig.root, moves.current);
     // Spring follow-through, last over the body (suitSprings.ts): the pose above is the target each bone chases.
     Object.assign(frame, { dt, paused: state.paused, reduced: state.reduced, epoch: pose.epoch, ground: life.ground, command: runtime.shooter.aim.fireHold });
     followBody(springs, frame); stepClothSway(springs, rig.root, v, dt, state.paused, state.reduced);

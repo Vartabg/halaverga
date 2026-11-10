@@ -16,10 +16,10 @@ const CHEST = BONE_NAMES.indexOf('chest');
 const GESTURES: Readonly<Record<number, string>> = { [FX.sword]: 'slash', [FX.rebuke]: 'rebuke', [FX.bind]: 'rebuke', [FX.cast]: 'cast' };
 
 export function createAngelMotion() {
-  return { idle: 0, idleT: 0, act: '', actT: 0, since: 0, weight: 0, serial: -1, phase: 0, cut: 0, hip: new Vector3(), rest: new Vector3() };
+  return { idle: 0, idleT: 0, act: '', actT: 0, since: 0, weight: 0, serial: -1, phase: 0, cut: 0, spinT: -1, spinCut: 0, twirl: 0, flip: 0, hip: new Vector3(), rest: new Vector3() };
 }
 export type AngelMotion = ReturnType<typeof createAngelMotion>;
-export type AngelMotionInput = { dt: number; paused: boolean; flying: boolean; ground: number; speed: number; sword: boolean };
+export type AngelMotionInput = { dt: number; paused: boolean; flying: boolean; ground: number; speed: number; sword: boolean; reduced?: boolean };
 
 function begin(m: AngelMotion, name: string, at = 0) { m.act = name; m.actT = at; m.since = 0; }
 
@@ -28,6 +28,7 @@ function trigger(m: AngelMotion, clips: AngelClips) {
   if (strike.phase === 1 && m.phase !== 1 && clips.slash) {
     const i = strike.target; m.cut = i >= 0 ? cutFor(banish, i, banish.armor[i] > 0, banish.armor[i]) : 0;
     begin(m, 'slash', strike.lunge ? SLASH.raised - SLASH.lead : 0);
+    if (strike.lunge) { m.spinT = 0; m.spinCut = m.cut; } // a step-in turns as it closes; the opener turns on contact
   }
   m.phase = strike.phase;
   let newest = m.serial;
@@ -38,7 +39,10 @@ function trigger(m: AngelMotion, clips: AngelClips) {
     if (!name || !clips[name]) continue;
     if (name !== 'slash' && (strike.phase !== 0 || m.act === 'slash')) continue; // automatic chains cannot replace the contact cut with a ritual pose.
     // Contact during the dive releases the raised sword into the cut; a stroke out of nowhere starts at the raised blade.
-    if (name === 'slash') { m.cut = e.n; if (m.act === 'slash') m.actT = Math.max(m.actT, SLASH.raised); else begin(m, 'slash', SLASH.raised); }
+    if (name === 'slash') {
+      m.cut = e.n; if (m.act === 'slash') m.actT = Math.max(m.actT, SLASH.raised); else begin(m, 'slash', SLASH.raised);
+      if (m.spinT < 0 || m.spinCut !== e.n) { m.spinT = 0; m.spinCut = e.n; }
+    }
     else begin(m, name);
   }
   m.serial = newest;
@@ -72,4 +76,26 @@ export function stepAngelMotion(m: AngelMotion, clips: AngelClips, joints: reado
     if (twist && CHEST >= 0) joints[CHEST].rotateY(twist * m.weight * (1 - 2 * Math.min(1, Math.max(0, (m.actT - SLASH.raised) / .3))));
   }
   joints[0].position.copy(m.rest).add(m.hip);
+  // The cut's whole-body move, in flight only: a twirl about the spine or a flip across it (turnBody applies it to the model).
+  // Reduced motion keeps the body still.
+  const cut = CUTS[m.spinCut];
+  m.twirl = m.flip = 0;
+  if (m.spinT >= 0 && cut) {
+    m.spinT += dt; const u = Math.min(1, m.spinT / cut.spin), e = u * u * (3 - 2 * u);
+    if (input.flying && !input.reduced) {
+      const turn = (turns: number) => 2 * Math.PI * turns * (Math.abs(turns) < 1 ? Math.sin(Math.PI * u) : e);
+      m.twirl = turn(cut.twirl); m.flip = turn(cut.flip);
+    }
+    if (u >= 1) m.spinT = -1;
+  }
+}
+const PIVOT = new Vector3(0, 1.1, 0), before = new Vector3(), after = new Vector3();
+/** Turns the whole model for the cut's move, about the chest, so the wings (aligned to the model root) turn with the body.
+ * Visual only: the camera, physics and presentation pose never read the model root. */
+export function turnBody(root: Object3D, m: AngelMotion) {
+  if (!m.twirl && !m.flip) return;
+  before.copy(PIVOT).applyQuaternion(root.quaternion);
+  if (m.twirl) root.rotateY(m.twirl);
+  if (m.flip) root.rotateX(m.flip);
+  root.position.add(before).sub(after.copy(PIVOT).applyQuaternion(root.quaternion));
 }

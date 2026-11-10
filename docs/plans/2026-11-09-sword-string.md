@@ -43,9 +43,19 @@ Option 1 was built first because it answers the request most directly with the l
 - Wardens keep their armour duel; their two armour hits draw as cuts 1 and 2 and their exposed blow as the casting blow.
 - Numbers live in one table: `src/game/swordString.ts` (`CUTS`, `STRING`).
 
+## Second pass (after "Yes, keep going")
+
+From the chase camera the arms are hidden by the wings, so the cuts are now told with the whole body, the demon and the ground:
+
+- **The body moves with each cut**: a full twirl about the spine on the cross cut, a lean back on the rising cut, a forward flip into the casting blow. The whole model turns about the chest, so the wings turn with it. Visual only (the camera and physics never read it); off for reduced motion and on the ground.
+- **The demon carries each wound differently**: knocked askew by the cross cut, thrown onto its back by the rising cut, straightened when it recovers.
+- **The casting blow drives the demon into the mountain**: it falls in half a second to the ground or the gorge water below it and ends there, where the existing kill burst is seen, with a ring thrown out flat on the ground and a small shake. Before, it sank 24 m or more below wherever it was and the burst happened under the world.
+- **A beat on the finish**: the angel hangs over the blow for 0.2 s before it is released at speed.
+- **The blade burns wider** through each wind-up.
+
 ## Accepted, rejected, undecided
 
-- **Accepted by Garo**: nothing about this proof yet.
+- **Accepted by Garo**: the three-cut string as the direction ("Yes, keep going", 2026-11-09, after playing it). This accepts the direction, not every number in it.
 - **Rejected by Garo**: the single dive-and-cut fight ("arent videogame like").
 - **Undecided**: three cuts or more; whether the string should need timing or accept mashing; options 2 and 3; whether wardens should take strings too; new sword animations.
 

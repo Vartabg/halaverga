@@ -9,7 +9,7 @@ export const STRIKE = { minSpeed: 55, maxSpeed: 130, dive: .42, maxTime: 1, cont
 export const STRIKE_HOLD = { decay: 5.5, lock: .28 } as const;
 /** phase 0 idle, 1 diving at the target, 2 carrying through after the blow (or a miss). lunge / minTime: a string cut steps in over a
  * set time instead of diving. hold / recoil: between cuts the angel stays on the demon, drifting where the cut left it. */
-export const strike = { lunge: false, minTime: 0, hold: 0, recoil: { x: 0, y: 0, z: 0 }, queued: false, queueTarget: -1, queueTime: 0, phase: 0, t: 0, primed: false, entry: { x: 0, y: 0, z: 0 }, entrySpeed: 0, target: -1, landed: false, halt: false, freeze: 0, carrySpeed: 34, speed: STRIKE.minSpeed as number, aim: { x: 0, y: 0, z: 0 }, dir: { x: 0, y: 0, z: -1 } };
+export const strike = { lunge: false, minTime: 0, hold: 0, then: 0, recoil: { x: 0, y: 0, z: 0 }, queued: false, queueTarget: -1, queueTime: 0, phase: 0, t: 0, primed: false, entry: { x: 0, y: 0, z: 0 }, entrySpeed: 0, target: -1, landed: false, halt: false, freeze: 0, carrySpeed: 34, speed: STRIKE.minSpeed as number, aim: { x: 0, y: 0, z: 0 }, dir: { x: 0, y: 0, z: -1 } };
 
 /** time > 0: a string cut. The step-in covers the gap in that time, so every cut has a beat before it lands. */
 export function beginStrike(target: number, at: Vec3, distance = 0, time = 0) {
@@ -28,10 +28,14 @@ export function landStrike(carry = true, contactBeat: number = STRIKE.freeze) {
 }
 /** A cut that is not the string's last: freeze, then stay on the demon for `seconds`, drifting by the recoil (which fades). */
 export function holdStrike(freeze: number, seconds: number, x: number, y: number, z: number) {
-  strike.phase = 2; strike.t = 0; strike.landed = true; strike.halt = false; strike.freeze = freeze; strike.hold = seconds;
+  strike.phase = 2; strike.t = 0; strike.landed = true; strike.halt = false; strike.freeze = freeze; strike.hold = seconds; strike.then = 0;
   strike.recoil.x = x; strike.recoil.y = y; strike.recoil.z = z;
 }
-export function cancelStrike() { strike.phase = 0; strike.target = -1; strike.freeze = 0; strike.queued = false; strike.hold = 0; }
+/** The string's last cut: freeze, hang over the blow for a beat (so it can be seen), then leave along (x, y, z) at `speed`. */
+export function finishStrike(freeze: number, seconds: number, speed: number, x: number, y: number, z: number) {
+  holdStrike(freeze, seconds, 0, 2.5, 0); strike.then = speed; strike.dir.x = x; strike.dir.y = y; strike.dir.z = z;
+}
+export function cancelStrike() { strike.phase = 0; strike.target = -1; strike.freeze = 0; strike.queued = false; strike.hold = 0; strike.then = 0; }
 
 /**
  * Overrides the step's velocity while a strike runs and returns true; false when idle. The flight safety still runs afterwards,
@@ -68,7 +72,8 @@ export function strikeVelocity(v: Vec3, p: Vec3, dt: number, reduced: boolean, s
     // Between cuts: on the demon, drifting where the cut left the angel. Steering breaks away once the cut has had its moment.
     const k = Math.exp(-STRIKE_HOLD.decay * strike.t);
     v.x = strike.recoil.x * k; v.y = strike.recoil.y * k; v.z = strike.recoil.z * k;
-    if (strike.t >= strike.hold || steering && strike.t > STRIKE_HOLD.lock) { strike.phase = 0; strike.target = -1; strike.hold = 0; }
+    if (strike.t >= strike.hold && strike.then > 0) { strike.carrySpeed = strike.then; strike.then = 0; strike.hold = 0; strike.t = 0; } // released: the carry below
+    else if (strike.t >= strike.hold || steering && strike.t > STRIKE_HOLD.lock && !strike.then) { strike.phase = 0; strike.target = -1; strike.hold = 0; }
     return true;
   }
   // A finishing blow brakes to a hover over the fallen demon, so it stays in view to bind.

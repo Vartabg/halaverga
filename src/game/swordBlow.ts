@@ -6,7 +6,7 @@ import { FX, MODE, type BanishState } from './banishState';
 import { cue, emit, interrupt, jolt } from './banishHits';
 import { bindDuration, isElite } from './encounter';
 import { absorbEliteStrike } from './eliteCombat';
-import { STRIKE, holdStrike, landStrike, strike as dive } from './strike';
+import { STRIKE, finishStrike, holdStrike, landStrike, strike as dive } from './strike';
 import { CUTS, LAST, STRING, closeString, cutFor, woundDemon } from './swordString';
 
 export function landBlow(b: BanishState, s: ShooterState, i: number, player: Vec3) {
@@ -38,11 +38,11 @@ export function landBlow(b: BanishState, s: ShooterState, i: number, player: Vec
   // it is looking, so the string ends in flight, not in a stop.
   const stored = b.string.target === i ? b.string.speed : 0;
   b.resist[i] = 0; closeString(b, i);
-  landStrike(!elite, elite ? .11 : cut.freeze);
-  if (!elite) {
-    dive.carrySpeed = Math.max(dive.carrySpeed, Math.min(90, stored * .85), STRIKE.exitSpeed);
-    const a = s.aim.dir, x = a.x, y = a.y * .35, z = a.z, l = Math.hypot(x, y, z);
-    if (s.aim.valid && l > .1) { dive.dir.x = x / l; dive.dir.y = y / l; dive.dir.z = z / l; }
+  if (elite) landStrike(false, .11);
+  else {
+    const a = s.aim.dir, l = s.aim.valid ? Math.hypot(a.x, a.y * .35, a.z) : 0, d = dive.dir;
+    const x = l > .1 ? a.x / l : d.x, y = l > .1 ? a.y * .35 / l : d.y, z = l > .1 ? a.z / l : d.z;
+    finishStrike(cut.freeze, STRING.finish, Math.max(STRIKE.exitSpeed, Math.min(90, stored * .85)), x, y, z);
   }
   f.held[i] = 1; b.mode[i] = MODE.bound; b.timer[i] = -bindDuration(i);
   Object.assign(b.base[i], f.pos[i]); emit(b, FX.bind, i, player, f.pos[i]);

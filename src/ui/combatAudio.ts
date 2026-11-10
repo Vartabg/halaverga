@@ -8,7 +8,7 @@ export function combatAudio(kind: number, elite: boolean, chain: number, guarded
   else if (kind === FX.sword && cut < 2 && !elite) { audioBus.play('hit', { gain: .6 + .18 * cut, chain: cut + 1 }); audioBus.play('steel', { gain: .3 + .18 * cut }); }
   else if (kind === FX.sword) { audioBus.play('kill', { gain: elite ? .95 : .85, chain }); audioBus.play('world', { gain: elite ? .45 : .3 }); }
   else if (kind === FX.bind) audioBus.play('blocked', { gain: elite ? .45 : .2 });
-  else if (kind === FX.seal) { audioBus.play('blocked', { gain: elite ? .65 : .35 }); if (elite) audioBus.play('burst', { gain: .4 }); }
+  else if (kind === FX.seal) { audioBus.play('blocked', { gain: elite ? .65 : .4 }); audioBus.play('burst', { gain: elite ? .4 : .28 }); }
 }
 export function wardenAudio(kind: string) {
   if (kind === 'tell') audioBus.play('world', { gain: .25 });

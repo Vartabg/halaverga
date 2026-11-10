@@ -11,7 +11,7 @@ export const wardenName = (i: number) => i === 5 ? 'Rift lancer' : 'Cinder canto
 
 export const BANISH = { resistance: 6, rebukeRange: 70, swordReach: 70, bindRange: 70, castRange: 90, stagger: 2.4,
   rebukeCool: .55, rebukeHurt: 1, swordHurt: 2, staggerBonus: 3, downDrop: 3.5, downTime: 8,
-  recover: 3, castTime: 1.1, castDepth: 24, aimSlack: .08 } as const;
+  recover: 3, castTime: 1.1, castRest: .4, aimSlack: .08 } as const;
 export const MODE = { free: 0, staggered: 1, down: 2, bound: 3, cast: 4 } as const;
 /** Effect kinds the renderer and HUD read from the ring. */
 export const FX = { rebuke: 1, sword: 2, bind: 3, cast: 4, seal: 5, quench: 6, down: 7, armor: 8 } as const;

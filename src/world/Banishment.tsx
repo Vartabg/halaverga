@@ -27,7 +27,7 @@ function pool(geometry: BufferGeometry, n: number) {
   mesh.instanceColor!.setUsage(DynamicDrawUsage); mesh.count = 0; return mesh;
 }
 type Slot = { kind: number; t: number; from: Vec3; to: Vec3; drone: number; n: number };
-const ACTIVE = 12, LIFE: Record<number, number> = { [FX.rebuke]: .55, [FX.sword]: .48, [FX.armor]: .7, [FX.seal]: 1.4, [FX.bind]: .5, [FX.down]: .5, [FX.cast]: .4 };
+const ACTIVE = 12, LIFE: Record<number, number> = { [FX.rebuke]: .55, [FX.sword]: .48, [FX.armor]: .7, [FX.seal]: .9, [FX.bind]: .5, [FX.down]: .5, [FX.cast]: .4 };
 
 export default function Banishment() {
   const parts = useMemo(() => ({
@@ -75,8 +75,9 @@ export default function Banishment() {
         // The abyss closing (crimson to gold, flat), a bind flash, or the pale ring of a demon thrown down.
         const p = slot.kind === FX.seal ? slot.to : slot.drone >= 0 ? s.targets[slot.drone].c : slot.to;
         at.set(p.x, p.y, p.z);
-        if (slot.kind === FX.seal) q.copy(camera.quaternion); else q.setFromAxisAngle(X, Math.PI / 2);
-        sc.setScalar(reduced ? 1.8 : slot.kind === FX.seal ? Math.max(.03, 2.6 * (1 - u) ** 2) : 1.2 + u * 2.5);
+        // Cast down: a ring thrown out flat across the ground where the demon was driven in.
+        q.setFromAxisAngle(X, Math.PI / 2);
+        sc.setScalar(reduced ? 1.8 : slot.kind === FX.seal ? 1.4 + 8 * (1 - (1 - u) ** 3) : 1.2 + u * 2.5);
         const tint = slot.kind === FX.seal ? c.copy(GOLD).lerp(PALE, u) : slot.kind === FX.down ? c.copy(PALE) : c.copy(GOLD);
         parts.rings.setMatrixAt(rings, m4.compose(at, q, sc)); parts.rings.setColorAt(rings++, tint.multiplyScalar(fade * 1.5));
       }

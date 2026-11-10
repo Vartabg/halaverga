@@ -11,14 +11,18 @@ import { isElite } from './encounter';
  * ends where the next cut starts (above the demon for the last one). arc: the slash's angle and size on screen. rate: cut speed.
  */
 export type Cut = { name: string; windup: number; freeze: number; along: number; lift: number; back: number; rise: number;
-  trauma: number; fov: number; kick: number; arc: number; arcScale: number; rate: number; roll: number };
+  trauma: number; fov: number; kick: number; arc: number; arcScale: number; rate: number; roll: number;
+  /** The whole body's move, seen from behind where the arms are hidden by the wings: turns about the spine (twirl) or across it
+   * (flip), over `spin` seconds. A lean (less than a full turn) goes out and comes back. */
+  twirl: number; flip: number; spin: number };
 export const CUTS: readonly Cut[] = [
-  { name: 'Cross cut', windup: 0, freeze: .055, along: 9, lift: 1.5, back: 3, rise: 0, trauma: .32, fov: 4, kick: 1, arc: .18, arcScale: 1, rate: 1.7, roll: .35 },
-  { name: 'Rising cut', windup: .17, freeze: .08, along: 2.5, lift: 15, back: 1, rise: 24, trauma: .45, fov: 5, kick: -1.8, arc: -1.02, arcScale: 1.25, rate: 2, roll: -.5 },
-  { name: 'Casting blow', windup: .24, freeze: .14, along: 3, lift: 0, back: 0, rise: 0, trauma: .85, fov: 9, kick: 2.8, arc: Math.PI / 2, arcScale: 1.55, rate: 1.3, roll: 0 },
+  { name: 'Cross cut', windup: 0, freeze: .055, along: 9, lift: 1.5, back: 3, rise: 0, trauma: .32, fov: 4, kick: 1, arc: .18, arcScale: 1, rate: 1.7, roll: .35, twirl: 1, flip: 0, spin: .34 },
+  { name: 'Rising cut', windup: .17, freeze: .08, along: 2.5, lift: 15, back: 1, rise: 24, trauma: .45, fov: 5, kick: -1.8, arc: -1.02, arcScale: 1.25, rate: 2, roll: -.5, twirl: 0, flip: -.17, spin: .36 },
+  { name: 'Casting blow', windup: .24, freeze: .14, along: 3, lift: 0, back: 0, rise: 0, trauma: .85, fov: 9, kick: 2.8, arc: Math.PI / 2, arcScale: 1.55, rate: 1.3, roll: 0, twirl: 0, flip: 1, spin: .4 },
 ];
 /** cuts: how many a lesser demon takes. window: seconds the next cut stays open. recover: a demon left alone shakes its wounds off. */
-export const STRING = { cuts: 3, window: 1.15, recover: 2.6, lock: .28, decay: 5.5 } as const;
+/** finish: after the last cut the angel hangs over the blow this long before it is released. */
+export const STRING = { cuts: 3, window: 1.15, recover: 2.6, lock: .28, decay: 5.5, finish: .2 } as const;
 export const LAST = STRING.cuts - 1;
 
 /** Which cut lands on this demon now. A warden's armour counts as its first two cuts, so its exposed blow is the casting blow. */
@@ -52,4 +56,12 @@ export function closeString(b: BanishState, i: number) { b.wounds[i] = 0; if (b.
 export function stepPop(b: BanishState, pos: Vec3, i: number, dt: number) {
   const p = b.pop[i], k = Math.exp(-STRING.decay * dt);
   pos.x += p.x * dt; pos.y += p.y * dt; pos.z += p.z * dt; p.x *= k; p.y *= k; p.z *= k;
+}
+/** How a demon carries each wound: knocked askew by the cross cut, thrown onto its back by the rising cut. */
+export const REEL = [{ x: 0, z: 0 }, { x: .5, z: .75 }, { x: -1.2, z: -.25 }] as const;
+type Reeling = { pos: Vec3[]; tiltX: Float32Array; tiltZ: Float32Array };
+export function reel(b: BanishState, f: Reeling, i: number, dt: number) {
+  stepPop(b, f.pos[i], i, dt);
+  const to = REEL[Math.min(REEL.length - 1, b.wounds[i])], k = 1 - Math.exp(-10 * dt), side = i % 2 ? -1 : 1;
+  f.tiltX[i] += (to.x - f.tiltX[i]) * k; f.tiltZ[i] += (to.z * side - f.tiltZ[i]) * k;
 }

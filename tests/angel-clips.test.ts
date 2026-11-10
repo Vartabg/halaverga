@@ -4,7 +4,7 @@ import { loadSuit } from './load-suit';
 import { buildSuitRig } from '../src/world/suitRig';
 import { BONE_NAMES } from '../src/world/suitSkeleton';
 import { bindAngelClips, blendAngelClip, FULL, type AngelClips } from '../src/world/angelClips';
-import { createAngelMotion, SLASH, stepAngelMotion, type AngelMotionInput } from '../src/world/angelMotion';
+import { createAngelMotion, SLASH, stepAngelMotion, turnBody, type AngelMotionInput } from '../src/world/angelMotion';
 import { banish, FX } from '../src/game/banishState';
 import { beginStrike, cancelStrike, landStrike, strike } from '../src/game/strike';
 
@@ -58,6 +58,23 @@ describe('the angel motion layer', () => {
     emit(FX.cast); stepAngelMotion(m, clips, rig.joints, flight()); expect(m.act).toBe('slash');
     for (let i = 0; i < 120; i++) stepAngelMotion(m, clips, rig.joints, flight());
     expect(m.act).toBe(''); expect(m.weight).toBe(0); rig.dispose();
+  });
+  it('turns the whole model for a cut in flight, about the chest, and keeps it still for reduced motion and on the ground', () => {
+    const run = (input: AngelMotionInput) => {
+      const { rig } = posed(), m = createAngelMotion(); let peak = 0, drift = 0;
+      stepAngelMotion(m, clips, rig.joints, input); emit(FX.sword);
+      for (let i = 0; i < 30; i++) {
+        rig.root.quaternion.identity(); rig.root.position.set(0, 0, 0); // the game re-poses the model every frame
+        stepAngelMotion(m, clips, rig.joints, input); turnBody(rig.root, m);
+        peak = Math.max(peak, Math.abs(m.twirl)); drift = Math.max(drift, rig.root.position.length());
+      }
+      const done = m.spinT; rig.dispose(); return { peak, drift, done };
+    };
+    const flown = run(flight());
+    expect(flown.peak).toBeGreaterThan(Math.PI); expect(flown.drift).toBeLessThan(1e-6); // a twirl about the spine keeps the chest in place
+    expect(flown.done).toBe(-1); // one turn, then it is over
+    expect(run(flight({ reduced: true })).peak).toBe(0);
+    expect(run(flight({ flying: false, ground: 1, speed: 0 })).peak).toBe(0);
   });
   it('leaves the legs and pelvis to the flight pose while a move plays in the air', () => {
     const { rig } = posed(), m = createAngelMotion();
