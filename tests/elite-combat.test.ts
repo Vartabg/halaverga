@@ -52,8 +52,8 @@ it('does not turn retaliation into hidden damage or an attack from outside the e
   expect(battle.charging).toBe(-1); expect(battle.ward).toBe(3); expect(b.retaliate[i]).toBe(0); expect(s.drones.held[i]).toBe(0);
 });
 it('keeps lesser demons quick and lets an in-progress banishment finish after Brake cancels the strike', () => {
-  const { s, b, i, tick, contact } = setup(0); contact(); contact(); expect(b.mode[i]).toBe(MODE.staggered); contact(); expect(b.mode[i]).toBe(MODE.bound);
-  cancelStrike(); tick(1.5); expect(s.stats.kills).toBe(1); expect(s.drones.held[i]).toBe(0);
+  const { s, b, i, tick, contact } = setup(0); contact(); contact(); expect(b.mode[i]).toBe(MODE.staggered); contact(); expect(b.mode[i]).toBe(MODE.cast);
+  cancelStrike(); tick(2.2); expect(s.stats.kills).toBe(1); expect(s.drones.held[i]).toBe(0);
 });
 it('regroup clears guard/reaction work and restores both wardens without changing the lesser loop', () => {
   const { s, b, i, contact } = setup(); contact(); resetBanish(b, s);

@@ -11,6 +11,7 @@ import { Sky, Water } from './Atmosphere';
 import Skyline from './Skyline';
 import Drift from './Drift';
 import SealedGround from './SealedGround';
+import FlightRush from './FlightRush';
 import Battle from './Battle';
 import Banishment from './Banishment';
 import FlamingSword from './FlamingSword';
@@ -93,7 +94,7 @@ export default function Scene({ onLoss }: { onLoss: () => void }) {
     <directionalLight ref={sun} position={SUN_POSITION} color={SUN_COLOR} intensity={SUN_INTENSITY} castShadow={quality === 'high'}
       shadow-mapSize={[2048, 2048]} shadow-camera-left={-110} shadow-camera-right={110}
       shadow-camera-top={110} shadow-camera-bottom={-110} shadow-camera-far={380} shadow-bias={-.0002} shadow-normalBias={.09} />
-    <EnvironmentLight /><Sky /><Water /><Skyline /><Drift /><SealedGround />
+    <EnvironmentLight /><Sky /><Water /><Skyline /><Drift /><SealedGround /><FlightRush />
     <Suspense fallback={null}>
       <Physics paused={paused} timeStep={1 / 60} updatePriority={-50} gravity={[0, -22, 0]}>
         <City /><RuinField /><DistrictBoundary /><Player /><FlightPresentation /><Suit /><CameraRig />

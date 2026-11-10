@@ -9,6 +9,7 @@ import { useGame } from './store';
 import { presentation, CHASE_HEAD } from './presentation';
 import { guarded } from './shooterFault';
 import { createShooterWorld } from './shotResolve';
+import { rumble } from './cameraFx';
 import { createDroneSim } from './drones';
 import { createAssistMemory } from './aimAssist';
 import { createStepContext, stepShooter, type AudioSink } from './shooterStep';
@@ -47,6 +48,7 @@ export default function Shooter() {
     if (lastPress < 0) lastPress = input.pressSerial;
     if (input.pressSerial !== lastPress) { lastPress = input.pressSerial; if (!game.paused) requestCommand(runtime.shooter, COMMAND.context); }
     input.fire = false; input.fireSource = 'none'; runtime.shooter.weapon.handledPress = input.pressSerial; runtime.shooter.weapon.pending = false;
+    if (!game.paused && game.flying) rumble(runtime.shooter.camFx, runtime.speed);
     stepShooter(runtime.shooter, parts.sim, parts.mem, parts.world, ctx, sink);
     if (!game.paused) { updateFlowPaths(runtime.shooter, p, parts.world.lineClear, state.size); stepBanish(banish, runtime.shooter, p, delta); }
     if (!compiled.current) {

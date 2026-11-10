@@ -14,7 +14,8 @@ export { crosshairTarget } from './combatFlow';
 import { BANISH, MODE, FX, type BanishState } from './banishState';
 import { cue, dist, emit, interrupt, jolt, throwDown } from './banishHits';
 import { landBlow } from './swordBlow';
-import { closeString, pressTarget, reel, stepInTime } from './swordString';
+import { closeString, pressTarget, stepInTime } from './swordString';
+import { THROWN, reelDemon, spikeDemon, type Impact } from './thrown';
 import { flowPaths, flowTarget } from './combatFlow';
 import { armorFor, castDuration, isElite } from './encounter';
 import { stepEliteGuards } from './eliteCombat';
@@ -25,7 +26,8 @@ import { reserveWardenCounter } from './wardenCounter';
 export function resetBanish(b: BanishState, s: ShooterState) {
   b.mode.fill(0); b.resist.fill(BANISH.resistance); b.timer.fill(0); b.cool = 0; b.handled = s.input.cmd; b.cue = ''; b.last = -1; b.resetRequested = false;
   b.combo = 0; b.comboUntil = 0; b.guardTime.fill(0); b.retaliate.fill(0); b.armor.forEach((_, i) => { b.armor[i] = armorFor(i); }); cancelStrike();
-  b.quenched = battle.quenched; s.drones.held.fill(0); b.wounds.fill(0); b.string.target = -1; b.pop.forEach(p => { p.x = p.y = p.z = 0; });
+  b.quenched = battle.quenched; s.drones.held.fill(0); b.wounds.fill(0); b.string.target = -1;
+  b.vel.forEach(v => { v.x = v.y = v.z = 0; }); b.spin.fill(0); b.hit.fill(0); b.struck.fill(0);
   resetWardens(b.wardens);
 }
 /** The visible, reachable demon most aligned with the view; excludes targets already being banished. */
@@ -82,6 +84,16 @@ function apply(b: BanishState, s: ShooterState, player: Vec3, kind: number, targ
   if (b.resist[i] <= 0 && b.mode[i] <= MODE.staggered) throwDown(b, s, i);
 }
 const ease = (from: number, to: number, rate: number, dt: number) => to + (from - to) * Math.exp(-rate * dt);
+const at: Vec3 = { x: 0, y: 0, z: 0 }, off: Vec3 = { x: 0, y: 0, z: 0 };
+/** A thrown demon struck something hard enough to matter: the effect (drawn on the surface it struck), and a shake by how hard
+ * and how near. True when it was the mountain or the water, not another demon. */
+function struck(b: BanishState, s: ShooterState, i: number, hit: Impact | null, player: Vec3) {
+  if (!hit || hit.speed < THROWN.thud) return false;
+  at.x = hit.x; at.y = hit.y; at.z = hit.z; off.x = hit.x + hit.nx; off.y = hit.y + hit.ny; off.z = hit.z + hit.nz;
+  emit(b, FX.impact, i, off, at, Math.round(hit.speed));
+  addTrauma(s.camFx, Math.min(.5, hit.speed / 110) * Math.max(0, 1 - dist(at, player) / 90));
+  return hit.other < 0;
+}
 
 /** One frame: consumes a new command, then advances each demon's stagger, fall, chain and casting. */
 export function stepBanish(b: BanishState, s: ShooterState, player: Vec3, dt: number) {
@@ -113,7 +125,7 @@ export function stepBanish(b: BanishState, s: ShooterState, player: Vec3, dt: nu
     if (!droneAlive(f, i)) { if (m) { b.mode[i] = MODE.free; b.resist[i] = BANISH.resistance; f.held[i] = 0; } closeString(b, i); continue; }
     if (m === MODE.staggered) {
       // A wounded demon hangs where the last cut sent it; left alone, it shakes the wounds off and flies again.
-      if (b.wounds[i]) reel(b, f, i, dt);
+      if (b.wounds[i]) struck(b, s, i, reelDemon(b, s, i, dt), player);
       if ((b.timer[i] -= dt) <= 0) { b.mode[i] = MODE.free; if (b.wounds[i]) { closeString(b, i); f.held[i] = 0; f.tiltX[i] = f.tiltZ[i] = 0; } }
     } else if (m === MODE.bound && b.timer[i] < 0) {
       b.timer[i] = Math.min(0, b.timer[i] + dt);
@@ -123,15 +135,23 @@ export function stepBanish(b: BanishState, s: ShooterState, player: Vec3, dt: nu
       f.tiltX[i] = ease(f.tiltX[i], .85, 6, dt);
       if (m === MODE.down && (b.timer[i] -= dt) <= 0) { b.mode[i] = MODE.free; b.resist[i] = BANISH.recover; f.held[i] = 0; }
     } else if (m === MODE.cast) {
-      // Cast down: driven into the mountain below it (or the gorge water), faster the further it falls. It ends at the ground,
-      // where the blow can be seen, not somewhere beneath it.
-      const u = Math.min(1, (b.timer[i] += dt) / castDuration(i)), floor = restingHeight(base.x, base.z, 0) + BANISH.castRest;
-      p.x = base.x; p.y = base.y + (Math.min(floor, base.y) - base.y) * u * u; p.z = base.z;
-      if (u >= 1) {
+      let done: boolean;
+      if (isElite(i)) {
+        // A warden's rite: lowered to the ground below it over the length of the casting.
+        const u = Math.min(1, (b.timer[i] += dt) / castDuration(i)), floor = restingHeight(base.x, base.z, 0) + BANISH.castRest;
+        p.x = base.x; p.y = base.y + (Math.min(floor, base.y) - base.y) * u * u; p.z = base.z; done = u >= 1;
+      } else {
+        // Cast down for real: the blow's velocity, gravity and the mountain decide where it strikes (thrown.ts). It lies there a
+        // moment, then it is gone.
+        b.timer[i] += dt;
+        if (struck(b, s, i, spikeDemon(b, s, i, dt), player) && !b.hit[i]) b.hit[i] = b.clock;
+        done = b.hit[i] > 0 && b.clock - b.hit[i] >= THROWN.settle || b.timer[i] > THROWN.timeout;
+      }
+      if (done) {
         b.mode[i] = MODE.free; b.resist[i] = BANISH.resistance; f.held[i] = 0;
         f.phase[i] = PHASE.dying; f.phaseT[i] = 0; s.stats.kills++; s.stats.lastKillT = s.clock;
         b.armor[i] = armorFor(i); emit(b, FX.seal, i, base, p);
-        if (dist(p, player) < 90) addTrauma(s.camFx, isElite(i) ? .45 : .22); // the ground takes the blow
+        if (isElite(i) && dist(p, player) < 90) addTrauma(s.camFx, .45); // the ground takes the blow
       }
     }
   }

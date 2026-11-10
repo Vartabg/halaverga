@@ -10,7 +10,7 @@ import { CUTS, LAST, REEL, STRING, cutFor, pressTarget, stepInTime, stringOpen, 
 import { advanceDrones, createDroneContext } from '../src/game/drones';
 import { castDuration } from '../src/game/encounter';
 import { restingHeight } from '../src/game/wardenElevation';
-import { BANISH } from '../src/game/banishState';
+import { floorAt } from '../src/game/thrown';
 import { landCut, settle } from './sword-support';
 
 function setup() {
@@ -30,7 +30,7 @@ describe('the sword string', () => {
     const { s, b, near, run, sword } = setup();
     landCut(b, s, 0, near); expect(b.wounds[0]).toBe(1); expect(b.mode[0]).toBe(MODE.staggered); expect(s.drones.held[0]).toBe(1);
     landCut(b, s, 0, near); expect(b.wounds[0]).toBe(2); expect(s.stats.kills).toBe(0);
-    landCut(b, s, 0, near); expect(b.mode[0]).toBe(MODE.bound); expect(b.wounds[0]).toBe(0);
+    landCut(b, s, 0, near); expect(b.mode[0]).toBe(MODE.cast); expect(b.wounds[0]).toBe(0);
     expect(sword()).toEqual([0, 1, 2]); expect(b.combo).toBe(3);
     run(1.6); expect(s.stats.kills).toBe(1); expect(s.drones.phase[0]).toBe(PHASE.dying);
   });
@@ -59,7 +59,7 @@ describe('the sword string', () => {
     const v = { x: 0, y: 0, z: -80 }; settle(near); strikeVelocity(v, near, 1 / 60, false, true);
     expect(Math.hypot(v.x, v.y, v.z)).toBeLessThan(6); // held, even with flight input, until the cut has had its moment
     const before = s.drones.pos[0].y;
-    landCut(b, s, 0, near); expect(b.pop[0].y).toBeGreaterThan(10); expect(strike.recoil.y).toBeGreaterThan(b.pop[0].y);
+    landCut(b, s, 0, near); expect(b.vel[0].y).toBeGreaterThan(10); expect(strike.recoil.y).toBeGreaterThan(b.vel[0].y);
     run(.6); expect(s.drones.pos[0].y - before).toBeGreaterThan(1.5); // the demon hangs above where it was
   });
   it('lets steering break away once the cut has landed, and a demon left alone shakes its wounds off', () => {
@@ -95,15 +95,26 @@ describe('the sword string', () => {
     expect(strike.hold).toBe(0); expect(strike.carrySpeed).toBeGreaterThan(80); expect(strike.carrySpeed).toBeLessThanOrEqual(90);
     expect(v.x).toBeGreaterThan(75); expect(STRIKE.exitSpeed).toBeLessThan(strike.carrySpeed);
   });
-  it('drives the demon into the ground with the casting blow: a quick fall that ends where it can be seen, and shakes the view', () => {
+  it('drives the demon into the ground with the casting blow: it flies there, strikes, lies a moment and is gone', () => {
     const { s, b, near, run } = setup();
     landCut(b, s, 0, near); landCut(b, s, 0, near); landCut(b, s, 0, near);
-    const at = { ...s.drones.pos[0] }, floor = restingHeight(at.x, at.z, 0) + BANISH.castRest;
-    expect(castDuration(0)).toBeLessThan(.8); expect(at.y).toBeGreaterThan(floor + 5);
-    s.camFx.trauma = 0; run(.25 + castDuration(0));
-    expect(s.stats.kills).toBe(1); expect(s.drones.pos[0].y).toBeCloseTo(floor, 3); expect(s.camFx.trauma).toBeGreaterThan(0);
-    const seal = b.fx.find(e => e.kind === FX.seal && e.serial > 0)!;
-    expect(seal.to.y).toBeCloseTo(floor, 3); // the ring is thrown out on the ground, not in the air where it was bound
+    expect(b.mode[0]).toBe(MODE.cast); expect(b.vel[0].y).toBeLessThan(-20); expect(Math.hypot(b.vel[0].x, b.vel[0].z)).toBeGreaterThan(35); // thrown, not lowered
+    const from = { ...s.drones.pos[0] };
+    s.camFx.trauma = 0; run(.25); expect(s.stats.kills).toBe(0); expect(s.drones.pos[0].y).toBeLessThan(from.y - 5); // on its way
+    run(1.4);
+    expect(s.stats.kills).toBe(1); expect(s.camFx.trauma).toBeGreaterThan(0);
+    const hit = b.fx.find(e => e.kind === FX.impact && e.serial > 0)!, seal = b.fx.find(e => e.kind === FX.seal && e.serial > 0)!;
+    expect(hit.n).toBeGreaterThan(30); // it struck hard
+    expect(hit.to.y).toBeCloseTo(floorAt(hit.to.x, hit.to.z), 0); // on the ground or the water, where the terrain is
+    expect(seal.to.y - floorAt(seal.to.x, seal.to.z)).toBeLessThan(4); // and it ends near where it struck, not in the air
+  });
+  it('throws the finished demon the way the angel is looking, even when the blow comes from straight above it', () => {
+    const { s, b, near } = setup();
+    landCut(b, s, 0, near); landCut(b, s, 0, near);
+    const above = { ...s.targets[0].c, y: s.targets[0].c.y + 6 }; s.aim.dir = { x: 1, y: -.6, z: 0 }; // looking east and down at it
+    settle(above); requestCommand(s, COMMAND.sword, 0); stepBanish(b, s, above, 1 / 60);
+    strikeVelocity({ x: 0, y: 0, z: 0 }, above, strike.minTime + .01, false); stepBanish(b, s, { ...s.targets[0].c, y: s.targets[0].c.y + 2 }, 1 / 60);
+    expect(b.mode[0]).toBe(MODE.cast); expect(b.vel[0].x).toBeGreaterThan(35); expect(Math.abs(b.vel[0].z)).toBeLessThan(1e-6); expect(b.vel[0].y).toBeLessThan(-20);
   });
   it('makes the demon carry each wound differently, and straightens it when it recovers', () => {
     const { s, b, near, run } = setup();

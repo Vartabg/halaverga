@@ -7,7 +7,7 @@ import { cue, emit, interrupt, jolt } from './banishHits';
 import { bindDuration, isElite } from './encounter';
 import { absorbEliteStrike } from './eliteCombat';
 import { STRIKE, finishStrike, holdStrike, landStrike, strike as dive } from './strike';
-import { CUTS, LAST, STRING, closeString, cutFor, woundDemon } from './swordString';
+import { CUTS, LAST, STRING, closeString, cutFor, launch, powerOf, woundDemon } from './swordString';
 
 export function landBlow(b: BanishState, s: ShooterState, i: number, player: Vec3) {
   const f = s.drones, elite = isElite(i), armor = b.armor[i];
@@ -28,7 +28,7 @@ export function landBlow(b: BanishState, s: ShooterState, i: number, player: Vec
     emit(b, FX.armor, i, player, f.pos[i]); return;
   }
   if (!last) {
-    // Not the last cut: the demon reels where the blade sent it and the angel stays on it, ready for the next.
+    // Not the last cut: the blow throws the demon (thrown.ts) and the angel stays with it, ready for the next.
     woundDemon(b, i, dive.dir, cut, dive.speed);
     b.mode[i] = MODE.staggered; b.timer[i] = STRING.recover; f.held[i] = 1;
     holdStrike(cut.freeze, STRING.window, -dive.dir.x * cut.back, cut.rise - dive.dir.y * cut.back, -dive.dir.z * cut.back);
@@ -39,12 +39,15 @@ export function landBlow(b: BanishState, s: ShooterState, i: number, player: Vec
   // A demon finished after the angel had gone to another keeps no stored speed: a dive in gives its own, a step-in the floor.
   const stored = b.string.target === i ? b.string.speed : dive.lunge ? 0 : dive.speed;
   b.resist[i] = 0; closeString(b, i);
+  f.held[i] = 1; Object.assign(b.base[i], f.pos[i]); emit(b, FX.bind, i, player, f.pos[i]);
+  // A warden keeps its rite: bound, then cast down. A lesser demon is driven down for real: forward along the way the angel is
+  // looking (after the rising cut the angel is above it, so the blow itself points at the ground) and down, into the mountain ahead.
+  if (elite) { b.mode[i] = MODE.bound; b.timer[i] = -bindDuration(i); }
+  else { b.mode[i] = MODE.cast; b.timer[i] = 0; b.hit[i] = 0; launch(b, i, s.aim.valid ? s.aim.dir : dive.dir, cut, powerOf(stored)); emit(b, FX.cast, i, player, f.pos[i]); }
   if (elite) landStrike(false, .11);
   else {
     const a = s.aim.dir, l = s.aim.valid ? Math.hypot(a.x, a.y * .35, a.z) : 0, d = dive.dir;
     const x = l > .1 ? a.x / l : d.x, y = l > .1 ? a.y * .35 / l : d.y, z = l > .1 ? a.z / l : d.z;
     finishStrike(cut.freeze, STRING.finish, Math.max(STRIKE.exitSpeed, Math.min(90, stored * .85)), x, y, z);
   }
-  f.held[i] = 1; b.mode[i] = MODE.bound; b.timer[i] = -bindDuration(i);
-  Object.assign(b.base[i], f.pos[i]); emit(b, FX.bind, i, player, f.pos[i]);
 }
