@@ -76,6 +76,17 @@ describe('the angel motion layer', () => {
     expect(run(flight({ reduced: true })).peak).toBe(0);
     expect(run(flight({ flying: false, ground: 1, speed: 0 })).peak).toBe(0);
   });
+  it('lets a cut\'s body move finish before the next one starts, so a fast second press never snaps the model back', () => {
+    const { rig } = posed(), m = createAngelMotion();
+    stepAngelMotion(m, clips, rig.joints, flight()); emit(FX.sword); // the opener lands: the twirl begins
+    for (let i = 0; i < 8; i++) stepAngelMotion(m, clips, rig.joints, flight());
+    const mid = m.twirl; expect(mid).toBeGreaterThan(.5); expect(m.spinCut).toBe(0);
+    banish.wounds[0] = 1; beginStrike(0, { x: 0, y: 0, z: -4 }, 4, .17); // a buffered second press: the step-in for the rising cut
+    stepAngelMotion(m, clips, rig.joints, flight());
+    expect(m.spinCut).toBe(0); expect(m.spinNext).toBe(1); expect(m.twirl).toBeGreaterThan(mid); // still the same twirl, further on
+    for (let i = 0; i < 30 && m.spinCut === 0; i++) stepAngelMotion(m, clips, rig.joints, flight());
+    expect(m.spinCut).toBe(1); expect(m.spinNext).toBe(-1); banish.wounds[0] = 0; rig.dispose();
+  });
   it('leaves the legs and pelvis to the flight pose while a move plays in the air', () => {
     const { rig } = posed(), m = createAngelMotion();
     stepAngelMotion(m, clips, rig.joints, flight());

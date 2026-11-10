@@ -1,8 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { banish, MODE } from '@/game/banishState';
-import { flowTarget } from '@/game/combatFlow';
 import { strike } from '@/game/strike';
-import { LAST } from '@/game/swordString';
+import { LAST, pressTarget } from '@/game/swordString';
 import { runtime } from '@/game/runtime';
 import { useGame } from '@/game/store';
 import { aimFrameFrom, createAimFrame, project } from '@/game/gesture/screenRay';
@@ -22,7 +21,7 @@ export default function CombatTarget() {
       const active = strike.phase === 1 && strike.target >= 0;
       const queued = strike.queued, next = strike.queueTarget;
       const explicit = queued && next >= 0 && s.targets[next]?.alive && s.targets[next].los && banish.mode[next] < MODE.down;
-      const i = state.paused || !state.shooter ? -1 : active ? strike.target : explicit ? next : flowTarget(banish, s, runtime.position);
+      const i = state.paused || !state.shooter ? -1 : active ? strike.target : explicit ? next : pressTarget(banish, s, runtime.position);
       const target = i >= 0 ? s.targets[i] : null;
       el.hidden = !target?.alive || !s.aim.valid;
       if (el.hidden || !target) return;

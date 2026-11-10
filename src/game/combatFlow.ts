@@ -35,3 +35,17 @@ export function flowTarget(b: BanishState, s: ShooterState, player: Vec3, allowG
   }
   return best;
 }
+/** The live, visible demon nearest the crosshair ray (within its silhouette plus a little slack), or -1. */
+export function crosshairTarget(s: ShooterState) {
+  const a = s.aim; let best = -1, bestAngle = Infinity;
+  if (!a.valid) return -1;
+  for (let i = 0; i < s.drones.count; i++) {
+    const t = s.targets[i];
+    if (!t.alive || !t.los) continue;
+    const x = t.c.x - a.origin.x, y = t.c.y - a.origin.y, z = t.c.z - a.origin.z, d = Math.hypot(x, y, z);
+    if (d < 1e-3) continue;
+    const angle = Math.acos(Math.min(1, Math.max(-1, (x * a.dir.x + y * a.dir.y + z * a.dir.z) / d)));
+    if (angle <= Math.atan(t.r * 1.6 / d) + BANISH.aimSlack && angle < bestAngle) { best = i; bestAngle = angle; }
+  }
+  return best;
+}

@@ -114,7 +114,7 @@ export default function Player() {
     let v = runtime.landGoal ? landingVelocity(p, runtime.landGoal)
       : mode === 2 ? aimVelocity(vb, intent, runtime.yaw, fp, flying, dt)
       : pilotVelocity(vb, intent, runtime.yaw, fp, flying, surge, dt);
-    gestureVelocity(v, runtime.landGoal, flying); if (runtime.landGoal) cancelStrike(); else if (flying) strikeVelocity(v, p, dt, state.reduced, moving(intent));
+    gestureVelocity(v, runtime.landGoal, flying); if (runtime.landGoal) cancelStrike(); else if (flying) strikeVelocity(v, p, dt, state.reduced, moving(intent) || gesture.live && gesture.velocityOn);
     if (liftTime.current > 0) { v.y = 6; liftTime.current -= dt; }
     gestureOffset(v, flying && !runtime.landGoal);
     const from = { ...runtime.velocity }, chosen = v;

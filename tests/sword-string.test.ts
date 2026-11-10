@@ -6,7 +6,8 @@ import { FX, MODE, createBanish, resetBanish, stepBanish } from '../src/game/ban
 import { resetBattle } from '../src/game/celestialBattle';
 import { flowPaths, flowVisible } from '../src/game/combatFlow';
 import { STRIKE, cancelStrike, strike, strikeVelocity } from '../src/game/strike';
-import { CUTS, LAST, REEL, STRING, cutFor, stringOpen, stringTarget } from '../src/game/swordString';
+import { CUTS, LAST, REEL, STRING, cutFor, pressTarget, stepInTime, stringOpen, stringTarget } from '../src/game/swordString';
+import { advanceDrones, createDroneContext } from '../src/game/drones';
 import { castDuration } from '../src/game/encounter';
 import { restingHeight } from '../src/game/wardenElevation';
 import { BANISH } from '../src/game/banishState';
@@ -118,6 +119,67 @@ describe('the sword string', () => {
     expect(CUTS[1].flip).toBeLessThan(0); expect(Math.abs(CUTS[1].flip)).toBeLessThan(1); // a lean: out and back
     expect(CUTS[2].flip).toBe(1);
     for (const cut of CUTS) { expect(cut.spin).toBeGreaterThan(.25); expect(cut.spin).toBeLessThanOrEqual(.45); }
+  });
+  // ---- found by independent review, 2026-11-09 ----
+  it('replays a buffered press on the demon being cut, not on whichever demon the view favours', () => {
+    const { s, b, near } = setup();
+    requestCommand(s, COMMAND.sword); stepBanish(b, s, near, 1 / 60); expect(strike.target).toBe(0);
+    requestCommand(s, COMMAND.sword); stepBanish(b, s, near, 1 / 60); expect(strike.queued).toBe(true); expect(strike.queueTarget).toBe(-1);
+    const at = { ...s.targets[0].c }, on = { x: at.x, y: at.y, z: at.z + 3 };
+    strikeVelocity({ x: 0, y: 0, z: 0 }, near, .05, false); stepBanish(b, s, at, 1 / 60); expect(b.wounds[0]).toBe(1);
+    // The view now favours demon 1, ahead and off the crosshair, with the wounded demon behind the angel's shoulder.
+    Object.assign(s.drones.pos[1], { x: on.x + 6, y: on.y, z: on.z + 30 }); buildTargets(s); for (const t of s.targets) t.los = true;
+    s.aim.origin = { ...on }; s.aim.dir = { x: 0, y: 0, z: 1 };
+    settle(on); stepBanish(b, s, on, 1 / 60);
+    expect(strike.queued).toBe(false); expect(strike.phase).toBe(1); expect(strike.target).toBe(0); expect(strike.lunge).toBe(true);
+  });
+  it('gives the next cut its wind-up even after the string\'s window has closed, so no cut lands the frame it is pressed', () => {
+    const { s, b, near, run } = setup();
+    landCut(b, s, 0, near); cancelStrike(); run(STRING.window + .2);
+    expect(stringOpen(b, 0)).toBe(false); expect(b.wounds[0]).toBe(1);
+    const on = { ...s.targets[0].c, z: s.targets[0].c.z + 2 }; // already inside the blade's reach
+    expect(stepInTime(b, 0, 2)).toBe(CUTS[1].windup); expect(stepInTime(b, 0, STRING.reach + 1)).toBe(0); expect(stepInTime(b, 1, 2)).toBe(0);
+    requestCommand(s, COMMAND.sword, 0); stepBanish(b, s, on, 1 / 60);
+    expect(strike.lunge).toBe(true); stepBanish(b, s, on, 1 / 60); expect(b.wounds[0]).toBe(1); // inside reach, and still not landed
+    strikeVelocity({ x: 0, y: 0, z: 0 }, on, CUTS[1].windup + .01, false); stepBanish(b, s, on, 1 / 60); expect(b.wounds[0]).toBe(2);
+  });
+  it('breaks off at close range when the crosshair is on another demon, and the target ring names the same demon the press hits', () => {
+    const { s, b, near } = setup();
+    landCut(b, s, 0, near); settle(near);
+    const on = { ...s.targets[0].c, z: s.targets[0].c.z + 3 };
+    Object.assign(s.drones.pos[1], { x: on.x, y: on.y, z: on.z + 25 }); buildTargets(s); for (const t of s.targets) t.los = true;
+    s.aim.origin = { ...on }; s.aim.dir = { x: 0, y: 0, z: -1 };
+    expect(stringTarget(b, s, on)).toBe(0); expect(pressTarget(b, s, on)).toBe(0); // the string holds while the view is on it
+    s.aim.dir = { x: 0, y: 0, z: 1 }; // the crosshair is now on demon 1
+    expect(stringTarget(b, s, on)).toBe(0); expect(pressTarget(b, s, on)).toBe(1);
+    requestCommand(s, COMMAND.sword); stepBanish(b, s, on, 1 / 60);
+    expect(strike.target).toBe(1); expect(strike.lunge).toBe(false);
+  });
+  it('keeps a rebuked wounded demon held, and ends its string when it is thrown down', () => {
+    const { s, b, near, run } = setup();
+    landCut(b, s, 0, near); cancelStrike();
+    requestCommand(s, COMMAND.rebuke, 0); stepBanish(b, s, near, 1 / 60);
+    expect(s.drones.held[0]).toBe(1); expect(b.wounds[0]).toBe(1);
+    for (let n = 0; n < 8 && b.mode[0] !== MODE.down; n++) { run(.6); requestCommand(s, COMMAND.rebuke, 0); stepBanish(b, s, near, 1 / 60); }
+    expect(b.mode[0]).toBe(MODE.down); expect(b.wounds[0]).toBe(0); expect(stringOpen(b, 0)).toBe(false);
+  });
+  it('holds a demon\'s fly-in clock while the string holds the demon, so it does not jump along its path on recovery', () => {
+    const s = createShooter(), sim = createDroneSim(s), ctx = createDroneContext(), i = 2;
+    s.drones.phase[i] = PHASE.arriving; s.drones.phaseT[i] = .4; s.drones.held[i] = 1;
+    for (let n = 0; n < 30; n++) { ctx.dt = 1 / 60; s.clock += 1 / 60; advanceDrones(s, sim, ctx, () => true); }
+    expect(s.drones.phaseT[i]).toBeCloseTo(.4, 6);
+    s.drones.held[i] = 0; ctx.dt = 1 / 60; advanceDrones(s, sim, ctx, () => true); expect(s.drones.phaseT[i]).toBeGreaterThan(.4);
+  });
+  it('caps the step-in speed and gives a demon finished out of sequence the dive\'s own speed', () => {
+    const { s, b, near } = setup();
+    b.wounds[0] = 2; // wounded earlier; the angel has been elsewhere since
+    settle(near); requestCommand(s, COMMAND.sword, 0); stepBanish(b, s, { ...near, z: near.z + 40 }, 1 / 60);
+    expect(strike.lunge).toBe(false); // too far for a step-in: a dive
+    strikeVelocity({ x: 0, y: 0, z: -100 }, near, .05, false); const speed = strike.speed;
+    stepBanish(b, s, { ...s.targets[0].c }, 1 / 60); expect(strike.then).toBeCloseTo(Math.min(90, speed * .85), 3);
+    cancelStrike(); b.wounds[1] = 1; requestCommand(s, COMMAND.sword, 1); const c = s.targets[1].c;
+    stepBanish(b, s, { x: c.x, y: c.y, z: c.z + STRING.reach - .5 }, 1 / 60);
+    expect(strike.lunge).toBe(true); expect(strike.speed).toBeLessThanOrEqual(STRIKE.maxSpeed);
   });
   it('counts a warden\'s armour as its first two cuts, so its exposed blow is the casting blow', () => {
     const { b } = setup();

@@ -3,6 +3,7 @@
 import { PHASE, flashGate, type ShooterState, type Vec3 } from './combat';
 import { battle } from './celestialBattle';
 import { BANISH, MODE, FX, type BanishState, type Cue } from './banishState';
+import { closeString } from './swordString';
 
 export function emit(b: BanishState, kind: number, drone: number, from: Vec3, to: Vec3, n = 0) {
   const e = b.fx[b.fxSerial % b.fx.length];
@@ -30,7 +31,7 @@ export function interrupt(s: ShooterState, i: number) {
 }
 export function throwDown(b: BanishState, s: ShooterState, i: number) {
   const f = s.drones, p = f.pos[i], base = b.base[i];
-  b.mode[i] = MODE.down; b.timer[i] = BANISH.downTime; f.held[i] = 1; interrupt(s, i);
+  b.mode[i] = MODE.down; b.timer[i] = BANISH.downTime; f.held[i] = 1; interrupt(s, i); closeString(b, i); // thrown down, its string is over
   base.x = p.x; base.y = p.y - BANISH.downDrop; base.z = p.z;
   emit(b, FX.down, i, p, base);
 }

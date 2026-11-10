@@ -36,7 +36,8 @@ export function landBlow(b: BanishState, s: ShooterState, i: number, player: Vec
   }
   // The casting blow: bound and cast down as before. The angel gets back the speed its opener arrived with and leaves the way
   // it is looking, so the string ends in flight, not in a stop.
-  const stored = b.string.target === i ? b.string.speed : 0;
+  // A demon finished after the angel had gone to another keeps no stored speed: a dive in gives its own, a step-in the floor.
+  const stored = b.string.target === i ? b.string.speed : dive.lunge ? 0 : dive.speed;
   b.resist[i] = 0; closeString(b, i);
   if (elite) landStrike(false, .11);
   else {

@@ -16,19 +16,23 @@ const CHEST = BONE_NAMES.indexOf('chest');
 const GESTURES: Readonly<Record<number, string>> = { [FX.sword]: 'slash', [FX.rebuke]: 'rebuke', [FX.bind]: 'rebuke', [FX.cast]: 'cast' };
 
 export function createAngelMotion() {
-  return { idle: 0, idleT: 0, act: '', actT: 0, since: 0, weight: 0, serial: -1, phase: 0, cut: 0, spinT: -1, spinCut: 0, twirl: 0, flip: 0, hip: new Vector3(), rest: new Vector3() };
+  return { idle: 0, idleT: 0, act: '', actT: 0, since: 0, weight: 0, serial: -1, phase: 0, cut: 0, spinT: -1, spinCut: 0, spinNext: -1, twirl: 0, flip: 0, hip: new Vector3(), rest: new Vector3() };
 }
 export type AngelMotion = ReturnType<typeof createAngelMotion>;
 export type AngelMotionInput = { dt: number; paused: boolean; flying: boolean; ground: number; speed: number; sword: boolean; reduced?: boolean };
 
 function begin(m: AngelMotion, name: string, at = 0) { m.act = name; m.actT = at; m.since = 0; }
+/** Starts this cut's whole-body move, or queues it behind the one still turning: a fast second press never snaps the model back. */
+function turn(m: AngelMotion, cut: number) {
+  if (m.spinT < 0) { m.spinT = 0; m.spinCut = cut; m.spinNext = -1; } else if (m.spinCut !== cut) m.spinNext = cut;
+}
 
 /** Starts gestures from new strikes and combat effects. Effects already in the ring when the angel mounted are skipped. */
 function trigger(m: AngelMotion, clips: AngelClips) {
   if (strike.phase === 1 && m.phase !== 1 && clips.slash) {
     const i = strike.target; m.cut = i >= 0 ? cutFor(banish, i, banish.armor[i] > 0, banish.armor[i]) : 0;
     begin(m, 'slash', strike.lunge ? SLASH.raised - SLASH.lead : 0);
-    if (strike.lunge) { m.spinT = 0; m.spinCut = m.cut; } // a step-in turns as it closes; the opener turns on contact
+    if (strike.lunge) turn(m, m.cut); // a step-in turns as it closes; the opener turns on contact
   }
   m.phase = strike.phase;
   let newest = m.serial;
@@ -41,7 +45,7 @@ function trigger(m: AngelMotion, clips: AngelClips) {
     // Contact during the dive releases the raised sword into the cut; a stroke out of nowhere starts at the raised blade.
     if (name === 'slash') {
       m.cut = e.n; if (m.act === 'slash') m.actT = Math.max(m.actT, SLASH.raised); else begin(m, 'slash', SLASH.raised);
-      if (m.spinT < 0 || m.spinCut !== e.n) { m.spinT = 0; m.spinCut = e.n; }
+      if (m.spinCut !== e.n || m.spinT < 0 && !strike.lunge) turn(m, e.n);
     }
     else begin(m, name);
   }
@@ -86,7 +90,7 @@ export function stepAngelMotion(m: AngelMotion, clips: AngelClips, joints: reado
       const turn = (turns: number) => 2 * Math.PI * turns * (Math.abs(turns) < 1 ? Math.sin(Math.PI * u) : e);
       m.twirl = turn(cut.twirl); m.flip = turn(cut.flip);
     }
-    if (u >= 1) m.spinT = -1;
+    if (u >= 1) { m.spinT = -1; if (m.spinNext >= 0) { m.spinT = 0; m.spinCut = m.spinNext; m.spinNext = -1; } }
   }
 }
 const PIVOT = new Vector3(0, 1.1, 0), before = new Vector3(), after = new Vector3();

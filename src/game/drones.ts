@@ -76,7 +76,7 @@ export function advanceDrones(s: ShooterState, sim: DroneSim, ctx: DroneContext,
   for (let i = 0; i < f.count; i++) if (f.phase[i] >= PHASE.alert && f.phase[i] <= PHASE.punish) alert++;
   for (let i = 0; i < f.count; i++) {
     const p = f.pos[i], pat = PATROLS[f.patrol[i]], ph = f.phase[i];
-    f.phaseT[i] += dt;
+    if (!(f.held[i] && ph === PHASE.arriving)) f.phaseT[i] += dt; // a held demon's fly-in waits for it
     timers(s, i, dt, ph === PHASE.dying && !ctx.reduced);
     if (ph === PHASE.dying || ph === PHASE.dead) f.los[i] = 0;
     else if ((f.losT[i] -= dt) <= 0) {

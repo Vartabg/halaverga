@@ -10,10 +10,11 @@ import { restingHeight } from './wardenElevation';
 import { STRIKE, aimStrike, beginStrike, cancelStrike, strike as dive } from './strike';
 
 export { BANISH, MODE, FX, REBUKE_LINE, createBanish, banish, type BanishFx, type BanishState, type Cue } from './banishState';
+export { crosshairTarget } from './combatFlow';
 import { BANISH, MODE, FX, type BanishState } from './banishState';
 import { cue, dist, emit, interrupt, jolt, throwDown } from './banishHits';
 import { landBlow } from './swordBlow';
-import { CUTS, closeString, cutFor, reel, stringOpen, stringTarget } from './swordString';
+import { closeString, pressTarget, reel, stepInTime } from './swordString';
 import { flowPaths, flowTarget } from './combatFlow';
 import { armorFor, castDuration, isElite } from './encounter';
 import { stepEliteGuards } from './eliteCombat';
@@ -31,29 +32,14 @@ export function resetBanish(b: BanishState, s: ShooterState) {
 export function reticleTarget(b: BanishState, s: ShooterState) {
   return flowTarget(b, s, s.aim.origin);
 }
-/** The live, visible demon nearest the crosshair ray (within its silhouette plus a little slack), or -1. */
-export function crosshairTarget(s: ShooterState) {
-  const a = s.aim; let best = -1, bestAngle = Infinity;
-  if (!a.valid) return -1;
-  for (let i = 0; i < s.drones.count; i++) {
-    const t = s.targets[i];
-    if (!t.alive || !t.los) continue;
-    const x = t.c.x - a.origin.x, y = t.c.y - a.origin.y, z = t.c.z - a.origin.z, d = Math.hypot(x, y, z);
-    if (d < 1e-3) continue;
-    const angle = Math.acos(Math.min(1, Math.max(-1, (x * a.dir.x + y * a.dir.y + z * a.dir.z) / d)));
-    if (angle <= Math.atan(t.r * 1.6 / d) + BANISH.aimSlack && angle < bestAngle) { best = i; bestAngle = angle; }
-  }
-  return best;
-}
 /** Click / tap always requests a sword launch; binding and casting follow a landed hit automatically. */
 export function contextKind(b: BanishState, i: number, d: number) {
   void b; void i; void d;
   return COMMAND.sword;
 }
 function apply(b: BanishState, s: ShooterState, player: Vec3, kind: number, target: number) {
-  // A press with no chosen demon continues the string in progress before it looks for a new demon (swordString.ts).
-  const kept = target < 0 && kind !== COMMAND.rebuke ? stringTarget(b, s, player) : -1;
-  const i = target >= 0 ? target : kept >= 0 ? kept : flowTarget(b, s, player, kind === COMMAND.rebuke);
+  // A press with no chosen demon continues the string in progress before it looks for a new demon (swordString.pressTarget).
+  const i = target >= 0 ? target : kind === COMMAND.rebuke ? flowTarget(b, s, player, true) : pressTarget(b, s, player);
   if (i < 0 || !s.targets[i]?.los || !flowPaths[i] || !droneAlive(s.drones, i)) { cue(b, 'noTarget'); return; }
   const f = s.drones, p = f.pos[i], d = dist(p, player), m = b.mode[i];
   if (kind === COMMAND.context) kind = contextKind(b, i, d);
@@ -64,7 +50,7 @@ function apply(b: BanishState, s: ShooterState, player: Vec3, kind: number, targ
     if (b.cool > 0) return; // only a rebuke waits on the rebuke before it; any other step may follow at once
     if (d > BANISH.rebukeRange || !s.targets[i].los) { cue(b, 'far'); return; }
     if (m <= MODE.staggered) { b.mode[i] = MODE.staggered; b.timer[i] = BANISH.stagger; b.resist[i] -= BANISH.rebukeHurt; }
-    jolt(s, i, player, 9); interrupt(s, i); b.guardTime[i] = 0; b.retaliate[i] = 0; f.held[i] = 0; b.cool = BANISH.rebukeCool; b.rebukeT = b.clock;
+    jolt(s, i, player, 9); interrupt(s, i); b.guardTime[i] = 0; b.retaliate[i] = 0; f.held[i] = b.wounds[i] ? 1 : 0; b.cool = BANISH.rebukeCool; b.rebukeT = b.clock;
     if (isElite(i)) interruptWarden(b, s, i);
     emit(b, FX.rebuke, i, player, p);
   } else if (kind === COMMAND.sword) {
@@ -75,9 +61,9 @@ function apply(b: BanishState, s: ShooterState, player: Vec3, kind: number, targ
       dive.queued = true; dive.queueTarget = target; dive.queueTime = .75; return;
     }
     // The angel dives at the demon (strike.ts), or steps in for the next cut of an open string; the blow lands in stepBanish.
-    const next = stringOpen(b, i);
-    beginStrike(i, p, d, next ? CUTS[cutFor(b, i)].windup : 0); s.weapon.sinceShot = 0;
-    if (!next) punchFov(s.camFx, 'kill', 9); // the launch widens the view: speed you can feel
+    const windup = stepInTime(b, i, d);
+    beginStrike(i, p, d, windup); s.weapon.sinceShot = 0;
+    if (!windup) punchFov(s.camFx, 'kill', 9); // the launch widens the view: speed you can feel
     reserveWardenCounter(b.wardens, i);
     return;
   } else if (kind === COMMAND.bind) {
@@ -109,7 +95,7 @@ export function stepBanish(b: BanishState, s: ShooterState, player: Vec3, dt: nu
     if (dive.queueTime <= 0) dive.queued = false;
     else if (dive.phase !== 1 && dive.freeze <= 0 && dive.t >= .09) {
       const target = dive.queueTarget; dive.queued = false;
-      apply(b, s, player, COMMAND.sword, target >= 0 && b.mode[target] < MODE.down ? target : flowTarget(b, s, player));
+      apply(b, s, player, COMMAND.sword, target >= 0 && b.mode[target] < MODE.down ? target : -1);
     }
   }
   if (input.cmd !== b.handled) {

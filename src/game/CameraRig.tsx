@@ -20,6 +20,7 @@ let baseFov = NaN, lastHip = NaN, lastW = NaN;
 const statKeys = ['drawCalls', 'triangles', 'geometries', 'textures'] as const;
 const moveKeys = ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyE', 'KeyQ', 'Space'];
 const identity = { x: 0, y: 0, z: 0, w: 1 };
+const level = { x: 0, y: 0, z: 0 };
 export default function CameraRig() {
   const { world, rapier } = useRapier();
   const initialized = useRef(false), epoch = useRef(-1), marker = useRef<Mesh>(null);
@@ -39,7 +40,11 @@ export default function CameraRig() {
     const steering = moveKeys.some(k => runtime.keys.has(k)) || runtime.thumb.active || runtime.stick.active || runtime.trackpad.active;
     const finisher = stepFinisherFocus(finishing.current, { last: banish.last, mode: banish.mode[banish.last], phase: strike.phase,
       brake: flightFeel.brake, steering: steering || state.camera !== 'third' || state.reduced || !!runtime.landGoal, manual: combat.current.manual > 0 });
-    const focus = finisher >= 0 ? banish.base[finisher] : strike.aim, phase = finisher >= 0 ? 1 : strike.phase;
+    // A sword string is one engagement for the camera: it stays on the demon between cuts instead of pumping in and out, and a
+    // step-in from above or below turns the view to the demon without pitching the pilot down onto it.
+    const stringing = finisher < 0 && strike.target >= 0 && (strike.phase === 1 ? strike.lunge : strike.phase === 2 && strike.hold > 0 && !strike.then);
+    if (stringing) { const c = shooter.targets[strike.target].c, eye = pose.position.y + .65; level.x = c.x; level.y = eye + (c.y - eye) * .35; level.z = c.z; }
+    const focus = finisher >= 0 ? banish.base[finisher] : stringing ? level : strike.aim, phase = finisher >= 0 || stringing ? 1 : strike.phase;
     const frame = stepCombatCamera(combat.current, { yaw: pose.viewYaw, pitch: pose.viewPitch, pilotYaw: runtime.yaw, pilotPitch: runtime.pitch,
       epoch: runtime.poseEpoch, enabled: state.shooter && state.camera === 'third' && !runtime.landGoal, reduced,
       phase, target: finisher >= 0 ? finisher : strike.target, aim: focus, hero: pose.position, aspect, dt: elapsed });

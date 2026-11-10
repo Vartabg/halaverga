@@ -3,6 +3,7 @@
 // The angel stays on the demon between cuts and gets its speed back on the last one. Game fiction. Pure: plain {x,y,z}.
 import type { ShooterState, Vec3 } from './combat';
 import { BANISH, MODE, type BanishState } from './banishState';
+import { crosshairTarget, flowTarget } from './combatFlow';
 import { isElite } from './encounter';
 
 /**
@@ -22,7 +23,8 @@ export const CUTS: readonly Cut[] = [
 ];
 /** cuts: how many a lesser demon takes. window: seconds the next cut stays open. recover: a demon left alone shakes its wounds off. */
 /** finish: after the last cut the angel hangs over the blow this long before it is released. */
-export const STRING = { cuts: 3, window: 1.15, recover: 2.6, lock: .28, decay: 5.5, finish: .2 } as const;
+/** reach: inside this distance a wounded demon is cut with a step-in (and its wind-up), never a same-frame dive. */
+export const STRING = { cuts: 3, window: 1.15, recover: 2.6, lock: .28, decay: 5.5, finish: .2, reach: 12 } as const;
 export const LAST = STRING.cuts - 1;
 
 /** Which cut lands on this demon now. A warden's armour counts as its first two cuts, so its exposed blow is the casting blow. */
@@ -50,6 +52,18 @@ export function woundDemon(b: BanishState, i: number, dir: Vec3, cut: Cut, entry
   if (b.string.target !== i || b.clock > b.string.until) b.string.speed = entrySpeed; // the speed the opener arrived with
   b.wounds[i]++; b.string.target = i; b.string.until = b.clock + STRING.window;
   const p = b.pop[i]; p.x = dir.x * cut.along; p.y = dir.y * cut.along + cut.lift; p.z = dir.z * cut.along;
+}
+/** The demon a press with no chosen target strikes: the one being cut, unless the crosshair is on a different demon (that is
+ * how a string is broken off on purpose, at any distance); otherwise the usual choice. The target ring shows this same demon. */
+export function pressTarget(b: BanishState, s: ShooterState, player: Vec3) {
+  const kept = stringTarget(b, s, player);
+  if (kept >= 0) { const aimed = crosshairTarget(s); if (aimed < 0 || aimed === kept || b.mode[aimed] >= MODE.down) return kept; }
+  return flowTarget(b, s, player);
+}
+/** Seconds of wind-up for the next cut on demon i from this distance: every cut after the first steps in when the angel is already
+ * on the demon, whether or not the string's window is still open. 0 means a dive (the opener, or a wounded demon far away). */
+export function stepInTime(b: BanishState, i: number, distance: number) {
+  return b.wounds[i] > 0 && !isElite(i) && distance < STRING.reach ? CUTS[cutFor(b, i)].windup : 0;
 }
 export function closeString(b: BanishState, i: number) { b.wounds[i] = 0; if (b.string.target === i) b.string.target = -1; const p = b.pop[i]; p.x = p.y = p.z = 0; }
 /** A wounded demon drifts where the last cut sent it, slowing as it goes: it hangs in the air for the next cut. */

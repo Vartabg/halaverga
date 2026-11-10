@@ -15,7 +15,7 @@ export const strike = { lunge: false, minTime: 0, hold: 0, then: 0, recoil: { x:
 export function beginStrike(target: number, at: Vec3, distance = 0, time = 0) {
   strike.phase = 1; strike.t = 0; strike.primed = false; strike.target = target; strike.landed = false; strike.halt = false; strike.freeze = 0;
   strike.lunge = time > 0; strike.minTime = time; strike.hold = 0;
-  strike.speed = time > 0 ? Math.max(STRIKE.stepIn, (distance - STRIKE.contact * .8) / time)
+  strike.speed = time > 0 ? Math.min(STRIKE.maxSpeed, Math.max(STRIKE.stepIn, (distance - STRIKE.contact * .8) / time))
     : Math.min(STRIKE.maxSpeed, Math.max(STRIKE.minSpeed, distance / STRIKE.dive));
   strike.aim.x = at.x; strike.aim.y = at.y; strike.aim.z = at.z;
 }

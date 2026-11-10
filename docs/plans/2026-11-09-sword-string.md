@@ -1,6 +1,6 @@
 # Design note: the sword string
 
-- **Date**: 2026-11-09. **Branch**: `codex/hermon-war`. **Status**: playable proof, waiting on Garo's feel check. Not reviewed independently yet.
+- **Date**: 2026-11-09. **Branch**: `codex/hermon-war`. **Status**: playable; direction accepted by Garo; code reviewed independently (below). Feel on a real iPhone not yet reported.
 
 ## What Garo said
 
@@ -52,6 +52,26 @@ From the chase camera the arms are hidden by the wings, so the cuts are now told
 - **The casting blow drives the demon into the mountain**: it falls in half a second to the ground or the gorge water below it and ends there, where the existing kill burst is seen, with a ring thrown out flat on the ground and a small shake. Before, it sank 24 m or more below wherever it was and the burst happened under the world.
 - **A beat on the finish**: the angel hangs over the blow for 0.2 s before it is released at speed.
 - **The blade burns wider** through each wind-up.
+
+## Independent code review (2026-11-09)
+
+One reviewer in a fresh conversation, read-only, given the two sword commits, this note and the project rules, with no planning history. It ran nothing. Every finding was checked against the code before a disposition.
+
+| # | Finding | Disposition |
+|---|---|---|
+| 1 | A buffered press with no chosen demon was replayed as an explicit target, so it skipped the string and could dive at another demon. | Fixed: replayed as "no chosen demon"; tested. |
+| 2 | Wounds last 2.6 s but the string's window 1.15 s; a press in the gap was a zero-wind-up dive that landed the same frame. | Fixed: inside 12 m every cut after the first is a step-in with its wind-up (`stepInTime`); tested. |
+| 3 | Within 6 m a press always continued on the wounded demon, so the look-away break-off failed, and the target ring could name another demon than the press hit. | Fixed: `pressTarget` is the one rule (string, unless the crosshair is on another demon); the ring calls it; tested. |
+| 4 | A rebuked wounded demon lost its hold, and one thrown down kept its wounds for good. | Fixed: stays held; `throwDown` ends the string; tested. |
+| 5 | A demon cut during its fly-in jumped along its path on recovery. | Fixed: the fly-in clock waits while it is held; tested. |
+| 6 | A fast second press restarted the twirl mid-turn. | Fixed: the next cut's body move queues behind the one in progress; tested. |
+| 7 | A demon finished after the angel had gone elsewhere left at the floor speed whatever the dive. | Fixed: the dive's own speed is used; tested. |
+| 8 | Gesture Lab Draw strokes steer by velocity, so they could not break a hold. | Fixed in `Player.tsx`. Not exercised in a browser with Draw on. |
+| 9 | Each step-in re-engaged the combat camera (the boom pumped per cut) and a step-in from above left the pilot pitched down. | Fixed in `CameraRig.tsx`: a string is one engagement, and step-ins are framed nearly level. Measured while mashing: weight stays 1.00 through the string, pilot pitch within 0.06 rad. |
+| 10 | Step-in speed was uncapped. | Fixed: capped at the dive's top speed; tested. |
+| 11 | Flashes: the gate is per demon and allows exactly three a second; arcs and rings are not gated. | Not changed. The demon's flash is at the WCAG 2.3.1 limit, not over it; the arcs are thin strokes, far under the general-flash area. Not measured with a flash analyser: a known limit. |
+
+Test gaps the reviewer named (no buffered or untargeted presses, break-off only tested from 40 m) are closed by the tests added with fixes 1 to 3.
 
 ## Accepted, rejected, undecided
 
