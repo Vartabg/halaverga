@@ -7,7 +7,7 @@ import { openSettings } from './lab-browser';
 const settings = async (page: Page, change: () => Promise<void>) => {
   const telemetry = page.getByTestId('flight-telemetry');
   await openSettings(page); await change();
-  await page.getByRole('button', { name: 'Return to arrival terrace' }).click();
+  await page.getByRole('button', { name: 'Return to summit altar' }).click();
   // Closing the panel resumes only once the scene is ready; otherwise the pause screen offers Resume flight. Keys are ignored while paused.
   const playing = page.getByRole('button', { name: 'Pause expedition' }), resume = page.getByRole('button', { name: 'Resume flight' });
   await expect(playing.or(resume)).toBeVisible();
@@ -51,7 +51,7 @@ test('the suit plays its authored flight clips and hands back to the ground', as
   await clip('cruise'); await level('ArrowLeft'); await level('ArrowRight');
   await page.keyboard.press('Shift'); await clip('power'); await page.keyboard.up('KeyW');
   await openSettings(page);
-  await page.getByRole('button', { name: 'Return to arrival terrace' }).click();
+  await page.getByRole('button', { name: 'Return to summit altar' }).click();
   await page.getByRole('button', { name: 'Resume flight' }).click(); // the dialog closes onto the pause card; the reset lands on the first step after Resume
   await expect(telemetry).toHaveAttribute('data-flying', 'false'); await clip('ground');
   expect(errors).toEqual([]);
