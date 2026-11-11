@@ -91,7 +91,7 @@ function struck(b: BanishState, s: ShooterState, i: number, hit: Impact | null, 
   if (!hit || hit.speed < THROWN.thud) return false;
   at.x = hit.x; at.y = hit.y; at.z = hit.z; off.x = hit.x + hit.nx; off.y = hit.y + hit.ny; off.z = hit.z + hit.nz;
   // A shove between demons is drawn dim and does not shake the view: only the mountain takes the full effect.
-  emit(b, FX.impact, i, off, at, Math.round(hit.other < 0 ? hit.speed : Math.min(hit.speed, 15)));
+  emit(b, hit.other < 0 ? FX.impact : FX.shove, i, off, at, Math.round(hit.speed));
   if (hit.other < 0) addTrauma(s.camFx, Math.min(.5, hit.speed / 110) * Math.max(0, 1 - dist(at, player) / 90));
   return hit.other < 0 && hit.ny > .5; // ground or water: a cliff face throws it back, it has not landed
 }

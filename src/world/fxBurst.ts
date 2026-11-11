@@ -6,7 +6,9 @@ import { CURVE_FLAT, CURVE_HOLD, PLUME, killSparkCount, lobeDir, shardGain, shar
 import { FX } from './fxMaterials';
 
 export type BurstPools = { add: Puffs; alpha: Puffs; rings: Puffs; sparks: Sparks };
-export type AddDebris = (c: Vec3, speed0: number, speed1: number, up: number, scale: number, hot: number) => void;
+/** stone: a chip of the mountain, not a piece of a demon: stone colours, gone in under a second, and a water ring only if it
+ *  reaches water by then. */
+export type AddDebris = (c: Vec3, speed0: number, speed1: number, up: number, scale: number, hot: number, stone?: boolean) => void;
 /** The dawn wind (m/s): kill smoke drifts with the falling motes. */
 export const WIND: Vec3 = { x: DRIFT.wind[0], y: 0, z: DRIFT.wind[1] };
 /** Lingering smoke: three dark puffs that climb slowly, spread and thin over 2.6 s, so the drone's absence is felt after the fire. */

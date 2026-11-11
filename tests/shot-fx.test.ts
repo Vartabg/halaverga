@@ -164,7 +164,7 @@ describe('events', () => {
 });
 describe('source guard', () => {
   it('the effect modules never call Math.random', () => {
-    for (const f of ['ShotFx.tsx', 'ImpactFx.tsx', 'fxPools.ts', 'fxMaterials.ts', 'fxShaders.ts', 'fxBurst.ts', 'fxImpacts.ts'])
+    for (const f of ['ShotFx.tsx', 'ImpactFx.tsx', 'fxPools.ts', 'fxMaterials.ts', 'fxShaders.ts', 'fxBurst.ts', 'fxImpacts.ts', 'fxSlam.ts'])
       expect(readFileSync(new URL('../src/world/' + f, import.meta.url), 'utf8')).not.toContain('Math.random');
   });
 });
@@ -471,6 +471,6 @@ describe('kill and hit effect shapes (no squares, no slabs)', () => {
     expect(impact).not.toMatch(/setScalar\(db/);
     const kit = readFileSync(new URL('../src/world/fxMaterials.ts', import.meta.url), 'utf8');
     expect(kit).not.toMatch(/\bBoxGeometry\b/);
-    for (const f of ['fxMaterials.ts', 'fxPools.ts', 'fxShaders.ts', 'fxBurst.ts', 'fxImpacts.ts', 'ImpactFx.tsx']) expect(readFileSync(new URL('../src/world/' + f, import.meta.url), 'utf8').split('\n').length).toBeLessThan(200);
+    for (const f of ['fxMaterials.ts', 'fxPools.ts', 'fxShaders.ts', 'fxBurst.ts', 'fxImpacts.ts', 'fxSlam.ts', 'ImpactFx.tsx']) expect(readFileSync(new URL('../src/world/' + f, import.meta.url), 'utf8').split('\n').length).toBeLessThan(200);
   });
 });

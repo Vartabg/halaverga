@@ -12,10 +12,13 @@ import { burstGain, claim, debrisAt, drawSparks, impactDelay, isShotKind, lobeDi
 import { FX, commit, debrisPool, disposePool, drawPuffs, fxKit, hideSprite, place, placeOnSurface, retainFx, ringPool, sparkMinPx, sparkPool, spritePool, tint } from './fxMaterials';
 import { SCORCH, burstSparks, damageStage, spawnBreak, spawnFail, spawnImpact, trailDrone, waterRing, type TrailClock } from './fxImpacts';
 import { spawnKillBurst, spawnPreBurst } from './fxBurst';
+import { spawnSlam } from './fxSlam';
+import { banish, FX as HIT } from '@/game/banishState';
+import { heightAt } from './massifData';
 // ALPHA holds the kill plume and lingering smoke beside up to 8 damaged-drone trails without evicting them. RINGS: water rings from
 // nine landing pieces plus the shockwave. Debris per slot: born, end, p0 xyz, v0 xyz, spin xyz, rot0 xyz, scale, wet, hot, next trail.
 const SPARKS = 200, ADD = 32, ALPHA = 64, RINGS = 12, DEBRIS = 32, SCORCHES = 12, DB = 18, PD = 11, SC = 9, UP = { x: 0, y: 1, z: 0 };
-const HEAT_T = .6, EMBER_T = .55, TRAIL_T = .45, TRAIL_GAP = .05;
+const HEAT_T = .6, EMBER_T = .55, TRAIL_T = .45, TRAIL_GAP = .05, NEAR = .9;   // NEAR: a demon's body radius (m)
 const TINTS = [FX.metal, FX.panel, FX.rust], m4 = new Matrix4(), q = new Quaternion(), eu = new Euler(), vp = new Vector3(), vs = new Vector3();
 
 function createImpactFx() {
@@ -32,7 +35,7 @@ function createImpactFx() {
   // Scorch marks: born, x, y, z, nx, ny, nz, size, (spare); oldest-slot reuse.
   const sc = new Float64Array(SCORCHES * SC), scLive = new Uint8Array(SCORCHES), scRing: Ring = { next: 0, size: SCORCHES };
   const trails: TrailClock = { smoke: new Float64Array(MAX_DRONES), spark: new Float64Array(MAX_DRONES), glow: new Float64Array(MAX_DRONES) }, rng = mulberry32(0x1a2b3c);
-  const cursor = { last: runtime.shooter.eventSerial }, p = { x: 0, y: 0, z: 0 }, n = { x: 0, y: 1, z: 0 }, dir = { x: 0, y: 0, z: 0 };
+  const cursor = { last: runtime.shooter.eventSerial }, seen = { fx: banish.fxSerial }, p = { x: 0, y: 0, z: 0 }, n = { x: 0, y: 1, z: 0 }, dir = { x: 0, y: 0, z: 0 };
   const v = { x: 0, y: 0, z: 0 }, at = { x: 0, y: 0, z: 0 }, pos = { x: 0, y: 0, z: 0 }, col = { r: 0, g: 0, b: 0 }, size = { x: 0, y: 0 }, sh = { x: 1, y: 1, z: 1 };
   const cam = { x: 0, y: 0, z: 0, fov: 65, h: 800 };
   let reduced = false, t = 0, emberGain = 1, emberUntil = 0, popAllowed = false;
@@ -42,13 +45,14 @@ function createImpactFx() {
     const i = claim(scRing), o = i * SC;
     sc[o] = t; sc[o + 1] = c.x; sc[o + 2] = c.y; sc[o + 3] = c.z; sc[o + 4] = nrm.x; sc[o + 5] = nrm.y; sc[o + 6] = nrm.z; sc[o + 7] = s * (.85 + .3 * rng()); scLive[i] = 1;
   };
-  const addDebris = (c: Vec3, speed0: number, speed1: number, up: number, scale: number, hot = 0) => {
+  const addDebris = (c: Vec3, speed0: number, speed1: number, up: number, scale: number, hot = 0, stone = false) => {
     const i = claim(dbRing), o = i * DB, a = 2 * Math.PI * rng(), el = (rng() - .3) * .9, s = speed0 + (speed1 - speed0) * rng();
     v.x = Math.cos(el) * Math.cos(a) * s; v.y = Math.sin(el) * s + up; v.z = Math.cos(el) * Math.sin(a) * s;
-    const hit = waterContactTime(c, v, WATER_LEVEL), end = Math.min(2.5, hit);
+    const hit = waterContactTime(c, v, WATER_LEVEL), life = stone ? .9 : 2.5, end = Math.min(life, hit);
     db[o] = t; db[o + 1] = end; db[o + 2] = c.x; db[o + 3] = c.y; db[o + 4] = c.z; db[o + 5] = v.x; db[o + 6] = v.y; db[o + 7] = v.z;
     for (let k = 0; k < 3; k++) { db[o + 8 + k] = (3 + 6 * rng()) * (rng() < .5 ? -1 : 1); db[o + 11 + k] = 2 * Math.PI * rng(); }
-    db[o + 14] = scale; db[o + 15] = hit <= 2.5 ? 1 : 0; db[o + 16] = hot; db[o + 17] = t; dbLive[i] = 1; tint(debris, i, TINTS[shardTint(i)], 1);
+    db[o + 14] = scale; db[o + 15] = hit <= life ? 1 : 0; db[o + 16] = hot; db[o + 17] = t; dbLive[i] = 1; tint(debris, i, TINTS[shardTint(i)], 1);
+    if (stone) tint(debris, i, i & 1 ? FX.stone : FX.earth, 1);   // a chip of the mountain, in its own colours
   };
   const onEvent = (e: ShotEvent) => {
     if (e.kind === 'break') { addDebris(e.point, 2, 4, 2, shardK(.75, shardGain(gainAt(e.point)))); burstSparks(sp, t, e.point, UP, reduced ? 4 : 8, rng); spawnBreak(pools, t, e.point, gainAt(e.point)); return; }
@@ -126,6 +130,17 @@ function createImpactFx() {
     cam.x = pc.position.x; cam.y = pc.position.y; cam.z = pc.position.z; cam.fov = pc.fov || 65; cam.h = st.size.height || 800;
     t = s.clock; reduced = useGame.getState().reduced;
     readEvents(s, cursor, onEvent);
+    // The fight's own strikes (banishState): dust, chips and spray where a thrown demon lands, and sparks where the blade connects,
+    // thrown back off the side of the demon that faces the angel (its far side and its inside are out of sight).
+    for (let k = Math.max(seen.fx + 1, banish.fxSerial - banish.fx.length + 1); k <= banish.fxSerial; k++) {
+      const e = banish.fx[(k - 1) % banish.fx.length], x = e.to.x - e.from.x, y = e.to.y - e.from.y, z = e.to.z - e.from.z, l = Math.hypot(x, y, z) || 1;
+      if (e.kind === HIT.impact) { n.x = -x / l; n.y = -y / l; n.z = -z / l; spawnSlam(pools, addDebris, t, e.to, n, e.n, WATER_LEVEL, heightAt(e.to.x, e.to.z), gainAt(e.to), rng, reduced); }
+      else if (e.kind === HIT.sword) {
+        dir.x = -x / l; dir.y = -y / l; dir.z = -z / l; p.x = e.to.x + dir.x * NEAR; p.y = e.to.y + dir.y * NEAR; p.z = e.to.z + dir.z * NEAR;
+        burstSparks(sp, t, p, dir, reduced ? 3 : 7 + 4 * e.n, rng);
+      }
+    }
+    seen.fx = banish.fxSerial;
     for (let i = 0; i < EVENT_RING; i++) {
       const o = i * PD;
       if (!pendLive[i] || t < pend[o]) continue;

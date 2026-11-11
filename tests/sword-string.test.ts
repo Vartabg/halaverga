@@ -144,6 +144,14 @@ describe('the sword string', () => {
     expect(b.mode[0]).toBe(MODE.cast); expect(b.hit[0]).toBe(0);
     stepBanish(b, s, near, 1 / 60); expect(b.mode[0]).toBe(MODE.cast); expect(s.stats.kills).toBe(0);
   });
+  it('marks a shove between demons as its own, dimmer effect: no dust, no shake', () => {
+    const { s, b, run } = setup(), f = s.drones;
+    Object.assign(f.pos[0], { x: 0, y: 60, z: 0 }); Object.assign(f.pos[1], { x: 0, y: 59.5, z: -1.3 });
+    b.wounds[0] = 1; b.mode[0] = MODE.staggered; b.timer[0] = 2; f.held[0] = 1; Object.assign(b.vel[0], { x: 0, y: 0, z: -30 });
+    s.camFx.trauma = 0; run(.1);
+    expect(b.fx.some(e => e.kind === FX.shove && e.serial > 0)).toBe(true); expect(b.fx.some(e => e.kind === FX.impact && e.serial > 0)).toBe(false);
+    expect(s.camFx.trauma).toBe(0);
+  });
   it('makes the demon carry each wound differently, and straightens it when it recovers', () => {
     const { s, b, near, run } = setup();
     landCut(b, s, 0, near); run(.4);

@@ -46,6 +46,33 @@ The player presses the same controls as before. What changes is what the world d
 - Fire is a shader that climbs the blade and flares on a cut.
 - The blade leaves a trail of its real path: its edge from guard to point, sampled every frame against the angel's own position, so a twirl or a flip draws the arc the blade actually made. A straight dive draws none.
 
+**Dust, chips and spray where a thrown demon strikes (`src/world/fxSlam.ts`, added after Garo said "Yes, build it" to it, 2026-11-10).**
+
+- On the ground: a cloud of pale stone dust that stays about two seconds, a fast burst of darker earth, a plume thrown up, a skirt of eight puffs thrown outward, eight chips of rock and a few embers.
+- On a cliff face: a smaller cloud pushed off the rock, four puffs and four chips.
+- In the gorge water: a column of spray, a low crown, eight jets thrown outward and three widening rings. No rock.
+- Size follows how hard it struck (0.8 to 1.4, full at 30 m/s). A shove between two demons raises nothing and now has its own quiet sound.
+- Sparks now fly where the blade connects, more with each cut of the string.
+- Reduced motion: one still cloud (two on water), no chips, no rings.
+- No new draw calls: it uses the existing five effect pools.
+
+Two things found on screen while building it, both by looking at captured frames, not by tests:
+
+1. A puff centred on the ground or the water had the half that carries its body cut away by the surface, so only a faint rim showed. Every puff now stands on the surface and climbs as it grows (`SLAM.sit`).
+2. The shared soft disc is mostly faint edge, so clouds read as haze. The sprite shader now takes an alpha above 1 as a density that fills the middle in solid. Effects that already existed use 1 or less and draw as before.
+
+Seen in a desktop browser: the splash in the gorge, and the ground recipe drawn at the same spot through a temporary switch that was removed before commit. Not seen: dust on the pale slopes, a cliff strike, or any of it on a phone.
+
+Independent review of the dust and spray (2026-11-10): one reviewer in a fresh conversation, read-only, given the uncommitted diff and the project rules. It ran nothing. It found no crash, no bad number, no fault in the event reading and no change to any effect that existed before. Each finding was checked against the code.
+
+| # | Finding | Disposition |
+|---|---|---|
+| 1 | Sword sparks were born at the demon's centre and thrown away from the camera, so most stayed inside or behind the body. | Fixed: they leave the side of the demon that faces the angel, toward the angel. Seen in a browser as small points at the cut. |
+| 2 | Water beside a bank drew as ground (dust and rock on the water), because the bank tilts the surface normal; a level shore just above the water line drew a splash on dry land. | Fixed: the surface is told apart by the height of the mountain under the strike, not by the normal. Tested for both cases. |
+| 3 | Rock chips used the demons' metal colours, and chips that fell through the ground made water rings under the mountain, using up the ring pool. | Fixed: chips take the stone and earth colours, live under a second, and ring only if they reach water in that time. Left as is: chips fly every way, so about half of a cliff's chips go into the rock; six are thrown there. |
+| 4 | Tests matched source text only, covered a level surface only, and did not cover the shader change. | Added: the cliff case (clouds stand off the face, the skirt leaves it and spreads along it), the bank and shore cases, stone chips, and the shader's two spliced lines. The effect files are now in the no-`Math.random` and 200-line guards. The reading of events in `ImpactFx.tsx` is still pinned by text only. |
+| 5 | Clouds draw in slot order with no depth sort, so a later far cloud can paint over a nearer earlier one. | Not fixed: a known limit, rare in a sword fight (strikes are near each other and seconds apart). |
+
 ## Independent code review (2026-11-10)
 
 One reviewer in a fresh conversation, read-only, given the commit, this note and the project rules, with no planning history. It ran nothing. Each finding was checked against the code.
@@ -68,13 +95,14 @@ One reviewer in a fresh conversation, read-only, given the commit, this note and
 
 - **Accepted by Garo**: the three-cut string as the direction (2026-11-09); "looks better" (2026-11-10); the setting stays the air over Hermon ("Air on Hermon", 2026-11-10).
 - **Rejected by Garo**: fights with "no game engine mechanics" and no "sense of realism" in flight, attack and the sword's look.
+- **Asked for by Garo**: dust and splashes on impact ("Yes, build it", 2026-11-10). He has not seen the result.
 - **Undecided**: everything in this note. Whether hits should throw demons this far; whether wardens should be physical too; how strong the streaks should be; whether the angel should take knock-back.
 
 ## Known limits
 
 - Collisions are with the terrain and water only. Standing stones, the rock arch and the village are not collided with, and the height sampler is smooth where the drawn mountain is faceted, so a demon can rest a little above or below a facet.
 - No ragdoll: a thrown demon tumbles as a rigid body with its existing hit and fall poses.
-- No dust, splash or debris particles on impact yet; the ring, the existing burst, sound and shake carry it.
+- The dust and spray are soft discs, not simulated: they do not light, cast shadow or flow round rocks. Clouds are not depth-sorted against each other.
 - One sword animation (unchanged from the last note).
 - Draw calls: up to four more (streaks, two vapour trails, sword trail), each only while visible.
-- Not checked on a physical iPhone. Checked: 2,594 unit tests, and 31 browser tests (accessibility, flight, fight) on desktop and emulated phone sizes.
+- Not checked on a physical iPhone. Checked: 2,613 unit tests, and the browser gate set (accessibility, flight, fight) on desktop and emulated phone sizes.

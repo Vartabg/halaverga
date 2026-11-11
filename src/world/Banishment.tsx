@@ -27,7 +27,7 @@ function pool(geometry: BufferGeometry, n: number) {
   mesh.instanceColor!.setUsage(DynamicDrawUsage); mesh.count = 0; return mesh;
 }
 type Slot = { kind: number; t: number; from: Vec3; to: Vec3; drone: number; n: number };
-const ACTIVE = 12, LIFE: Record<number, number> = { [FX.rebuke]: .55, [FX.sword]: .48, [FX.armor]: .7, [FX.seal]: .9, [FX.impact]: .55, [FX.bind]: .5, [FX.down]: .5, [FX.cast]: .4 };
+const ACTIVE = 12, LIFE: Record<number, number> = { [FX.rebuke]: .55, [FX.sword]: .48, [FX.armor]: .7, [FX.seal]: .9, [FX.impact]: .55, [FX.shove]: .4, [FX.bind]: .5, [FX.down]: .5, [FX.cast]: .4 };
 
 export default function Banishment() {
   const parts = useMemo(() => ({
@@ -71,10 +71,10 @@ export default function Banishment() {
         q.copy(camera.quaternion).multiply(tilt); sc.set(2.3 * grow, 1.15 * grow, 1);
         const tint = slot.kind === FX.armor ? c.copy(GOLD) : c.copy(FIRE).lerp(PALE, slot.n * .28);
         parts.arcs.setMatrixAt(arcs, m4.compose(at, q, sc)); parts.arcs.setColorAt(arcs++, tint.multiplyScalar(fade * (1.7 + .5 * slot.n)));
-      } else if (slot.kind === FX.impact) {
+      } else if (slot.kind === FX.impact || slot.kind === FX.shove) {
         // A thrown demon struck: a ring thrown out across the surface it hit (flat on the ground, upright on a cliff face),
         // wider and brighter the harder the strike. slot.n is the speed of the contact.
-        const hard = Math.min(1, slot.n / 70);
+        const hard = slot.kind === FX.shove ? .2 : Math.min(1, slot.n / 70); // a shove between demons stays dim
         at.set(slot.to.x, slot.to.y, slot.to.z); look.set(slot.from.x - slot.to.x, slot.from.y - slot.to.y, slot.from.z - slot.to.z).normalize();
         q.setFromUnitVectors(Z, look); sc.setScalar(reduced ? 1.5 + hard * 2 : .8 + (2 + hard * 7) * (1 - (1 - u) ** 3));
         parts.rings.setMatrixAt(rings, m4.compose(at, q, sc)); parts.rings.setColorAt(rings++, c.copy(PALE).lerp(GOLD, hard).multiplyScalar(fade * (.7 + hard)));

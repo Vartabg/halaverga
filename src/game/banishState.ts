@@ -14,8 +14,8 @@ export const BANISH = { resistance: 6, rebukeRange: 70, swordReach: 70, bindRang
   recover: 3, castTime: 1.1, castRest: .4, aimSlack: .08 } as const;
 export const MODE = { free: 0, staggered: 1, down: 2, bound: 3, cast: 4 } as const;
 /** Effect kinds the renderer and HUD read from the ring. */
-/** impact: a thrown demon struck the mountain, the water or another demon (n: the speed of the contact, m/s). */
-export const FX = { rebuke: 1, sword: 2, bind: 3, cast: 4, seal: 5, quench: 6, down: 7, armor: 8, impact: 9 } as const;
+/** impact: a thrown demon struck the mountain or the water. shove: it struck another demon. n: the speed of the contact, m/s. */
+export const FX = { rebuke: 1, sword: 2, bind: 3, cast: 4, seal: 5, quench: 6, down: 7, armor: 8, impact: 9, shove: 10 } as const;
 export type Cue = '' | 'far' | 'notDown' | 'notBound' | 'noTarget' | 'guarded';
 /** n: for a sword effect, which cut of the string landed (swordString.CUTS). */
 export type BanishFx = { serial: number; kind: number; t: number; drone: number; from: Vec3; to: Vec3; n: number };

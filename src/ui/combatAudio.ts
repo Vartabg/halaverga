@@ -3,6 +3,7 @@ import { audioBus } from './audioBus';
 /** Layer the existing capped/mutable voice bus: armor rings, contact has weight, the closing seal has a lower tail. */
 export function combatAudio(kind: number, elite: boolean, chain: number, guarded = false, cut = 2) {
   // A thrown demon striking the mountain: a thud by how hard, with a crack on the hardest (cut carries the contact speed).
+  if (kind === FX.shove) { audioBus.play('hit', { gain: .45 }); return; }
   if (kind === FX.impact) { audioBus.play('world', { gain: Math.min(.9, .2 + cut / 80) }); if (cut > 40) audioBus.play('blocked', { gain: .5 }); return; }
   if (kind === FX.sword && guarded) return;
   if (kind === FX.armor) { audioBus.play('steel', { gain: .8 }); audioBus.play('hit', { gain: .45 }); }
