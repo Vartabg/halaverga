@@ -2,10 +2,14 @@ import { BoxGeometry, Color, Float32BufferAttribute, Matrix4, Quaternion, Euler,
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { INK, INK_GROUP } from './paintInk';
 import { megalithGeometry } from './megalithGeometry';
+import type { Stone } from '@/game/obstacles';
 export type Triple = [number, number, number];
 /** `building` marks a core's exterior volume; `frame` is bare ruin steel, which the chase camera's boom looks through (City.tsx). */
 export type Solid = { position: Triple; size: Triple; rotation: Triple; kind?: 'building' | 'frame' };
 export type Kit = ReturnType<typeof createKit>;
+/** A megalith's radii name the circle its seven corners stand on. The stone itself (flat between corners, chipped, fluted) lies
+ * inside that circle: on average this share of it, which is what a thrown body strikes (game/obstacles.ts). */
+export const STONE_FIT = .92;
 export const surfaces = ['stone', 'glass', 'metal', 'ground', 'paint', 'calm', 'ink'] as const;
 /** The calm group (index into `surfaces`): the stone texture with its marbling halved, for big plain concrete faces, so the district-edge
  * hills and the terrace parapets read as weathered concrete and not as slabs of marble. */
@@ -19,6 +23,8 @@ export function surface(color: string) {
 }
 export function createKit() {
   const pieces: BufferGeometry[][] = surfaces.map(() => []), solids: Solid[] = [];
+  /** Every megalith as it is drawn, for what a thrown body strikes (game/obstacles.ts). */
+  const stones: Stone[] = [];
   /** `shade` (optional) gives a vertex its colour from its world position and normal; otherwise the whole piece is `color`. */
   function add(g: BufferGeometry, color: string, lift = 1, shade?: (p: Vector3, n: Vector3) => Color, group?: number) {
     const c = new Color(color).multiplyScalar(lift), p = g.attributes.position, n = g.attributes.normal, uv = g.attributes.uv;
@@ -95,6 +101,7 @@ export function createKit() {
   function pillar(x: number, y: number, z: number, h: number, rTop: number, rBot: number, seed: number, ry: number,
     lift = 1, flute = { depth: .05, course: 3.2 }) {
     const source = megalithGeometry(h, rTop, rBot, seed), p = source.attributes.position;
+    stones.push({ x, y, z, h, top: rTop * STONE_FIT, bottom: rBot * STONE_FIT });
     for (let i = 0; i < p.count; i++) {
       const vy = p.getY(i), vx = p.getX(i), vz = p.getZ(i), r = Math.hypot(vx, vz);
       if (r > 1e-3) {
@@ -117,7 +124,7 @@ export function createKit() {
       return base.lerp(new Color(INK.cap), snowCap * 0.85).multiplyScalar(warm);
     }, INK_GROUP);
   }
-  return { box, hill, block, slab, pillar, add, finish, solids };
+  return { box, hill, block, slab, pillar, add, finish, solids, stones };
 }
 /** Basalt, gilded limestone, worked bronze and snow-alabaster pigments for the Hermon massif. */
 export const colors = { concrete: '#7d738c', edge: '#282136', glass: '#241e33', warm: '#c47d4e',

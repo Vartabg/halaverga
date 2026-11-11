@@ -38,5 +38,5 @@ export function makeCity() {
   }
   STELE.forEach(s => placeStele(k, s));
   const finished = k.finish();
-  return { ...finished, terrains, triangles: terrains.reduce((sum, t) => sum + t.triangles, 0) };
+  return { ...finished, stones: k.stones, terrains, triangles: terrains.reduce((sum, t) => sum + t.triangles, 0) };
 }

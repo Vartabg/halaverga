@@ -17,10 +17,11 @@ export const SLAM = { full: 30, dust: 8, chips: 8, rings: 3, embers: 6, throw: 3
 /** 0.8 to 1.4: how big a strike at this speed reads. The floor is high on purpose: the slowest strike that counts (THROWN.thud)
  *  still has to read from the air. */
 export const slamSize = (speed: number) => Math.min(1.4, Math.max(.8, speed / SLAM.full));
-/** Which surface took the strike, from the height of the mountain under it (`floor`, heightAt) and how level the surface is: a
- *  cliff face, the gorge water (no mountain above the water line there, even beside a bank that tilts the normal), or the ground. */
-export const slamSurface = (floor: number, ny: number, water: number): 'water' | 'wall' | 'ground' =>
-  ny <= .5 ? 'wall' : floor <= water ? 'water' : 'ground';
+/** Which surface took the strike, from the height of the mountain under it (`floor`, heightAt), how level the surface is and how
+ *  high the strike was (`y`): a cliff face or the side of a standing stone, the gorge water (no mountain above the water line there,
+ *  even beside a bank that tilts the normal), or the ground. The top of a stone or of the arch is ground, even over the water. */
+export const slamSurface = (floor: number, ny: number, water: number, y = floor): 'water' | 'wall' | 'ground' =>
+  ny <= .5 ? 'wall' : floor <= water && y <= water + .5 ? 'water' : 'ground';
 const at: Vec3 = { x: 0, y: 0, z: 0 }, v: Vec3 = { x: 0, y: 0, z: 0 }, dir: Vec3 = { x: 0, y: 0, z: 0 }, spark = { speed: 0, life: 0 };
 const UP: Vec3 = { x: 0, y: 1, z: 0 };
 
@@ -38,7 +39,7 @@ function stand(p: Puffs, t: number, c: Vec3, n: Vec3, up: number, life: number, 
  *  with the distance gain g. Reduced motion: still clouds only. */
 export function spawnSlam(p: BurstPools, addDebris: AddDebris, t: number, c: Vec3, n: Vec3, speed: number, water: number, floor: number, g: number,
   rng: () => number, reduced: boolean) {
-  const k = Math.min(1.8, slamSize(speed) * Math.max(1, g)), kind = slamSurface(floor, n.y, water);
+  const k = Math.min(1.8, slamSize(speed) * Math.max(1, g)), kind = slamSurface(floor, n.y, water, c.y);
   if (kind === 'water') {
     // A column of spray thrown straight up, a low crown of it around the foot, a skirt thrown outward, and rings running out.
     dir.x = c.x; dir.y = water; dir.z = c.z;

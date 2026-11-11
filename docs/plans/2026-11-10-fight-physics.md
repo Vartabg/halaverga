@@ -73,6 +73,20 @@ Independent review of the dust and spray (2026-11-10): one reviewer in a fresh c
 | 4 | Tests matched source text only, covered a level surface only, and did not cover the shader change. | Added: the cliff case (clouds stand off the face, the skirt leaves it and spreads along it), the bank and shore cases, stone chips, and the shader's two spliced lines. The effect files are now in the no-`Math.random` and 200-line guards. The reading of events in `ImpactFx.tsx` is still pinned by text only. |
 | 5 | Clouds draw in slot order with no depth sort, so a later far cloud can paint over a nearer earlier one. | Not fixed: a known limit, rare in a sword fight (strikes are near each other and seconds apart). |
 
+**Standing stones and the rock arch are solid to a thrown demon (`src/game/obstacles.ts`, `src/world/archData.ts`; Garo said "Yes, build it", 2026-11-10).**
+
+- A thrown demon now strikes the megaliths and the arch across the gorge: it stops at the face, is thrown back or turned aside, and dust and chips come off the rock. Dropped on top of one, it lands there.
+- The collider is the drawn stone. The call that builds each megalith records it, and the mountain hands the list to the game when it mounts. The arch's mesh and its collider read one set of numbers.
+- A stone is treated as a round shaft that narrows toward the top, fitted to 92 percent of the circle its corners stand on; the arch as a swept ellipse with rounded ends. The drawn rock is faceted and chipped, so a contact can be up to about a third of a metre off the visible face.
+- For thrown demons only. The angel still flies through the shafts: colliders there change the flight-escape routes that the `limit-escape` tests record, so that is its own task.
+- The gorge under the arch stays open.
+
+Found by its own tests while building: a body resting on top of a shaft kept answering as "touching the shaft", so the crown stone standing on that shaft was never looked at and the body was left inside it. A ball already moved out to a surface no longer counts as inside it.
+
+Independent review of the collisions (2026-11-10, one reviewer, fresh conversation, read-only; it replayed the code in memory). The terrain path is bit-identical to before with no stones. Its findings, each checked: (1) with other random seeds a body could end a step inside rock in the notch between two stones or under the arch at its bank: fixed, a wedged body stays where the step began, and the test now runs eight seeds (40 more passed once by hand); (2) the collider was fatter than the drawn stone: fitted to 92 percent; (3) the arch's west end threw a sliding body up a 1.5 m step: its ends are rounded; (4) a body that began inside a shaft was thrown out in one frame: it is now let out at its own speed; (5) square shoulders on a stone's head and level sides on a leaning stone: the rim is round and the side leans. The browser gate (31 tests) passed before these review fixes and was NOT re-run after them; unit tests, typecheck and build were.
+
+Seen in a desktop browser through a temporary throw switch (removed before commit), before the review fixes: a demon stopping at the west megalith with the ring and dust on the stone, and a demon striking the arch, then falling into the water below. Not seen: a landing on top of a stone, or any of it on a phone.
+
 ## Independent code review (2026-11-10)
 
 One reviewer in a fresh conversation, read-only, given the commit, this note and the project rules, with no planning history. It ran nothing. Each finding was checked against the code.
@@ -95,12 +109,12 @@ One reviewer in a fresh conversation, read-only, given the commit, this note and
 
 - **Accepted by Garo**: the three-cut string as the direction (2026-11-09); "looks better" (2026-11-10); the setting stays the air over Hermon ("Air on Hermon", 2026-11-10).
 - **Rejected by Garo**: fights with "no game engine mechanics" and no "sense of realism" in flight, attack and the sword's look.
-- **Asked for by Garo**: dust and splashes on impact ("Yes, build it", 2026-11-10). He has not seen the result.
+- **Asked for by Garo**: dust and splashes on impact, then solid standing stones and arch for thrown demons ("Yes, build it" to each, 2026-11-10). He has not judged either.
 - **Undecided**: everything in this note. Whether hits should throw demons this far; whether wardens should be physical too; how strong the streaks should be; whether the angel should take knock-back.
 
 ## Known limits
 
-- Collisions are with the terrain and water only. Standing stones, the rock arch and the village are not collided with, and the height sampler is smooth where the drawn mountain is faceted, so a demon can rest a little above or below a facet.
+- Thrown demons collide with the terrain, the water, the megaliths and the arch. Not with the village houses, the cedars or the small plinth and crown blocks. The angel does not collide with the megalith shafts. The height sampler is smooth where the drawn mountain is faceted, so a demon can rest a little above or below a facet.
 - No ragdoll: a thrown demon tumbles as a rigid body with its existing hit and fall poses.
 - The dust and spray are soft discs, not simulated: they do not light, cast shadow or flow round rocks. Clouds are not depth-sorted against each other.
 - One sword animation (unchanged from the last note).
