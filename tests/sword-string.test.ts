@@ -6,7 +6,7 @@ import { FX, MODE, createBanish, resetBanish, stepBanish } from '../src/game/ban
 import { resetBattle } from '../src/game/celestialBattle';
 import { flowPaths, flowVisible } from '../src/game/combatFlow';
 import { STRIKE, cancelStrike, strike, strikeVelocity } from '../src/game/strike';
-import { CUTS, LAST, REEL, STRING, cutFor, pressTarget, stepInTime, stringOpen, stringTarget } from '../src/game/swordString';
+import { CUTS, LAST, REEL, STRING, cutFor, powerOf, pressTarget, stepInTime, stringOpen, stringTarget } from '../src/game/swordString';
 import { advanceDrones, createDroneContext } from '../src/game/drones';
 import { castDuration } from '../src/game/encounter';
 import { restingHeight } from '../src/game/wardenElevation';
@@ -79,7 +79,7 @@ describe('the sword string', () => {
     const far = { x: near.x, y: near.y, z: near.z + 30 }; s.aim.origin = { ...far }; s.aim.dir = { x: 0, y: 0, z: 1 }; // looking away
     expect(stringTarget(b, s, far)).toBe(-1);
   });
-  it('gives back on the casting blow the speed the opener arrived with, leaving the way the angel looks', () => {
+  it('releases the angel over the casting blow, at rest: the string ends where it hit, however fast the opener came in', () => {
     const { s, b, near } = setup();
     settle(near); requestCommand(s, COMMAND.sword, 0); stepBanish(b, s, near, 1 / 60);
     strikeVelocity({ x: 0, y: 0, z: -110 }, near, .05, false); // a fast dive in
@@ -87,13 +87,15 @@ describe('the sword string', () => {
     stepBanish(b, s, { ...s.targets[0].c }, 1 / 60); expect(b.string.speed).toBeGreaterThan(100);
     landCut(b, s, 0, near); s.aim.dir = { x: 1, y: 0, z: 0 };
     landCut(b, s, 0, near);
-    // It hangs over the blow for a beat, held even against flight input, then is released.
-    expect(strike.hold).toBe(STRING.finish); expect(strike.dir.x).toBeCloseTo(1, 5);
+    // The arrival speed goes into the demon, not into the angel.
+    expect(Math.hypot(b.vel[0].x, b.vel[0].z)).toBeCloseTo(CUTS[LAST].along * powerOf(b.string.speed || 110), 0);
+    // It hangs over the blow for a beat, held even against flight input, then is released there with no speed at all.
+    expect(strike.hold).toBe(STRING.finish); expect(strike.last).toBe(true);
     const v = { x: 0, y: 0, z: 0 }; strikeVelocity(v, near, .2, false, true); strikeVelocity(v, near, STRING.finish - .05, false, true);
     expect(strike.phase).toBe(2); expect(Math.hypot(v.x, v.y, v.z)).toBeLessThan(4);
-    strikeVelocity(v, near, .1, false, true); strikeVelocity(v, near, 1 / 60, false, true);
-    expect(strike.hold).toBe(0); expect(strike.carrySpeed).toBeGreaterThan(80); expect(strike.carrySpeed).toBeLessThanOrEqual(90);
-    expect(v.x).toBeGreaterThan(75); expect(STRIKE.exitSpeed).toBeLessThan(strike.carrySpeed);
+    strikeVelocity(v, near, .1, false, true);
+    expect(strike.phase).toBe(0); expect(strike.hold).toBe(0); expect(strike.last).toBe(false); expect(Math.hypot(v.x, v.y, v.z)).toBe(0);
+    expect(strikeVelocity(v, near, 1 / 60, false, true)).toBe(false);
   });
   it('drives the demon into the ground with the casting blow: it flies there, strikes, lies a moment and is gone', () => {
     const { s, b, near, run } = setup();
@@ -223,7 +225,8 @@ describe('the sword string', () => {
     settle(near); requestCommand(s, COMMAND.sword, 0); stepBanish(b, s, { ...near, z: near.z + 40 }, 1 / 60);
     expect(strike.lunge).toBe(false); // too far for a step-in: a dive
     strikeVelocity({ x: 0, y: 0, z: -100 }, near, .05, false); const speed = strike.speed;
-    stepBanish(b, s, { ...s.targets[0].c }, 1 / 60); expect(strike.then).toBeCloseTo(Math.min(90, speed * .85), 3);
+    stepBanish(b, s, { ...s.targets[0].c }, 1 / 60); expect(strike.last).toBe(true);
+    expect(Math.hypot(b.vel[0].x, b.vel[0].z)).toBeCloseTo(CUTS[LAST].along * powerOf(speed), 0); // thrown by the dive's own speed (one step of air since)
     cancelStrike(); b.wounds[1] = 1; requestCommand(s, COMMAND.sword, 1); const c = s.targets[1].c;
     stepBanish(b, s, { x: c.x, y: c.y, z: c.z + STRING.reach - .5 }, 1 / 60);
     expect(strike.lunge).toBe(true); expect(strike.speed).toBeLessThanOrEqual(STRIKE.maxSpeed);

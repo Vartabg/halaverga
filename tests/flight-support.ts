@@ -7,7 +7,9 @@ export async function flyTo(page: Page, destination: Point, radius = 5) {
     for (let n = 0; n < 190; n++) {
       const p = JSON.parse((await t.getAttribute('data-position'))!) as Point;
       const x = destination[0] - p[0], y = destination[1] - p[1], z = destination[2] - p[2];
-      if (Math.hypot(x, y, z) < radius) break;
+      // Brake is a flare over a distance (momentumFlight FLIGHT.brake 26 + .02 v^2): start it that far out, to stop at the mark.
+      const pace = Number(await t.getAttribute('data-speed')), stop = 25 * Math.log(1 + pace * pace / 1300);
+      if (Math.hypot(x, y, z) < radius + stop) break;
       const yaw = Number(await t.getAttribute('data-heading')), pitch = Number(await t.getAttribute('data-pitch'));
       const dy = Math.atan2(Math.sin(Math.atan2(-x, -z) - yaw), Math.cos(Math.atan2(-x, -z) - yaw));
       const dp = Math.atan2(y, Math.hypot(x, z)) - pitch;

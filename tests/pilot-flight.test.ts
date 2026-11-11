@@ -19,7 +19,8 @@ it('the free cursor stop gesture brakes even without a pointer-lock epoch change
   pilotVelocity(v, thrust, 0, 0, true, true, 1 / 60);
   runtime.trackpad.active = false;
   const next = pilotVelocity(v, idle, 0, 0, true, true, 1 / 60);
-  expect(flightFeel.brake).toBe(true); expect(Math.abs(next.z)).toBeLessThan(29);
+  // Brake is a harder flare than a release (momentumFlight FLIGHT.brake against FLIGHT.flare), not an instant stop.
+  expect(flightFeel.brake).toBe(true); expect(Math.abs(next.z)).toBeLessThan(29.4); expect(Math.abs(next.z)).toBeGreaterThan(28);
 });
 
 it('a fresh brake request cancels a dive but its later parked state permits the next attack', () => {

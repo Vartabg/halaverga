@@ -46,7 +46,7 @@ for (const viewport of [PORTRAIT, LANDSCAPE]) {
       expect(await flying(page)).toBe('true');
       await expect(surface).toHaveAttribute('data-control-mode', 'single');
       await send('touchEnd', [thumb]);
-      await expect.poll(() => speed(page), { timeout: 1500 }).toBeLessThan(.5);
+      await expect.poll(() => speed(page), { timeout: 5000 }).toBeLessThan(.5);
       const rest = await heading(page); await page.waitForTimeout(500); expect(await heading(page)).toBe(rest);
       expect(t.errors).toEqual([]); await t.context.close();
     });
@@ -111,7 +111,7 @@ for (const viewport of [PORTRAIT, LANDSCAPE]) {
       expect(await flying(page)).toBe('true'); expect(await speed(page)).toBeGreaterThan(cruise * .7);
       expect(await shots(page)).toBe(before);
       await send('touchEnd', [thumb]);
-      await expect.poll(() => speed(page), { timeout: 1500 }).toBeLessThan(.5);
+      await expect.poll(() => speed(page), { timeout: 5000 }).toBeLessThan(.5);
       expect(t.errors).toEqual([]); await t.context.close();
     });
     test('a second finger held on a drone becomes the look thumb (dual) and never fires', async ({ browser }) => {

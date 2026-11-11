@@ -12,7 +12,7 @@ import { banish, MODE } from './banishState';
 import { isElite } from './encounter';
 import { flightFeel } from './flightFeel';
 import { clearCombatSight, createCombatSight } from './combatSight';
-import { createCombatCamera, stepCombatCamera, createFinisherFocus, stepFinisherFocus, rememberCombatPilot, aheadOf, WATCH_AHEAD, combatCameraReadout as readout } from './combatCamera';
+import { createCombatCamera, stepCombatCamera, createFinisherFocus, stepFinisherFocus, rememberCombatPilot, aheadOf, createWatch, stepWatch, combatCameraReadout as readout } from './combatCamera';
 const rotation = new Euler(0, 0, 0, 'YXZ'), q = new Quaternion(), desired = new Vector3(), dir = new Vector3(), head = new Vector3();
 const shakeEuler = new Euler(0, 0, 0, 'YXZ'), shake = new Quaternion(), axis = new Vector3();
 // Speed-widened FOV, damped on its own so the ADS drop and shot punches never compound into the damp. Synced to c.fov on init.
@@ -22,7 +22,7 @@ const statKeys = ['drawCalls', 'triangles', 'geometries', 'textures'] as const;
 const moveKeys = ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyE', 'KeyQ', 'Space'];
 const identity = { x: 0, y: 0, z: 0, w: 1 };
 const level = { x: 0, y: 0, z: 0 };
-let linger = 0;
+const watch = createWatch();
 export default function CameraRig() {
   const { world, rapier } = useRapier();
   const initialized = useRef(false), epoch = useRef(-1), marker = useRef<Mesh>(null);
@@ -44,21 +44,20 @@ export default function CameraRig() {
       brake: flightFeel.brake, steering: steering || state.camera !== 'third' || state.reduced || !!runtime.landGoal, manual: combat.current.manual > 0 });
     // A sword string is one engagement for the camera: it stays on the demon between cuts instead of pumping in and out, and a
     // step-in from above or below turns the view to the demon without pitching the pilot down onto it.
-    const stringing = finisher < 0 && strike.target >= 0 && (strike.phase === 1 ? strike.lunge : strike.phase === 2 && strike.hold > 0 && !strike.then);
+    const stringing = finisher < 0 && strike.target >= 0 && (strike.phase === 1 ? strike.lunge : strike.phase === 2 && strike.hold > 0 && !strike.last);
     if (stringing) { const c = shooter.targets[strike.target].c, eye = pose.position.y + .65; level.x = c.x; level.y = eye + (c.y - eye) * .35; level.z = c.z; }
-    // A lesser demon cast down: the view follows it most of the way to where it strikes, without turning the pilot, and comes
-    // back when it is gone. Looking elsewhere takes the view back at once (the planner's manual override).
-    const cast = banish.last, free = finisher < 0 && !stringing && strike.phase !== 1;
-    const falling = free && cast >= 0 && !isElite(cast) && banish.mode[cast] === MODE.cast && aheadOf(runtime.yaw, pose.position, shooter.drones.pos[cast]) > WATCH_AHEAD;
-    if (falling) { const c = shooter.drones.pos[cast], eye = pose.position.y + .65; level.x = c.x; level.y = eye + (c.y - eye) * .6; level.z = c.z; linger = .45; }
-    // Held a beat on where it struck, so the burst is seen; dropped at once if the angel has flown past it.
-    else linger = free && aheadOf(runtime.yaw, pose.position, level) > WATCH_AHEAD ? Math.max(0, linger - elapsed) : 0;
-    const watching = falling || linger > 0;
+    // A lesser demon cast down: the view follows it most of the way to where it strikes, without turning the pilot, holds a
+    // beat on where it struck, and comes back. Flying on or looking elsewhere drops it for good (combatCamera.stepWatch).
+    const cast = banish.last, casting = cast >= 0 && !isElite(cast) && banish.mode[cast] === MODE.cast;
+    stepWatch(watch, { cast, casting, flown: runtime.flown, looked: combat.current.manual > 0, open: finisher < 0 && !stringing && strike.phase !== 1,
+      ahead: aheadOf(runtime.yaw, pose.position, casting ? shooter.drones.pos[cast] : level), dt: elapsed });
+    if (watch.falling) { const c = shooter.drones.pos[cast], eye = pose.position.y + .65; level.x = c.x; level.y = eye + (c.y - eye) * .6; level.z = c.z; }
+    const watching = watch.watching;
     const framed = stringing || watching;
     const focus = finisher >= 0 ? banish.base[finisher] : framed ? level : strike.aim, phase = finisher >= 0 || framed ? 1 : strike.phase;
     const frame = stepCombatCamera(combat.current, { yaw: pose.viewYaw, pitch: pose.viewPitch, pilotYaw: runtime.yaw, pilotPitch: runtime.pitch,
       epoch: runtime.poseEpoch, enabled: state.shooter && state.camera === 'third' && !runtime.landGoal, reduced,
-      phase, target: finisher >= 0 ? finisher : watching ? cast : strike.target, aim: focus, hero: pose.position, aspect, dt: elapsed });
+      phase, target: finisher >= 0 ? finisher : watching ? cast : strike.target, aim: focus, hero: pose.position, aspect, dt: elapsed, release: watch.dropped });
     if (frame.tracking && !watching) { runtime.yaw = frame.yaw; runtime.pitch = frame.pitch; }
     rememberCombatPilot(frame, runtime.yaw, runtime.pitch);
     // Recoil kick joins the view; an idle kick adds nothing (adding a literal 0 could turn -0 into +0).

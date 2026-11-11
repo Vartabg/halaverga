@@ -23,20 +23,23 @@ describe('energy flight', () => {
     expect(Math.abs(speed(dive) - speed(level))).toBeLessThan(.1);
     console.log('OLD', JSON.stringify({ level: speed(level), dive: speed(dive) }));
   });
-  it('carves a broad turn without collapsing momentum and never snaps a reversal', () => {
+  it('carves a broad turn round a wide arc, paying for it in speed, and never snaps a reversal', () => {
     const start = { x: 0, y: 0, z: -48 }, next = momentumVelocity(start, thrust, Math.PI / 2, 0, true, true, 1 / 60);
     expect(speed(next)).toBeGreaterThan(47); expect(next.z).toBeLessThan(-47); expect(next.x).toBeLessThan(0);
-    const turn = fly(start, 0, .8, 60, Math.PI / 2);
-    expect(turn.v.x).toBeLessThan(-40); expect(speed(turn.v)).toBeGreaterThan(44);
+    // At 48 m/s a quarter turn asked for at once is still under way after .8 s (it used to be done), and it has cost speed.
+    const turn = fly(start, 0, .8, 60, Math.PI / 2), round = Math.atan2(-turn.v.x, -turn.v.z);
+    expect(round).toBeGreaterThan(.5); expect(round).toBeLessThan(1); expect(speed(turn.v)).toBeLessThan(44); expect(speed(turn.v)).toBeGreaterThan(34);
     const reverse = momentumVelocity(start, thrust, Math.PI, 0, true, true, 1 / 60);
     expect(reverse.z).toBeLessThan(-47); expect(Number.isFinite(reverse.x)).toBe(true);
   });
-  it('release smoothly settles every travel axis into hover without an extra brake', () => {
+  it('release settles every travel axis into hover without an extra brake: a flare over a distance, not a dead stop', () => {
     for (const start of [{ x: 0, y: 0, z: -40 }, { x: 0, y: -60, z: -60 }, { x: 30, y: 45, z: 12 }]) {
       const first = momentumVelocity(start, idle, 0, -.8, true, true, 1 / 60);
-      expect(speed(first)).toBeGreaterThan(speed(start) * .8); expect(speed(first)).toBeLessThan(speed(start));
+      expect(speed(first)).toBeGreaterThan(speed(start) * .95); expect(speed(first)).toBeLessThan(speed(start));
       for (const hz of [30, 60, 120]) {
-        const stop = fly(start, -.8, .5, hz, 0, false, idle); expect(speed(stop.v)).toBeLessThan(.25);
+        // Half a second in it is still flying (the old stop was over by then); inside three and a half it is exactly at rest.
+        expect(speed(fly(start, -.8, .5, hz, 0, false, idle).v)).toBeGreaterThan(speed(start) * .4);
+        const stop = fly(start, -.8, 3.5, hz, 0, false, idle); expect(speed(stop.v)).toBe(0);
         expect(speed(fly(stop.v, 1, 1, hz, 2, false, idle).v)).toBe(0);
       }
       expect(speed(fly(start, 0, .2, 60, 0, true, idle).v)).toBeLessThan(speed(fly(start, 0, .2, 60, 0, false, idle).v));
@@ -44,12 +47,12 @@ describe('energy flight', () => {
   });
   it('never adds falling acceleration after release and keeps powered Rise usable', () => {
     const start = { x: 0, y: -60, z: -60 }; let v = start, travel = 0;
-    for (let k = 0; k < 120; k++) { const next = momentumVelocity(v, idle, 0, -1, true, true, 1 / 60); expect(speed(next)).toBeLessThanOrEqual(speed(v)); travel += speed(next) / 60; v = next; }
-    expect(travel).toBeLessThan(7.2); expect(speed(v)).toBe(0);
+    for (let k = 0; k < 240; k++) { const next = momentumVelocity(v, idle, 0, -1, true, true, 1 / 60); expect(speed(next)).toBeLessThanOrEqual(speed(v)); travel += speed(next) / 60; v = next; }
+    expect(travel).toBeGreaterThan(40); expect(travel).toBeLessThan(90); expect(speed(v)).toBe(0);
     const rise = fly({ x: 0, y: 0, z: 0 }, 0, 3, 60, 0, false, { forward: 0, strafe: 0, vertical: 1 });
     expect(rise.height).toBeGreaterThan(35);
   });
-  it('preserves strike exit speed instead of clamping to cruising speed', () => {
+  it('keeps speed above cruise that the flight already has, instead of clamping to cruising speed', () => {
     const v = momentumVelocity({ x: 0, y: 0, z: -85 }, thrust, .1, 0, true, true, 1 / 60);
     expect(speed(v)).toBeGreaterThan(84);
     expect(fly(v, 0, 1).v.z).toBeLessThan(-70);

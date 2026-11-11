@@ -20,7 +20,7 @@ import { sweepTurn } from './turnSweep';
 import { moveMode } from './combat';
 import { aimVelocity } from './aimMotion';
 import { levelFlight, probeBelow, touchBlockedStep, touchLandStep, LAND_WINDOW } from './touchFlight';
-import { gestureBase, gestureBefore, gestureOffset, gestureVelocity } from './gesture/applyGesture'; import { cancelStrike, strike, strikeVelocity } from './strike';
+import { gestureBase, gestureBefore, gestureOffset, gestureVelocity } from './gesture/applyGesture'; import { cancelStrike, strike, strikeStep } from './strike';
 import { clearGesture, gesture } from './gesture/bus';
 import { createGestureCtx } from './gestureCtx';
 const direction = new Vector3(), baseScratch = { x: 0, y: 0, z: 0 };
@@ -92,7 +92,7 @@ export default function Player() {
     if (strike.phase && !flying) runtime.lift = true; // a sword strike from the ground takes off first (strike.ts)
     if (runtime.lift || (pointerFlight && moving(intent) && !flying)) {
       runtime.lift = false;
-      if (!flying) { flying = true; liftTime.current = .4; runtime.velocity.y = 6; useGame.setState({ flying: true }); }
+      if (!flying) { flying = true; liftTime.current = moving(intent) ? .4 : .24; runtime.velocity.y = 6; useGame.setState({ flying: true }); } // idle: .24 s up, then the flare's 1.5 m, the old 2.9 m lift-off
       else if (runtime.landGoal) { runtime.landGoal = null; useGame.setState({ landing: false }); }
       else if (runtime.landTarget) { runtime.landGoal = runtime.landTarget.clone().add(new Vector3(0, FOOT, 0)); landingStall.current = 0; clearGesture(); useGame.setState({ landing: true }); }
       else useGame.setState({ message: 'Aim at a nearby flat rooftop or terrace to land.' });
@@ -114,7 +114,7 @@ export default function Player() {
     let v = runtime.landGoal ? landingVelocity(p, runtime.landGoal)
       : mode === 2 ? aimVelocity(vb, intent, runtime.yaw, fp, flying, dt)
       : pilotVelocity(vb, intent, runtime.yaw, fp, flying, surge, dt);
-    gestureVelocity(v, runtime.landGoal, flying); if (runtime.landGoal) cancelStrike(); else if (flying) strikeVelocity(v, p, dt, state.reduced, moving(intent) || gesture.live && gesture.velocityOn);
+    gestureVelocity(v, runtime.landGoal, flying); runtime.flown = moving(intent) || gesture.live && gesture.velocityOn; if (runtime.landGoal) cancelStrike(); else if (flying) strikeStep(v, p, dt, state.reduced, runtime.flown);
     if (liftTime.current > 0) { v.y = 6; liftTime.current -= dt; }
     gestureOffset(v, flying && !runtime.landGoal);
     const from = { ...runtime.velocity }, chosen = v;

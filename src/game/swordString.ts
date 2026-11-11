@@ -1,6 +1,6 @@
 // The sword string (Garo 2026-11-09: strikes need sequencing). A lesser demon is cast down by three cuts, each its own move with its
 // own weight: the cross cut that opens (the dive), the rising cut that lifts the demon, and the casting blow that drives it down.
-// The angel stays on the demon between cuts and gets its speed back on the last one. Game fiction. Pure: plain {x,y,z}.
+// The angel stays on the demon between cuts and is released over the blow after the last one. Game fiction. Pure: plain {x,y,z}.
 import type { ShooterState, Vec3 } from './combat';
 import { BANISH, MODE, type BanishState } from './banishState';
 import { crosshairTarget, flowTarget } from './combatFlow';

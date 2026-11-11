@@ -10,7 +10,9 @@ export function createCombatCamera() {
 }
 export type CombatCamera = ReturnType<typeof createCombatCamera>;
 export type CombatCameraInput = { yaw: number; pitch: number; pilotYaw: number; pilotPitch: number; epoch: number; enabled: boolean;
-  reduced: boolean; phase: number; target: number; aim: Vec3; hero: Vec3; aspect: number; dt: number };
+  reduced: boolean; phase: number; target: number; aim: Vec3; hero: Vec3; aspect: number; dt: number;
+  /** A watch on a cast-down demon was dropped this frame: let go of it now, so the held heading cannot turn the pilot toward it. */
+  release?: boolean };
 /** Retarget from the current view, hold the contact heading, then hand back to the pilot without following a falling victim. */
 export function stepCombatCamera(s: CombatCamera, i: CombatCameraInput) {
   const dt = Math.max(0, Math.min(.05, i.dt));
@@ -26,6 +28,7 @@ export function stepCombatCamera(s: CombatCamera, i: CombatCameraInput) {
   } else s.manual = Math.max(0, s.manual - dt);
   s.pilotYaw = i.pilotYaw; s.pilotPitch = i.pilotPitch;
   const launching = i.phase === 1 && i.target >= 0;
+  if (i.release) s.hold = 0;
   if (launching) {
     if (s.target !== i.target) { s.target = i.target; s.age = 0; }
     s.age += dt; s.hold = .16;
@@ -57,7 +60,26 @@ export const combatCameraReadout = { target: -1, phase: 0, age: 0, weight: 0, ma
 /** How far (m) a point lies ahead of a pilot heading, on the ground plane; negative once it is behind. The view only follows a
  * cast-down demon while it is ahead, so it never swings round to look backward when the angel flies past where it struck. */
 export const aheadOf = (yaw: number, from: Vec3, to: Vec3) => (to.x - from.x) * -Math.sin(yaw) + (to.z - from.z) * -Math.cos(yaw);
-export const WATCH_AHEAD = 2;
+export const WATCH_AHEAD = 2, WATCH_LINGER = .45;
+export const createWatch = () => ({ linger: 0, skip: -1, falling: false, watching: false, dropped: false });
+export type Watch = ReturnType<typeof createWatch>;
+/**
+ * Whether the view follows a lesser demon that has been cast down (CameraRig frames it without turning the pilot). cast: the demon
+ * last struck; casting: it is falling now; open: no finisher, string or dive owns the view; ahead: how far ahead of the pilot it
+ * is, or once it has struck, the place is (aheadOf). The view follows it while it falls ahead, and stays a beat on where it struck.
+ * While the angel is being flown the view stays on its heading (Garo 2026-11-11: "I lose track of where I am heading"): asking for
+ * movement (flown), or looking elsewhere (looked), drops this cast's watch for good, so it never swings away and back. dropped: a
+ * watch ended on this frame, which the planner is told (CombatCameraInput.release).
+ */
+export function stepWatch(w: Watch, i: { cast: number; casting: boolean; flown: boolean; looked: boolean; open: boolean; ahead: number; dt: number }) {
+  if (!i.casting) w.skip = -1; else if (i.flown || i.looked) w.skip = i.cast;
+  const free = i.open && !i.flown && i.cast !== w.skip;
+  w.falling = free && i.casting && i.ahead > WATCH_AHEAD;
+  w.linger = w.falling ? WATCH_LINGER : free && i.ahead > WATCH_AHEAD ? Math.max(0, w.linger - i.dt) : 0;
+  const watching = w.falling || w.linger > 0;
+  w.dropped = w.watching && !watching; w.watching = watching;
+  return w;
+}
 export const createFinisherFocus = () => ({ target: -1, active: false, cancelled: false });
 /** Keep the opening, rather than a falling victim, in view. A deliberate exit cancels this finisher's framing until it ends. */
 export function stepFinisherFocus(s: ReturnType<typeof createFinisherFocus>, i: { last: number; mode: number; phase: number; brake: boolean; steering: boolean; manual: boolean }) {

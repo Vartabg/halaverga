@@ -35,7 +35,7 @@ for (const [side, x, camera] of [['left', 90, 'Third person'], ['right', 290, 'F
     expect(await metric('pitch')).toBeGreaterThan(.2);
     expect(JSON.parse((await telemetry.getAttribute('data-position'))!)[1]).toBeGreaterThan(startHeight + 3);
     await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
-    await page.waitForTimeout(750); expect(await metric('speed')).toBeLessThan(.5);
+    await expect.poll(() => metric('speed'), { timeout: 6000 }).toBeLessThan(.5); // a flare over a distance, then hover
     const releasedHeading = await metric('heading'); await page.waitForTimeout(400);
     expect(await metric('heading')).toBe(releasedHeading);
     expect(errors).toEqual([]); await context.close();

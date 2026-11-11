@@ -39,11 +39,11 @@ test('touch release and orientation: input released, no pause card, the suit set
   };
   await drag();
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchCancel', touchPoints: [] });
-  await expect.poll(speed, { timeout: 1500 }).toBeLessThan(.5);
+  await expect.poll(speed, { timeout: 5000 }).toBeLessThan(.5);
   // Rotation mid-drag: touch play keeps going with input released (it never pauses).
   await drag();
   await page.setViewportSize({ width: 852, height: 393 });
-  await expect.poll(speed, { timeout: 1500 }).toBeLessThan(.5);
+  await expect.poll(speed, { timeout: 5000 }).toBeLessThan(.5);
   await expect(page.getByRole('button', { name: 'Resume flight' })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Pause expedition' })).toBeVisible();
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchCancel', touchPoints: [] });

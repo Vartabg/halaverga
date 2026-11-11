@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { STRIKE, beginStrike, cancelStrike, landStrike, strike, strikeVelocity } from '../src/game/strike';
 
 describe('sword strike dive', () => {
-  it('dives at the target at strike speed, freezes on the blow, carries through and hands flight back', () => {
+  it('dives at the target at strike speed, freezes on the blow, runs its short carry and hands flight back', () => {
     cancelStrike(); const p = { x: 0, y: 0, z: 0 }, v = { x: 0, y: 0, z: 0 };
     beginStrike(0, { x: 0, y: 0, z: -30 }, 30);
     for (let k = 0; k < 10; k++) strikeVelocity(v, p, 1 / 60, false);
@@ -19,11 +19,11 @@ describe('sword strike dive', () => {
     beginStrike(0, { x: 0, y: 0, z: -30 }, 30); strikeVelocity(v, p, 1 / 60, false);
     expect(v.x).toBeGreaterThan(58); expect(Math.abs(v.z)).toBeLessThan(4); expect(Math.hypot(v.x, v.y, v.z)).toBeGreaterThanOrEqual(60);
   });
-  it('a dive that never connects gives up after its time and carries on', () => {
+  it('a dive that never connects gives up after its time and hands flight back', () => {
     cancelStrike(); const p = { x: 0, y: 0, z: 0 }, v = { x: 0, y: 0, z: 0 };
     beginStrike(0, { x: 0, y: 0, z: -500 });
     for (let t = 0; t < STRIKE.maxTime + .05; t += 1 / 60) strikeVelocity(v, p, 1 / 60, false);
-    expect(strike.phase).toBe(2); expect(strike.landed).toBe(false);
+    expect(strike.phase).toBe(0); expect(strike.landed).toBe(false); expect(strike.target).toBe(-1);
   });
   it('a long dive zips faster, capped', () => {
     cancelStrike(); beginStrike(0, { x: 0, y: 0, z: -50 }, 50); expect(strike.speed).toBeCloseTo(50 / STRIKE.dive, 3);
@@ -35,12 +35,21 @@ describe('sword strike dive', () => {
     for (let k = 0; k < 20 && strike.phase !== 0; k++) { v.z = -130; strikeVelocity(v, p, 1 / 60, false); }
     expect(v.z).toBe(0); expect(strike.phase).toBe(0);
   });
-  it('carries a fast hit into a steerable exit and lets held flight continue through a finisher', () => {
+  it('a finishing blow stops at the demon even with flight held: the strike never carries the angel on by itself', () => {
     cancelStrike(); const p = { x: 0, y: 0, z: 0 }, v = { x: 0, y: 0, z: -100 };
     beginStrike(0, { x: 0, y: 0, z: -70 }, 70);
     strike.dir.x = 0; strike.dir.y = 0; strike.dir.z = -1; landStrike(false);
-    for (let k = 0; k < 24 && strike.phase; k++) strikeVelocity(v, p, 1 / 60, true, true);
-    expect(strike.phase).toBe(0); expect(Math.hypot(v.x, v.y, v.z)).toBeGreaterThan(75);
+    for (let k = 0; k < 24 && strike.phase; k++) { v.z = -100; strikeVelocity(v, p, 1 / 60, true, true); }
+    expect(strike.phase).toBe(0); expect(Math.hypot(v.x, v.y, v.z)).toBe(0);
+  });
+  it('the carry (a warden throwing the angel back) is never faster than its own speed, with or without the freeze', () => {
+    for (const reduced of [false, true]) {
+      cancelStrike(); const p = { x: 0, y: 0, z: 0 }, v = { x: 0, y: 0, z: -120 };
+      beginStrike(0, { x: 0, y: 0, z: -70 }, 70); landStrike(true, .07); strike.carrySpeed = 24;
+      let peak = 0;
+      for (let k = 0; k < 40 && strike.phase; k++) { if (reduced) v.z = -120; strikeVelocity(v, p, 1 / 60, reduced, false); peak = Math.max(peak, Math.hypot(v.x, v.y, v.z)); }
+      expect(strike.phase).toBe(0); expect(peak).toBeLessThanOrEqual(24); expect(peak).toBeGreaterThan(10);
+    }
   });
   it('reduced motion strikes without the freeze', () => {
     cancelStrike(); const p = { x: 0, y: 0, z: 0 }, v = { x: 0, y: 0, z: 0 };

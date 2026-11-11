@@ -20,8 +20,12 @@ it('reserves the stronger contact beat for an actual elite contact and respects 
   strikeVelocity(v, { x: 0, y: 35, z: 2 }, 1 / 60, true); expect(Math.hypot(v.x, v.y, v.z)).toBeGreaterThan(0); cancelStrike();
 });
 it('stops a high-speed dive when released instead of requiring forward movement to aim', () => {
+  // A flare over a distance since 2026-11-11 (a dead stop was rejected): it only ever slows, and it is at rest inside three seconds.
   let velocity = { x: 0, y: -45, z: -40 };
-  for (let i = 0; i < 60; i++) velocity = momentumVelocity(velocity, { forward: 0, strafe: 0, vertical: 0 }, 0, -.7, true, false, 1 / 60);
+  for (let i = 0; i < 180; i++) {
+    const next = momentumVelocity(velocity, { forward: 0, strafe: 0, vertical: 0 }, 0, -.7, true, false, 1 / 60);
+    expect(Math.hypot(next.x, next.y, next.z)).toBeLessThanOrEqual(Math.hypot(velocity.x, velocity.y, velocity.z)); velocity = next;
+  }
   expect(Math.hypot(velocity.x, velocity.y, velocity.z)).toBe(0);
   expect(wardenElevation(7, 1, 40)).toBeGreaterThan(wardenElevation(7, 2, 40));
 });

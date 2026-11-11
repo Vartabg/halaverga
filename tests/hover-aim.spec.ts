@@ -10,14 +10,14 @@ for (const viewport of [{ width: 393, height: 852 }, { width: 852, height: 393 }
       const send = (type: 'touchStart' | 'touchMove' | 'touchEnd' | 'touchCancel', touchPoints: { id: number; x: number; y: number }[]) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints });
       const hold = async () => { const b = (await page.getByRole('button', { name: 'Hold to fly', exact: true }).boundingBox())!;
         const p = { id: 1, x: b.x + b.width / 2, y: b.y + b.height / 2 }; await send('touchStart', [p]); await page.waitForTimeout(900); expect(await speed()).toBeGreaterThan(6); return p; };
-      await hold(); await send('touchCancel', []); await expect.poll(speed, { timeout: 1500 }).toBeLessThan(.5);
+      await hold(); await send('touchCancel', []); await expect.poll(speed, { timeout: 5000 }).toBeLessThan(.5); // the flare takes its distance
       await hold(); await page.setViewportSize({ width: viewport.height, height: viewport.width });
-      await expect.poll(speed, { timeout: 1500 }).toBeLessThan(.5); await send('touchCancel', []);
+      await expect.poll(speed, { timeout: 5000 }).toBeLessThan(.5); await send('touchCancel', []);
       await page.getByRole('button', { name: 'Pause expedition' }).tap(); await page.getByRole('button', { name: 'Resume flight' }).tap();
       await page.waitForTimeout(600); expect(await speed()).toBeLessThan(.5);
       // Native keyboard/assistive activation is a bounded pulse, never a latched cruise.
       await page.getByRole('button', { name: 'Hold to fly', exact: true }).focus(); await page.keyboard.press('Enter');
-      await page.waitForTimeout(1100); expect(await speed()).toBeLessThan(.5);
+      await expect.poll(speed, { timeout: 5000 }).toBeLessThan(.5);
       await page.screenshot({ path: test.info().outputPath('interrupted-hover.png') });
     } finally { await context.close(); }
   });

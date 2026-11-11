@@ -6,7 +6,7 @@ import { FX, MODE, type BanishState } from './banishState';
 import { cue, emit, interrupt, jolt } from './banishHits';
 import { bindDuration, isElite } from './encounter';
 import { absorbEliteStrike } from './eliteCombat';
-import { STRIKE, finishStrike, holdStrike, landStrike, strike as dive } from './strike';
+import { finishStrike, holdStrike, landStrike, strike as dive } from './strike';
 import { CUTS, LAST, STRING, closeString, cutFor, launch, powerOf, woundDemon } from './swordString';
 
 export function landBlow(b: BanishState, s: ShooterState, i: number, player: Vec3) {
@@ -34,8 +34,9 @@ export function landBlow(b: BanishState, s: ShooterState, i: number, player: Vec
     holdStrike(cut.freeze, STRING.window, -dive.dir.x * cut.back, cut.rise - dive.dir.y * cut.back, -dive.dir.z * cut.back);
     return;
   }
-  // The casting blow: bound and cast down as before. The angel gets back the speed its opener arrived with and leaves the way
-  // it is looking, so the string ends in flight, not in a stop.
+  // The casting blow: bound and cast down as before. The angel hangs over the blow for a beat and is released there, at rest: it
+  // is not launched onward (Garo 2026-11-11: the strike "flies the angel through the demon by itself"). The speed the opener
+  // arrived with still decides how hard the demon is thrown.
   // A demon finished after the angel had gone to another keeps no stored speed: a dive in gives its own, a step-in the floor.
   const stored = b.string.target === i ? b.string.speed : dive.lunge ? 0 : dive.speed;
   b.resist[i] = 0; closeString(b, i);
@@ -44,10 +45,5 @@ export function landBlow(b: BanishState, s: ShooterState, i: number, player: Vec
   // looking (after the rising cut the angel is above it, so the blow itself points at the ground) and down, into the mountain ahead.
   if (elite) { b.mode[i] = MODE.bound; b.timer[i] = -bindDuration(i); }
   else { b.mode[i] = MODE.cast; b.timer[i] = 0; b.hit[i] = 0; launch(b, i, s.aim.valid ? s.aim.dir : dive.dir, cut, powerOf(stored)); emit(b, FX.cast, i, player, f.pos[i]); }
-  if (elite) landStrike(false, .11);
-  else {
-    const a = s.aim.dir, l = s.aim.valid ? Math.hypot(a.x, a.y * .35, a.z) : 0, d = dive.dir;
-    const x = l > .1 ? a.x / l : d.x, y = l > .1 ? a.y * .35 / l : d.y, z = l > .1 ? a.z / l : d.z;
-    finishStrike(cut.freeze, STRING.finish, Math.max(STRIKE.exitSpeed, Math.min(90, stored * .85)), x, y, z);
-  }
+  if (elite) landStrike(false, .11); else finishStrike(cut.freeze, STRING.finish);
 }

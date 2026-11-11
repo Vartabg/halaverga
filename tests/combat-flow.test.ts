@@ -79,7 +79,7 @@ it('a missed dive drops a late buffer instead of launching an unearned chain', (
   strike.t = .9; command(1);
   const v = { x: 0, y: 0, z: -60 };
   strikeVelocity(v, player, .15, false);
-  expect(strike.phase).toBe(2); expect(strike.queued).toBe(false);
+  expect(strike.phase).toBe(0); expect(strike.queued).toBe(false); // a miss hands flight back; it no longer carries on
 });
 
 it('a chain can select a reachable demon behind the angel, but never one behind stone', () => {

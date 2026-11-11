@@ -18,7 +18,7 @@ for (const viewport of [{ width: 393, height: 852 }, { width: 852, height: 393 }
       await send('touchStart', [finger]); await page.waitForTimeout(1000);
       await expect(t).toHaveAttribute('data-flying', 'true'); expect(await speed()).toBeGreaterThan(8);
       await send('touchMove', [{ ...finger, y: finger.y - 60 }]); await page.waitForTimeout(350);
-      await send('touchEnd', []); await page.waitForTimeout(750); expect(await speed()).toBeLessThan(.5);
+      await send('touchEnd', []); await expect.poll(speed, { timeout: 6000 }).toBeLessThan(.5); // a flare over a distance, then hover
       const parked = await pos(), heading = Number(await t.getAttribute('data-heading'));
       await send('touchStart', [{ x, y, id: 1 }]); await send('touchMove', [{ x: x - 60, y, id: 1 }]); await page.waitForTimeout(700);
       expect(Math.abs(Number(await t.getAttribute('data-heading')) - heading)).toBeGreaterThan(.15);

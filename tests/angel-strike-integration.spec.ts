@@ -28,5 +28,9 @@ test('the CC0 angel dives into a live demon and continues the banishment loop', 
   await expect.poll(async () => { const p = await at(); return Math.hypot(p[0] - from[0], p[1] - from[1], p[2] - from[2]); }, { timeout: 3000 }).toBeGreaterThan(1.5);
   await finishString(page); // the rising cut and the casting blow
   await expect.poll(async () => Number(await hud.getAttribute('data-banished')), { timeout: 10000 }).toBeGreaterThan(0);
+  // The string ends where it hit (2026-11-11): with nothing held the angel is not launched onward. It used to leave at 34 to 90 m/s.
+  const struck = await at(); await page.waitForTimeout(1200);
+  const rest = await at(); expect(Math.hypot(rest[0] - struck[0], rest[1] - struck[1], rest[2] - struck[2])).toBeLessThan(6);
+  expect(Number(await telemetry.getAttribute('data-speed'))).toBeLessThan(.5);
   await page.keyboard.up('KeyV'); expect(errors).toEqual([]);
 });

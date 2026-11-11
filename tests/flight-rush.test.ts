@@ -86,7 +86,7 @@ describe('a trail ribbon', () => {
     expect(aheadOf(0, at, { x: 0, y: -20, z: -30 })).toBeCloseTo(30, 6); expect(aheadOf(0, at, { x: 0, y: 0, z: 12 })).toBeCloseTo(-12, 6);
     expect(aheadOf(Math.PI / 2, at, { x: -8, y: 0, z: 0 })).toBeCloseTo(8, 6); expect(WATCH_AHEAD).toBeGreaterThan(0);
     const rig = readFileSync('src/game/CameraRig.tsx', 'utf8');
-    expect(rig).toContain('aheadOf(runtime.yaw, pose.position, shooter.drones.pos[cast]) > WATCH_AHEAD');
+    expect(rig).toContain('ahead: aheadOf(runtime.yaw, pose.position, casting ? shooter.drones.pos[cast] : level)'); // the rule itself: combatCamera.stepWatch
     expect(rig).toContain('if (frame.tracking && !watching) { runtime.yaw = frame.yaw; runtime.pitch = frame.pitch; }'); // the pilot is not turned
   });
   it('gives the sword its trail and keeps the flame out of reduced motion', () => {

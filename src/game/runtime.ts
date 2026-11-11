@@ -21,6 +21,8 @@ export const runtime = {
   flowPractice: { step: 'idle' as 'idle' | 'look' | 'glide' | 'brake' | 'done', yaw: 0, pitch: 0 },
   tap: { forward: 0, strafe: 0, vertical: 0 },
   landTarget: null as Vector3 | null, landGoal: null as Vector3 | null,
+  /** Movement is being asked for this physics step (Player writes it): the view stays on the heading while it is. */
+  flown: false,
   speed: 0, altitude: START.y, frames: [] as number[], elapsed: 0, location: 'Threshold of Hermon',
   frameIndex: 0, skipSample: true, resources: { drawCalls: 0, triangles: 0, geometries: 0, textures: 0 },
   peakResources: { drawCalls: 0, triangles: 0, geometries: 0, textures: 0 },

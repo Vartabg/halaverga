@@ -24,8 +24,9 @@ test('bank speed in a dive, pull into a climb, then release into hover', async (
   const turnY = await y(), entryClimbSpeed = await speed(); await page.waitForTimeout(650);
   const climbSpeed = await speed(); expect(await y()).toBeGreaterThan(turnY + 3); expect(climbSpeed).toBeLessThan(entryClimbSpeed - 3);
   await page.screenshot({ path: test.info().outputPath('climb.png') });
-  await page.keyboard.up('KeyW'); await page.waitForTimeout(650);
-  expect(await speed()).toBeLessThan(.5);
+  // Letting go is a flare over a distance (2026-11-11), not a stop on the spot: it is still flying a moment later, then at rest.
+  await page.keyboard.up('KeyW'); await page.waitForTimeout(250); expect(await speed()).toBeGreaterThan(3);
+  await expect.poll(speed, { timeout: 6000 }).toBeLessThan(.5);
   const parked = await y(); await page.keyboard.down('ArrowRight'); await page.waitForTimeout(600); await page.keyboard.up('ArrowRight');
   expect(Math.abs(await y() - parked)).toBeLessThan(.1);
   await page.getByRole('button', { name: 'Brake to hover' }).click(); await expect.poll(speed).toBeLessThan(.5);

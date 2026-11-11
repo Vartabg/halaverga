@@ -2,6 +2,7 @@ import RAPIER from '@dimforge/rapier3d-compat';
 import { physicsGeometry, mountPhysicsGeometry } from '../physicsWorld';
 import { FlightSafety } from '../../src/game/FlightSafety';
 import { advanceVelocity, boundMovement, flightTarget, moving, START, WORLD, FOOT, type Vec } from '../../src/game/motion';
+import { momentumVelocity } from '../../src/game/momentumFlight';
 import { boundaryDistance, CLEARANCE, removeInward } from '../../src/game/navigation';
 import { limitStep, resetCueHold } from '../../src/game/limitStep';
 import { readScrape } from '../../src/game/scrape';
@@ -39,6 +40,8 @@ export class Sim {
   lastMoveClear = false; lastContact = false; lastCollisions = 0; flying = true;
   /** Twin touch level flight (view pitch is aim only) and a held trigger: what Player.tsx passes limitSteer as pitchFlies / aiming. */
   level = false; aiming = false;
+  /** Fly momentumFlight (the flight this branch's Player.tsx flies, through pilotVelocity) instead of the older velocity-target flight. */
+  momentum = false;
   contact = { active: false, normal: { x: 0, y: 1, z: 0 } }; scrape = { active: false, normal: { x: 0, y: 1, z: 0 } }; cueNow = '' as string;
   constructor(pos: Vec, opts: { boundary?: boolean; city?: boolean } = {}) {
     const world = this.world = new RAPIER.World({ x: 0, y: 0, z: 0 });
@@ -88,8 +91,8 @@ export class Sim {
     if (!opts.steerOff) driveLimits(runtime, { on: true, dt, p, v: this.v, speed: this.speed, intent, surge, level: this.level, aiming: this.aiming, contact: this.contact, scrape: this.scrape, safe: this.safe });
     const fp = this.level ? 0 : runtime.pitch;
     const vb = { ...this.v };
-    carve(vb, runtime.yaw, dt, this.flying && !runtime.thumb.active && (moving(intent) || surge), this.epoch);
-    let v = advanceVelocity(vb, intent, runtime.yaw, fp, this.flying, surge, dt);
+    if (!this.momentum) carve(vb, runtime.yaw, dt, this.flying && !runtime.thumb.active && (moving(intent) || surge), this.epoch);
+    let v = this.momentum ? momentumVelocity(vb, intent, runtime.yaw, fp, this.flying, surge, dt) : advanceVelocity(vb, intent, runtime.yaw, fp, this.flying, surge, dt);
     const chosen = { ...v };
     // S2/S5a/S3 (Player.tsx: the same limitStep): soft limiter, solid look-ahead, full-speed slide, cue.
     const lim = limitStep(this.safe, p, v, flightTarget(intent, runtime.yaw, fp, this.flying, surge), this.v);

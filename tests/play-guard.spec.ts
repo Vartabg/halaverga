@@ -28,7 +28,7 @@ test('touch: Safari toolbar resizes keep the stick; a rotation keeps playing wit
   await page.setViewportSize({ width: 393, height: 852 });
   await expect(t.surface).toHaveAttribute('data-layout', 'portrait');
   await expect(t.surface).toHaveAttribute('data-control-mode', 'idle');
-  await expect.poll(() => speed(page), { timeout: 1500 }).toBeLessThan(.5);
+  await expect.poll(() => speed(page), { timeout: 5000 }).toBeLessThan(.5);
   await expect(pauseCard(page)).toHaveCount(0); await expect(pauseButton(page)).toBeVisible();
   await touch.cancel(); expect(t.errors).toEqual([]); await t.context.close();
 });
