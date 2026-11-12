@@ -51,6 +51,19 @@ function wallYaw(c: SteerIn, g: [number, number], hs: number, zone: number): num
   return S.wallSide * yawRate(c) * w * smooth((S.wallT - STEER.delay) / STEER.ramp) * c.dt;
 }
 /**
+ * Ends the face latch, however it ends (its own exits, the pilot's turn, a pause, an aim, the wedge). A pitch it tipped by more than
+ * a touch is owed back: the settle (limitPeel.ts) returns the view toward what it was when the latch began, and never past level,
+ * so it is not pointed back into the face it has just cleared. Left as it was, the view stayed up to 1.25 rad up for good: the
+ * older flight shot to the sky limit on it, and a flight with weight climbed at a crawl (2026-11-11).
+ */
+function dropFace(rt: { pitch: number }, y: number) {
+  if (S.face && Math.abs(rt.pitch - S.p0) > STEER.tipped) {
+    S.settle = true; S.y0 = y;
+    S.settleTo = rt.pitch > S.p0 ? Math.max(0, Math.min(S.base, rt.pitch)) : Math.min(0, Math.max(S.base, rt.pitch));
+  }
+  S.face = false;
+}
+/**
  * Solid face nudge (hills, facades, roofs, overhangs): the clearance assist is holding the suit against a face it is commanded into.
  * After it has pressed for pressS (0.2 s, flicker-tolerant) it latches on the face's normal and turns the commanded direction (yaw
  * toward its horizontal part, pitch toward its vertical part) until it is outFace clear of it. A slow scrape needs no stall: a facade
@@ -66,22 +79,14 @@ function faceSteer(rt: { pitch: number }, c: SteerIn, g: [number, number], d: [n
   // Contact flickers every other step in a slide: gaps under STEER.gap still count as pressing.
   S.fpGap = into ? 0 : S.fpGap + c.dt; S.fp = S.fpGap > STEER.gap ? 0 : S.fp + c.dt;
   S.faceGap = on ? 0 : S.faceGap + c.dt;
-  if (S.face) {
-    S.faceT += c.dt;
-    if (S.faceT > STEER.faceMaxS || S.faceGap > STEER.faceLostS || away >= STEER.outFace) {
-      S.face = false;
-      // It tipped the view up or down to clear the face: that is handed back (limitPeel's settle levels it once it is well clear),
-      // as after a peel. Left as it was, the view stayed up to 1.25 rad up for good, and in a flight with weight that is a crawl.
-      if (S.facePitch) { S.settle = true; S.y0 = c.p.y; }
-    }
-  }
+  if (S.face) { S.faceT += c.dt; if (S.faceT > STEER.faceMaxS || S.faceGap > STEER.faceLostS || away >= STEER.outFace) dropFace(rt, c.p.y); }
   if (!S.face) {
     if (S.fp < STEER.pressS || away > 0) return 0;
-    S.face = true; S.faceT = 0; S.faceSide = 0; S.facePitch = false;
+    // p0: the pitch as this latch takes it. base: the pitch to hand back toward, which a hand-back still owed keeps as it was.
+    S.face = true; S.faceT = 0; S.faceSide = 0; S.p0 = rt.pitch; if (!S.settle) S.base = rt.pitch;
   }
   if (pitchFree && Math.abs(S.fy) > .3) {
     const target = Math.max(-1.25, Math.min(1.25, Math.asin(S.fy))), step = STEER.pitch * c.dt;
-    if (target !== rt.pitch) S.facePitch = true;
     rt.pitch += Math.sign(target - rt.pitch) * Math.min(step, Math.abs(target - rt.pitch));
   }
   if (h < .3) return 0;
@@ -95,11 +100,13 @@ export function limitSteer(rt: { yaw: number; pitch: number }, c: SteerIn): void
   S.holdYaw = Math.abs(dy) > STEER.yieldYaw * dt ? STEER.hold : Math.max(0, S.holdYaw - dt);
   S.holdPitch = Math.abs(dp) > STEER.yieldPitch * dt ? STEER.hold : Math.max(0, S.holdPitch - dt);
   S.live = true;
+  // A hand-back the pilot pitches against, at any rate, is theirs to keep.
+  if (S.settle && Math.abs(dp) > 1e-4 && dp * (S.settleTo - rt.pitch) < 0) S.settle = false;
   const t = c.target, hs = Math.hypot(t.x, t.z), len = Math.hypot(t.x, t.y, t.z), asked = c.commanded >= .05 && len > .05;
   const g: [number, number] | null = asked && hs > .5 ? [t.x / hs, t.z / hs] : null;
   const pitchFree = c.pitchFlies && asked && S.holdPitch <= 0 && !c.aiming;
-  if (!g || S.holdYaw > 0 || c.aiming) { S.wall = S.face = S.wedge = false; S.wallT = S.fp = S.stuckT = 0; S.fpGap = S.stuckGap = 9; }
-  else if (wedgeSteer(rt, c, pitchFree)) { S.wall = S.face = false; S.wallT = S.fp = 0; S.fpGap = 9; S.peel = 0; S.leaveT = 0; S.touchT = 0; S.touchGap = 9; }
+  if (!g || S.holdYaw > 0 || c.aiming) { dropFace(rt, c.p.y); S.wall = S.wedge = false; S.wallT = S.fp = S.stuckT = 0; S.fpGap = S.stuckGap = 9; }
+  else if (wedgeSteer(rt, c, pitchFree)) { dropFace(rt, c.p.y); S.wall = false; S.wallT = S.fp = 0; S.fpGap = 9; S.peel = 0; S.leaveT = 0; S.touchT = 0; S.touchGap = 9; }
   else {
     const a = wallYaw(c, g, hs, Math.max(STEER.zone, STEER.zoneSpeed * Math.max(c.commanded, Math.hypot(c.v.x, c.v.y, c.v.z))));
     const b = faceSteer(rt, c, g, [t.x / len, t.y / len, t.z / len], pitchFree);
@@ -107,8 +114,13 @@ export function limitSteer(rt: { yaw: number; pitch: number }, c: SteerIn): void
   }
   if (S.wedge) { S.yaw = rt.yaw; S.pitch = rt.pitch; return; }
   if (pitchFree) peelPitch(rt, c, Math.asin(Math.max(-1, Math.min(1, t.y / len))));
-  // A pitch still to be handed back waits through a pause in the flying (it is the nudge's own tilt, and the next push would climb
-  // on it); the pilot's own pitch, an aim or level flight takes it over for good.
-  else { S.peel = 0; S.touchT = 0; S.touchGap = 9; if (asked || !c.pitchFlies || S.holdPitch > 0) S.settle = false; }
+  else {
+    // The pitch nudge is off. A peel cut short owes its pitch back as a finished one does. A pitch owed back waits through a pause
+    // in the flying (it is the nudge's own tilt, and the next push would climb on it). It is given up for good when the pilot is
+    // flying on with the view their own (their pitch at a real rate, an aim, level flight), or moves the view at all in the pause.
+    if (S.peel) { S.settle = true; S.settleTo = 0; S.y0 = c.p.y; }
+    S.peel = 0; S.touchT = 0; S.touchGap = 9;
+    if (asked || !c.pitchFlies || S.holdPitch > 0 || Math.abs(dp) > 1e-4) S.settle = false;
+  }
   S.yaw = rt.yaw; S.pitch = rt.pitch;
 }

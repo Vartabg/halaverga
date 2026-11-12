@@ -82,3 +82,22 @@ The fix is in the limits, not in the flight: the face nudge hands its pitch back
 - All 37 limit tests pass, the older flight's included (one of them, the 90 s hands-off run at 8 m/s, set the 1.5 s figure). `pnpm verify`: 2,668 unit tests. Browser gate: 35 of 35.
 - Left as it is, and not tried: how far the nudge tips the view (it points along the face's normal, far steeper than the slope needs). Tipping it less might keep more speed over a hill; the older flight's escape tests measure how soon the angel is 20 m clear of the rock, so that needs its own look.
 - The speed still dips to about 11 m/s for about a second and a half while it climbs over. That is the climb costing speed, as it should.
+
+### Independent code review of that fix (commit `ee1314f`, 2026-11-12)
+
+One reviewer, fresh conversation, read-only. It ran no tests; its traces came from the real limit code driven at a synthetic slope. It confirmed the fix on the path that had been measured and found it missing on others. Each finding was checked against the code.
+
+| # | Finding | Disposition |
+|---|---|---|
+| 1 | Bug: the hand-back was armed only when the face latch ended by itself. A turn by the pilot in the first moments, letting go, an aim or the wedge fallback dropped the latch with the view part-tipped for good (0.44 to 0.66 rad in its traces). | Fixed: one `dropFace` ends the latch on every path. A peel cut short by a pause is handed back the same way. |
+| 2 | Risk: a hand-back kept through a hover could later level a view the pilot had moved slowly in that hover. | Fixed: any change to the view while hovering gives the hand-back up. |
+| 3 | Risk: it levelled to zero whatever the pilot had held, and any movement at all armed it, so a climb the pilot chose could be flattened after the nudge barely touched it. | Fixed: it goes back toward the pitch held when the latch began, never past level (so not back into the rock), and only when the nudge moved the pitch by more than 0.05 rad. A peel still settles to level, as before. |
+| 4 | Risk (older): a step with the limits off (a strike, a landing approach, an aimed hover) dropped a hand-back still owed. | Fixed: it outlives those steps; a view moved meanwhile reads as the pilot's and gives it up. |
+| 5 | The tests did not pin the pause, the 1.5 s rule or the pilot's wins, could pass with no case tipped, and wrote a file. | `tests/limit-handback.test.ts` drives the limit code at a synthetic slope, one rule per test (14). The terrain tests now require at least three tipped cases a flight, tipped to level within 3 s, a level view at the end, and cover the pause. Taking each fix out fails 1 to 5 tests. |
+| 6 | Low: at 13 m/s and under, the older flight's peel settle now starts sooner (after about 11 m of rise at 8 m/s, not 22 m); on a long slope the tip and level repeat every 4 to 5 s. | Accepted: that is stair-stepping up the slope; the older flight's tests pass. |
+| 7 | Low: the settle ignored the scrape contact and had no minimum clear time once the rise was gained. | Fixed: both added (`settleMin` 0.25 s). |
+| 8 | Nits: a wrong figure in a comment, the speed read at one instant. | Fixed. |
+
+Also pitching against a hand-back at any rate now keeps the view (the reviewer's note that a slow pitch-up lost to the settle).
+
+After these: 52 limit tests pass (the older flight's 35 unchanged); `pnpm verify` 2,683 unit tests; browser gate 35 of 35. Flown again in the game on the final build at the west hill, thrust held at surge: hands-off it tips to 1.01 rad and is level 2.3 s later at 32 m/s; with a turn by the pilot just as it tips, it is level 2.1 s later, and a second hill 8 s further on is tipped over and handed back the same way. Covered by tests only, not flown in the game: the pause, the limits being off, and the pilot's own pitch.

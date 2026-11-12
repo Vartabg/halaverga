@@ -8,8 +8,9 @@ import { S, STEER, wallGap, type SteerIn } from './limitLatch';
  * done and the suit has gained settleRise (20 m: 2 s of a 13 m/s climb) from where it finished, clear of every surface and latch, the
  * view levels back to 0 (settle): it used to stay at +/-0.8 rad, which climbed to the sky limit and dived to the water in a loop.
  * A second and a half clear of everything (settleS) settles it too: a slow climb, or a steep one in a flight with weight, takes far
- * longer than that to gain 20 m. The face nudge (limitSteer.faceSteer) hands its pitch back through the same settle; its pitch can
- * reach 1.25 rad, so settleS leaves a second to level it inside the 2.5 s the tests allow.
+ * longer than that to gain 20 m. The face nudge hands its pitch back through the same settle (limitSteer.dropFace), toward
+ * settleTo: what the view was before it, never past level. A peel settles to level. From 1.25 rad the settle is under the 0.35 rad
+ * the hands-off test allows 0.9 s after it starts, so settleS leaves a tenth of a second inside that test's 2.5 s.
  */
 export function peelPitch(rt: { pitch: number }, c: SteerIn, tp: number) {
   const n = c.contact, ceil = WORLD.ceiling - c.p.y, floor = c.p.y - FLIGHT_FLOOR, pitch = rt.pitch;
@@ -28,17 +29,19 @@ export function peelPitch(rt: { pitch: number }, c: SteerIn, tp: number) {
   // Under an overhang the suit only levels off (never dives back down at the street it just left); the ceiling and water dive away.
   const district = ceil < STEER.touch || floor < STEER.touch || ceil < STEER.peelZone || floor < STEER.peelZone;
   if (up) { S.peel = up; S.peelLost = 0; S.shallow = up > 0 && !district; S.settle = false; } else if (S.peel) S.peelLost += c.dt;
-  if (S.peel && S.peelLost > .6) { S.peel = 0; S.settle = true; S.y0 = c.p.y; }
+  if (S.peel && S.peelLost > .6) { S.peel = 0; S.settle = true; S.settleTo = 0; S.y0 = c.p.y; }
   if (S.peel) {
     const target = S.shallow ? 0 : -S.peel * STEER.peelTarget, step = STEER.pitch * c.dt;
-    if ((S.peel > 0 && pitch <= target) || (S.peel < 0 && pitch >= target)) { S.leave = S.peel; S.leaveT = 1.2; S.peel = 0; S.settle = true; S.y0 = c.p.y; return; }
+    if ((S.peel > 0 && pitch <= target) || (S.peel < 0 && pitch >= target)) { S.leave = S.peel; S.leaveT = 1.2; S.peel = 0; S.settle = true; S.settleTo = 0; S.y0 = c.p.y; return; }
     rt.pitch += Math.sign(target - pitch) * Math.min(step, Math.abs(target - pitch));
     return;
   }
   if (!S.settle) { S.clearT = 0; return; }
-  const near = ceil < STEER.settleClear || floor < STEER.settleClear || n.active || S.wall || S.face;
+  // Clear means nothing near, nothing pressed on (a slide's look-ahead contact flickers; its scrape does not) and no latch, for a
+  // moment (settleMin) even once the rise is gained.
+  const near = ceil < STEER.settleClear || floor < STEER.settleClear || n.active || c.scrape.active || S.wall || S.face;
   S.clearT = near ? 0 : S.clearT + c.dt;
-  if (near || (Math.abs(c.p.y - S.y0) < STEER.settleRise && S.clearT < STEER.settleS)) return;
-  const step = STEER.settle * c.dt;
-  if (Math.abs(pitch) <= step) { rt.pitch = 0; S.settle = false; } else rt.pitch -= Math.sign(pitch) * step;
+  if (S.clearT < STEER.settleMin || (Math.abs(c.p.y - S.y0) < STEER.settleRise && S.clearT < STEER.settleS)) return;
+  const step = STEER.settle * c.dt, left = S.settleTo - pitch;
+  if (Math.abs(left) <= step) { rt.pitch = S.settleTo; S.settle = false; } else rt.pitch += Math.sign(left) * step;
 }
