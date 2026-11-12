@@ -7,6 +7,9 @@ import { S, STEER, wallGap, type SteerIn } from './limitLatch';
  * `tp` is the pitch the suit is travelling at (from the commanded velocity, so backing up does not count as diving). Once the peel is
  * done and the suit has gained settleRise (20 m: 2 s of a 13 m/s climb) from where it finished, clear of every surface and latch, the
  * view levels back to 0 (settle): it used to stay at +/-0.8 rad, which climbed to the sky limit and dived to the water in a loop.
+ * A second and a half clear of everything (settleS) settles it too: a slow climb, or a steep one in a flight with weight, takes far
+ * longer than that to gain 20 m. The face nudge (limitSteer.faceSteer) hands its pitch back through the same settle; its pitch can
+ * reach 1.25 rad, so settleS leaves a second to level it inside the 2.5 s the tests allow.
  */
 export function peelPitch(rt: { pitch: number }, c: SteerIn, tp: number) {
   const n = c.contact, ceil = WORLD.ceiling - c.p.y, floor = c.p.y - FLIGHT_FLOOR, pitch = rt.pitch;
@@ -32,8 +35,10 @@ export function peelPitch(rt: { pitch: number }, c: SteerIn, tp: number) {
     rt.pitch += Math.sign(target - pitch) * Math.min(step, Math.abs(target - pitch));
     return;
   }
-  if (!S.settle) return;
-  if (Math.abs(c.p.y - S.y0) < STEER.settleRise || ceil < STEER.settleClear || floor < STEER.settleClear || n.active || S.wall || S.face) return;
+  if (!S.settle) { S.clearT = 0; return; }
+  const near = ceil < STEER.settleClear || floor < STEER.settleClear || n.active || S.wall || S.face;
+  S.clearT = near ? 0 : S.clearT + c.dt;
+  if (near || (Math.abs(c.p.y - S.y0) < STEER.settleRise && S.clearT < STEER.settleS)) return;
   const step = STEER.settle * c.dt;
   if (Math.abs(pitch) <= step) { rt.pitch = 0; S.settle = false; } else rt.pitch -= Math.sign(pitch) * step;
 }

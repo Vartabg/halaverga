@@ -66,3 +66,19 @@ Not measured: a turn at surge in the browser (the capture's turn ran at cruise, 
 - On the final tree: `pnpm verify` passed (type check, 2,667 unit tests in 231 files, production build, first load 626.6 of 629 KB, vote build check), and the browser gate passed 35 of 35 in desktop Chrome (the twelve specs named in the plan, plus `thumb-flight`). The gate's first run, before the code review fixes, was 34 of 35: `wing-flight` failed because take-off eased a metre higher; that is the take-off fix above.
 - Not run: the whole browser suite, and the three specs outside the gate whose waits were raised (`classic-blast`, `recovery`, `play-guard`).
 - Not re-captured in the game after the review fixes: the release, turn and string numbers of section 2 (the level-flight flare, the turn and the strike code did not change after them; the take-off, the steep release, Rise against a fall and the watch-drop on a look did, and are covered by unit tests only).
+
+## 5. The slow climb after a rock face (2026-11-11, after Garo's "Yes, fix it")
+
+Section 3's finding 5 called it a slide along two rock faces at 8 to 12 m/s. A trace of the three affected cases showed that was wrong: the angel leaves the rock within a second and is never touching it again. What happens is that the face nudge tips the view up to clear the slope (to 1.0 to 1.14 rad in these cases, on slopes far gentler than that) and leaves it there. The older flight shot up to the sky limit at full speed, where the ceiling peel turned it down and its settle levelled it. A flight with weight climbs at 62 degrees at about 8 m/s for as long as thrust is held.
+
+The fix is in the limits, not in the flight: the face nudge hands its pitch back through the peel's existing settle. Two things were needed for that to work in every flight: the settle also fires after 1.5 s clear of everything (gaining the 20 m it waited for takes 2.5 to 5 s in a slow climb, and the older tests allow 2.5 s), and a hand-back still owed is kept through a pause in the flying instead of being dropped with the thrust.
+
+| At the west hill, thrust held at surge | Before | After |
+|---|---|---|
+| Harness, this flight | view 1.14 rad up for good, 7.8 m/s | level 2.3 s after it tips, 32 m/s by 7 s |
+| Harness, older flight | carried to the sky limit (148 m) | level at about 60 m |
+| The game (desktop Chrome, production build) | view 1.08 rad up for good, 8.0 m/s, 113 m up after 8 s | tips to 1.12 rad, level 2.1 s later at 61 m, 32.5 m/s |
+
+- All 37 limit tests pass, the older flight's included (one of them, the 90 s hands-off run at 8 m/s, set the 1.5 s figure). `pnpm verify`: 2,668 unit tests. Browser gate: 35 of 35.
+- Left as it is, and not tried: how far the nudge tips the view (it points along the face's normal, far steeper than the slope needs). Tipping it less might keep more speed over a hill; the older flight's escape tests measure how soon the angel is 20 m clear of the rock, so that needs its own look.
+- The speed still dips to about 11 m/s for about a second and a half while it climbs over. That is the climb costing speed, as it should.

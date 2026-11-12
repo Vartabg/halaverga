@@ -66,13 +66,22 @@ function faceSteer(rt: { pitch: number }, c: SteerIn, g: [number, number], d: [n
   // Contact flickers every other step in a slide: gaps under STEER.gap still count as pressing.
   S.fpGap = into ? 0 : S.fpGap + c.dt; S.fp = S.fpGap > STEER.gap ? 0 : S.fp + c.dt;
   S.faceGap = on ? 0 : S.faceGap + c.dt;
-  if (S.face) { S.faceT += c.dt; if (S.faceT > STEER.faceMaxS || S.faceGap > STEER.faceLostS || away >= STEER.outFace) S.face = false; }
+  if (S.face) {
+    S.faceT += c.dt;
+    if (S.faceT > STEER.faceMaxS || S.faceGap > STEER.faceLostS || away >= STEER.outFace) {
+      S.face = false;
+      // It tipped the view up or down to clear the face: that is handed back (limitPeel's settle levels it once it is well clear),
+      // as after a peel. Left as it was, the view stayed up to 1.25 rad up for good, and in a flight with weight that is a crawl.
+      if (S.facePitch) { S.settle = true; S.y0 = c.p.y; }
+    }
+  }
   if (!S.face) {
     if (S.fp < STEER.pressS || away > 0) return 0;
-    S.face = true; S.faceT = 0; S.faceSide = 0;
+    S.face = true; S.faceT = 0; S.faceSide = 0; S.facePitch = false;
   }
   if (pitchFree && Math.abs(S.fy) > .3) {
     const target = Math.max(-1.25, Math.min(1.25, Math.asin(S.fy))), step = STEER.pitch * c.dt;
+    if (target !== rt.pitch) S.facePitch = true;
     rt.pitch += Math.sign(target - rt.pitch) * Math.min(step, Math.abs(target - rt.pitch));
   }
   if (h < .3) return 0;
@@ -97,6 +106,9 @@ export function limitSteer(rt: { yaw: number; pitch: number }, c: SteerIn): void
     rt.yaw += Math.abs(a) >= Math.abs(b) ? a : b;
   }
   if (S.wedge) { S.yaw = rt.yaw; S.pitch = rt.pitch; return; }
-  if (pitchFree) peelPitch(rt, c, Math.asin(Math.max(-1, Math.min(1, t.y / len)))); else { S.peel = 0; S.touchT = 0; S.touchGap = 9; S.settle = false; }
+  if (pitchFree) peelPitch(rt, c, Math.asin(Math.max(-1, Math.min(1, t.y / len))));
+  // A pitch still to be handed back waits through a pause in the flying (it is the nudge's own tilt, and the next push would climb
+  // on it); the pilot's own pitch, an aim or level flight takes it over for good.
+  else { S.peel = 0; S.touchT = 0; S.touchGap = 9; if (asked || !c.pitchFlies || S.holdPitch > 0) S.settle = false; }
   S.yaw = rt.yaw; S.pitch = rt.pitch;
 }

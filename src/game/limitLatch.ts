@@ -5,7 +5,7 @@ import { WORLD, type Vec } from './motion';
 // turns, so a pilot about to turn is never fought.
 export const STEER = { yaw: 2, zone: 6, zoneSpeed: .75, delay: .36, ramp: .15, fast: .6, outWall: .6, startWall: .3, faceMaxS: 3, outFace: .75, face: 2.2,
   stallSpeed: .4, into: .1, pressS: .2, minIn: 1, ttc: 4, hug: 2.5, yieldYaw: .5, yieldPitch: .4, hold: .2, gap: .15, faceLostS: .8, wedgeS: .6, wedgeMaxS: 2.5, wedgeFree: 2, exitFloor: 2,
-  pitch: 2.2, peelTarget: .8, peelInto: .35, peelZone: 4, touch: .8, touchInto: .03, touchS: .25, settleClear: 8, settleRise: 20, settle: 1 } as const;
+  pitch: 2.2, peelTarget: .8, peelInto: .35, peelZone: 4, touch: .8, touchInto: .03, touchS: .25, settleClear: 8, settleRise: 20, settleS: 1.5, settle: 1 } as const;
 export interface Contact { active: boolean; normal: Vec }
 export interface SteerIn {
   dt: number; p: Vec; v: Vec; /** actual speed last step (m/s moved), not the velocity asked for */ speed: number;
@@ -18,8 +18,8 @@ export interface SteerIn {
   /** How far (m, up to 20) the suit's own capsule runs along a horizontal direction before it touches something: asked to break a tie at a face and by the wedge fallback. */
   free?: (x: number, z: number) => number;
 }
-const fresh = () => ({ live: false, wall: false, wallSide: 0, wallT: 0, face: false, faceSide: 0, faceT: 0, fx: 0, fy: 0, fz: 0, fp: 0, fpGap: 9, faceGap: 0, stuckT: 0, stuckGap: 9, wedge: false, wedgeT: 0, wedgeYaw: 0, peel: 0, touchT: 0, touchGap: 9,
-  shallow: false, leave: 0, leaveT: 0, peelLost: 0, settle: false, y0: 0, holdYaw: 0, holdPitch: 0, lastTurn: 0, yaw: NaN, pitch: NaN });
+const fresh = () => ({ live: false, wall: false, wallSide: 0, wallT: 0, face: false, faceSide: 0, faceT: 0, facePitch: false, fx: 0, fy: 0, fz: 0, fp: 0, fpGap: 9, faceGap: 0, stuckT: 0, stuckGap: 9, wedge: false, wedgeT: 0, wedgeYaw: 0, peel: 0, touchT: 0, touchGap: 9,
+  shallow: false, leave: 0, leaveT: 0, peelLost: 0, settle: false, y0: 0, clearT: 0, holdYaw: 0, holdPitch: 0, lastTurn: 0, yaw: NaN, pitch: NaN });
 export const S = fresh();
 /** Which way the pitch peel is leaving (+1 the ceiling, -1 the floor or a roof), 0 when it is not. */
 export const peeling = () => S.peel || (S.leaveT > 0 ? S.leave : 0);
