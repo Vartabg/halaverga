@@ -201,6 +201,7 @@ describe('the view stays on the heading while the angel is flown', () => {
     expect(rig).toContain('release: watch.dropped });'); expect(rig).toContain('const watching = watch.watching;');
     expect(rig.indexOf('stepWatch(watch')).toBeLessThan(rig.indexOf('stepCombatCamera(combat.current')); // decided before the planner steps
     expect(player).toContain('runtime.flown = moving(intent) || gesture.live && gesture.velocityOn;');
-    expect(player.indexOf('runtime.flown = ')).toBeLessThan(player.indexOf('strikeStep(v, p, dt, state.reduced, runtime.flown)'));
+    expect(player).toContain('strikeStep(v, p, dt, state.reduced, runtime.flown, look)'); // look: the real step, for the hit-stop
+    expect(player.indexOf('runtime.flown = ')).toBeLessThan(player.indexOf('strikeStep(v, p, dt, state.reduced, runtime.flown, look)'));
   });
 });

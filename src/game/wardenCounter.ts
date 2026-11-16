@@ -11,8 +11,10 @@ export function exposeWarden(w: Wardens, i: number, parry = false) {
   }
   w.bolts.forEach(o => { if (o.src === i) o.live = false; });
 }
+/** The warden is open to the blow its attacker earned (a dodge or a parry). */
+export const wardenExposed = (w: Wardens, i: number) => w.phase[i] === WA.recover && (w.open[i] > 0 || w.opened[i] > 0);
 export function reserveWardenCounter(w: Wardens, i: number) {
-  if (w.phase[i] === WA.recover && (w.open[i] > 0 || w.opened[i] > 0)) w.pending = i;
+  if (wardenExposed(w, i)) w.pending = i;
 }
 export function takeWardenCounter(w: Wardens, i: number) {
   if (w.pending !== i && !(w.phase[i] === WA.recover && w.open[i] > 0)) return false;

@@ -128,5 +128,6 @@ export function stepShooter(s: ShooterState, sim: DroneSim, mem: AssistMemory, w
   } else a.blocked = false;
   // h. Assist and camera effects.
   advanceAssist(s, mem, a.origin, a.dir, a.fov, ctx.strength, dt);
-  advanceCamFx(fx, dt, ctx.reduced, s.clock);
+  const real = dt > 0 ? Math.min(ctx.realDt ?? dt, .05) : dt;
+  advanceCamFx(fx, real, ctx.reduced, ctx.realDt === undefined ? s.clock : (ctx.shakeT = (ctx.shakeT ?? s.clock) + real));
 }

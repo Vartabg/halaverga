@@ -40,11 +40,12 @@ export function cancelStrike() { strike.phase = 0; strike.target = -1; strike.fr
 
 /**
  * Overrides the step's velocity while a strike runs and returns true; false when idle. The flight safety still runs afterwards,
- * so a dive slides along stone instead of passing through it. Reduced motion still strikes, with no freeze.
+ * so a dive slides along stone instead of passing through it. Reduced motion still strikes, with no freeze. real: the step in
+ * real seconds; the freeze counts that, so slow motion (slowMotion.ts) never stretches a hit-stop.
  */
-export function strikeVelocity(v: Vec3, p: Vec3, dt: number, reduced: boolean, steering = false) {
+export function strikeVelocity(v: Vec3, p: Vec3, dt: number, reduced: boolean, steering = false, real = dt) {
   if (strike.phase === 0) return false;
-  if (strike.freeze > 0) { strike.freeze -= dt; if (!reduced) { v.x = v.y = v.z = 0; return true; } }
+  if (strike.freeze > 0) { strike.freeze -= real; if (!reduced) { v.x = v.y = v.z = 0; return true; } }
   strike.t += dt;
   if (strike.phase === 1) {
     const x = strike.aim.x - p.x, y = strike.aim.y - p.y, z = strike.aim.z - p.z, d = Math.hypot(x, y, z) || 1;
@@ -104,14 +105,14 @@ const dash = { cap: 0, seen: 0 };
  * or was replaced by a new one (before that one launches from it), the velocity is cut to what the angel arrived with. Every way
  * a strike ends passes here: the blow, a miss, a cancel from the fight between steps.
  */
-export function strikeStep(v: Vec3, p: Vec3, dt: number, reduced: boolean, steering = false) {
+export function strikeStep(v: Vec3, p: Vec3, dt: number, reduced: boolean, steering = false, real = dt) {
   if (dash.cap > 0 && (strike.phase === 0 || dash.seen !== strike.serial)) {
     const speed = Math.hypot(v.x, v.y, v.z);
     if (speed > dash.cap) { const k = dash.cap / speed; v.x *= k; v.y *= k; v.z *= k; }
     dash.cap = 0;
   }
   dash.seen = strike.serial;
-  const running = strikeVelocity(v, p, dt, reduced, steering);
+  const running = strikeVelocity(v, p, dt, reduced, steering, real);
   if (strike.phase !== 0) dash.cap = strike.lunge || !strike.primed ? STRIKE.keep : Math.max(STRIKE.keep, strike.entrySpeed);
   return running;
 }

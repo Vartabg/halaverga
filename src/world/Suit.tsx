@@ -20,6 +20,7 @@ import { createWingClearance } from './wingClearance';
 import { bindAngelClips } from './angelClips';
 import { createAngelMotion, stepAngelMotion, turnBody } from './angelMotion';
 import { strike } from '@/game/strike';
+import { gameDt } from '@/game/slowMotion';
 import { cannonLink } from './cannonContract';
 import { beginSuitSprings, createSuitSprings, followBody, followWings, stepClothSway } from './suitSprings';
 export const SUIT_URL = '/models/angel.glb';
@@ -55,7 +56,8 @@ export default function Suit() {
   const frame = useMemo(() => ({ dt: 0, paused: true, reduced: false, epoch: 0, ground: 1, command: 0 }), []);
   const blaster = useMemo(() => createBlasterFrame(rig, runtime.shooter), [rig]);
   useEffect(() => () => { wings.root.removeFromParent(); wings.dispose(); regalia.dispose(); releaseSuitBlaster(blaster); rig.dispose(); }, [rig, blaster, wings, regalia]);
-  useFrame((three, dt) => {
+  useFrame((three, realDt) => {
+    const dt = gameDt(realDt); // slow motion slows the angel's animation too
     const state = useGame.getState(), m = motion.current, life = animation.current, mix = flight.current;
     if (m.epoch !== pose.epoch) Object.assign(m, { epoch: pose.epoch, hero: state.heroPoses ? 1 : 0 });
     if (!state.paused) advanceSuitMotion(m, state.heroPoses, dt);

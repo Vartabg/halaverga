@@ -14,6 +14,7 @@ import SealedGround from './SealedGround';
 import FlightRush from './FlightRush';
 import Battle from './Battle';
 import Banishment from './Banishment';
+import CounterCue from './CounterCue';
 import FlamingSword from './FlamingSword';
 import Suit, { ADVERSARY_URL } from './Suit';
 import Player from '@/game/Player';
@@ -65,7 +66,7 @@ function ShooterAssets() {
   // A missing demon model is a reloadable world download failure. Load outside the optional fault boundary.
   useLoader(GLTFLoader, ADVERSARY_URL);
   return <Boundary fallback={null} onError={() => shooterFault('render', null)}><Shooter /><Drones /><ShotFx /><ImpactFx /><Battle />
-    <Banishment /><FlamingSword /></Boundary>;
+    <Banishment /><CounterCue /><FlamingSword /></Boundary>;
 }
 /** Standard on the classic one thumb, blaster on, touch-capable device: the drone screen history alone (the tap pick reads it).
  *  A desktop that has never shown touch mounts nothing here, so its Standard stays as it was. A failure only leaves it out. */

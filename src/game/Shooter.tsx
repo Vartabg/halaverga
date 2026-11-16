@@ -5,6 +5,8 @@ import { audioBus, type PlayOptions } from '@/ui/audioBus';
 import { resetShooterFeel } from './combat';
 import { COMMAND, requestCommand } from './commands';
 import { runtime } from './runtime';
+import { resetSlowMotion, stepSlowMotion } from './slowMotion';
+import { resetCounter, settleCounter, tryCounter, updateCounterWindow } from './counter';
 import { useGame } from './store';
 import { presentation, CHASE_HEAD } from './presentation';
 import { guarded } from './shooterFault';
@@ -33,7 +35,9 @@ export default function Shooter() {
   const compiled = useRef(false);
   const frame = useMemo(() => guarded('Shooter', (state: RootState, delta: number) => {
     const game = useGame.getState(), p = runtime.position, h = presentation.position, ctx = parts.ctx;
-    ctx.dt = delta; ctx.paused = game.paused; ctx.reduced = game.reduced; ctx.flying = game.flying;
+    // Slow motion after a counter (slowMotion.ts): game systems take scaled steps; input and the camera keep real time.
+    const scaled = delta * stepSlowMotion(delta, game.paused, game.reduced);
+    ctx.dt = scaled; ctx.realDt = delta; ctx.paused = game.paused; ctx.reduced = game.reduced; ctx.flying = game.flying;
     ctx.firstPerson = game.camera !== 'third'; ctx.strength = game.aimAssist; ctx.speed = runtime.speed;
     // Tap-to-blast replaces auto-fire in the lab schemes and on the classic one thumb (a tapped drone is the trigger there), so no
     // tap on Lift/Land or another control can arm it. Twin sticks keep the assist.
@@ -50,7 +54,10 @@ export default function Shooter() {
     input.fire = false; input.fireSource = 'none'; runtime.shooter.weapon.handledPress = input.pressSerial; runtime.shooter.weapon.pending = false;
     if (!game.paused && game.flying) rumble(runtime.shooter.camFx, runtime.speed);
     stepShooter(runtime.shooter, parts.sim, parts.mem, parts.world, ctx, sink);
-    if (!game.paused) { updateFlowPaths(runtime.shooter, p, parts.world.lineClear, state.size); stepBanish(banish, runtime.shooter, p, delta); }
+    if (!game.paused) {
+      updateFlowPaths(runtime.shooter, p, parts.world.lineClear, state.size); updateCounterWindow(runtime.shooter, p, delta, game.flying);
+      tryCounter(runtime.shooter, p); stepBanish(banish, runtime.shooter, p, scaled); settleCounter(runtime.shooter, p);
+    }
     if (!compiled.current) {
       // Compile the pooled drone and effect programs now, so the first shot never stalls on a shader compile.
       compiled.current = true; state.gl.compile(state.scene, state.camera);
@@ -67,6 +74,9 @@ export default function Shooter() {
     return () => { removeEventListener('keydown', down); removeEventListener('keyup', up); commandKeyUp('KeyV', runtime.shooter); };
   }, []);
   // Switching the setting off returns look, camera and pose to exact main behaviour.
-  useEffect(() => { resetBanish(banish, runtime.shooter); return () => { resetAutoFire(runtime.shooter, autoFire); resetShooterFeel(runtime.shooter); resetBanish(banish, runtime.shooter); }; }, []);
+  // This component owns the slow-motion clock, so leaving (the fight switched off, a scene reload) returns game time to normal: flight
+  // reads counterState.scale and would otherwise stay slow with no clock left to ease it back.
+  useEffect(() => { resetBanish(banish, runtime.shooter); resetSlowMotion(); resetCounter();
+    return () => { resetAutoFire(runtime.shooter, autoFire); resetShooterFeel(runtime.shooter); resetBanish(banish, runtime.shooter); resetSlowMotion(); resetCounter(); }; }, []);
   return null;
 }

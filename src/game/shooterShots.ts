@@ -13,7 +13,12 @@ import { aimed, shotDirOf } from './gesture/aimedShot';
 
 /** Per-frame inputs from the scene. head = presentation.position + CHASE_HEAD; strength = the aimAssist setting. */
 export type StepContext = {
-  dt: number; paused: boolean; reduced: boolean; flying: boolean; speed: number; player: Vec3; head: Vec3;
+  dt: number;
+  /** Real seconds this frame, for the camera's own effects: they do not slow with the game (slowMotion.ts). Absent: dt. */
+  realDt?: number;
+  /** The shake's own clock, kept by stepShooter in real seconds once realDt is given (a slowed shake reads as a sway). */
+  shakeT?: number;
+  paused: boolean; reduced: boolean; flying: boolean; speed: number; player: Vec3; head: Vec3;
   firstPerson: boolean; strength: number;
   /** store.autoFire: touch auto-fire allowed. */
   autoFire: boolean;

@@ -29,5 +29,9 @@ it('keeps every source module under 200 lines (AGENTS.md)', () => {
   for (const path of walk('src')) expect(read(path).split('\n').length, path).toBeLessThanOrEqual(200);
 });
 it('feeds the fight its frame state: the Hermon branch once dropped this line and every timer in the fight stood still', () => {
-  expect(read('src/game/Shooter.tsx')).toContain('ctx.dt = delta; ctx.paused = game.paused; ctx.reduced = game.reduced; ctx.flying = game.flying;');
+  // Since counters (2026-11-16) the step is the frame's delta times the slow-motion scale; the camera's effects get the real delta.
+  const shooter = read('src/game/Shooter.tsx');
+  expect(shooter).toContain('const scaled = delta * stepSlowMotion(delta, game.paused, game.reduced);');
+  expect(shooter).toContain('ctx.dt = scaled; ctx.realDt = delta; ctx.paused = game.paused; ctx.reduced = game.reduced; ctx.flying = game.flying;');
+  expect(shooter).toContain('stepBanish(banish, runtime.shooter, p, scaled);');
 });

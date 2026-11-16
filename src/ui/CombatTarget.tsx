@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { banish, MODE } from '@/game/banishState';
+import { counterState } from '@/game/counterState';
 import { strike } from '@/game/strike';
 import { LAST, pressTarget } from '@/game/swordString';
 import { runtime } from '@/game/runtime';
@@ -21,7 +22,9 @@ export default function CombatTarget() {
       const active = strike.phase === 1 && strike.target >= 0;
       const queued = strike.queued, next = strike.queueTarget;
       const explicit = queued && next >= 0 && s.targets[next]?.alive && s.targets[next].los && banish.mode[next] < MODE.down;
-      const i = state.paused || !state.shooter ? -1 : active ? strike.target : explicit ? next : pressTarget(banish, s, runtime.position);
+      // While a counter is offered the ring is on the attacker: it shows where the press will go, as it does for every other press.
+      const offered = counterState.attacker;
+      const i = state.paused || !state.shooter ? -1 : active ? strike.target : explicit ? next : offered >= 0 ? offered : pressTarget(banish, s, runtime.position);
       const target = i >= 0 ? s.targets[i] : null;
       el.hidden = !target?.alive || !s.aim.valid;
       if (el.hidden || !target) return;
@@ -49,7 +52,7 @@ export default function CombatTarget() {
         ring.current.style.transform = `rotate(${Math.atan2(dy, dx)}rad)`;
       } else if (el.dataset.edge !== 'false') { ring.current.style.cssText = ''; ring.current.textContent = ''; }
       const wounds = banish.wounds[i] ?? 0;
-      const text = active ? 'STRIKING' : queued ? 'QUEUED' : edge ? 'TURN' : wounds >= LAST ? 'FINISH' : wounds > 0 ? `CUT ${wounds + 1}` : banish.combo > 0 ? 'CHAIN' : 'STRIKE';
+      const text = active ? 'STRIKING' : queued ? 'QUEUED' : edge ? 'TURN' : i === offered ? 'COUNTER' : wounds >= LAST ? 'FINISH' : wounds > 0 ? `CUT ${wounds + 1}` : banish.combo > 0 ? 'CHAIN' : 'STRIKE';
       if (label.current.textContent !== text) label.current.textContent = text;
       el.style.transform = `translate(${point.x}px,${point.y}px)`;
       el.dataset.target = String(i); el.dataset.x = point.x.toFixed(1); el.dataset.y = point.y.toFixed(1);

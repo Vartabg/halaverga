@@ -2,24 +2,8 @@ import { expect, test, type Page } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import { begin, centre, resume, seed, shots, twinTouchPage } from './shooter-browser';
 import { legend } from './lab-browser';
+import { errorsOf, hint, locked, overlaps, recordSaid, said, saved, soundNotice } from './simple-hints-support';
 // Progressive controls hints (docs/simple-controls.md): one instruction at a time, advanced by doing it, persisted so it never repeats.
-const hint = (p: Page) => p.getByTestId('controls-hint');
-const soundNotice = (p: Page) => p.locator('p', { hasText: 'Blaster sound is off · Pause, then Flight settings' });
-const locked = (p: Page) => p.evaluate(() => !!document.pointerLockElement);
-const saved = (p: Page) => p.evaluate(() => JSON.parse(localStorage.getItem('halaverga-flight-v1') || '{}').hintProgress);
-const errorsOf = (p: Page) => { const errors: string[] = []; p.on('pageerror', e => errors.push(e.message)); return errors; };
-// Every text the screen-reader region received, in order (recorded from the first paint, so none is missed between polls).
-const recordSaid = (p: Page) => p.addInitScript(() => {
-  const said: string[] = []; (window as unknown as { said: string[] }).said = said;
-  new MutationObserver(() => {
-    const t = document.querySelector('[data-testid=hint-live]')?.textContent ?? '';
-    if (t && said[said.length - 1] !== t) said.push(t);
-  }).observe(document, { subtree: true, childList: true, characterData: true });
-});
-const said = (p: Page) => p.evaluate(() => (window as unknown as { said: string[] }).said);
-const overlaps = (a: { x: number; y: number; width: number; height: number }, b: typeof a) =>
-  a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
-
 for (const size of [{ width: 1440, height: 1000 }, { width: 640, height: 900 }]) test(`one finger + keyboard: the full sequence at ${size.width} px, persisted`, async ({ page }) => {
   const errors = errorsOf(page); await page.setViewportSize(size); await recordSaid(page); await begin(page, '/?trackpad=simple');
   await expect(hint(page)).toHaveText('Click the scene to start'); await expect(hint(page)).toHaveAttribute('data-step', '0');
