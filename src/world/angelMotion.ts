@@ -80,7 +80,8 @@ export function stepAngelMotion(m: AngelMotion, clips: AngelClips, joints: reado
     if (twist && CHEST >= 0) joints[CHEST].rotateY(twist * m.weight * (1 - 2 * Math.min(1, Math.max(0, (m.actT - SLASH.raised) / .3))));
   }
   joints[0].position.copy(m.rest).add(m.hip);
-  // The cut's whole-body move, in flight only: a twirl about the spine or a flip across it (turnBody applies it to the model).
+  // The cut's whole-body lean, in flight only: about the spine or across it (turnBody applies it to the model). Every cut is a
+  // lean that goes out and comes back (swordString.ts CUTS); the full-turn branch stays for data that asks for one.
   // Reduced motion keeps the body still.
   const cut = CUTS[m.spinCut];
   m.twirl = m.flip = 0;

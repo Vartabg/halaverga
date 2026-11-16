@@ -4,6 +4,7 @@
 import { Quaternion, Vector3, type Object3D } from 'three';
 import { createBoneSprings, followTargets, restoreTargets, type SpringTune } from './boneSprings';
 import type { ArchangelWings } from './archangelWings';
+import { BRACE, FREE_ARM } from './strikeStance';
 
 /** Index order is suitSkeleton.BONE_NAMES. */
 export const BODY_TUNES: readonly SpringTune[] = [
@@ -30,13 +31,13 @@ export function createSuitSprings(root: Object3D, joints: Object3D[], wings: Arc
 export type SuitSprings = ReturnType<typeof createSuitSprings>;
 export const beginSuitSprings = (s: SuitSprings) => restoreTargets(s.body);
 
-type Frame = { dt: number; paused: boolean; reduced: boolean; epoch: number; ground: number; command: number };
+type Frame = { dt: number; paused: boolean; reduced: boolean; epoch: number; ground: number; command: number; brace?: number };
 /** After every body layer (pose, clips, living motion, the command arm): the root and the 21 bones follow their targets. */
 export function followBody(s: SuitSprings, f: Frame) {
   const snap = f.reduced || f.epoch !== s.epoch, dt = f.paused ? 0 : f.dt;
   s.epoch = f.epoch;
   followTargets(s.root, dt, snap);
-  followTargets(s.body, dt, snap, i => LEGS.has(i) ? 1 + 1.2 * f.ground : COMMAND_ARM.has(i) ? 1 + .6 * f.command : 1);
+  followTargets(s.body, dt, snap, i => LEGS.has(i) ? Math.max(1 + 1.2 * f.ground, 1 + BRACE * (f.brace ?? 0)) : COMMAND_ARM.has(i) ? 1 + .6 * f.command : FREE_ARM.has(i) ? 1 + BRACE * (f.brace ?? 0) : 1);
 }
 /** After the wings are posed and cleared of stone. */
 export function followWings(s: SuitSprings, w: ArchangelWings, f: Frame) {

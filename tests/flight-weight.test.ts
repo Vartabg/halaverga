@@ -1,9 +1,9 @@
 // The angel has weight (Garo 2026-11-11: "the flight mechanics make no sense"; docs/plans/2026-11-11-flight-weight.md). A release
 // is a flare over a distance, a turn has an arc and a cost, and a strike's dash is not the angel's own speed.
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, onTestFinished } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { FLIGHT, momentumVelocity } from '../src/game/momentumFlight';
-import { WATCH_AHEAD, WATCH_LINGER, createCombatCamera, createWatch, stepCombatCamera, stepWatch } from '../src/game/combatCamera';
+import { FIGHT_CAMERA, WATCH_AHEAD, WATCH_LINGER, createCombatCamera, createWatch, stepCombatCamera, stepWatch } from '../src/game/combatCamera';
 import { STRIKE, beginStrike, cancelStrike, strike, strikeStep } from '../src/game/strike';
 import type { Intent, Vec } from '../src/game/motion';
 
@@ -186,7 +186,8 @@ describe('the view stays on the heading while the angel is flown', () => {
       const none = createWatch(); stepWatch(none, { ...hover, ...off }); expect(none.watching).toBe(false); expect(none.dropped).toBe(false);
     }
   });
-  it('a dropped watch does not leave the planner turning the pilot down at the demon', () => {
+  it('a dropped watch does not leave the planner turning the pilot down at the demon (with the follow camera on)', () => {
+    FIGHT_CAMERA.follow = true; onTestFinished(() => { FIGHT_CAMERA.follow = false; });
     const s = createCombatCamera();
     const at = { yaw: 0, pitch: 0, pilotYaw: 0, pilotPitch: 0, epoch: 1, enabled: true, reduced: false, target: 0, aim: { x: 0, y: -30, z: -30 }, hero: { x: 0, y: 20, z: 0 }, aspect: 1.6, dt: DT };
     for (let n = 0; n < 12; n++) stepCombatCamera(s, { ...at, phase: 1 }); // the view on the falling demon

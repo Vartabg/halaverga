@@ -20,6 +20,8 @@ import { createWingClearance } from './wingClearance';
 import { bindAngelClips } from './angelClips';
 import { createAngelMotion, stepAngelMotion, turnBody } from './angelMotion';
 import { strike } from '@/game/strike';
+import { createStrikeStance, stepStrikeStance } from './strikeStance';
+import { bulkSuit } from './suitBulk';
 import { gameDt } from '@/game/slowMotion';
 import { cannonLink } from './cannonContract';
 import { beginSuitSprings, createSuitSprings, followBody, followWings, stepClothSway } from './suitSprings';
@@ -42,7 +44,7 @@ export default function Suit() {
   const { world, rapier } = useRapier();
   const motion = useRef({ hero: 1, epoch: -1 }), animation = useRef(createSuitAnimation()), flight = useRef(createFlightMix()), turn = useRef(createSuitRoll());
   const asset = useLoader(GLTFLoader, SUIT_URL);
-  const rig = useMemo(() => buildSuitRig(asset.scene), [asset]);
+  const rig = useMemo(() => bulkSuit(buildSuitRig(asset.scene)), [asset]), stance = useRef(createStrikeStance());
   const clips = useMemo(() => bindAngelClips(asset.animations), [asset]), moves = useRef(createAngelMotion());
   const wings = useMemo(() => {
     const w = createArchangelWings();
@@ -53,7 +55,7 @@ export default function Suit() {
   // The blaster block's per-frame inputs (suitBlaster.ts), rewritten in place each frame.
   const springs = useMemo(() => createSuitSprings(rig.root, rig.joints, wings), [rig, wings]);
   const regalia = useMemo(() => angelRegalia(rig.root, rig.joints, springs.cloth.at, springs.hair.at), [rig, springs]);
-  const frame = useMemo(() => ({ dt: 0, paused: true, reduced: false, epoch: 0, ground: 1, command: 0 }), []);
+  const frame = useMemo(() => ({ dt: 0, paused: true, reduced: false, epoch: 0, ground: 1, command: 0, brace: 0 }), []);
   const blaster = useMemo(() => createBlasterFrame(rig, runtime.shooter), [rig]);
   useEffect(() => () => { wings.root.removeFromParent(); wings.dispose(); regalia.dispose(); releaseSuitBlaster(blaster); rig.dispose(); }, [rig, blaster, wings, regalia]);
   useFrame((three, realDt) => {
@@ -85,8 +87,9 @@ export default function Suit() {
     // Library clips (idle, the sword cut, the command gestures) over everything above; the springs below follow them through.
     Object.assign(moveInput, { dt, paused: state.paused, flying: state.flying, ground: life.ground, speed: Math.hypot(v.x, v.z), sword: cannonLink.forearm !== null, reduced: state.reduced });
     stepAngelMotion(moves.current, clips, rig.joints, moveInput); turnBody(rig.root, moves.current);
+    stepStrikeStance(stance.current, rig.joints, moves.current, moveInput);
     // Spring follow-through, last over the body (suitSprings.ts): the pose above is the target each bone chases.
-    Object.assign(frame, { dt, paused: state.paused, reduced: state.reduced, epoch: pose.epoch, ground: life.ground, command: runtime.shooter.aim.fireHold });
+    Object.assign(frame, { dt, paused: state.paused, reduced: state.reduced, epoch: pose.epoch, ground: life.ground, command: runtime.shooter.aim.fireHold, brace: stance.current.brace });
     followBody(springs, frame); stepClothSway(springs, rig.root, v, dt, state.paused, state.reduced);
     stepArchangelWings(wings, state.flying, state.paused, state.reduced, pose.speed, v.y, roll, dt, pose.brake, strike.phase === 1);
     alignArchangelWings(wings, rig.root, pose.lean);

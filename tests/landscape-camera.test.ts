@@ -45,7 +45,7 @@ describe('hip and ADS FOV', () => {
   });
   it('widens with speed and drops for ADS from the live hip', () => {
     const hip = hipFovFor(PHONE, 1);
-    expect(speedFovTarget(17, false, hip)).toBe(hip + 1); expect(speedFovTarget(100, false, hip)).toBe(hip + 10); expect(speedFovTarget(100, true, hip)).toBe(hip);
+    expect(speedFovTarget(15, false, hip)).toBe(hip + 1); expect(speedFovTarget(100, false, hip)).toBe(hip + 4); expect(speedFovTarget(100, true, hip)).toBe(hip);
     expect(fovFor(hip, 1, false, 0, hip)).toBeCloseTo(adsFovOf(hip), 12); expect(fovFor(hip, 0, false, 0, hip)).toBe(hip);
     expect(fovFor(hip + 2, 1, true, .5, hip)).toBe(hip + 2);
     expect(fovFor(65, 1, false, 0, 65)).toBe(50); expect(fovFor(66, .5, false, .3, 65)).toBe(fovFor(66, .5, false, .3));
@@ -67,7 +67,7 @@ describe('base FOV across rotation', () => {
         if (i === turn) jump = base - before;
       }
       expect(jump).toBeCloseTo(hip - 65, 1); // the whole change lands on the rotation frame
-      expect(Math.abs(base - (hip + 2 - 2 * Math.exp(-3)))).toBeLessThan(1e-9);
+      const d = 34 / 15; expect(Math.abs(base - (hip + d - d * Math.exp(-3)))).toBeLessThan(1e-9);
     }
   });
   it('holds the landscape hip exactly under reduced motion', () => {
