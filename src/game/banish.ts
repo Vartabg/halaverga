@@ -5,7 +5,7 @@
 import { PHASE, droneAlive, type ShooterState, type Vec3 } from './combat';
 import { COMMAND } from './commands';
 import { battle, BATTLE } from './celestialBattle';
-import { addTrauma, punchFov } from './cameraFx';
+import { addTrauma } from './cameraFx';
 import { restingHeight } from './wardenElevation';
 import { STRIKE, aimStrike, beginStrike, cancelStrike, strike as dive } from './strike';
 
@@ -65,7 +65,6 @@ function apply(b: BanishState, s: ShooterState, player: Vec3, kind: number, targ
     // The angel dives at the demon (strike.ts), or steps in for the next cut of an open string; the blow lands in stepBanish.
     const windup = stepInTime(b, i, d);
     beginStrike(i, p, d, windup); s.weapon.sinceShot = 0;
-    if (!windup) punchFov(s.camFx, 'kill', 9); // the launch widens the view: speed you can feel
     reserveWardenCounter(b.wardens, i);
     return;
   } else if (kind === COMMAND.bind) {

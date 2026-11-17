@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { createShooter } from '../src/game/combat';
-import { diveFov, rumble, speedFovTarget } from '../src/game/cameraFx';
+import { speedFovTarget } from '../src/game/cameraFx';
 import { RUSH, streakLength, streakStrength, vapourStrength } from '../src/world/rushData';
 import { createRibbon } from '../src/world/ribbon';
 import { flameGeometry } from '../src/world/swordBlade';
@@ -19,20 +19,16 @@ describe('the rush of flight', () => {
     expect(vapourStrength(60, 1.2, false)).toBeGreaterThan(vapourStrength(60, 0, false) * 1.8);
     expect(vapourStrength(140, 3, false)).toBe(1); expect(vapourStrength(140, 3, true)).toBe(0);
   });
-  it('opens the view further only in a dive, and leaves cruising as it was', () => {
-    expect(diveFov(100)).toBe(0); expect(diveFov(130)).toBe(6); expect(diveFov(400)).toBe(6);
-    expect(speedFovTarget(100, false)).toBe(75); expect(speedFovTarget(130, false)).toBe(81); expect(speedFovTarget(130, true)).toBe(65);
+  it('opens the view at most 4 degrees with speed, so a dive does not swing the view wider and back', () => {
+    expect(speedFovTarget(30, false)).toBe(67); expect(speedFovTarget(60, false)).toBe(69);
+    expect(speedFovTarget(130, false)).toBe(69); expect(speedFovTarget(400, false)).toBe(69); expect(speedFovTarget(130, true)).toBe(65);
   });
-  it('shakes the view a little at speed as a floor under the hit shake, and leaves a slow angel exactly at rest', () => {
-    const fx = createShooter().camFx;
-    rumble(fx, 0); expect(fx.trauma).toBe(0); rumble(fx, 45); expect(fx.trauma).toBe(0);
-    rumble(fx, 77); expect(fx.trauma).toBeCloseTo(.2, 6); rumble(fx, 300); expect(fx.trauma).toBe(.24);
-    fx.trauma = .8; rumble(fx, 300); expect(fx.trauma).toBe(.8); // never lowers a harder shake
+  it('does not shake the view at speed: only a blow shakes it', () => {
+    expect(readFileSync('src/game/Shooter.tsx', 'utf8')).not.toContain('rumble(');
   });
   it('is mounted in the scene, and the suit publishes its wingtips', () => {
     expect(readFileSync('src/world/Scene.tsx', 'utf8')).toContain('<FlightRush />');
     expect(readFileSync('src/world/Suit.tsx', 'utf8')).toContain('wingTips.live = rig.root.visible && state.flying;');
-    expect(readFileSync('src/game/Shooter.tsx', 'utf8')).toContain('rumble(runtime.shooter.camFx, runtime.speed)');
   });
 });
 describe('a trail ribbon', () => {

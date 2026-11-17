@@ -1,7 +1,20 @@
-import { expect, it } from 'vitest';
-import { createCombatCamera, rememberCombatPilot, stepCombatCamera, type CombatCameraInput } from '../src/game/combatCamera';
+import { afterAll, beforeAll, expect, it } from 'vitest';
+import { createCombatCamera, FIGHT_CAMERA, rememberCombatPilot, stepCombatCamera, type CombatCameraInput } from '../src/game/combatCamera';
 const input = (over: Partial<CombatCameraInput> = {}): CombatCameraInput => ({ yaw: 0, pitch: 0, pilotYaw: 0, pilotPitch: 0, epoch: 1,
   enabled: true, reduced: false, phase: 1, target: 0, aim: { x: 20, y: 20, z: -30 }, hero: { x: 0, y: 20, z: 0 }, aspect: 1.6, dt: 1 / 60, ...over });
+// The planner's follow is switched off in the game (Garo, 2026-11-16: the camera turning itself was dizzying). Off, a strike, a
+// string and a watch leave the view exactly where the player holds it; the follow's own behaviour is kept under test below.
+it('with the follow off, never turns, pitches or pulls back the view on its own, and never claims the pilot', () => {
+  const was = FIGHT_CAMERA.follow; FIGHT_CAMERA.follow = false;
+  try {
+    const s = createCombatCamera();
+    for (const phase of [1, 1, 2, 1, 0]) for (let n = 0; n < 30; n++) {
+      stepCombatCamera(s, input({ phase, yaw: .3, pitch: -.1, pilotYaw: .3, pilotPitch: -.1 }));
+      expect(s.yaw).toBe(.3); expect(s.pitch).toBe(-.1); expect(s.scale).toBe(1); expect(s.weight).toBe(0); expect(s.tracking).toBe(false);
+    }
+  } finally { FIGHT_CAMERA.follow = was; }
+});
+beforeAll(() => { FIGHT_CAMERA.follow = true; }); afterAll(() => { FIGHT_CAMERA.follow = false; });
 it('keeps ordinary flight exactly on the existing view and boom', () => {
   const s = createCombatCamera();
   for (const yaw of [0, .4, -2, 4]) {

@@ -19,7 +19,7 @@ import { flowPaths } from './combatFlow';
 import { counterState } from './counterState';
 import { isElite } from './encounter';
 import { startSlowMotion } from './slowMotion';
-import { addTrauma, punchFov } from './cameraFx';
+import { addTrauma } from './cameraFx';
 import { strike } from './strike';
 import { LAST, pressTarget } from './swordString';
 import { wardenExposed } from './wardenCounter';
@@ -121,7 +121,7 @@ export function settleCounter(s: ShooterState, player: Vec3): '' | 'counter' | '
     emitRebuke(player, s.drones.pos[i], i);
     banish.rebukeT = banish.clock;
     startSlowMotion(); counterState.serial++; counterState.since = 0;
-    addTrauma(s.camFx, .3); punchFov(s.camFx, 'kill', 7);
+    addTrauma(s.camFx, .15); // a small jolt; no zoom (the slow motion carries the moment)
     return 'counter';
   }
   counterState.pending = -1;

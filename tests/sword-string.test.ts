@@ -163,10 +163,10 @@ describe('the sword string', () => {
     expect(REEL[1].x).not.toBe(REEL[2].x);
     run(STRING.recover + .2); expect(s.drones.tiltX[0]).toBe(0); expect(s.drones.tiltZ[0]).toBe(0);
   });
-  it('gives each cut its own whole-body move: a twirl, a lean back, a flip', () => {
-    expect(CUTS[0].twirl).toBe(1); expect(CUTS[0].flip).toBe(0);
-    expect(CUTS[1].flip).toBeLessThan(0); expect(Math.abs(CUTS[1].flip)).toBeLessThan(1); // a lean: out and back
-    expect(CUTS[2].flip).toBe(1);
+  it('gives each cut its own whole-body lean, and never turns the body round (full turns read as dizzying)', () => {
+    expect(CUTS[0].twirl).toBeGreaterThan(0); expect(CUTS[0].flip).toBe(0); // into the swing
+    expect(CUTS[1].flip).toBeLessThan(0); expect(CUTS[2].flip).toBeGreaterThan(0); // a lean back, a chop forward
+    for (const cut of CUTS) { expect(Math.abs(cut.twirl)).toBeLessThan(.25); expect(Math.abs(cut.flip)).toBeLessThan(.25); }
     for (const cut of CUTS) { expect(cut.spin).toBeGreaterThan(.25); expect(cut.spin).toBeLessThanOrEqual(.45); }
   });
   // ---- found by independent review, 2026-11-09 ----

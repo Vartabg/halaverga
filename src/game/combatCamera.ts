@@ -13,13 +13,16 @@ export type CombatCameraInput = { yaw: number; pitch: number; pilotYaw: number; 
   reduced: boolean; phase: number; target: number; aim: Vec3; hero: Vec3; aspect: number; dt: number;
   /** A watch on a cast-down demon was dropped this frame: let go of it now, so the held heading cannot turn the pilot toward it. */
   release?: boolean };
+/** The fight camera does not turn, pitch or pull back on its own: the view moves only when the player moves it, as under reduced
+ * motion. Garo found the self-turning camera dizzying (2026-11-16); the planner below stays for a gentler follow tried on its own. */
+export const FIGHT_CAMERA = { follow: false };
 /** Retarget from the current view, hold the contact heading, then hand back to the pilot without following a falling victim. */
 export function stepCombatCamera(s: CombatCamera, i: CombatCameraInput) {
-  const dt = Math.max(0, Math.min(.05, i.dt));
-  if (!s.ready || s.epoch !== i.epoch || !i.enabled || i.reduced) {
+  const dt = Math.max(0, Math.min(.05, i.dt)), off = !i.enabled || i.reduced || !FIGHT_CAMERA.follow;
+  if (!s.ready || s.epoch !== i.epoch || off) {
     s.ready = true; s.epoch = i.epoch; s.yaw = i.yaw; s.pitch = i.pitch; s.scale = 1; s.weight = 0; s.manual = 0;
     s.pilotYaw = i.pilotYaw; s.pilotPitch = i.pilotPitch; s.target = -1; s.age = 0; s.hold = 0; s.tracking = false;
-    if (!i.enabled || i.reduced || dt === 0) return s;
+    if (off || dt === 0) return s;
   }
   if (dt === 0) return s;
   const dy = angle(s.pilotYaw, i.pilotYaw), dp = i.pilotPitch - s.pilotPitch;

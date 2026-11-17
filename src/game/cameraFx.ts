@@ -87,16 +87,9 @@ export function hipFovFor(aspect: number, w: number) {
 }
 /** ADS FOV at a constant zoom: tan(ads/2) = ADS_GAIN * tan(hip/2); exactly 50 at 65. */
 export const adsFovOf = (hip: number) => hip === CAM.hipFov ? CAM.hipFov - CAM.adsFovDrop : 2 * Math.atan(ADS_GAIN * Math.tan(hip * DEG / 2)) / DEG;
-/** Speed-widened hip FOV: exactly CameraRig's existing expression at hip 65. */
-export const speedFovTarget = (speed: number, reduced: boolean, hip: number = CAM.hipFov) => reduced ? hip : hip + Math.min(speed / 17, 2) + Math.max(0, Math.min(8, (speed - 34) * 8 / 38)) + diveFov(speed);
-/** Past 100 m/s (a dive or a strike) the view opens up to 6 degrees more. Nothing at or below 100, so cruising is unchanged. */
-export const diveFov = (speed: number) => Math.max(0, Math.min(6, (speed - 100) * 6 / 30));
-/** The air shakes the view a little at speed: a floor under the hit shake, from nothing at 45 m/s to its most at 100 and over. It
- * is a floor, not an addition, so a still or slow angel leaves the camera exactly at rest. */
-export function rumble(fx: CamFx, speed: number) {
-  const floor = Math.min(.24, Math.max(0, (speed - 45) / 160));
-  if (fx.trauma < floor) fx.trauma = floor;
-}
+/** Speed opens the view a little and no more: at most 4 degrees, reached at 60 m/s, so a dive at 130 does not swing the view wider
+ * and back (Garo, 2026-11-16: the zoom in and out was dizzying). */
+export const speedFovTarget = (speed: number, reduced: boolean, hip: number = CAM.hipFov) => reduced ? hip : hip + Math.min(4, Math.max(0, speed) / 15);
 /** CameraRig's damped base FOV (MathUtils.damp at CAM.fovRate, inlined to stay three-free). A hip change (rotation, resize) shifts
  * the base by the same amount instead of gliding; pass lastHip NaN on the first frame. */
 export function baseFovStep(base: number, lastHip: number, hip: number, speed: number, reduced: boolean, elapsed: number) {

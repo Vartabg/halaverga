@@ -59,7 +59,7 @@ describe('the angel motion layer', () => {
     for (let i = 0; i < 120; i++) stepAngelMotion(m, clips, rig.joints, flight());
     expect(m.act).toBe(''); expect(m.weight).toBe(0); rig.dispose();
   });
-  it('turns the whole model for a cut in flight, about the chest, and keeps it still for reduced motion and on the ground', () => {
+  it('leans the whole model for a cut in flight, about the chest, never a full turn, and keeps it still for reduced motion and on the ground', () => {
     const run = (input: AngelMotionInput) => {
       const { rig } = posed(), m = createAngelMotion(); let peak = 0, drift = 0;
       stepAngelMotion(m, clips, rig.joints, input); emit(FX.sword);
@@ -71,19 +71,20 @@ describe('the angel motion layer', () => {
       const done = m.spinT; rig.dispose(); return { peak, drift, done };
     };
     const flown = run(flight());
-    expect(flown.peak).toBeGreaterThan(Math.PI); expect(flown.drift).toBeLessThan(1e-6); // a twirl about the spine keeps the chest in place
-    expect(flown.done).toBe(-1); // one turn, then it is over
+    expect(flown.peak).toBeGreaterThan(.2); expect(flown.peak).toBeLessThan(Math.PI / 4); // a lean, not a spin (Garo, 2026-11-16: dizzying)
+    expect(flown.drift).toBeLessThan(1e-6); // a lean about the spine keeps the chest in place
+    expect(flown.done).toBe(-1); // out and back, then it is over
     expect(run(flight({ reduced: true })).peak).toBe(0);
     expect(run(flight({ flying: false, ground: 1, speed: 0 })).peak).toBe(0);
   });
   it('lets a cut\'s body move finish before the next one starts, so a fast second press never snaps the model back', () => {
     const { rig } = posed(), m = createAngelMotion();
-    stepAngelMotion(m, clips, rig.joints, flight()); emit(FX.sword); // the opener lands: the twirl begins
+    stepAngelMotion(m, clips, rig.joints, flight()); emit(FX.sword); // the opener lands: the lean begins
     for (let i = 0; i < 8; i++) stepAngelMotion(m, clips, rig.joints, flight());
-    const mid = m.twirl; expect(mid).toBeGreaterThan(.5); expect(m.spinCut).toBe(0);
+    const mid = m.twirl; expect(mid).toBeGreaterThan(.2); expect(m.spinCut).toBe(0);
     banish.wounds[0] = 1; beginStrike(0, { x: 0, y: 0, z: -4 }, 4, .17); // a buffered second press: the step-in for the rising cut
     stepAngelMotion(m, clips, rig.joints, flight());
-    expect(m.spinCut).toBe(0); expect(m.spinNext).toBe(1); expect(m.twirl).toBeGreaterThan(mid); // still the same twirl, further on
+    expect(m.spinCut).toBe(0); expect(m.spinNext).toBe(1); expect(m.twirl).toBeGreaterThan(mid); // still the same lean, further on
     for (let i = 0; i < 30 && m.spinCut === 0; i++) stepAngelMotion(m, clips, rig.joints, flight());
     expect(m.spinCut).toBe(1); expect(m.spinNext).toBe(-1); banish.wounds[0] = 0; rig.dispose();
   });
