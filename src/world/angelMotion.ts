@@ -32,19 +32,31 @@ export const PRONE_LEGS: readonly (readonly [number, number, number, number])[] 
   [at('thigh_l'), .02, 0, .03], [at('thigh_r'), .02, 0, -.03], [at('shin_l'), -.08, 0, 0], [at('shin_r'), -.08, 0, 0],
   [at('foot_l'), -.85, 0, 0], [at('foot_r'), -.85, 0, 0], [at('toe_l'), -.2, 0, 0], [at('toe_r'), -.2, 0, 0],
 ];
-/** The flinch when the angel is hit (A3): head and chest thrown back, arms drawn in, wings flared (Suit.tsx), over `time` s. */
-export const FLINCH = { time: .35, chest: .4, head: .35, arm: .35, elbow: .45 } as const;
+/**
+ * The flinch when the angel is hit (A3), over `time` s: arms drawn in and wings flared (Suit.tsx). The facing rule
+ * (tests/flight-clips.test.ts) allows no back arch where an overhead camera can meet the body, so the chest and head throw back
+ * (`arch`, `head`) only as far as the body lies prone; upright they hunch forward instead (`hunch`, `bow`), as the brake does.
+ */
+export const FLINCH = { time: .35, arch: .4, head: .35, hunch: .3, bow: .25, arm: .35, elbow: .45 } as const;
+/** The speed that lays the body prone: along the body's facing (`yaw`) plus descent, without the hit shove (hurtShove.ts), so a
+ * steep dive lies prone and backward or sideways travel, a climb and a shove at hover stay upright. */
+export function proneSpeed(v: { x: number; y: number; z: number }, yaw: number) {
+  const x = v.x - hurtShove.ax, y = v.y - hurtShove.ay, z = v.z - hurtShove.az;
+  return Math.hypot(Math.max(0, -x * Math.sin(yaw) - z * Math.cos(yaw)), Math.max(0, -y));
+}
 const legQ = PRONE_LEGS.map(([, x, y, z]) => new Quaternion().setFromEuler(new Euler(x, y, z)));
 const GESTURES: Readonly<Record<number, string>> = { [FX.sword]: 'slash', [FX.rebuke]: 'rebuke', [FX.bind]: 'rebuke', [FX.cast]: 'cast' };
 
 export function createAngelMotion() {
   return { idle: 0, idleT: 0, act: '', actT: 0, since: 0, weight: 0, serial: -1, phase: 0, cut: 0, spinT: -1, spinCut: 0, spinNext: -1, twirl: 0, flip: 0, hip: new Vector3(), rest: new Vector3(),
     /** prone: the eased forward pitch flight asks for (rad, >= 0); pitch: what the model root adds to the lean (rad, <= 0 tips forward). */
-    prone: 0, pitch: 0, hurt: -1, flinchT: -1, flinch: 0 };
+    prone: 0, pitch: 0, hurt: -1, flinchT: -1, flinch: 0, epoch: -1 };
 }
 export type AngelMotion = ReturnType<typeof createAngelMotion>;
-/** speed: horizontal (m/s). lean: the presentation lean already on the model root (rad, negative tips forward). */
-export type AngelMotionInput = { dt: number; paused: boolean; flying: boolean; ground: number; speed: number; sword: boolean; reduced?: boolean; lean?: number };
+/** speed: horizontal (m/s). travel: proneSpeed (m/s). lean: the forward pitch already on the model root (orientSuit: lean + pitch x
+ * power; rad, negative tips forward). epoch: the pose epoch (a reset or retry ends a flinch). */
+export type AngelMotionInput = { dt: number; paused: boolean; flying: boolean; ground: number; speed: number; sword: boolean; reduced?: boolean;
+  lean?: number; travel?: number; epoch?: number };
 
 function begin(m: AngelMotion, name: string, at = 0) { m.act = name; m.actT = at; m.since = 0; }
 /** Starts this cut's whole-body move, or queues it behind the one still turning: a fast second press never snaps the model back. */
@@ -122,14 +134,15 @@ export function stepAngelMotion(m: AngelMotion, clips: AngelClips, joints: reado
 }
 /** The prone pitch (eased) and, while it holds, the legs brought together and pointed (before the strike stance and the springs). */
 function proneBody(m: AngelMotion, joints: readonly Object3D[], input: AngelMotionInput, dt: number) {
-  const target = input.flying && !input.reduced ? proneTarget(input.speed) : 0;
+  const target = input.flying && !input.reduced ? proneTarget(input.travel ?? 0) : 0;
   m.prone = input.reduced ? 0 : target + (m.prone - target) * Math.exp(-dt / PRONE.ease);
   const short = m.prone - Math.max(0, -(input.lean ?? 0)); m.pitch = short > 0 ? -short : 0;
   const legs = Math.min(1, m.prone / PRONE.atCruise);
-  if (legs > .001 && joints.length > PRONE_LEGS[PRONE_LEGS.length - 1][0]) PRONE_LEGS.forEach(([b], k) => joints[b].quaternion.slerp(legQ[k], legs));
+  if (legs > .001 && joints.length > PRONE_LEGS[PRONE_LEGS.length - 1][0]) for (let k = 0; k < legQ.length; k++) joints[PRONE_LEGS[k][0]].quaternion.slerp(legQ[k], legs);
 }
-/** A new hit (hurtShove.serial) starts the flinch; hits from before the angel mounted are skipped. */
+/** A new hit (hurtShove.serial) starts the flinch; hits from before the angel mounted, or before a reset or retry, are skipped. */
 function flinchBody(m: AngelMotion, joints: readonly Object3D[], input: AngelMotionInput, dt: number) {
+  if (input.epoch !== undefined && input.epoch !== m.epoch) { m.epoch = input.epoch; m.hurt = hurtShove.serial; m.flinchT = -1; }
   if (m.hurt < 0) m.hurt = hurtShove.serial;
   if (hurtShove.serial !== m.hurt) { m.hurt = hurtShove.serial; m.flinchT = 0; }
   m.flinch = 0;
@@ -137,8 +150,8 @@ function flinchBody(m: AngelMotion, joints: readonly Object3D[], input: AngelMot
   m.flinchT += dt; const u = m.flinchT / FLINCH.time;
   if (u >= 1) { m.flinchT = -1; return; }
   if (input.reduced || joints.length <= FA_R) return;
-  const f = m.flinch = Math.sin(Math.PI * u);
-  joints[CHEST].rotateX(FLINCH.chest * f); joints[HEAD].rotateX(FLINCH.head * f); // +x arches back, toward the camera side
+  const f = m.flinch = Math.sin(Math.PI * u), lying = Math.min(1, m.prone / PRONE.atCruise); // +x arches back, -x hunches
+  joints[CHEST].rotateX(f * (FLINCH.arch * lying - FLINCH.hunch * (1 - lying))); joints[HEAD].rotateX(f * (FLINCH.head * lying - FLINCH.bow * (1 - lying)));
   joints[UA_R].rotateZ(-FLINCH.arm * f); joints[UA_L].rotateZ(FLINCH.arm * f); // in toward the body
   joints[FA_R].rotateX(FLINCH.elbow * f); joints[FA_L].rotateX(FLINCH.elbow * f);
 }

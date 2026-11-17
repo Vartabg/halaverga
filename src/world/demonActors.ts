@@ -12,17 +12,19 @@ export type DemonPose = { time: number; charging: boolean; hit: number; down: bo
 /**
  * The struck reaction (docs/plans/2026-11-16-real-fight.md A3). From the blow the hit clip plays through at `rate`, on the upper
  * body (a thrown demon's throw owns its position and tilt), then fades out; the body yaws about the vertical toward the cut's side,
- * out in `snap` seconds and back by the end. Reduced motion keeps the old still hit frame by the flash, with no yaw.
+ * out in `snap` seconds and back by the end. A blow landing while the last reaction still runs (a string's next cut) crossfades
+ * from it over `cross` seconds instead of fading in from the flight pose. Reduced motion keeps the old still hit frame by the
+ * flash, with no yaw.
  */
-export const REACT = { rate: .7, weight: .9, fadeIn: .04, fadeOut: .22, yaw: .55, snap: .08 } as const;
+export const REACT = { rate: .7, weight: .9, fadeIn: .04, fadeOut: .22, yaw: .55, snap: .08, cross: .12 } as const;
 const ease = (u: number) => { const k = Math.min(1, Math.max(0, u)); return k * k * (3 - 2 * k); };
 /** Seconds the whole reaction lasts for a hit clip of `duration`. */
 export const reactionLength = (duration: number) => duration / REACT.rate + REACT.fadeOut;
-/** Weight of the hit clip and of the yaw at hitT seconds after the blow (0 before it and once it is over). */
-export function reactionWeight(hitT: number, duration: number) {
+/** Weight of the hit clip at hitT seconds after the blow (0 before it and once it is over), coming in over `fadeIn` seconds. */
+export function reactionWeight(hitT: number, duration: number, fadeIn: number = REACT.fadeIn) {
   const end = reactionLength(duration);
   if (!(hitT >= 0 && hitT < end)) return 0;
-  return REACT.weight * Math.min(1, hitT / REACT.fadeIn, (end - hitT) / REACT.fadeOut);
+  return REACT.weight * Math.min(1, hitT / fadeIn, (end - hitT) / REACT.fadeOut);
 }
 export function reactionYaw(hitT: number, duration: number) {
   const end = reactionLength(duration);
@@ -66,14 +68,20 @@ export function createDemonActors(source: Object3D, animations: AnimationClip[])
     rig.root.updateMatrixWorld(true);
     const chestBind = rig.joints[11].matrixWorld.clone().invert();
     const headBind = rig.joints[1].matrixWorld.clone().invert().multiply(new Matrix4().makeTranslation(0, EYE_UP, -EYE_FORWARD));
-    return { ...rig, materials, plate, chestBind, headBind, wingMatrix: new Matrix4(), eyeMatrix: new Matrix4(), downTime: 0, lastTime: 0 };
+    return { ...rig, materials, plate, chestBind, headBind, wingMatrix: new Matrix4(), eyeMatrix: new Matrix4(), downTime: 0, lastTime: 0,
+      /** clock/side: last frame's hit clock and side; oldT/oldSide: the reaction a new blow interrupted (its clock at the blow). */
+      clock: Infinity, side: 0, oldT: -1, oldSide: 0 };
   });
   const group = new Group(); actors.forEach(a => group.add(a.root));
   function step(index: number, position: Vector3, rotation: Quaternion, visible: boolean, state: DemonPose) {
     const a = actors[index]; a.root.visible = visible;
     if (!visible) return;
     a.root.position.copy(position); a.root.quaternion.copy(rotation);
-    const hitT = state.hitT ?? Infinity, yaw = state.reduced || state.down ? 0 : (state.hitSide ?? 0) * REACT.yaw * reactionYaw(hitT, clips.hit.duration);
+    const hitT = state.hitT ?? Infinity, side = state.hitSide ?? 0, d = clips.hit.duration;
+    if (hitT < a.clock && a.clock < reactionLength(d)) { a.oldT = a.clock; a.oldSide = a.side; } // a blow during the last reaction
+    if (!(hitT < REACT.cross)) a.oldT = -1;
+    const old = a.oldT >= 0 ? a.oldT + hitT : -1, k = old >= 0 ? hitT / REACT.cross : 1; a.clock = hitT; a.side = side;
+    const yaw = state.reduced || state.down ? 0 : REACT.yaw * (side * reactionYaw(hitT, d) + (old >= 0 ? a.oldSide * reactionYaw(old, d) * (1 - k) : 0));
     if (yaw) a.root.quaternion.premultiply(twistQ.setFromAxisAngle(UP, yaw)); // about the world vertical, as the cut pushed it
     for (const j of a.joints) j.quaternion.identity();
     hip.set(0, 0, 0);
@@ -84,7 +92,10 @@ export function createDemonActors(source: Object3D, animations: AnimationClip[])
     blendAngelClip(a.joints, clips.flight, clipTime(clips.flight, time * .7, true), Math.min(.78, .3 + speed * .04), FULL, hip);
     if (state.charging) blendAngelClip(a.joints, clips.charge, .18, .85, UPPER_BODY);
     if (state.reduced) { if (state.hit > 0) blendAngelClip(a.joints, clips.hit, .12, Math.min(.8, state.hit), UPPER_BODY); }
-    else blendAngelClip(a.joints, clips.hit, clipTime(clips.hit, hitT * REACT.rate, false), reactionWeight(hitT, clips.hit.duration), UPPER_BODY);
+    else {
+      if (old >= 0) blendAngelClip(a.joints, clips.hit, clipTime(clips.hit, old * REACT.rate, false), reactionWeight(old, d), UPPER_BODY);
+      blendAngelClip(a.joints, clips.hit, clipTime(clips.hit, hitT * REACT.rate, false), reactionWeight(hitT, d, old >= 0 ? REACT.cross : REACT.fadeIn), UPPER_BODY);
+    }
     attackPose(a.joints, state, banish.wardens.move[index]);
     if (state.down) {
       a.downTime = Math.min(2.4, a.downTime + Math.max(0, Math.min(.05, state.time - a.lastTime)));

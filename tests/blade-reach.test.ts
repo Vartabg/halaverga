@@ -114,7 +114,10 @@ describe('blade contact in a live string', () => {
       stepBanish(b, s, p, dt); buildTargets(s); for (const t of s.targets) t.los = true;
       if (!strikeVelocity(v, p, dt, false)) v.x = v.y = v.z = 0;
       p.x += v.x * dt; p.y += v.y * dt; p.z += v.z * dt;
-      if (strike.phase === 1) { const q = s.targets[0].c; closest = Math.min(closest, Math.hypot(q.x - p.x, q.z - p.z)); }
+      if (strike.phase === 1) { // in 3D: the chest to the body's capsule axis, the gap the contact test measures
+        const q = s.targets[0].c, x = p.x - q.x, y = p.y + BLADE.chest - q.y, z = p.z - q.z;
+        closest = Math.min(closest, axisGap(x, y, z, x, y, z, BODY.lesser.half));
+      }
     }
     expect(b.mode[0]).toBe(MODE.cast); expect(presses).toBe(3); // three presses, three cuts: none fell short
     expect(closest).toBeLessThan(contactAt(0)); // the angel was within the blade's reach, not 3.4 m off

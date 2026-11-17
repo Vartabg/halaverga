@@ -21,10 +21,10 @@ import { sweepTurn } from './turnSweep';
 import { moveMode } from './combat';
 import { aimVelocity } from './aimMotion';
 import { levelFlight, probeBelow, touchBlockedStep, touchLandStep, LAND_WINDOW } from './touchFlight';
-import { gestureBase, gestureBefore, gestureOffset, gestureVelocity } from './gesture/applyGesture'; import { cancelStrike, strike, strikeStep } from './strike'; import { shoveStep } from './hurtShove';
+import { gestureBase, gestureBefore, gestureOffset, gestureVelocity } from './gesture/applyGesture'; import { cancelStrike, strike, strikeStep } from './strike'; import { lessShove, shoveBase, shoveStep } from './hurtShove';
 import { clearGesture, gesture } from './gesture/bus';
 import { createGestureCtx } from './gestureCtx';
-const direction = new Vector3(), baseScratch = { x: 0, y: 0, z: 0 };
+const direction = new Vector3(), baseScratch = { x: 0, y: 0, z: 0 }, fromScratch = { x: 0, y: 0, z: 0 }, flownScratch = { x: 0, y: 0, z: 0 };
 export default function Player() {
   const body = useRef<RapierRigidBody>(null), collider = useRef<RapierCollider>(null);
   const { world, rapier } = useRapier(), { camera } = useThree();
@@ -111,15 +111,15 @@ export default function Player() {
       surge, level, aiming: state.shooter && runtime.shooter.input.fire, contact: runtime.clearance, scrape, safe });
     // Twin touch flies level: altitude comes only from Rise and Descend, so aiming never climbs or dives (ADS pitch lift included).
     const fp = level ? 0 : runtime.pitch;
-    // The branches build on the velocity without last step's lab offset (gestureBase), so offsets never compound.
-    const vb = gestureBase(runtime.velocity, baseScratch);
+    // The branches build on the velocity without last step's lab offset (gestureBase) or hit shove (shoveBase), so neither compounds.
+    const vb = shoveBase(runtime.velocity, gestureBase(runtime.velocity, baseScratch));
     let v = runtime.landGoal ? landingVelocity(p, runtime.landGoal)
       : mode === 2 ? aimVelocity(vb, intent, runtime.yaw, fp, flying, dt)
       : pilotVelocity(vb, intent, runtime.yaw, fp, flying, surge, dt);
-    gestureVelocity(v, runtime.landGoal, flying); runtime.flown = moving(intent) || gesture.live && gesture.velocityOn; if (runtime.landGoal) cancelStrike(); else if (flying) strikeStep(v, p, dt, state.reduced, runtime.flown, look); shoveStep(v, dt, flying && !runtime.landGoal);
+    gestureVelocity(v, runtime.landGoal, flying); runtime.flown = moving(intent) || gesture.live && gesture.velocityOn; if (runtime.landGoal) cancelStrike(); else if (flying) strikeStep(v, p, dt, state.reduced, runtime.flown, look);
     if (liftTime.current > 0) { v.y = 6; liftTime.current -= dt; }
     gestureOffset(v, flying && !runtime.landGoal);
-    const from = { ...runtime.velocity }, chosen = v;
+    const from = { ...runtime.velocity }, chosen = { ...v }; shoveStep(v, dt, flying && !runtime.landGoal); // chosen: before the hit shove
     runtime.clearance.active = false; runtime.clearance.cue = '';
     if (flying && !runtime.landGoal) {
       // The soft limiter, the look-ahead sweep, the full-speed slide at the ceiling and water, and the cue (limitStep.ts).
@@ -142,7 +142,7 @@ export default function Player() {
     }
     if (!flying && c.computedGrounded() && runtime.velocity.y < 0) runtime.velocity.y = 0;
     // The turn roll counts the turns the controls make, not the ones the flight safety or a wall makes.
-    sweepTurn(runtime.turn, from, chosen, runtime.velocity, presentation.yaw, dt);
+    sweepTurn(runtime.turn, lessShove(from, fromScratch, true), chosen, lessShove(runtime.velocity, flownScratch, false), presentation.yaw, dt);
     const next = { x: p.x + actual.x, y: p.y + actual.y, z: p.z + actual.z };
     b.setNextKinematicTranslation(next); setVec(runtime.position, next.x, next.y, next.z);
     if (runtime.landGoal) {

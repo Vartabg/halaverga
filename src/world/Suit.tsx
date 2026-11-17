@@ -19,7 +19,7 @@ import { alignArchangelWings, createArchangelWings, stepArchangelWings } from '.
 import { angelRegalia } from './angelRegalia';
 import { createWingClearance } from './wingClearance';
 import { bindAngelClips } from './angelClips';
-import { createAngelMotion, stepAngelMotion, turnBody } from './angelMotion';
+import { createAngelMotion, proneSpeed, stepAngelMotion, turnBody } from './angelMotion';
 import { strike } from '@/game/strike';
 import { createStrikeStance, stepStrikeStance } from './strikeStance';
 import { bulkSuit } from './suitBulk';
@@ -36,7 +36,7 @@ export function clearWorldCache() {
   useLoader.clear(TextureLoader, BACKDROP_URL);
 }
 const input = { flying: false, landing: false, paused: true, reduced: false, velocity: runtime.velocity, turn: runtime.turn };
-const moveInput = { dt: 0, paused: true, flying: false, ground: 1, speed: 0, sword: false, reduced: false, lean: 0 };
+const moveInput = { dt: 0, paused: true, flying: false, ground: 1, speed: 0, sword: false, reduced: false, lean: 0, travel: 0, epoch: 0 };
 const wrist = new Vector3(), hand = new Vector3();
 function publishTip(bones: readonly Object3D[], out: { x: number; y: number; z: number }) {
   bones[2].getWorldPosition(wrist); bones[3].getWorldPosition(hand);
@@ -87,7 +87,8 @@ export default function Suit() {
     f.camera.x = cam.position.x; f.camera.y = cam.position.y; f.camera.z = cam.position.z;
     stepSuitBlaster(f, dt);
     // Library clips (idle, the sword cut, the command gestures) over everything above; the springs below follow them through.
-    Object.assign(moveInput, { dt, paused: state.paused, flying: state.flying, ground: life.ground, speed: Math.hypot(v.x, v.z), sword: cannonLink.forearm !== null, reduced: state.reduced, lean: pose.lean });
+    Object.assign(moveInput, { dt, paused: state.paused, flying: state.flying, ground: life.ground, speed: Math.hypot(v.x, v.z), sword: cannonLink.forearm !== null, reduced: state.reduced,
+      lean: pose.lean + pose.pitch * pose.power, travel: proneSpeed(v, pose.yaw), epoch: pose.epoch }); // lean: orientSuit's whole root pitch
     stepAngelMotion(moves.current, clips, rig.joints, moveInput); turnBody(rig.root, moves.current);
     stepStrikeStance(stance.current, rig.joints, moves.current, moveInput);
     // Spring follow-through, last over the body (suitSprings.ts): the pose above is the target each bone chases.
