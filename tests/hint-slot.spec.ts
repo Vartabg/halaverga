@@ -8,7 +8,9 @@ import { ONE_DESK, votePage } from './vote-browser';
 const CAPTURED = { desktopMode: 'trackpad', trackpadSteering: 'captured', flowIntroSeen: true } as const;
 const lesson = (p: import('@playwright/test').Page) => p.getByTestId('controls-hint');
 const ONE_WAY = 'One way flown. Try another for 20 s, then vote.';
-const TERMINAL = { checkpoint: { x: -6, y: 21.1, z: 60 }, flowIntroSeen: true };
+// Beside the Tablet of Semjaza (-7, 21, 58; in reach within 5 m). The old spot (-6, 21.1, 60) fails the landing check since the terrain redo, so the
+// save was replaced by the start and the record line never showed (2026-11-17, also on main 547a7cc).
+const TERMINAL = { checkpoint: { x: -5, y: 21.06, z: 62 }, flowIntroSeen: true };
 /** The slot names a control as a 4 s message, then it goes: on screen for about 4 s from the moment it shows. */
 async function namedFor4s(page: import('@playwright/test').Page, text: string) {
   await expect(hintSlot(page)).toHaveText(text);
@@ -74,9 +76,9 @@ test('@hint a 6 s lesson comes back after each Resume until the first takeoff, a
 });
 
 test('@hint the record line is a Read button: it pauses, opens the Field guide and remembers the find', async ({ browser }) => {
-  const t = await labPage(browser, 'standard', { viewport: { width: 1440, height: 900 }, saved: { checkpoint: { x: -6, y: 21.1, z: 60 }, flowIntroSeen: true } }), { page } = t;
+  const t = await labPage(browser, 'standard', { viewport: { width: 1440, height: 900 }, saved: TERMINAL }), { page } = t;
   await expect(hintSlot(page)).toHaveAttribute('data-kind', 'record', { timeout: 15000 });
-  await expect(hintSlot(page).getByRole('button')).toHaveText('◇ Municipal record · Read ↗');
+  await expect(hintSlot(page).getByRole('button')).toHaveText('◇ Tablet record · Read ↗');
   await hintSlot(page).getByRole('button').click();
   await expect(page.getByRole('dialog').getByRole('heading', { name: 'Field guide' })).toBeVisible({ timeout: 15000 });
   expect((await saved(page)).discovered).toBe(true);
@@ -148,13 +150,15 @@ test('@hint the Read button shows its keyboard focus ring: no ancestor clips it 
     return out;
   });
   expect(clipped).toEqual([]);
-  // And the pixels say so: the middle of the ring's left edge is the accent of the global focus outline.
+  // And the pixels say so: the middle of the ring's left edge is the global focus outline's colour (--accent), read from the page, not pinned:
+  // the spec pinned the retired teal (94, 230, 208) after the palette moved to the dawn gold.
+  const ring = (await read.evaluate(b => getComputedStyle(b).outlineColor)).match(/\d+/g)!.map(Number);
   const box = (await read.boundingBox())!, x = Math.floor(box.x - 6.5), y = Math.round(box.y + box.height / 2);
   const png = (await page.screenshot({ clip: { x, y, width: 1, height: 1 } })).toString('base64');
   const px = await page.evaluate(async b64 => {
     const img = new Image(); img.src = 'data:image/png;base64,' + b64; await img.decode();
     const c = document.createElement('canvas'); c.width = c.height = 1; const g = c.getContext('2d')!; g.drawImage(img, 0, 0); return Array.from(g.getImageData(0, 0, 1, 1).data);
   }, png);
-  expect(Math.abs(px[0] - 94) + Math.abs(px[1] - 230) + Math.abs(px[2] - 208), `the ring's pixel is ${px.slice(0, 3)}`).toBeLessThan(24);
+  expect(Math.abs(px[0] - ring[0]) + Math.abs(px[1] - ring[1]) + Math.abs(px[2] - ring[2]), `the ring's pixel is ${px.slice(0, 3)}, the outline ${ring}`).toBeLessThan(24);
   expect(t.errors).toEqual([]); await t.context.close();
 });

@@ -13,7 +13,7 @@ export const press = (l: Locator, touch = false) => touch ? l.tap() : l.click();
 export const pauseCard = (page: Page) => page.getByRole('region', { name: 'Ascent paused' });
 export const flightSettings = (page: Page) => page.getByRole('dialog', { name: 'Flight settings' });
 export const controlsSheet = (page: Page) => page.getByTestId('controls-sheet');
-/** The one hint slot under the top row (a message, the Municipal record, a landing or limit line, or the controls lesson). */
+/** The one hint slot under the top row (a message, the tablet record, a landing or limit line, or the controls lesson). */
 export const hintSlot = (page: Page) => page.getByTestId('hint-slot');
 /** The desktop control legend at the bottom of the screen: a caption, not advice, so it is not in the hint slot. */
 export const legend = (page: Page) => page.getByTestId('legend');

@@ -18,9 +18,9 @@ const LAB = ['Gesture-module', 'Lab-module', 'lab-surface', 'lab-picker', 'lab-b
 const CONTROLS = ['ControlsPicker-module', 'controls-picker', 'halaverga.controls', 'halaverga.vote.play', 'vote-chip'];
 // The in-game vote (tracker, card, client) is a chunk mounted after Begin: the landing page never carries it.
 const VOTE = ['VoteCard-module', 'vote-card', '/api/vote', 'halaverga.vote'];
-// The Field guide (copy, municipal record, build stamp, QR) is a chunk opened from the header, the skip link, the terminal or the E key
+// The Field guide (copy, tablet record, build stamp, QR) is a chunk opened from the header, the skip link, a tablet's Read button or the E key
 // (useFieldGuide): its headings and button copy are unique to it, so the landing page can never pull it back in by a static import.
-const GUIDE = ['Explore through text', 'MERIDIAN · EARTH · 2113', 'Recover municipal record', 'Playtest this build'];
+const GUIDE = ['Explore through text', 'INSPIRED BY 1 ENOCH', 'Recover tablet record', 'Playtest this build'];
 // The Flow and Simple trackpad panels belong to non-default profiles: lazy chunks, fetched only when their profile is on (data-testids are unique to them).
 const TRACKPAD = ['flow-hud', 'simple-trackpad-hud'];
 // Main measured 614.9 KB (PR #11); the blaster keeps only its input handlers and plain state on the landing page. The screen cleanup moved the Field guide

@@ -13,8 +13,9 @@ import { landingProblems } from './layout-landing';
 const wcag = async (page: import('@playwright/test').Page) =>
   expect((await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze()).violations).toEqual([]);
 const AXE_AT = ['393x852 touch', '1440x900 mouse'];
-// A checkpoint beside the Municipal terminal on the arrival terrace (the terminal is at -7, 21, 58, in reach within 5 m): the record line shows with no message first.
-const NEAR_TERMINAL = { x: -6, y: 21.1, z: 60 }, RECORD = '◇ Municipal record · Read ↗';
+// A checkpoint beside the Tablet of Semjaza on the arrival terrace (the tablet is at -7, 21, 58, in reach within 5 m): the record line shows with no message first.
+// The old spot (-6, 21.1, 60) fails the landing check since the terrain redo and was replaced by the start (2026-11-17).
+const NEAR_TERMINAL = { x: -5, y: 21.06, z: 62 }, RECORD = '◇ Tablet record · Read ↗';
 
 for (const v of [...VIEWS, ...NARROW]) {
   test(`${v.name}: landing, playing, sheet, paused, paused-sheet and Flight settings (the vote locked) have no overlap, small target or lost surface`, async ({ browser }) => {
@@ -82,7 +83,7 @@ for (const v of [...VIEWS, ...NARROW]) {
     expect(all, `${v.name}\n${all.join('\n')}`).toEqual([]);
     expect(t.errors).toEqual([]); await t.context.close();
   });
-  // The hint slot (unit 5), record line: a terminal in reach (a saved checkpoint beside the Municipal terminal) puts one 44 px Read button under the row. The
+  // The hint slot (unit 5), record line: a tablet in reach (a saved checkpoint beside the Tablet of Semjaza) puts one 44 px Read button under the row. The
   // same overlap, target and surface checks hold, and the slot is where --hdr says, centred, passive around the button. The button pauses and opens the guide.
   test(`${v.name}: the hint slot's record line is one 44 px Read button under the row, and the screen stays clean`, async ({ browser }) => {
     test.setTimeout(120000);

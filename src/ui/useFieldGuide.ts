@@ -3,7 +3,7 @@ import { useGame } from '@/game/store';
 // The Field guide (its copy, the record, the build stamp, the QR) is a chunk, not landing first-load code. Like the touch controls it is
 // held in state, not in next/dynamic: every open that finds it missing calls import() again, so a load that failed (offline, deploy
 // skew) is retried by the next open instead of leaving a dead component behind. It is warmed once hydration is done. `journal` stays
-// the store's one "guide wanted" flag (the header button, the skip link, the terminal and the E key all set it): while the chunk is on
+// the store's one "guide wanted" flag (the header button, the skip link, a tablet's Read button and the E key all set it): while the chunk is on
 // its way the pause card stays with a status line, and a failed load puts `journal` back so nothing is stranded. That card keeps every
 // other door live, so anything that claims the screen first (Flight settings from the header or the card, the vote card from the card
 // or the header chip) cancels the pending open: one dialog at a time, and the guide never lands on top of it.
