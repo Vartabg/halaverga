@@ -6,6 +6,7 @@ import { FX, MODE, createBanish, resetBanish, stepBanish } from '../src/game/ban
 import { resetBattle } from '../src/game/celestialBattle';
 import { flowPaths, flowVisible } from '../src/game/combatFlow';
 import { STRIKE, cancelStrike, strike, strikeVelocity } from '../src/game/strike';
+import { BLADE } from '../src/game/bladeReach';
 import { CUTS, LAST, REEL, STRING, cutFor, powerOf, pressTarget, stepInTime, stringOpen, stringTarget } from '../src/game/swordString';
 import { advanceDrones, createDroneContext } from '../src/game/drones';
 import { castDuration } from '../src/game/encounter';
@@ -186,7 +187,7 @@ describe('the sword string', () => {
     const { s, b, near, run } = setup();
     landCut(b, s, 0, near); cancelStrike(); run(STRING.window + .2);
     expect(stringOpen(b, 0)).toBe(false); expect(b.wounds[0]).toBe(1);
-    const on = { ...s.targets[0].c, z: s.targets[0].c.z + 2 }; // already inside the blade's reach
+    const on = { ...s.targets[0].c, z: s.targets[0].c.z + BLADE.reach }; // already inside the blade's reach (contactAt)
     expect(stepInTime(b, 0, 2)).toBe(CUTS[1].windup); expect(stepInTime(b, 0, STRING.reach + 1)).toBe(0); expect(stepInTime(b, 1, 2)).toBe(0);
     requestCommand(s, COMMAND.sword, 0); stepBanish(b, s, on, 1 / 60);
     expect(strike.lunge).toBe(true); stepBanish(b, s, on, 1 / 60); expect(b.wounds[0]).toBe(1); // inside reach, and still not landed

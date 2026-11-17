@@ -4,9 +4,11 @@
 // banish.ts starts and lands strikes; Player.tsx asks strikeStep for the step's velocity. Pure: plain {x,y,z}, no allocation.
 import type { Vec3 } from './combat';
 import { strikeArc } from './strikeArc';
+import { contactAt } from './bladeReach';
 
-/** The dive covers any reach in about DIVE seconds (a long one is a zip across the arena), between minSpeed and maxSpeed m/s. */
-export const STRIKE = { minSpeed: 55, maxSpeed: 130, dive: .42, maxTime: 1, contact: 3.4, carry: .28, exitSpeed: 34, freeze: .045, stepIn: 7, keep: 22 } as const;
+/** The dive covers any reach in about DIVE seconds (a long one is a zip across the arena), between minSpeed and maxSpeed m/s. The
+ * blow lands when the blade can reach the body (bladeReach.ts contactAt), not at a flat distance from the demon's centre. */
+export const STRIKE = { minSpeed: 55, maxSpeed: 130, dive: .42, maxTime: 1, carry: .28, exitSpeed: 34, freeze: .045, stepIn: 7, keep: 22 } as const;
 export const STRIKE_HOLD = { decay: 5.5, lock: .28 } as const;
 /** phase 0 idle, 1 diving at the target, 2 on the demon after the blow. lunge / minTime: a string cut steps in over a set time
  * instead of diving. hold / recoil: between cuts the angel stays on the demon, drifting where the cut left it. last: this hold is
@@ -17,7 +19,7 @@ export const strike = { lunge: false, minTime: 0, hold: 0, last: false, serial: 
 export function beginStrike(target: number, at: Vec3, distance = 0, time = 0) {
   strike.serial++; strike.phase = 1; strike.t = 0; strike.primed = false; strike.last = false; strike.target = target; strike.landed = false; strike.halt = false; strike.freeze = 0;
   strike.lunge = time > 0; strike.minTime = time; strike.hold = 0;
-  strike.speed = time > 0 ? Math.min(STRIKE.maxSpeed, Math.max(STRIKE.stepIn, (distance - STRIKE.contact * .8) / time))
+  strike.speed = time > 0 ? Math.min(STRIKE.maxSpeed, Math.max(STRIKE.stepIn, (distance - contactAt(target) * .8) / time))
     : Math.min(STRIKE.maxSpeed, Math.max(STRIKE.minSpeed, distance / STRIKE.dive));
   strike.aim.x = at.x; strike.aim.y = at.y; strike.aim.z = at.z;
 }
@@ -52,7 +54,7 @@ export function strikeVelocity(v: Vec3, p: Vec3, dt: number, reduced: boolean, s
     strike.dir.x = x / d; strike.dir.y = y / d; strike.dir.z = z / d;
     if (strike.lunge) {
       // The step-in: straight at the demon at a set pace, easing off inside reach so the blade lands on the beat, not before it.
-      const pace = d < STRIKE.contact ? 1.5 : strike.speed;
+      const pace = d < contactAt(strike.target) ? 1.5 : strike.speed;
       v.x = strike.dir.x * pace; v.y = strike.dir.y * pace; v.z = strike.dir.z * pace;
       if (strike.t > STRIKE.maxTime) { strike.queued = false; strike.phase = 0; strike.target = -1; }
       return true;

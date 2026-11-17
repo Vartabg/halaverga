@@ -6,6 +6,7 @@ import { flowPaths, flowVisible } from '../src/game/combatFlow';
 import { wardenWorld } from '../src/game/wardenMath';
 import { COMMAND, requestCommand } from '../src/game/commands';
 import { cancelStrike } from '../src/game/strike';
+import { BLADE } from '../src/game/bladeReach';
 export function wardenSetup(i = 5) {
   const s = createShooter(), sim = createDroneSim(s); const b = createBanish(); resetBanish(b, s); resetBattle();
   for (let k = 0; k < s.drones.count; k++) { s.drones.hp[k] = k === i ? 6 : 0; s.drones.phase[k] = k === i ? PHASE.alert : PHASE.dead; s.drones.los[k] = 1; }
@@ -18,6 +19,7 @@ export function wardenSetup(i = 5) {
     buildTargets(s); stepBanish(b, s, at, dt); buildTargets(s);
   };
   const tick = (sec: number, dt = 1 / 60) => { for (let n = 0; n < Math.ceil(sec / dt); n++) step(dt); };
-  const contact = () => { cancelStrike(); Object.assign(player, s.drones.pos[i]); player.z += 2; requestCommand(s, COMMAND.sword, i); step(); };
+  const contact = () => { cancelStrike(); Object.assign(player, s.drones.pos[i]); player.z += BLADE.reach; // inside contactAt
+    requestCommand(s, COMMAND.sword, i); step(); };
   return { i, s, sim, b, w: b.wardens, player, step, tick, contact };
 }

@@ -7,7 +7,8 @@ import { COMMAND } from './commands';
 import { battle, BATTLE } from './celestialBattle';
 import { addTrauma } from './cameraFx';
 import { restingHeight } from './wardenElevation';
-import { STRIKE, aimStrike, beginStrike, cancelStrike, strike as dive } from './strike';
+import { aimStrike, beginStrike, cancelStrike, strike as dive } from './strike';
+import { bladeReaches } from './bladeReach';
 
 export { BANISH, MODE, FX, REBUKE_LINE, createBanish, banish, type BanishFx, type BanishState, type Cue } from './banishState';
 export { crosshairTarget } from './combatFlow';
@@ -117,7 +118,10 @@ export function stepBanish(b: BanishState, s: ShooterState, player: Vec3, dt: nu
   if (dive.phase === 1 && dive.target >= 0) {
     const i = dive.target;
     if (!droneAlive(f, i) || !s.targets[i].los || !flowPaths[i] || b.mode[i] >= MODE.down) cancelStrike();
-    else { const c = s.targets[i].c; aimStrike(c); if (dist(player, c) < STRIKE.contact && dive.t >= dive.minTime) landBlow(b, s, i, player); }
+    else {
+      // The blow lands when the blade can reach the body: the chest's path this step against the demon's capsule (bladeReach.ts).
+      const c = s.targets[i].c; aimStrike(c); if (bladeReaches(i, c, player, dive.serial) && dive.t >= dive.minTime) landBlow(b, s, i, player);
+    }
   }
   if (battle.quenched !== b.quenched) { b.quenched = battle.quenched; emit(b, FX.quench, -1, player, player); }
   for (let i = 0; i < f.count; i++) {
