@@ -4,13 +4,10 @@ import { WA } from '../src/game/banishState';
 import { CLEAVE } from '../src/game/wardenTactics';
 import { cutClip } from '../src/world/cutClips';
 import { WARDEN_BLEND, blowOf, hitClipName, wardenClip, type PhaseClip } from '../src/world/watcherClips';
-import { createShooter } from '../src/game/combat';
-import { buildTargets, createDroneSim, damageDrone } from '../src/game/drones';
-import { createBanish, resetBanish } from '../src/game/banish';
-import { resetBattle } from '../src/game/celestialBattle';
+import { damageDrone } from '../src/game/drones';
 import { flowPaths, flowVisible } from '../src/game/combatFlow';
 import { cancelStrike } from '../src/game/strike';
-import { landCut } from './sword-support';
+import { landCut, setup } from './sword-support';
 import { createDemonActors, type DemonPose } from '../src/world/demonActors';
 import { bindAngelClips, type AngelClips } from '../src/world/angelClips';
 import { loadSuit } from './load-suit';
@@ -29,10 +26,7 @@ describe('the reaction clip for each blow', () => {
   });
   it('reads a sword blow\'s cut until a later shot strikes the demon, at a clock a Float32 lastHit cannot hold exactly', () => {
     flowPaths.fill(1); flowVisible.fill(1); cancelStrike();
-    const s = createShooter(), sim = createDroneSim(s); buildTargets(s); for (const t of s.targets) t.los = true;
-    const b = createBanish(); resetBanish(b, s); resetBattle(0);
-    const at = s.drones.pos[0], near = { x: at.x, y: at.y, z: at.z + 10 };
-    s.aim.valid = true; s.aim.origin = { ...near }; s.aim.dir = { x: 0, y: 0, z: -1 };
+    const { s, b, near, sim } = setup();
     s.clock = 1.1; landCut(b, s, 0, near); // a blowAt copied from the clock would never equal the Float32 lastHit
     expect(s.drones.lastHit[0]).not.toBe(s.clock); expect(blowOf(b, s.drones.lastHit, 0)).toBe(0);
     s.clock += .5; damageDrone(s, sim, 0, false, { x: 0, y: 0, z: -1 });

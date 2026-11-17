@@ -38,7 +38,7 @@ export const VENT_DIR: Readonly<V3> = { x: .634, y: .763, z: -.129 };
  * The cannon on archangel.glb's forearm (docs/plans/2026-11-16-real-fight.md B6). The contract frame above was measured on suit.glb,
  * whose bone heads sit on the back of the elbow and wrist; the realistic forearm's centre line runs close to its bone, 15.6 deg from
  * the suit's. FIT is the rigid move taking suit.glb's forearm centre line onto archangel.glb's (cross-section centroids at s .08-.26,
- * re-measured from both GLBs by tests/arm-cannon-asset.test.ts): the cannon root sits at `t`, turned by `q`, in the forearm_r frame,
+ * re-measured from both GLBs by tests/cannon-fit.test.ts): the cannon root sits at `t`, turned by `q`, in the forearm_r frame,
  * so a contract point p is at fitPoint(p) on the forearm. Every forearm rigid point then clears the shell by 7 mm or more.
  */
 export const FIT = { q: { x: -.12930, y: -.01446, z: -.03941, w: .99072 }, t: { x: .0218, y: .0027, z: -.0166 } } as const;
