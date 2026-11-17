@@ -1,10 +1,16 @@
-import { readFileSync } from 'node:fs';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { Quaternion, Vector3 } from 'three';
 import { WA } from '../src/game/banishState';
 import { CLEAVE } from '../src/game/wardenTactics';
 import { cutClip } from '../src/world/cutClips';
-import { WARDEN_BLEND, hitClipName, wardenClip, type PhaseClip } from '../src/world/watcherClips';
+import { WARDEN_BLEND, blowOf, hitClipName, wardenClip, type PhaseClip } from '../src/world/watcherClips';
+import { createShooter } from '../src/game/combat';
+import { buildTargets, createDroneSim, damageDrone } from '../src/game/drones';
+import { createBanish, resetBanish } from '../src/game/banish';
+import { resetBattle } from '../src/game/celestialBattle';
+import { flowPaths, flowVisible } from '../src/game/combatFlow';
+import { cancelStrike } from '../src/game/strike';
+import { landCut } from './sword-support';
 import { createDemonActors, type DemonPose } from '../src/world/demonActors';
 import { bindAngelClips, type AngelClips } from '../src/world/angelClips';
 import { loadSuit } from './load-suit';
@@ -21,9 +27,17 @@ describe('the reaction clip for each blow', () => {
     expect([0, 1, 2, -1, 7].map(hitClipName)).toEqual(['hit', 'hitHead', 'knock', 'hit', 'hit']);
     for (const name of ['hit', 'hitHead', 'knock']) expect(clips[name]).toBeDefined();
   });
-  it('records each sword blow\'s cut at the clock it set, so a later shot or rebuke reads as a plain hit', () => {
-    expect(readFileSync('src/game/swordBlow.ts', 'utf8')).toContain('b.blow[i] = n; b.blowAt[i] = f.lastHit[i];');
-    expect(readFileSync('src/world/Drones.tsx', 'utf8')).toContain('blow: banish.blowAt[i] === f.lastHit[i] ? banish.blow[i] : -1');
+  it('reads a sword blow\'s cut until a later shot strikes the demon, at a clock a Float32 lastHit cannot hold exactly', () => {
+    flowPaths.fill(1); flowVisible.fill(1); cancelStrike();
+    const s = createShooter(), sim = createDroneSim(s); buildTargets(s); for (const t of s.targets) t.los = true;
+    const b = createBanish(); resetBanish(b, s); resetBattle(0);
+    const at = s.drones.pos[0], near = { x: at.x, y: at.y, z: at.z + 10 };
+    s.aim.valid = true; s.aim.origin = { ...near }; s.aim.dir = { x: 0, y: 0, z: -1 };
+    s.clock = 1.1; landCut(b, s, 0, near); // a blowAt copied from the clock would never equal the Float32 lastHit
+    expect(s.drones.lastHit[0]).not.toBe(s.clock); expect(blowOf(b, s.drones.lastHit, 0)).toBe(0);
+    s.clock += .5; damageDrone(s, sim, 0, false, { x: 0, y: 0, z: -1 });
+    expect(b.blow[0]).toBe(0); expect(blowOf(b, s.drones.lastHit, 0)).toBe(-1); // a later shot reads as a plain hit
+    cancelStrike();
   });
   it('keeps the chosen clip on the actor beside the reaction a new blow interrupts', () => {
     const pool = createDemonActors(asset.scene, asset.animations), a = pool.actors[0], at = new Vector3(), q = new Quaternion();
@@ -74,5 +88,27 @@ describe('a warden\'s clip per attack phase', () => {
       expect(a).toEqual(b); expect(a.weight).toBe(WARDEN_BLEND.reduced);
     }
     expect(play(WA.tell, 1.25, WA.fan, 1.3, .8, true)).toBeNull();
+  });
+  // Review of Stage B: each phase's clip came in from 0 while the last phase's dropped at once (the hand jumped 16 to 120 cm).
+  it('keeps the clip the last phase showed under the new one as it comes in, and fades both out with the guard as the turn ends', () => {
+    const pool = createDemonActors(asset.scene, asset.animations), a = pool.actors[0], at = new Vector3(), q = new Quaternion(), hand = new Vector3();
+    for (const move of [WA.rush, WA.sweep, WA.volley, WA.fan]) {
+      const length = move === WA.rush ? .8 : move === WA.sweep ? CLEAVE.duration : .6;
+      let t = 0; const last = new Vector3(), moves: number[] = [];
+      for (const [phase, seconds] of [[WA.idle, .3], [WA.tell, 1.3], [move, length], [WA.recover, 1], [WA.idle, .5]]) {
+        moves.length = 0;
+        for (let k = 0; k / 60 < seconds; k++, t += 1 / 60) {
+          pool.step(0, at, q, true, { time: t, charging: false, hit: 0, down: false, reduced: false, damage: 0, attack: phase, attackTime: k / 60, move, tell: 1.3, rush: .8 });
+          a.joints[16].getWorldPosition(hand); moves.push(t ? hand.distanceTo(last) : 0); last.copy(hand);
+        }
+        const label = `move ${move}, into phase ${phase}`;
+        // A fan's or a volley's phase goes on with the tell's stroke at its impact, the stroke's fastest frame.
+        if (phase !== WA.fan && phase !== WA.volley) expect(moves[0], label).toBeLessThan(.02);
+        // Into the recovery the block comes in over the phase blend, each frame about as far as the block's own fastest (29 cm).
+        if (phase === WA.recover) expect(Math.max(...moves.slice(0, 5)), label).toBeLessThan(.32);
+        if (phase === WA.idle) expect(Math.max(...moves), label).toBeLessThan(.03);
+      }
+    }
+    pool.dispose();
   });
 });

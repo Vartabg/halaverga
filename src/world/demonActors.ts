@@ -1,6 +1,6 @@
 import { Color, Group, Matrix4, MeshStandardMaterial, Quaternion, SkinnedMesh, Vector3, type AnimationClip, type Object3D } from 'three';
 import { MAX_DRONES } from '../game/combat';
-import { bindAngelClips, blendAngelClip, clipTime, FULL, UPPER_BODY, type AngelClip } from './angelClips';
+import { bindAngelClips, blendAngelClip, blendUnder, clipTime, FULL, UPPER_BODY, type AngelClip } from './angelClips';
 import { buildSuitRig } from './suitRig';
 import { WA, banish } from '@/game/banishState';
 import { SWORD_GRIP, swordGripRotation } from './swordGrip';
@@ -57,14 +57,16 @@ export function createDemonActors(source: Object3D, animations: AnimationClip[])
     const headBind = rig.joints[1].matrixWorld.clone().invert().multiply(new Matrix4().makeTranslation(...EYE_MARKER.centre));
     return { ...rig, materials, plate, chestBind, headBind, wingMatrix: new Matrix4(), eyeMatrix: new Matrix4(), bladeMatrix: new Matrix4(), downTime: 0, lastTime: 0,
       /** clock/side/clip: last frame's hit clock, side and reaction clip; oldT/oldSide/oldClip: the reaction a new blow interrupted. */
-      clock: Infinity, side: 0, clip: clips.hit as AngelClip, oldT: -1, oldSide: 0, oldClip: clips.hit as AngelClip };
+      clock: Infinity, side: 0, clip: clips.hit as AngelClip, oldT: -1, oldSide: 0, oldClip: clips.hit as AngelClip,
+      /** A warden's phase last frame, seconds since it changed, the guard and phase clip shown, and what the change interrupted. */
+      phase: 0, cross: 0, guard: 0, fromGuard: 0, shown: { name: '', time: 0, weight: 0 } as PhaseClip, from: { name: '', time: 0, weight: 0 } as PhaseClip };
   });
   const group = new Group(); actors.forEach(a => group.add(a.root));
   function step(index: number, position: Vector3, rotation: Quaternion, visible: boolean, state: DemonPose) {
     const a = actors[index]; a.root.visible = visible;
     if (!visible) return;
     a.root.position.copy(position); a.root.quaternion.copy(rotation);
-    const hitT = state.hitT ?? Infinity, side = state.hitSide ?? 0;
+    const hitT = state.hitT ?? Infinity, side = state.hitSide ?? 0, dt = Math.max(0, Math.min(.05, state.time - a.lastTime));
     if (hitT < a.clock) { // a new blow: keep the reaction it interrupts, and pick this one's clip
       if (a.clock < reactionLength(a.clip.duration)) { a.oldT = a.clock; a.oldSide = a.side; a.oldClip = a.clip; } else a.oldT = -1;
       a.clip = clips[hitClipName(state.blow ?? -1)] ?? clips.hit;
@@ -87,17 +89,21 @@ export function createDemonActors(source: Object3D, animations: AnimationClip[])
       if (old >= 0) blendAngelClip(a.joints, a.oldClip, clipTime(a.oldClip, old * REACT.rate, false), reactionWeight(old, od), UPPER_BODY);
       blendAngelClip(a.joints, a.clip, clipTime(a.clip, hitT * REACT.rate, false), reactionWeight(hitT, d, old >= 0 ? REACT.cross : REACT.fadeIn), UPPER_BODY);
     }
-    // A warden's turn (wardenAttacks.ts): the sword guard from the tell on, and each phase's own clip over it.
-    const phase = state.attack ?? 0, at = state.attackTime ?? 0;
-    if (phase && !state.down) {
-      const guard = state.reduced ? WARDEN_BLEND.reduced : phase === WA.tell ? Math.min(1, at / WARDEN_BLEND.guard) : 1;
-      blendAngelClip(a.joints, clips.swordIdle, state.reduced ? 0 : clipTime(clips.swordIdle, time, true), guard, UPPER_BODY);
-      if (wardenClip(layer, clips, phase, at, state.move ?? 0, state.tell ?? 0, state.rush ?? 1, state.reduced) && clips[layer.name]) {
-        blendAngelClip(a.joints, clips[layer.name], layer.time, layer.weight, UPPER_BODY);
-      }
-    }
+    // A warden's turn (wardenAttacks.ts): the sword guard from the tell on, and each phase's own clip over it. A phase change keeps
+    // the clip last shown under the new phase's as that comes in (WARDEN_BLEND.phase); as the turn ends it and the guard fade out
+    // over WARDEN_BLEND.guard.
+    const phase = state.down ? 0 : state.attack ?? 0, at = state.attackTime ?? 0;
+    if (phase !== a.phase) { a.phase = phase; a.cross = 0; Object.assign(a.from, a.shown); a.fromGuard = a.guard; } else a.cross += dt;
+    const u = Math.min(1, phase ? at / WARDEN_BLEND.phase : a.cross / WARDEN_BLEND.guard), was = u < 1 ? clips[a.from.name] : undefined;
+    a.guard = !phase ? a.fromGuard * (1 - u) : state.reduced ? WARDEN_BLEND.reduced : phase === WA.tell ? Math.min(1, at / WARDEN_BLEND.guard) : 1;
+    blendAngelClip(a.joints, clips.swordIdle, state.reduced ? 0 : clipTime(clips.swordIdle, time, true), a.guard, UPPER_BODY);
+    const shown = phase > 0 && wardenClip(layer, clips, phase, at, state.move ?? 0, state.tell ?? 0, state.rush ?? 1, state.reduced) ? clips[layer.name] : undefined;
+    if (was && shown && !state.reduced) blendUnder(a.joints, was, a.from.time, a.from.weight, UPPER_BODY, layer.weight);
+    else if (was) blendAngelClip(a.joints, was, a.from.time, a.from.weight * (1 - u), UPPER_BODY);
+    a.shown.name = '';
+    if (shown) { blendAngelClip(a.joints, shown, layer.time, layer.weight, UPPER_BODY); Object.assign(a.shown, layer); }
     if (state.down) {
-      a.downTime = Math.min(2.4, a.downTime + Math.max(0, Math.min(.05, state.time - a.lastTime)));
+      a.downTime = Math.min(2.4, a.downTime + dt);
       // The casting blow's knock back plays out first, then the fall takes the body.
       const knocked = a.clip === clips.knock && !state.reduced ? ease(hitT * REACT.rate / d) : 1;
       blendAngelClip(a.joints, clips.down, state.reduced ? 2.2 : a.downTime, knocked, FULL);

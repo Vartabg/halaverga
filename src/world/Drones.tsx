@@ -15,6 +15,7 @@ import { DRONE } from '@/game/droneDodge';
 import { DRONE_COLORS, buildDroneGeometry, createDroneMaterials, minWorldSize } from './droneMesh';
 import { ADVERSARY_URL } from './Suit';
 import { createDemonActors, type DemonPose } from './demonActors';
+import { blowOf } from './watcherClips';
 import { banish, MODE } from '@/game/banishState';
 // The Watchers (docs/plans/2026-11-16-real-fight.md B7): eight skinned watcher.glb bodies (demonActors.ts) and, pooled for all
 // eight, the dark feather wings (two draws), the bronze blades, the eye markers, halos and telegraph rings (watcherGeometry.ts).
@@ -100,7 +101,7 @@ export default function Drones() {
       damage[i] = failing ? (reduced ? .85 : .75 + .25 * pulse) : broken ? .45 : 0;
       const w = banish.wardens;
       Object.assign(parts.actorPose, { time: t, charging: battle.charging === i, hit: flash[i], hitT: t - f.lastHit[i], hitSide: banish.twist[i],
-        blow: banish.blowAt[i] === f.lastHit[i] ? banish.blow[i] : -1,
+        blow: blowOf(banish, f.lastHit, i),
         attack: w.phase[i], attackTime: w.time[i], move: w.move[i], tell: w.tell[i], rush: w.duration[i],
         down: banish.mode[i] === MODE.down || banish.mode[i] === MODE.bound || banish.mode[i] === MODE.cast,
         reduced, damage: damage[i] });
@@ -108,9 +109,8 @@ export default function Drones() {
       // The cuirass is the breakable plate (watcher.glb's `plate`).
       const actor = parts.actors.actors[i]; if (actor.plate) actor.plate.visible = f.broken[i] !== 1;
       // Wings from the chest, the blade from the right fist and the eye marker from the head, as the body moves.
-      for (const [mesh, matrix] of [[left, actor.wingMatrix], [right, actor.wingMatrix], [blade, actor.bladeMatrix], [eyes, actor.eyeMatrix]] as const) {
-        if (dead) place(mesh, i, p, q, zero); else mesh.setMatrixAt(i, matrix);
-      }
+      if (dead) { place(left, i, p, q, zero); place(right, i, p, q, zero); place(blade, i, p, q, zero); place(eyes, i, p, q, zero); }
+      else { left.setMatrixAt(i, actor.wingMatrix); right.setMatrixAt(i, actor.wingMatrix); blade.setMatrixAt(i, actor.bladeMatrix); eyes.setMatrixAt(i, actor.eyeMatrix); }
       p.setFromMatrixPosition(actor.eyeMatrix);
       c.copy(battle.charging === i || banish.wardens.phase[i] === WA.tell ? tele : phaseColor(ph)).lerp(white, Math.min(f.flash[i], .6));
       // The eye: a slow pulse once broken, 1.5 Hz dropouts once failing (reduced motion: a steady dim).
