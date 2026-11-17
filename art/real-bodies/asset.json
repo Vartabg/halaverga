@@ -1,0 +1,413 @@
+{
+  "archangel": {
+    "file": "archangel.glb",
+    "bytes": 1274748,
+    "sha256": "f8822664748133eff5e915cb891eef2e1f9f952f53cc99786bbfbbca287ac9c8",
+    "meshes": [
+      "archangel"
+    ],
+    "height_m": 1.8814,
+    "triangles": 19474,
+    "vertices": 10578,
+    "triangles_by_material": {
+      "archangel body": 14000,
+      "archangel face": 732,
+      "archangel hair": 836,
+      "archangel chiton": 3906
+    },
+    "materials": [
+      "archangel body",
+      "archangel face",
+      "archangel hair",
+      "archangel chiton"
+    ],
+    "textures": {
+      "archangel body": {
+        "file": "archangel-body.jpg",
+        "size": [
+          1024,
+          1024
+        ],
+        "bytes": 87434
+      },
+      "archangel hair": {
+        "file": "archangel-hair.png",
+        "size": [
+          256,
+          512
+        ],
+        "bytes": 158386
+      },
+      "archangel face": {
+        "file": "archangel-face.png",
+        "size": [
+          512,
+          512
+        ],
+        "bytes": 138447
+      },
+      "archangel chiton": {
+        "file": "archangel-chiton.png",
+        "size": [
+          64,
+          16
+        ],
+        "bytes": 317
+      }
+    },
+    "scale_to_library": 1.1452,
+    "chest_above_pelvis_m": 0.4,
+    "clips": {
+      "idle": {
+        "source": "ual1/Idle_Loop",
+        "seconds": 2.5,
+        "frames": 76
+      },
+      "swordIdle": {
+        "source": "ual1/Sword_Idle",
+        "seconds": 1.667,
+        "frames": 51
+      },
+      "rebuke": {
+        "source": "ual1/Spell_Simple_Shoot",
+        "seconds": 0.5,
+        "frames": 16
+      },
+      "cast": {
+        "source": "ual2/OverhandThrow",
+        "seconds": 1.333,
+        "frames": 41
+      },
+      "cut0": {
+        "source": "ual2/Sword_Regular_A",
+        "seconds": 0.433,
+        "frames": 14
+      },
+      "cut0Rec": {
+        "source": "ual2/Sword_Regular_A_Rec",
+        "seconds": 0.967,
+        "frames": 30
+      },
+      "cut1": {
+        "source": "ual2/Sword_Regular_B",
+        "seconds": 0.533,
+        "frames": 17
+      },
+      "cut1Rec": {
+        "source": "ual2/Sword_Regular_B_Rec",
+        "seconds": 1.033,
+        "frames": 32
+      },
+      "cut2": {
+        "source": "ual2/Sword_Regular_C frames 0-26",
+        "seconds": 0.867,
+        "frames": 27
+      },
+      "cut2Rec": {
+        "source": "ual2/Sword_Regular_C frames 26-end",
+        "seconds": 1.133,
+        "frames": 35
+      }
+    },
+    "cuts": {
+      "cut0": {
+        "raised": 0.1333,
+        "impact": 0.2333
+      },
+      "cut1": {
+        "raised": 0.1333,
+        "impact": 0.2333
+      },
+      "cut2": {
+        "raised": 0.5333,
+        "impact": 0.6333
+      }
+    },
+    "clip_pelvis": "horizontal travel removed, height as the source",
+    "sources": {
+      "skin": {
+        "path": "makehuman_system_assets/x/skins/young_caucasian_male/young_caucasian_male.mhmat",
+        "file_says": "CC0 (header notice)",
+        "author": null,
+        "pack": "makehuman_system_assets",
+        "pack_says": "CC0",
+        "pack_author": "makehuman_system",
+        "url": "http://www.makehumancommunity.org"
+      },
+      "proxy": {
+        "path": "makehuman_system_assets/x/proxymeshes/male_muscle_13290/male_muscle_13290.proxy",
+        "file_says": "CC0 (header notice)",
+        "author": null,
+        "pack": "makehuman_system_assets",
+        "pack_says": "CC0",
+        "pack_author": "makehuman_system",
+        "url": "http://www.makehumancommunity.org"
+      },
+      "eyes": {
+        "path": "makehuman_system_assets/x/eyes/low-poly/low-poly.mhclo",
+        "file_says": "CC0 (header notice)",
+        "author": null,
+        "pack": "makehuman_system_assets",
+        "pack_says": "CC0",
+        "pack_author": "makehuman_system",
+        "url": "http://www.makehumancommunity.org"
+      },
+      "eye_material": {
+        "path": "makehuman_system_assets/x/eyes/materials/brown.mhmat",
+        "file_says": "CC0 (header notice)",
+        "author": null,
+        "pack": "makehuman_system_assets",
+        "pack_says": "CC0",
+        "pack_author": "makehuman_system",
+        "url": "http://www.makehumancommunity.org"
+      },
+      "eyebrows": {
+        "path": "makehuman_system_assets/x/eyebrows/eyebrow001/eyebrow001.mhclo",
+        "file_says": "CC0 (header notice)",
+        "author": null,
+        "pack": "makehuman_system_assets",
+        "pack_says": "CC0",
+        "pack_author": "makehuman_system",
+        "url": "http://www.makehumancommunity.org"
+      },
+      "eyelashes": {
+        "path": "makehuman_system_assets/x/eyelashes/eyelashes01/eyelashes01.mhclo",
+        "file_says": "CC0 (header notice)",
+        "author": null,
+        "pack": "makehuman_system_assets",
+        "pack_says": "CC0",
+        "pack_author": "makehuman_system",
+        "url": "http://www.makehumancommunity.org"
+      },
+      "hair": {
+        "path": "hair01/x/hair/faydaen_hair_1/faydaen_hair_1.mhclo",
+        "file_says": "CC0",
+        "author": "unknown",
+        "pack": "hair01",
+        "pack_says": "CC0",
+        "pack_author": "Faydaen",
+        "url": "http://www.makehumancommunity.org/node/2667"
+      }
+    },
+    "made_here": {
+      "chiton": "made by scripts/real_bodies from the body surface (garments.py, skirt.py, sandals.py, armour.py); no third-party asset",
+      "sandals": "made by scripts/real_bodies from the body surface (garments.py, skirt.py, sandals.py, armour.py); no third-party asset"
+    }
+  },
+  "watcher": {
+    "file": "watcher.glb",
+    "bytes": 1522960,
+    "sha256": "885707023eca4931e0ce0841e69004fb886d393099ec0194b33ac32e0a019cc5",
+    "meshes": [
+      "watcher",
+      "plate"
+    ],
+    "height_m": 2.002,
+    "triangles": 20558,
+    "vertices": 11558,
+    "triangles_by_material": {
+      "watcher body": 13998,
+      "watcher face": 732,
+      "watcher hair": 1060,
+      "watcher chiton": 3368,
+      "watcher bronze": 1400
+    },
+    "materials": [
+      "watcher body",
+      "watcher face",
+      "watcher hair",
+      "watcher chiton",
+      "watcher bronze"
+    ],
+    "textures": {
+      "watcher body": {
+        "file": "watcher-body.jpg",
+        "size": [
+          1024,
+          1024
+        ],
+        "bytes": 76606
+      },
+      "watcher hair": {
+        "file": "watcher-hair.png",
+        "size": [
+          512,
+          512
+        ],
+        "bytes": 295389
+      },
+      "watcher face": {
+        "file": "watcher-face.png",
+        "size": [
+          512,
+          512
+        ],
+        "bytes": 138447
+      },
+      "watcher chiton": {
+        "file": "watcher-chiton.png",
+        "size": [
+          64,
+          16
+        ],
+        "bytes": 316
+      }
+    },
+    "scale_to_library": 1.2236,
+    "chest_above_pelvis_m": 0.426,
+    "clips": {
+      "idle": {
+        "source": "ual1/Idle_Loop",
+        "seconds": 2.5,
+        "frames": 76
+      },
+      "flight": {
+        "source": "ual2/NinjaJump_Idle_Loop",
+        "seconds": 2.0,
+        "frames": 61
+      },
+      "charge": {
+        "source": "ual1/Spell_Simple_Shoot",
+        "seconds": 0.5,
+        "frames": 16
+      },
+      "hit": {
+        "source": "ual1/Hit_Chest",
+        "seconds": 0.333,
+        "frames": 11
+      },
+      "down": {
+        "source": "ual1/Death01",
+        "seconds": 2.4,
+        "frames": 73
+      },
+      "hitHead": {
+        "source": "ual1/Hit_Head",
+        "seconds": 0.433,
+        "frames": 14
+      },
+      "knock": {
+        "source": "ual2/Hit_Knockback",
+        "seconds": 0.833,
+        "frames": 26
+      },
+      "block": {
+        "source": "ual2/Sword_Block",
+        "seconds": 1.233,
+        "frames": 38
+      },
+      "rush": {
+        "source": "ual2/Sword_Dash_RM",
+        "seconds": 1.567,
+        "frames": 48
+      },
+      "swordIdle": {
+        "source": "ual1/Sword_Idle",
+        "seconds": 1.667,
+        "frames": 51
+      },
+      "cut0": {
+        "source": "ual2/Sword_Regular_A",
+        "seconds": 0.433,
+        "frames": 14
+      },
+      "cut1": {
+        "source": "ual2/Sword_Regular_B",
+        "seconds": 0.533,
+        "frames": 17
+      },
+      "cut2": {
+        "source": "ual2/Sword_Regular_C frames 0-26",
+        "seconds": 0.867,
+        "frames": 27
+      }
+    },
+    "cuts": {
+      "cut0": {
+        "raised": 0.1333,
+        "impact": 0.2333
+      },
+      "cut1": {
+        "raised": 0.1333,
+        "impact": 0.2333
+      },
+      "cut2": {
+        "raised": 0.5333,
+        "impact": 0.6333
+      }
+    },
+    "clip_pelvis": "horizontal travel removed, height as the source",
+    "sources": {
+      "skin": {
+        "path": "makehuman_system_assets/x/skins/middleage_caucasian_male/middleage_caucasian_male.mhmat",
+        "file_says": "CC0 (header notice)",
+        "author": null,
+        "pack": "makehuman_system_assets",
+        "pack_says": "CC0",
+        "pack_author": "makehuman_system",
+        "url": "http://www.makehumancommunity.org"
+      },
+      "proxy": {
+        "path": "makehuman_system_assets/x/proxymeshes/male_muscle_13290/male_muscle_13290.proxy",
+        "file_says": "CC0 (header notice)",
+        "author": null,
+        "pack": "makehuman_system_assets",
+        "pack_says": "CC0",
+        "pack_author": "makehuman_system",
+        "url": "http://www.makehumancommunity.org"
+      },
+      "eyes": {
+        "path": "makehuman_system_assets/x/eyes/low-poly/low-poly.mhclo",
+        "file_says": "CC0 (header notice)",
+        "author": null,
+        "pack": "makehuman_system_assets",
+        "pack_says": "CC0",
+        "pack_author": "makehuman_system",
+        "url": "http://www.makehumancommunity.org"
+      },
+      "eye_material": {
+        "path": "makehuman_system_assets/x/eyes/materials/brown.mhmat",
+        "file_says": "CC0 (header notice)",
+        "author": null,
+        "pack": "makehuman_system_assets",
+        "pack_says": "CC0",
+        "pack_author": "makehuman_system",
+        "url": "http://www.makehumancommunity.org"
+      },
+      "eyebrows": {
+        "path": "makehuman_system_assets/x/eyebrows/eyebrow001/eyebrow001.mhclo",
+        "file_says": "CC0 (header notice)",
+        "author": null,
+        "pack": "makehuman_system_assets",
+        "pack_says": "CC0",
+        "pack_author": "makehuman_system",
+        "url": "http://www.makehumancommunity.org"
+      },
+      "eyelashes": {
+        "path": "makehuman_system_assets/x/eyelashes/eyelashes01/eyelashes01.mhclo",
+        "file_says": "CC0 (header notice)",
+        "author": null,
+        "pack": "makehuman_system_assets",
+        "pack_says": "CC0",
+        "pack_author": "makehuman_system",
+        "url": "http://www.makehumancommunity.org"
+      },
+      "hair": {
+        "path": "hair01/x/hair/cortu_short_messy_hair/cortu_short_messy_hair.mhclo",
+        "file_says": "CC0 (comment)",
+        "author": null,
+        "pack": "hair01",
+        "pack_says": "CC0",
+        "pack_author": "Cortu",
+        "url": "http://www.makehumancommunity.org/node/2809"
+      }
+    },
+    "made_here": {
+      "chiton": "made by scripts/real_bodies from the body surface (garments.py, skirt.py, sandals.py, armour.py); no third-party asset",
+      "sandals": "made by scripts/real_bodies from the body surface (garments.py, skirt.py, sandals.py, armour.py); no third-party asset",
+      "plate": "made by scripts/real_bodies from the body surface (garments.py, skirt.py, sandals.py, armour.py); no third-party asset",
+      "bronze": "made by scripts/real_bodies from the body surface (garments.py, skirt.py, sandals.py, armour.py); no third-party asset",
+      "pteruges": "made by scripts/real_bodies from the body surface (garments.py, skirt.py, sandals.py, armour.py); no third-party asset"
+    }
+  }
+}
