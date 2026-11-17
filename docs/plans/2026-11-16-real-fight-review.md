@@ -16,3 +16,29 @@ Completed 2026-11-16 with file:line evidence. Verdict: Stage A not buildable fro
 
 Stage B's sources (MakeHuman via MPFB2, free motion capture) are researched separately; every download is asked of Garo first with
 its name, source and size.
+
+## Stage A code review
+
+Reviewer: a fresh-context opus agent, read-only, given `git diff 10d41ae..HEAD` (dada884, 8d7968f, 7b00409), the plan, this review
+and AGENTS.md. Completed 2026-11-16; it confirmed findings with scratch simulations outside the worktree.
+
+| # | Finding | Disposition |
+|---|---|---|
+| 1 | High: the shove compounded on a head-on hit (it measured the angel's own velocity with last step's shove), so momentum flight kept it: 22 m/s cruise, 14 m/s hit from the front gave -12 m/s and about 29 m of progress lost over 1.5 s. The "never compounds" test ran without the flight model. | Fixed (6cd2b41): `shoveBase` takes last step's shove out of the flight input in full, trims only what flight safety or a collision removed; the shove is added after the model. Tests drive the real `momentumVelocity`: about 3 m cost head-on, from behind and side. |
+| 2 | Medium: the flinch tipped the chest and head back at hover, which the pinned facing rule forbids. | Fixed inside the rule: the back arch scales with how prone the body lies; upright it hunches forward. The flinch is now sampled in the rule test. |
+| 3 | Low: a re-hit during a running reaction popped the upper body back to the flight pose. | Fixed: crossfade over .12 s from the running reaction; yaw carries over; test. |
+| 4 | Low: prone keyed off horizontal speed (a steep dive stayed upright; the shove tipped the body). | Fixed: `proneSpeed` = travel along the facing plus descent, shove removed; the top-up compares against the whole root pitch. |
+| 5 | Low: a side shove read as a steering turn. | Fixed: the turn reads the velocity before the shove. |
+| 6 | Cleanups: flinch survived Retry; `clearShove` unused; per-frame closure; 2D gap in one test. | All done. |
+
+The six reported deviations (prone top-up, chest pivot, one capsule for both kinds, darts shove, stance legs over prone legs, wings
+counter lean + pitch) were judged sound.
+
+## Final checks for Stage A (6cd2b41)
+
+- `pnpm verify`: 240 files / 2765 tests, build, first load 628.1 KB of 629, vote build.
+- Browser specs (system Chrome, local production server): 35 passed, 2 failed (`simple-hints` touch 852x393, one with the
+  context-lost screen); rerun on a quiet machine, all 4 touch tests passed.
+- Frames: prone at cruise and in a strike dive, blade landing at the body, a struck Watcher hunched and turned, a head-on hit at
+  cruise keeping forward travel (35 to 26 to 42 m/s).
+- Not checked: a physical iPhone, GPU memory, the hover flinch on screen (unit tests only).
