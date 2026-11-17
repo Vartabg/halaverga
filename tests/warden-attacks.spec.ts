@@ -35,7 +35,10 @@ for (const id of [5, 7]) test(`arena pursuit follows real flight input for warde
     await expect(elite).toHaveAttribute('data-attack', '0', { timeout: 6000 });
     const before = JSON.parse((await t.getAttribute('data-position'))!) as number[], travel = Number(await elite.getAttribute('data-traveled'));
     const motion = 'KeyW', modes = new Set<number>(); await page.keyboard.down(motion);
-    for (let n = 0; n < 30; n++) { modes.add(Number(await elite.getAttribute('data-nav'))); await page.waitForTimeout(50); }
+    // Up to 3 s of escape until the expected mode shows: the rule is by distance (17 m lancer, 22 m cantor), and a 1.5 s window
+    // crossed it only in its last few samples even at 547a7cc, so a slower frame under machine load failed it (2026-11-17 traces).
+    const want = id === 5 ? 1 : 2;
+    for (let n = 0; n < 60 && !modes.has(want); n++) { modes.add(Number(await elite.getAttribute('data-nav'))); await page.waitForTimeout(50); }
     await page.keyboard.up(motion); await page.keyboard.press('KeyB'); expect([...modes], 'escaping lancer chases; pressured cantor retreats').toContain(id === 5 ? 1 : 2);
     const after = JSON.parse((await t.getAttribute('data-position'))!) as number[];
     expect(Math.hypot(...after.map((n, i) => n - before[i]))).toBeGreaterThan(7);
