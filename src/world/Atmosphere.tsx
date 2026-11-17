@@ -1,28 +1,26 @@
-import { useMemo, useRef } from 'react';
+import { useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { Mesh, ShaderMaterial, UniformsLib, UniformsUtils, Vector2, Vector3 } from 'three';
+import { Vector2 } from 'three';
+import { WORLD } from '@/game/motion';
 import { useGame } from '@/game/store';
 import { runtime } from '@/game/runtime';
-import { SUN_DIRECTION } from './atmospherePalette';
 import { waterFragment, waterVertex } from './waterShader';
-export { Sky } from './Sky';
 
-/** Dawn-lit meltwater below the cloven gorge. The plane follows the camera on x and z while ripple phases remain in world
- * space; continuous terrain hides it above the waterline, and scene fog joins distant lakes to the dawn haze. */
+const waterWidth = WORLD.maxX - WORLD.minX, waterLength = WORLD.maxZ - WORLD.minZ;
+const waterCentre = (WORLD.maxZ + WORLD.minZ) / 2;
+
+/** Local meltwater in the gorge, bounded by the same world as its flight interactions. */
 export function Water() {
-  const material = useRef<ShaderMaterial>(null), mesh = useRef<Mesh>(null);
-  const uniforms = useMemo(() => UniformsUtils.merge([UniformsLib.fog,
-    { time: { value: 0 }, uSun: { value: new Vector3(...SUN_DIRECTION) }, wake: { value: new Vector2() }, wakeStrength: { value: 0 } }]), []);
-  useFrame(({ camera }, dt) => {
-    mesh.current?.position.set(camera.position.x, .1, camera.position.z);
-    if (material.current && !useGame.getState().paused) {
-      if (!useGame.getState().reduced) material.current.uniforms.time.value += Math.min(dt, .04);
-      uniforms.wake.value.set(runtime.position.x, runtime.position.z);
-      uniforms.wakeStrength.value = Math.exp(-Math.max(0, runtime.position.y - 2) * .65) * Math.min(1, runtime.speed / 10);
-    }
+  const uniforms = useMemo(() => ({ time: { value: 0 }, wake: { value: new Vector2() }, wakeStrength: { value: 0 } }), []);
+  useFrame((_, dt) => {
+    const { paused, reduced } = useGame.getState();
+    if (paused) return;
+    if (!reduced) uniforms.time.value += Math.min(dt, .04);
+    uniforms.wake.value.set(runtime.position.x, runtime.position.z);
+    uniforms.wakeStrength.value = Math.exp(-Math.max(0, runtime.position.y - 2) * .65) * Math.min(1, runtime.speed / 10);
   });
-  return <mesh ref={mesh} rotation={[-Math.PI / 2, 0, 0]} position={[0, .1, 0]}>
-    <planeGeometry args={[1400, 1400]} />
-    <shaderMaterial ref={material} uniforms={uniforms} vertexShader={waterVertex} fragmentShader={waterFragment} fog />
+  return <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, .1, waterCentre]}>
+    <planeGeometry args={[waterWidth, waterLength]} />
+    <shaderMaterial uniforms={uniforms} vertexShader={waterVertex} fragmentShader={waterFragment} />
   </mesh>;
 }

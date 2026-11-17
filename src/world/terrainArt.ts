@@ -1,15 +1,17 @@
 import { LinearMipmapLinearFilter, RepeatWrapping, SRGBColorSpace, TextureLoader, type IUniform, type Texture } from 'three';
 
-/** Real rock and snow for the massif: two CC0 Poly Haven diffuse maps (docs/art/hermon-sky/PROVENANCE.md), sampled biplanar in world
- * space (two taps per map, no UVs), blended by slope and height. The paint's own vertex colour stays as the broad tint: the textures
- * only add detail around it (each map is divided by its mean luminance), so the authored light and zones survive. */
+/** Two CC0 Poly Haven diffuse maps shared by the ground and carved stone. */
 export const TERRAIN_ART = { rock: '/textures/terrain/limestone-cliff.jpg', snow: '/textures/terrain/snow.jpg' };
-export type TerrainUniforms = { uRock: IUniform<Texture | null>; uSnow: IUniform<Texture | null>; uTexOn: IUniform<number> };
+export type TerrainUniforms = {
+  uRock: IUniform<Texture | null>; uSnow: IUniform<Texture | null>;
+  uRockOn: IUniform<number>; uSnowOn: IUniform<number>; uTexOn: IUniform<number>;
+};
 
-export const terrainUniforms = (): TerrainUniforms => ({ uRock: { value: null }, uSnow: { value: null }, uTexOn: { value: 0 } });
+export const terrainUniforms = (): TerrainUniforms => ({
+  uRock: { value: null }, uSnow: { value: null }, uRockOn: { value: 0 }, uSnowOn: { value: 0 }, uTexOn: { value: 0 },
+});
 
-/** Loads both maps without blocking the scene: the terrain shows its plain paint until they arrive, and keeps it if a file fails.
- * Returns a disposer. */
+/** Load each map independently. The carved stone shader still blends the pair after both arrive. */
 export function loadTerrainArt(uniforms: TerrainUniforms, onReady: () => void) {
   const loader = new TextureLoader(), loaded: Texture[] = [];
   let live = true, pending = 2;
@@ -17,14 +19,22 @@ export function loadTerrainArt(uniforms: TerrainUniforms, onReady: () => void) {
     if (!live) { texture.dispose(); return; }
     texture.wrapS = texture.wrapT = RepeatWrapping; texture.colorSpace = SRGBColorSpace;
     texture.minFilter = LinearMipmapLinearFilter; texture.anisotropy = 4; texture.needsUpdate = true;
-    uniforms[key].value = texture; loaded.push(texture);
-    if (--pending === 0) { uniforms.uTexOn.value = 1; onReady(); }
-  }, undefined, () => { /* a missing file leaves the plain paint */ });
+    uniforms[key].value = texture;
+    uniforms[key === 'uRock' ? 'uRockOn' : 'uSnowOn'].value = 1;
+    loaded.push(texture);
+    if (--pending === 0) uniforms.uTexOn.value = 1;
+    onReady();
+  }, undefined, () => { /* A missing map keeps its procedural albedo. */ });
   take('uRock', TERRAIN_ART.rock); take('uSnow', TERRAIN_ART.snow);
-  return () => { live = false; loaded.forEach(t => t.dispose()); uniforms.uRock.value = null; uniforms.uSnow.value = null; uniforms.uTexOn.value = 0; };
+  return () => {
+    live = false;
+    loaded.forEach(t => t.dispose());
+    uniforms.uRock.value = uniforms.uSnow.value = null;
+    uniforms.uRockOn.value = uniforms.uSnowOn.value = uniforms.uTexOn.value = 0;
+  };
 }
 
-/** Shared by every ink-painted surface (massif, megaliths, steles, the court): one pair of maps, one loader. Scene mounts TerrainLayer. */
+/** Scene mounts one loader for the massif, distant relief and carved stone. */
 export const sharedTerrain = terrainUniforms();
 let users = 0, release: (() => void) | null = null;
 export function acquireTerrainArt(onReady: () => void) {
@@ -41,7 +51,7 @@ export const srgbSaturation = (hex: string) => {
   return (max - Math.min(...c)) / Math.max(max, .001);
 };
 /** Mean linear luminance of each map, so a texture divides out to detail around 1 and the albedo keeps its tone. */
-const ROCK_MEAN = '.104', SNOW_MEAN = '.38';
+export const ROCK_MEAN = '.104', SNOW_MEAN = '.38';
 export const terrainFragmentPars = /* glsl */`
 uniform sampler2D uRock;
 uniform sampler2D uSnow;
@@ -71,6 +81,6 @@ vec3 tRock = biplanar(uRock, vInkW * .06, nW), tIce = biplanar(uSnow, vInkW * .1
 float tNear = 1. - smoothstep(160., 520., distance(cameraPosition, vInkW));
 vec3 rockDetail = mix(vec3(1.), pow(clamp(vec3(dot(tRock, vec3(.2126, .7152, .0722))) / ${ROCK_MEAN}, .25, 2.4), vec3(1.35)), tNear);
 vec3 snowDetail = mix(vec3(1.), clamp(tIce / ${SNOW_MEAN}, .6, 1.2), tNear);
-vec3 rockAlbedo = mix(vec3(.5, .495, .49) * rockDetail, diffuseColor.rgb, .26);
-vec3 snowAlbedo = mix(vec3(.7, .76, .88) * snowDetail, diffuseColor.rgb, .2);
+vec3 rockAlbedo = mix(vec3(.43, .405, .36) * rockDetail, diffuseColor.rgb, .26);
+vec3 snowAlbedo = mix(vec3(.72, .75, .77) * snowDetail, diffuseColor.rgb, .2);
 diffuseColor.rgb = mix(diffuseColor.rgb, mix(rockAlbedo, snowAlbedo, tSnow), tK);`;

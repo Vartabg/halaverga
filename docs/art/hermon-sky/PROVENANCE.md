@@ -1,29 +1,23 @@
-# Hermon dawn art: provenance
+# Hermon dawn art and elevation sources
 
-All art in this folder's scope comes from Poly Haven (https://polyhaven.com), downloaded through its public API
-(`api.polyhaven.com`) on 2026-11-16. Poly Haven licenses every asset CC0 (public domain): https://polyhaven.com/license
-(the API returns no per-asset licence field). Each asset's own page was also fetched on 2026-11-16 and states it:
-https://polyhaven.com/a/kiara_1_dawn, https://polyhaven.com/a/cliff_side and https://polyhaven.com/a/snow_02 each carry the line
-"CC0 1.0 Universal - public domain dedication, no attribution required". The player approved
-downloading free CC0 art from Poly Haven only. Raw downloads were kept outside the repo and never executed.
+## Terrain maps
 
-| Asset | Page | File downloaded | Size | Used for |
-|---|---|---|---|---|
-| Kiara 1 Dawn (Greg Zaal), HDRI | https://polyhaven.com/a/kiara_1_dawn | https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/4k/kiara_1_dawn_4k.hdr | 25,413,182 B | sky and distant range |
-| Cliff Side (James Ray Cock, Jenelle van Heerden, Dario Barresi), texture | https://polyhaven.com/a/cliff_side | https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/cliff_side/cliff_side_diff_1k.jpg | 859,756 B | layered limestone-like rock, diffuse only |
-| Snow 02 (Rob Tuytel), texture | https://polyhaven.com/a/snow_02 | https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/snow_02/snow_02_diff_1k.jpg | 325,497 B | snow, diffuse only |
+The two 1k diffuse maps ship as `public/textures/terrain/limestone-cliff.jpg` and `snow.jpg`. They were downloaded through `api.polyhaven.com` on 2026-11-16 and re-encoded as smaller JPEGs. Both are [CC0 1.0](https://polyhaven.com/license).
 
-Candidate HDRIs were judged from Poly Haven's small preview thumbnails (about 400 KB each, not kept). Total downloaded for
-use: about 26.6 MB.
+- [Cliff Side](https://polyhaven.com/a/cliff_side), by James Ray Cock, Jenelle van Heerden and Dario Barresi. [Original diffuse map](https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/cliff_side/cliff_side_diff_1k.jpg).
+- [Snow 02](https://polyhaven.com/a/snow_02), by Rob Tuytel. [Original diffuse map](https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/snow_02/snow_02_diff_1k.jpg).
 
-## What ships and how it was made
+The prior sky used [Kiara 1 Dawn](https://polyhaven.com/a/kiara_1_dawn) by Greg Zaal. The new backdrop is generated in the scene. The [Mount Hermon Nature Reserve landscape photographs](https://mounthermonreserve.org/archives/769) informed its palette and the appearance of the snow and exposed limestone.
 
-- `public/textures/sky/hermon-dawn.jpg` (2048x1024 equirect JPEG, quality 85): made by `scripts/art/paint_hermon_sky.py`
-  (Blender 4.0.2, headless; the raw HDRI path is its argument). Steps: exposure and filmic tone map, a dawn grade, zenith
-  deepened toward the palette's violet-blue, the low sky and the whole lower hemisphere faded to the constant HAZE `#d6c2d0`
-  (the fog colour; its rust-red far range is graded to lavender-grey), Kuwahara filter (anisotropic) in the compositor, sparse fading stars added. "Painted" means a painterly
-  filter over a real photograph, not a hand painting.
-- `src/world/backdropData.ts`: the sun's position in the image, written by the same script.
-- `public/textures/terrain/limestone-cliff.jpg` and `snow.jpg`: the 1k diffuse maps, re-encoded smaller (no other change).
-- The raw HDRI is not in the repo.
-- The scene draws the backdrop as a sky sphere that follows the camera, and builds its environment light from a 256x128 copy.
+## Regional relief
+
+SRTM data courtesy of the U.S. Geological Survey. The region's elevation samples come from [Mapzen Terrain Tiles on AWS](https://registry.opendata.aws/terrain-tiles/) in the Skadi format. See the [Tilezen attribution guidance](https://github.com/tilezen/joerd/blob/master/docs/attribution.md).
+
+Source tiles fetched 2026-11-17:
+
+| 3601 × 3601 height grid | SHA-256 of the gzip file |
+| --- | --- |
+| [N33E035.hgt.gz](https://elevation-tiles-prod.s3.amazonaws.com/skadi/N33/N33E035.hgt.gz) | `0fa1708320d25ebc6b0ee7041892d40746071b983e68f774f715d70c90adac57` |
+| [N33E036.hgt.gz](https://elevation-tiles-prod.s3.amazonaws.com/skadi/N33/N33E036.hgt.gz) | `76b26a3a890fa7411029b1916ba196af1a06a915fa86f9b823284ae34451dadd` |
+
+Put both files in a local directory and run `python3 scripts/art/build_hermon_relief.py /path/to/tiles` from the repo. The script bilinearly samples both grids around the shoulder at 33.4056° N, 35.8519° E, with x increasing east and z increasing south. It rounds heights to signed 16-bit relative metres above a 2,536 m reference and encodes them in `src/world/hermonRelief.json`. The runtime joins the measured ridges to the authored play area over 780 m. The checked-in samples are sufficient to render the region offline. The flight routes, collision shape and water inside the perimeter come from the game.
