@@ -28,7 +28,7 @@ export function resetBanish(b: BanishState, s: ShooterState) {
   b.mode.fill(0); b.resist.fill(BANISH.resistance); b.timer.fill(0); b.cool = 0; b.handled = s.input.cmd; b.cue = ''; b.last = -1; b.resetRequested = false;
   b.combo = 0; b.comboUntil = 0; b.guardTime.fill(0); b.retaliate.fill(0); b.armor.forEach((_, i) => { b.armor[i] = armorFor(i); }); cancelStrike();
   b.quenched = battle.quenched; s.drones.held.fill(0); b.wounds.fill(0); b.string.target = -1;
-  b.vel.forEach(v => { v.x = v.y = v.z = 0; }); b.spin.fill(0); b.hit.fill(0); b.struck.fill(0);
+  b.vel.forEach(v => { v.x = v.y = v.z = 0; }); b.spin.fill(0); b.hit.fill(0); b.struck.fill(0); b.twist.fill(0);
   resetWardens(b.wardens);
 }
 /** The visible, reachable demon most aligned with the view; excludes targets already being banished. */
@@ -53,7 +53,7 @@ function apply(b: BanishState, s: ShooterState, player: Vec3, kind: number, targ
     if (b.cool > 0) return; // only a rebuke waits on the rebuke before it; any other step may follow at once
     if (d > BANISH.rebukeRange || !s.targets[i].los) { cue(b, 'far'); return; }
     if (m <= MODE.staggered) { b.mode[i] = MODE.staggered; b.timer[i] = BANISH.stagger; b.resist[i] -= BANISH.rebukeHurt; }
-    jolt(s, i, player, 9); interrupt(s, i); b.guardTime[i] = 0; b.retaliate[i] = 0; f.held[i] = b.wounds[i] ? 1 : 0; b.cool = BANISH.rebukeCool; b.rebukeT = b.clock;
+    jolt(s, i, player, 9); b.twist[i] = 0; interrupt(s, i); b.guardTime[i] = 0; b.retaliate[i] = 0; f.held[i] = b.wounds[i] ? 1 : 0; b.cool = BANISH.rebukeCool; b.rebukeT = b.clock;
     if (isElite(i)) interruptWarden(b, s, i);
     emit(b, FX.rebuke, i, player, p);
   } else if (kind === COMMAND.sword) {

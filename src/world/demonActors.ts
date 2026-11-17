@@ -5,8 +5,31 @@ import { buildSuitRig } from './suitRig';
 import { WA, banish } from '@/game/banishState';
 
 const ember = new Color('#ff591c');
-export type DemonPose = { time: number; charging: boolean; hit: number; down: boolean; reduced: boolean; damage: number; attack?: number; attackTime?: number; rusher?: boolean };
-const poseEuler = new Euler(), poseQ = new Quaternion();
+/** hit: the flash (emissive). hitT: seconds since the last blow (the hit clock); hitSide: the way that blow turns the body (-1..1,
+ * banishState.twist). */
+export type DemonPose = { time: number; charging: boolean; hit: number; down: boolean; reduced: boolean; damage: number; attack?: number; attackTime?: number; rusher?: boolean;
+  hitT?: number; hitSide?: number };
+/**
+ * The struck reaction (docs/plans/2026-11-16-real-fight.md A3). From the blow the hit clip plays through at `rate`, on the upper
+ * body (a thrown demon's throw owns its position and tilt), then fades out; the body yaws about the vertical toward the cut's side,
+ * out in `snap` seconds and back by the end. Reduced motion keeps the old still hit frame by the flash, with no yaw.
+ */
+export const REACT = { rate: .7, weight: .9, fadeIn: .04, fadeOut: .22, yaw: .55, snap: .08 } as const;
+const ease = (u: number) => { const k = Math.min(1, Math.max(0, u)); return k * k * (3 - 2 * k); };
+/** Seconds the whole reaction lasts for a hit clip of `duration`. */
+export const reactionLength = (duration: number) => duration / REACT.rate + REACT.fadeOut;
+/** Weight of the hit clip and of the yaw at hitT seconds after the blow (0 before it and once it is over). */
+export function reactionWeight(hitT: number, duration: number) {
+  const end = reactionLength(duration);
+  if (!(hitT >= 0 && hitT < end)) return 0;
+  return REACT.weight * Math.min(1, hitT / REACT.fadeIn, (end - hitT) / REACT.fadeOut);
+}
+export function reactionYaw(hitT: number, duration: number) {
+  const end = reactionLength(duration);
+  if (!(hitT >= 0 && hitT < end)) return 0;
+  return hitT < REACT.snap ? ease(hitT / REACT.snap) : 1 - ease((hitT - REACT.snap) / (end - REACT.snap));
+}
+const poseEuler = new Euler(), poseQ = new Quaternion(), twistQ = new Quaternion(), UP = new Vector3(0, 1, 0);
 function attackPose(joints: readonly Object3D[], state: DemonPose, move: number) {
   const phase = state.attack ?? 0, time = state.attackTime ?? 0;
   if (!phase || state.down) return;
@@ -50,6 +73,8 @@ export function createDemonActors(source: Object3D, animations: AnimationClip[])
     const a = actors[index]; a.root.visible = visible;
     if (!visible) return;
     a.root.position.copy(position); a.root.quaternion.copy(rotation);
+    const hitT = state.hitT ?? Infinity, yaw = state.reduced || state.down ? 0 : (state.hitSide ?? 0) * REACT.yaw * reactionYaw(hitT, clips.hit.duration);
+    if (yaw) a.root.quaternion.premultiply(twistQ.setFromAxisAngle(UP, yaw)); // about the world vertical, as the cut pushed it
     for (const j of a.joints) j.quaternion.identity();
     hip.set(0, 0, 0);
     const time = state.reduced ? 0 : state.time + index * .37;
@@ -58,7 +83,8 @@ export function createDemonActors(source: Object3D, animations: AnimationClip[])
     const velocity = banish.wardens.navVelocity[index], speed = Math.hypot(velocity.x, velocity.y, velocity.z);
     blendAngelClip(a.joints, clips.flight, clipTime(clips.flight, time * .7, true), Math.min(.78, .3 + speed * .04), FULL, hip);
     if (state.charging) blendAngelClip(a.joints, clips.charge, .18, .85, UPPER_BODY);
-    if (state.hit > 0) blendAngelClip(a.joints, clips.hit, .12, Math.min(.8, state.hit), UPPER_BODY);
+    if (state.reduced) { if (state.hit > 0) blendAngelClip(a.joints, clips.hit, .12, Math.min(.8, state.hit), UPPER_BODY); }
+    else blendAngelClip(a.joints, clips.hit, clipTime(clips.hit, hitT * REACT.rate, false), reactionWeight(hitT, clips.hit.duration), UPPER_BODY);
     attackPose(a.joints, state, banish.wardens.move[index]);
     if (state.down) {
       a.downTime = Math.min(2.4, a.downTime + Math.max(0, Math.min(.05, state.time - a.lastTime)));

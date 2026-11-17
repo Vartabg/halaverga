@@ -2,6 +2,7 @@ import type { ShooterState, Vec3 } from './combat';
 import { battle, BATTLE } from './celestialBattle';
 import { addTrauma } from './cameraFx';
 import { flowWorld } from './combatFlow';
+import { shoveAngel } from './hurtShove';
 export const wardenWorld = flowWorld;
 const a: Vec3 = { x: 0, y: 0, z: 0 }, b: Vec3 = { x: 0, y: 0, z: 0 };
 const end: Vec3 = { x: 0, y: 0, z: 0 };
@@ -23,8 +24,10 @@ export function wardenPath(from: Vec3, to: Vec3) {
   }
   return true;
 }
-export function wardenDamage(s: ShooterState) {
+/** A warden's blow landed on the angel: a ward lost, and the angel shoved along the blow (`from` to `to`, hurtShove.ts). */
+export function wardenDamage(s: ShooterState, from: Vec3, to: Vec3) {
   if (battle.status !== 'battle' || battle.invulnerable > 0) return;
+  shoveAngel(to.x - from.x, to.y - from.y, to.z - from.z);
   battle.ward--; battle.invulnerable = BATTLE.grace; battle.hurt = .65; addTrauma(s.camFx, .45);
   if (battle.ward <= 0) { battle.status = 'fallen'; battle.charging = -1; }
 }

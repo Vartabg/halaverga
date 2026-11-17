@@ -7,7 +7,15 @@ import { cue, emit, interrupt, jolt } from './banishHits';
 import { bindDuration, isElite } from './encounter';
 import { absorbEliteStrike } from './eliteCombat';
 import { finishStrike, holdStrike, landStrike, strike as dive } from './strike';
-import { CUTS, LAST, STRING, closeString, cutFor, launch, powerOf, woundDemon } from './swordString';
+import { CUTS, LAST, STRING, closeString, cutFor, launch, powerOf, woundDemon, type Cut } from './swordString';
+
+/**
+ * Which way a cut turns the struck body about the vertical (world yaw, -1..1). The slash is drawn at the cut's `arc` and swept the
+ * way its sign says (Banishment.tsx), so the blade crosses the near side of the body sideways by cos(arc): a level cross cut turns
+ * it fully, the climbing rising cut about half the other way, the upright casting blow not at all. Pushing the near side (toward
+ * the angel) sideways turns the body the same way whatever the strike's heading, so this needs no geometry.
+ */
+export function cutTwist(cut: Cut) { const across = Math.cos(cut.arc); return Math.abs(across) < 1e-6 ? 0 : -Math.sign(cut.arc) * across; }
 
 export function landBlow(b: BanishState, s: ShooterState, i: number, player: Vec3) {
   const f = s.drones, elite = isElite(i), armor = b.armor[i];
@@ -15,7 +23,7 @@ export function landBlow(b: BanishState, s: ShooterState, i: number, player: Vec
   const repelled = guarded && elite && armor === b.armor[i];
   const n = cutFor(b, i, guarded, armor), cut = CUTS[n], last = !guarded && n === LAST;
   b.combo = b.clock <= b.comboUntil ? b.combo + 1 : 1; b.comboUntil = b.clock + 4;
-  jolt(s, i, player, 9);
+  jolt(s, i, player, 9); b.twist[i] = guarded ? 0 : cutTwist(cut); // armour turns the blade: no twist
   f.knockV[i].x += dive.dir.x * 10; f.knockV[i].y += dive.dir.y * 10; f.knockV[i].z += dive.dir.z * 10;
   addTrauma(s.camFx, cut.trauma); punchFov(s.camFx, 'kill', cut.fov); kick(s.camFx, cut.kick, 0);
   emit(b, FX.sword, i, player, f.pos[i], n);

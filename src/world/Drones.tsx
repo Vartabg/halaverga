@@ -106,7 +106,7 @@ export default function Drones() {
       place(left, i, p, q, scale); place(right, i, p, q, scale);
       flash[i] = Math.max(f.flash[i], f.tint[i]);
       damage[i] = failing ? (reduced ? .85 : .75 + .25 * pulse) : broken ? .45 : 0;
-      Object.assign(parts.actorPose, { time: t, charging: battle.charging === i, hit: flash[i], attack: banish.wardens.phase[i], attackTime: banish.wardens.time[i], rusher: i === 5,
+      Object.assign(parts.actorPose, { time: t, charging: battle.charging === i, hit: flash[i], hitT: t - f.lastHit[i], hitSide: banish.twist[i], attack: banish.wardens.phase[i], attackTime: banish.wardens.time[i], rusher: i === 5,
         down: banish.mode[i] === MODE.down || banish.mode[i] === MODE.bound || banish.mode[i] === MODE.cast,
         reduced, damage: damage[i] });
       parts.actors.step(i, p, q, !dead, parts.actorPose);

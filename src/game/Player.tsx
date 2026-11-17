@@ -21,7 +21,7 @@ import { sweepTurn } from './turnSweep';
 import { moveMode } from './combat';
 import { aimVelocity } from './aimMotion';
 import { levelFlight, probeBelow, touchBlockedStep, touchLandStep, LAND_WINDOW } from './touchFlight';
-import { gestureBase, gestureBefore, gestureOffset, gestureVelocity } from './gesture/applyGesture'; import { cancelStrike, strike, strikeStep } from './strike';
+import { gestureBase, gestureBefore, gestureOffset, gestureVelocity } from './gesture/applyGesture'; import { cancelStrike, strike, strikeStep } from './strike'; import { shoveStep } from './hurtShove';
 import { clearGesture, gesture } from './gesture/bus';
 import { createGestureCtx } from './gestureCtx';
 const direction = new Vector3(), baseScratch = { x: 0, y: 0, z: 0 };
@@ -116,7 +116,7 @@ export default function Player() {
     let v = runtime.landGoal ? landingVelocity(p, runtime.landGoal)
       : mode === 2 ? aimVelocity(vb, intent, runtime.yaw, fp, flying, dt)
       : pilotVelocity(vb, intent, runtime.yaw, fp, flying, surge, dt);
-    gestureVelocity(v, runtime.landGoal, flying); runtime.flown = moving(intent) || gesture.live && gesture.velocityOn; if (runtime.landGoal) cancelStrike(); else if (flying) strikeStep(v, p, dt, state.reduced, runtime.flown, look);
+    gestureVelocity(v, runtime.landGoal, flying); runtime.flown = moving(intent) || gesture.live && gesture.velocityOn; if (runtime.landGoal) cancelStrike(); else if (flying) strikeStep(v, p, dt, state.reduced, runtime.flown, look); shoveStep(v, dt, flying && !runtime.landGoal);
     if (liftTime.current > 0) { v.y = 6; liftTime.current -= dt; }
     gestureOffset(v, flying && !runtime.landGoal);
     const from = { ...runtime.velocity }, chosen = v;
