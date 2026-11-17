@@ -34,6 +34,30 @@ and AGENTS.md. Completed 2026-11-16; it confirmed findings with scratch simulati
 The six reported deviations (prone top-up, chest pivot, one capsule for both kinds, darts shove, stance legs over prone legs, wings
 counter lean + pitch) were judged sound.
 
+## Stage B plan review
+
+Reviewer: a fresh-context sonnet agent, read-only, given the Stage B section (B5-B9 first draft), AGENTS.md, the prototype handoff
+and the named source and tests at 4842e80. Completed 2026-11-16 with file:line evidence; claims checked against the source by the
+lead (clip names via the GLBs, `angelMotion.ts`, `Drones.tsx`, `demonActors.ts`, `droneMesh.ts`, `membraneRig.ts`).
+
+| # | Finding | Disposition |
+|---|---|---|
+| 1 | Blocker: the prototype GLBs carry library clip names only; the game needs `idle`, `swordIdle`, `slash`, `rebuke`, `cast` and `idle`, `flight`, `charge`, `hit`, `down` (a missing `charge` throws and turns the shooter off). Watcher flight cannot use the player's flight, which is code poses. | Accepted: B5 renames clips in the build to game names from the same sources as today's builds, plus the new ones; Watcher flight stays `NinjaJump_Idle_Loop`. |
+| 2 | Blocker: per-cut impact and `_Rec` do not plug in: no impact times in asset.json; `SLASH.raised` used in five places; the cut can change after begin; no slot for `_Rec`; `CUTS[].rate` tuned for a 1.53 s clip. | Accepted: B6 adds `cutClips.ts` (`raised`, `impact` measured and test-pinned), clip switch at `raised`, rec as the act's tail, rates and lead retuned, chest roll removed. |
+| 3 | Blocker: `BLADE.reach` was measured at the old impact pose and arm. | Accepted: B8 re-measures it per cut from `archangel.glb`, minimum of three, in its test. |
+| 4 | Blocker: feather wings are CPU-posed SkinnedMeshes (106 bones a side, 20-30k triangles); 16 of them break any draw-call or phone budget. | Accepted: B7 builds one reduced feather pair at load, driven by the existing instanced membrane rig (2 draws). |
+| 5 | Blocker: eye, plate and imp wings are extracted from `abyssal.glb`; the eye is the telegraph. | Accepted: B7 keeps the eye marker with built-in geometry, makes the cuirass the breakable `plate`, removes `demonGeometry.ts` and the unused instanced body. |
+| 6 | Blocker: `angelRegalia.ts` patches materials by old names; the cel shader on realistic skin is undecided. | Accepted: match the new names; no HADES fragment on the realistic bodies. |
+| 7 | Blocker: renaming the files touches loaders, specs, review scripts and a text-pinned mount. | Accepted: keep the constant names, change only paths (B9). |
+| 8 | Wardens differ from lessers; ranged fan and volley run on code timers; rush has variable length. | Accepted: B7 maps clips for wardens only, scales known-length phases, aligns impact to bolt release. |
+| 9 | Hit clip by cut needs a per-actor clip reference. | Accepted (B7). |
+| 10 | Blade per Watcher is feasible via instanced `swordGeometry()` from `hand_r`; `SWORD_GRIP`, arm cannon and blaster skin need re-tuning. | Accepted (B6, B7). |
+| 11 | GPU memory overstated: textures are shared across clones. | Agreed; no change needed. |
+| 12 | Failure path is sound; add a spec for a failed `watcher.glb`. | Accepted (B9). |
+| 13 | Material merge to 3 is unbuilt and conflicts with the per-actor flash; B4 and B8 byte rules conflict. | Accepted: at most 6 materials, a measured draw-call cap (+40 at 8 Watchers); one byte rule (B8). The flash on every material is today's behaviour. |
+| 14 | No in-game credits list for the CC-BY sandals. | Resolved by not shipping them: the build makes its own sandals (B9). |
+| 15 | No phone frame-time budget. | Not resolvable here: no iPhone in reach; desktop frame time measured before and after, and the iPhone check is recorded as not done. |
+
 ## Final checks for Stage A (6cd2b41)
 
 - `pnpm verify`: 240 files / 2765 tests, build, first load 628.1 KB of 629, vote build.
