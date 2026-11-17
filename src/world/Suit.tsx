@@ -36,7 +36,7 @@ export function clearWorldCache() {
   useLoader.clear(TextureLoader, BACKDROP_URL);
 }
 const input = { flying: false, landing: false, paused: true, reduced: false, velocity: runtime.velocity, turn: runtime.turn };
-const moveInput = { dt: 0, paused: true, flying: false, ground: 1, speed: 0, sword: false, reduced: false };
+const moveInput = { dt: 0, paused: true, flying: false, ground: 1, speed: 0, sword: false, reduced: false, lean: 0 };
 const wrist = new Vector3(), hand = new Vector3();
 function publishTip(bones: readonly Object3D[], out: { x: number; y: number; z: number }) {
   bones[2].getWorldPosition(wrist); bones[3].getWorldPosition(hand);
@@ -87,14 +87,15 @@ export default function Suit() {
     f.camera.x = cam.position.x; f.camera.y = cam.position.y; f.camera.z = cam.position.z;
     stepSuitBlaster(f, dt);
     // Library clips (idle, the sword cut, the command gestures) over everything above; the springs below follow them through.
-    Object.assign(moveInput, { dt, paused: state.paused, flying: state.flying, ground: life.ground, speed: Math.hypot(v.x, v.z), sword: cannonLink.forearm !== null, reduced: state.reduced });
+    Object.assign(moveInput, { dt, paused: state.paused, flying: state.flying, ground: life.ground, speed: Math.hypot(v.x, v.z), sword: cannonLink.forearm !== null, reduced: state.reduced, lean: pose.lean });
     stepAngelMotion(moves.current, clips, rig.joints, moveInput); turnBody(rig.root, moves.current);
     stepStrikeStance(stance.current, rig.joints, moves.current, moveInput);
     // Spring follow-through, last over the body (suitSprings.ts): the pose above is the target each bone chases.
     Object.assign(frame, { dt, paused: state.paused, reduced: state.reduced, epoch: pose.epoch, ground: life.ground, command: runtime.shooter.aim.fireHold, brace: stance.current.brace });
     followBody(springs, frame); stepClothSway(springs, rig.root, v, dt, state.paused, state.reduced);
-    stepArchangelWings(wings, state.flying, state.paused, state.reduced, pose.speed, v.y, roll, dt, pose.brake, strike.phase === 1);
-    alignArchangelWings(wings, rig.root, pose.lean);
+    // A flinch flares the wings like a brake (angelMotion FLINCH); the wings counter the whole forward pitch, the prone top-up too.
+    stepArchangelWings(wings, state.flying, state.paused, state.reduced, pose.speed, v.y, roll, dt, Math.max(pose.brake, moves.current.flinch), strike.phase === 1);
+    alignArchangelWings(wings, rig.root, pose.lean + moves.current.pitch);
     clearance.step(v, dt, state.paused, state.reduced);
     followWings(springs, wings, frame);
     pose.wingTuck.left = wings.tuck.left; pose.wingTuck.right = wings.tuck.right;

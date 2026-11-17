@@ -2,9 +2,10 @@
 // never the camera, physics or presentation pose. Standing still on the ground the body takes the library idle (the sword idle
 // while the sword is out). A sword dive raises the blade and holds it until contact, then the cut plays through; rebuke, bind and
 // cast play their own gestures. In flight a move takes the body from the waist up, so the legs keep the flight clips.
-import { Vector3, type Object3D } from 'three';
+import { Euler, Quaternion, Vector3, type Object3D } from 'three';
 import { banish, FX } from '../game/banishState';
 import { strike } from '../game/strike';
+import { hurtShove } from '../game/hurtShove';
 import { blendAngelClip, clipTime, FULL, UPPER_BODY, type AngelClips } from './angelClips';
 import { CUTS, cutFor } from '../game/swordString';
 import { BONE_NAMES } from './suitSkeleton';
@@ -12,14 +13,38 @@ import { BONE_NAMES } from './suitSkeleton';
 /** Sword_Attack: the blade is high over the head at .36 s and through the cut by .55 s; the cut plays faster than authored. A string
  * cut (swordString.ts) starts `lead` before the raised blade, so it rises during the step-in, and plays at that cut's own rate. */
 export const SLASH = { raised: .36, rate: 1.5, fadeIn: .08, fadeOut: .25, lead: .14 } as const;
-const CHEST = BONE_NAMES.indexOf('chest');
+const at = (name: string) => BONE_NAMES.indexOf(name as never);
+const CHEST = at('chest'), HEAD = at('head'), UA_L = at('upperarm_l'), UA_R = at('upperarm_r'), FA_L = at('forearm_l'), FA_R = at('forearm_r');
+/**
+ * Prone flight (docs/plans/2026-11-16-real-fight.md A2): the body's forward pitch by horizontal speed, 0 at or below hover speed
+ * (so hover and a climb stay upright), 65 deg at cruise and 75 deg at dive speed, eased over `ease` seconds. The flight lean
+ * (presentation.ts, by `power`) already tips the body outside a fight; the fight's aim stands it up (power 0 while a cut aims), so
+ * the model root only makes up what the lean leaves short of this. Off under reduced motion.
+ */
+export const PRONE = { hover: 3, cruise: 22, dive: 55, atCruise: 65 * Math.PI / 180, atDive: 75 * Math.PI / 180, ease: .3 } as const;
+export function proneTarget(speed: number) {
+  if (speed <= PRONE.hover) return 0;
+  if (speed < PRONE.cruise) { const u = (speed - PRONE.hover) / (PRONE.cruise - PRONE.hover); return PRONE.atCruise * u * u * (3 - 2 * u); }
+  return PRONE.atCruise + (PRONE.atDive - PRONE.atCruise) * Math.min(1, (speed - PRONE.cruise) / (PRONE.dive - PRONE.cruise));
+}
+/** Prone legs: together, straight and pointed (local XYZ Euler; the climb and power clips' legs). [bone, x, y, z]. */
+export const PRONE_LEGS: readonly (readonly [number, number, number, number])[] = [
+  [at('thigh_l'), .02, 0, .03], [at('thigh_r'), .02, 0, -.03], [at('shin_l'), -.08, 0, 0], [at('shin_r'), -.08, 0, 0],
+  [at('foot_l'), -.85, 0, 0], [at('foot_r'), -.85, 0, 0], [at('toe_l'), -.2, 0, 0], [at('toe_r'), -.2, 0, 0],
+];
+/** The flinch when the angel is hit (A3): head and chest thrown back, arms drawn in, wings flared (Suit.tsx), over `time` s. */
+export const FLINCH = { time: .35, chest: .4, head: .35, arm: .35, elbow: .45 } as const;
+const legQ = PRONE_LEGS.map(([, x, y, z]) => new Quaternion().setFromEuler(new Euler(x, y, z)));
 const GESTURES: Readonly<Record<number, string>> = { [FX.sword]: 'slash', [FX.rebuke]: 'rebuke', [FX.bind]: 'rebuke', [FX.cast]: 'cast' };
 
 export function createAngelMotion() {
-  return { idle: 0, idleT: 0, act: '', actT: 0, since: 0, weight: 0, serial: -1, phase: 0, cut: 0, spinT: -1, spinCut: 0, spinNext: -1, twirl: 0, flip: 0, hip: new Vector3(), rest: new Vector3() };
+  return { idle: 0, idleT: 0, act: '', actT: 0, since: 0, weight: 0, serial: -1, phase: 0, cut: 0, spinT: -1, spinCut: 0, spinNext: -1, twirl: 0, flip: 0, hip: new Vector3(), rest: new Vector3(),
+    /** prone: the eased forward pitch flight asks for (rad, >= 0); pitch: what the model root adds to the lean (rad, <= 0 tips forward). */
+    prone: 0, pitch: 0, hurt: -1, flinchT: -1, flinch: 0 };
 }
 export type AngelMotion = ReturnType<typeof createAngelMotion>;
-export type AngelMotionInput = { dt: number; paused: boolean; flying: boolean; ground: number; speed: number; sword: boolean; reduced?: boolean };
+/** speed: horizontal (m/s). lean: the presentation lean already on the model root (rad, negative tips forward). */
+export type AngelMotionInput = { dt: number; paused: boolean; flying: boolean; ground: number; speed: number; sword: boolean; reduced?: boolean; lean?: number };
 
 function begin(m: AngelMotion, name: string, at = 0) { m.act = name; m.actT = at; m.since = 0; }
 /** Starts this cut's whole-body move, or queues it behind the one still turning: a fast second press never snaps the model back. */
@@ -80,6 +105,7 @@ export function stepAngelMotion(m: AngelMotion, clips: AngelClips, joints: reado
     if (twist && CHEST >= 0) joints[CHEST].rotateY(twist * m.weight * (1 - 2 * Math.min(1, Math.max(0, (m.actT - SLASH.raised) / .3))));
   }
   joints[0].position.copy(m.rest).add(m.hip);
+  proneBody(m, joints, input, dt); flinchBody(m, joints, input, dt);
   // The cut's whole-body lean, in flight only: about the spine or across it (turnBody applies it to the model). Every cut is a
   // lean that goes out and comes back (swordString.ts CUTS); the full-turn branch stays for data that asks for one.
   // Reduced motion keeps the body still.
@@ -94,13 +120,40 @@ export function stepAngelMotion(m: AngelMotion, clips: AngelClips, joints: reado
     if (u >= 1) { m.spinT = -1; if (m.spinNext >= 0) { m.spinT = 0; m.spinCut = m.spinNext; m.spinNext = -1; } }
   }
 }
-const PIVOT = new Vector3(0, 1.1, 0), before = new Vector3(), after = new Vector3();
-/** Turns the whole model for the cut's move, about the chest, so the wings (aligned to the model root) turn with the body.
+/** The prone pitch (eased) and, while it holds, the legs brought together and pointed (before the strike stance and the springs). */
+function proneBody(m: AngelMotion, joints: readonly Object3D[], input: AngelMotionInput, dt: number) {
+  const target = input.flying && !input.reduced ? proneTarget(input.speed) : 0;
+  m.prone = input.reduced ? 0 : target + (m.prone - target) * Math.exp(-dt / PRONE.ease);
+  const short = m.prone - Math.max(0, -(input.lean ?? 0)); m.pitch = short > 0 ? -short : 0;
+  const legs = Math.min(1, m.prone / PRONE.atCruise);
+  if (legs > .001 && joints.length > PRONE_LEGS[PRONE_LEGS.length - 1][0]) PRONE_LEGS.forEach(([b], k) => joints[b].quaternion.slerp(legQ[k], legs));
+}
+/** A new hit (hurtShove.serial) starts the flinch; hits from before the angel mounted are skipped. */
+function flinchBody(m: AngelMotion, joints: readonly Object3D[], input: AngelMotionInput, dt: number) {
+  if (m.hurt < 0) m.hurt = hurtShove.serial;
+  if (hurtShove.serial !== m.hurt) { m.hurt = hurtShove.serial; m.flinchT = 0; }
+  m.flinch = 0;
+  if (m.flinchT < 0) return;
+  m.flinchT += dt; const u = m.flinchT / FLINCH.time;
+  if (u >= 1) { m.flinchT = -1; return; }
+  if (input.reduced || joints.length <= FA_R) return;
+  const f = m.flinch = Math.sin(Math.PI * u);
+  joints[CHEST].rotateX(FLINCH.chest * f); joints[HEAD].rotateX(FLINCH.head * f); // +x arches back, toward the camera side
+  joints[UA_R].rotateZ(-FLINCH.arm * f); joints[UA_L].rotateZ(FLINCH.arm * f); // in toward the body
+  joints[FA_R].rotateX(FLINCH.elbow * f); joints[FA_L].rotateX(FLINCH.elbow * f);
+}
+/** The cut's move pivots about PIVOT (as tuned for the leans); the prone pitch about the chest bone at rest (angel.glb: .4 m over
+ * the root), so the chest stays where the camera frames it. */
+const PIVOT = new Vector3(0, 1.1, 0), CHEST_AT = new Vector3(0, .4, 0), before = new Vector3(), after = new Vector3();
+function about(root: Object3D, pivot: Vector3, x: number, y: number) {
+  before.copy(pivot).applyQuaternion(root.quaternion);
+  if (y) root.rotateY(y);
+  if (x) root.rotateX(x);
+  root.position.add(before).sub(after.copy(pivot).applyQuaternion(root.quaternion));
+}
+/** Turns the whole model: the prone pitch first, then the cut's move, so the wings (aligned to the model root) turn with the body.
  * Visual only: the camera, physics and presentation pose never read the model root. */
 export function turnBody(root: Object3D, m: AngelMotion) {
-  if (!m.twirl && !m.flip) return;
-  before.copy(PIVOT).applyQuaternion(root.quaternion);
-  if (m.twirl) root.rotateY(m.twirl);
-  if (m.flip) root.rotateX(m.flip);
-  root.position.add(before).sub(after.copy(PIVOT).applyQuaternion(root.quaternion));
+  if (m.pitch) about(root, CHEST_AT, m.pitch, 0);
+  if (m.twirl || m.flip) about(root, PIVOT, m.flip, m.twirl);
 }

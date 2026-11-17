@@ -70,7 +70,9 @@ describe('the angel motion layer', () => {
       }
       const done = m.spinT; rig.dispose(); return { peak, drift, done };
     };
-    const flown = run(flight());
+    // At this speed the flight lean (-1.35, full power) already lays the body prone, so the root adds no prone pitch (A2) and only
+    // the cut's lean turns the model.
+    const flown = run(flight({ lean: -1.35 }));
     expect(flown.peak).toBeGreaterThan(.2); expect(flown.peak).toBeLessThan(Math.PI / 4); // a lean, not a spin (Garo, 2026-11-16: dizzying)
     expect(flown.drift).toBeLessThan(1e-6); // a lean about the spine keeps the chest in place
     expect(flown.done).toBe(-1); // out and back, then it is over
@@ -90,7 +92,7 @@ describe('the angel motion layer', () => {
   });
   it('leaves the legs and pelvis to the flight pose while a move plays in the air', () => {
     const { rig } = posed(), m = createAngelMotion();
-    stepAngelMotion(m, clips, rig.joints, flight());
+    for (let i = 0; i < 90; i++) stepAngelMotion(m, clips, rig.joints, flight()); // the prone legs (A2) settle first
     const legs = ['pelvis', 'thigh_l', 'thigh_r', 'shin_l', 'shin_r', 'foot_l', 'foot_r'].map(n => rig.joints[bone(n)].quaternion.clone());
     emit(FX.cast);
     for (let i = 0; i < 20; i++) stepAngelMotion(m, clips, rig.joints, flight());
