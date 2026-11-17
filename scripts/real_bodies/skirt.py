@@ -4,7 +4,7 @@ Skirt: six panels hanging from the waist to just above the knee (front and back 
 following the convex outline of hips and thighs, lightly pleated, with a trim-coloured hem band. Above the hip joint a panel takes
 the torso weights of the nearest skin; below, it blends from the pelvis onto its own thigh with the same weight across the row, so
 a panel turns and bends with the leg but never stretches across: in a wide stance the panels part at the slits.
-Belt: a band at the waist in the trim colour. Faces pick cloth or trim by their UVs (materials.palette).
+Belt: a leather band with a bronze-colored binding. Faces pick colors by their UVs (materials.palette).
 """
 from math import cos, pi, radians, sin
 import bpy
@@ -50,20 +50,23 @@ def _torso_weights(body, kd, names, co):
     return {k: v / total for k, v in w.items()} if total else {'pelvis': 1.0}
 
 
-def skirt(body, rig, outline, waist, knee, hip, rows=6, step=6.5):
+def skirt(body, outline, waist, knee, hip, rows=6, step=6.5, hems=None):
     """The six panels as one object; returns it. Rings go from the waist (top) to the hem band and the hem."""
-    heights = [waist + (knee + HEM - waist) * r / rows for r in range(rows + 1)] + [knee]
     kd = kdtree.KDTree(len(body.data.vertices))
     for v in body.data.vertices:
         kd.insert(v.co, v.index)
     kd.balance()
     names = {g.index: g.name for g in body.vertex_groups}
-    coords, faces, weights, trim = [], [], [], []
+    coords, faces, weights, swatches = [], [], [], []
+    cloth, trim = ('cloth', 'trim') if hems is None else ('panel_cloth', 'panel_trim')
     for name, a0, a1, thigh, reach, extra in PANELS:
+        hem = knee if hems is None else knee + hems[name]
+        binding = HEM if hems is None else .031
+        heights = [waist + (hem + binding - waist) * r / rows for r in range(rows + 1)] + [hem]
         cols = max(2, round((a1 - a0) / step / 2) * 2)
         base = len(coords)
         for r, z in enumerate(heights):
-            down = (waist - z) / (waist - knee)
+            down = (waist - z) / (waist - hem)
             for c in range(cols + 1):
                 a = radians(a0 + (a1 - a0) * c / cols)
                 rad = outline.radius(a, z) + CLEAR + extra + FLARE * down ** 2 + PLEAT * down * (1 if c % 2 else -1)
@@ -76,29 +79,34 @@ def skirt(body, rig, outline, waist, knee, hip, rows=6, step=6.5):
             for c in range(cols):
                 i = base + r * (cols + 1) + c
                 faces.append((i, i + cols + 1, i + cols + 2, i + 1))
-                trim.append(r == len(heights) - 2)
-    return _object('skirt', coords, faces, weights, trim)
+                swatches.append(trim if r == len(heights) - 2 else cloth)
+    return panel_mesh('skirt', coords, faces, weights, swatches)
 
 
-def belt(body, outline, waist, width=.05, cols=32):
+def belt(body, outline, waist, width=.071, cols=32):
     kd = kdtree.KDTree(len(body.data.vertices))
     for v in body.data.vertices:
         kd.insert(v.co, v.index)
     kd.balance()
     names = {g.index: g.name for g in body.vertex_groups}
     coords, weights, faces = [], [], []
-    for z in (waist + width / 2, waist - width / 2):
+    top, bottom = waist + width / 2, waist - width / 2
+    for z in (top, top - .009, bottom + .009, bottom):
         for c in range(cols):
             a = 2 * pi * c / cols
             rad = outline.radius(a, waist) + CLEAR + .012
             co = Vector((outline.c[0] + rad * cos(a), outline.c[1] + rad * sin(a), z))
             coords.append(co)
             weights.append(_torso_weights(body, kd, names, co))
-    faces = [(c, cols + c, cols + (c + 1) % cols, (c + 1) % cols) for c in range(cols)]
-    return _object('belt', coords, faces, weights, [True] * cols)
+    faces = []
+    for r in range(3):
+        for c in range(cols):
+            nxt = (c + 1) % cols
+            faces.append((r * cols + c, (r + 1) * cols + c, (r + 1) * cols + nxt, r * cols + nxt))
+    return panel_mesh('belt', coords, faces, weights, ['bronze'] * cols + ['leather'] * cols + ['bronze'] * cols)
 
 
-def _object(name, coords, faces, weights, trim):
+def panel_mesh(name, coords, faces, weights, swatches):
     me = bpy.data.meshes.new(name)
     me.from_pydata([tuple(c) for c in coords], [], faces)
     obj = bpy.data.objects.new(name, me)
@@ -107,9 +115,11 @@ def _object(name, coords, faces, weights, trim):
     for i, w in enumerate(weights):
         for bone, value in w.items():
             if value > 0:
-                groups.setdefault(bone, obj.vertex_groups.new(name=bone)).add([i], value, 'REPLACE')
+                if bone not in groups:
+                    groups[bone] = obj.vertex_groups.new(name=bone)
+                groups[bone].add([i], value, 'REPLACE')
     layer = me.uv_layers.new(name='UVMap')
-    for poly, is_trim in zip(me.polygons, trim):
+    for poly, swatch in zip(me.polygons, swatches):
         for li in poly.loop_indices:
-            layer.data[li].uv = materials.SWATCH['trim' if is_trim else 'cloth']
+            layer.data[li].uv = materials.SWATCH[swatch]
     return obj

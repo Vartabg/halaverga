@@ -5,8 +5,8 @@ import { Group, Mesh, MeshStandardMaterial, TorusGeometry, Vector3, type Object3
 
 /** The materials that move, by their names in archangel.glb (scripts/real_bodies/materials.py). */
 export const REGALIA_MATERIALS = { hair: 'archangel hair', cloth: 'archangel chiton' } as const;
-/** The chiton material also carries the sandals (its sandal swatch): below this height (m from the pelvis at rest) nothing sways. */
-export const SANDAL_TOP = -.8;
+/** Only the skirt panels sample the cloth and trim at glTF V=.75. See scripts/real_bodies/materials.py. */
+export const PANEL_UV_MIN = .7;
 /** The nimbus centre from the head bone (m): a little above the eyes and just behind the hair (archangel.glb's head bone sits .04 m
  * below the eyes and the hair reaches .11 m behind the pelvis axis). */
 export const NIMBUS = [0, .1, .17] as const;
@@ -36,13 +36,13 @@ export function angelRegalia(body: Object3D, joints: Object3D[], sway = new Vect
       m.onBeforeCompile = shader => {
         shader.uniforms.uClothTime = flutter; shader.uniforms.uClothSway = { value: sway };
         shader.vertexShader = 'uniform float uClothTime;\nuniform vec3 uClothSway;\n' + shader.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
-          float shod = smoothstep(${(SANDAL_TOP - .05).toFixed(2)}, ${(SANDAL_TOP + .05).toFixed(2)}, position.y);
-          float hem = (1. - smoothstep(-.55, .05, position.y)) * shod, hang = clamp((.45 - position.y) / 1.5, 0., 1.) * shod;
+          float drape = step(${PANEL_UV_MIN.toFixed(2)}, uv.y);
+          float hem = (1. - smoothstep(-.55, .05, position.y)) * drape, hang = clamp((.45 - position.y) / 1.5, 0., 1.) * drape;
           transformed.z += sin(uClothTime * 3.4 + position.x * 17. + position.y * 5.) * hem * .018;
           transformed += uClothSway * hang * hang;
         `);
       };
-      m.customProgramCacheKey = () => 'archangel-chiton-v1';
+      m.customProgramCacheKey = () => 'archangel-chiton-v2';
     } else return;
     patched.add(m); m.needsUpdate = true;
   });

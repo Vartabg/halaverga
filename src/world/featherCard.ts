@@ -7,7 +7,7 @@ import { RACHIS, atlasU } from './featherAtlas';
  * backlit), and atlas uv.
  */
 export function featherCard(side: number, root: Vector3, tip: Vector3, width: number, bone: number, dorsal: boolean, shade: number,
-  kind: number, rows = 8, cols = 4) {
+  kind: number, rows = 8, cols = 4, slate = 0) {
   const p: number[] = [], color: number[] = [], uv: number[] = [], thin: number[] = [], joints: number[] = [], weight: number[] = [], indices: number[] = [];
   const dx = tip.x - root.x, dz = tip.z - root.z, length = Math.hypot(dx, dz), nx = -dz / length, nz = dx / length, up = dorsal ? 1 : -1;
   const r0 = RACHIS[kind], full = width * (kind <= 2 ? 2.15 : 2), flight = kind <= 2;
@@ -23,7 +23,9 @@ export function featherCard(side: number, root: Vector3, tip: Vector3, width: nu
     // Each row shades the feathers it overlaps: the covered root is darkest, the exposed tip full bright.
     const cover = flight ? .66 + .34 * Math.min(1, u / .5) : .58 + .42 * Math.min(1, u / .55);
     const tone = shade * cover * cover * (2 - cover) * (dorsal ? 1 : .84) * (.96 + .08 * jitter);
-    color.push(tone, tone * .992, tone * .972);
+    // Pigment is strongest in the exposed vane, fading back into the ivory under each covert.
+    const pigment = slate * Math.min(1, Math.max(0, (u - .48) / .37));
+    color.push(tone * (1 - .82 * pigment), tone * (.992 - .68 * pigment), tone * (.972 - .38 * pigment));
     uv.push(atlasU(kind, s), u); thin.push(flight ? .5 + .5 * u : .3 + .2 * u);
     joints.push(bone, 0, 0, 0); weight.push(1, 0, 0, 0);
     if (j < rows && i < cols) {

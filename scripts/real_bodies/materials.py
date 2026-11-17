@@ -13,9 +13,12 @@ from bodies import mhmat_fields
 ROLES = {'body': (1024, False, .6), 'eyes': (256, False, .15), 'eyebrows': (256, True, .9), 'eyelashes': (256, True, .9),
          'hair': (512, True, .8)}
 # sRGB swatches of the chiton palette per body: cloth, trim (belt and hems), leather (pteruges), sandal (soles and straps).
-PALETTE = {'archangel': {'cloth': (.94, .90, .80), 'trim': (.80, .60, .22), 'leather': (.20, .12, .07), 'sandal': (.42, .27, .15)},
+PALETTE = {'archangel': {'cloth': (.130, .218, .365), 'trim': (.79, .68, .48), 'leather': (.20, .12, .07), 'sandal': (.42, .27, .15)},
            'watcher': {'cloth': (.30, .06, .06), 'trim': (.12, .05, .04), 'leather': (.20, .12, .07), 'sandal': (.15, .09, .05)}}
 SWATCH = {name: ((k + .5) / 4, .5) for k, name in enumerate(('cloth', 'trim', 'leather', 'sandal'))}  # UV centre of each quarter
+SWATCH['bronze'] = (.125, .875)  # archangel fittings, inset above the indigo sample
+# The exporter flips V. These two swatches land at V=.75 in glTF and mark the panels for flutter.
+SWATCH['panel_cloth'], SWATCH['panel_trim'] = (.125, .25), (.375, .25)
 HAIR = {'archangel': (.30, .19, .11), 'watcher': (.08, .06, .05)}
 # Face atlas tiles (u0, v0, width, height in UV): eyes bottom left, brows top right, lashes bottom right.
 TILES = {'eyes': (0, 0, .5, .5), 'eyebrows': (.5, .5, .5, .5), 'eyelashes': (.5, 0, .5, .5)}
@@ -135,11 +138,15 @@ def atlas(body, parts, folder, size=512):
 
 
 def palette(body, folder, roughness=.85):
-    """'<body> chiton': a 64 x 16 texture of four swatches (PALETTE), faces pick one by their UVs (SWATCH). One material, one tiny
+    """'<body> chiton': a 64 x 16 texture of swatches (PALETTE), faces pick one by their UVs (SWATCH). One material, one tiny
     PNG, sharp colour edges at any mip level the game will use. Double-sided (open panels and straps)."""
     px = np.ones((16, 64, 4), dtype=np.float32)
     for k, rgb in enumerate(PALETTE[body].values()):
         px[:, 16 * k:16 * (k + 1), :3] = rgb
+    if body == 'archangel':
+        px[10:12, :16, :3] = PALETTE[body]['trim']
+        px[12:, :16, :3] = (.58, .34, .16)
+        px[12:, 32:48, :3] = (.58, .34, .16)
     out = Path(folder) / f'{body}-chiton.png'
     img = bpy.data.images.new(out.name, 64, 16)
     img.colorspace_settings.name = 'sRGB'
@@ -152,14 +159,19 @@ def palette(body, folder, roughness=.85):
                'source_size': None}
 
 
-def swatch(obj, name):
-    """Every UV of obj on one palette swatch (one UV layer, 'UVMap')."""
+def palette_uv(obj):
+    """Keep one UV layer with the name Blender uses when joining the garment parts."""
     me = obj.data
     for layer in [layer.name for layer in me.uv_layers][1:]:
         me.uv_layers.remove(me.uv_layers[layer])
     layer = me.uv_layers[0] if me.uv_layers else me.uv_layers.new()
     layer.name = 'UVMap'
-    for loop in layer.data:
+    return layer
+
+
+def swatch(obj, name):
+    """Every UV of obj on one palette swatch."""
+    for loop in palette_uv(obj).data:
         loop.uv = SWATCH[name]
 
 

@@ -20,6 +20,9 @@ def asset(report):
                    for role, f in b['files'].items()}
         made = {'chiton': MADE_HERE, 'sandals': MADE_HERE} | ({'plate': MADE_HERE, 'bronze': MADE_HERE, 'pteruges': MADE_HERE}
                                                               if 'plate' in b['meshes'] else {})
+        if name == 'archangel':
+            made['chiton'] = ('cut, bound hems, diamond clasp and leather wrap built around the body by '
+                              'scripts/real_bodies/{archangel_cloth,garments,skirt}.py')
         out[name] = {
             'file': f'{name}.glb', 'bytes': b['glb_bytes'], 'sha256': b['glb_sha256'], 'meshes': b['meshes'],
             'height_m': b['height_m'], 'triangles': b['triangles_total'], 'vertices': b['vertices'],

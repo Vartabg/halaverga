@@ -1,19 +1,19 @@
 {
   "archangel": {
     "file": "archangel.glb",
-    "bytes": 1274748,
-    "sha256": "f8822664748133eff5e915cb891eef2e1f9f952f53cc99786bbfbbca287ac9c8",
+    "bytes": 1290000,
+    "sha256": "4906fda598315c66a1d5b171c324d410e1abd725f3b0140b0fb500e4c0aacc09",
     "meshes": [
       "archangel"
     ],
     "height_m": 1.8814,
-    "triangles": 19474,
-    "vertices": 10578,
+    "triangles": 19828,
+    "vertices": 10768,
     "triangles_by_material": {
       "archangel body": 14000,
       "archangel face": 732,
       "archangel hair": 836,
-      "archangel chiton": 3906
+      "archangel chiton": 4260
     },
     "materials": [
       "archangel body",
@@ -52,7 +52,7 @@
           64,
           16
         ],
-        "bytes": 317
+        "bytes": 344
       }
     },
     "scale_to_library": 1.1452,
@@ -190,7 +190,7 @@
       }
     },
     "made_here": {
-      "chiton": "made by scripts/real_bodies from the body surface (garments.py, skirt.py, sandals.py, armour.py); no third-party asset",
+      "chiton": "cut, bound hems, diamond clasp and leather wrap built around the body by scripts/real_bodies/{archangel_cloth,garments,skirt}.py",
       "sandals": "made by scripts/real_bodies from the body surface (garments.py, skirt.py, sandals.py, armour.py); no third-party asset"
     }
   },

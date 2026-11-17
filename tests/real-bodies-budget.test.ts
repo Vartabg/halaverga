@@ -1,5 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { SkinnedMesh } from 'three';
+import { PANEL_UV_MIN, REGALIA_MATERIALS } from '../src/world/angelRegalia';
+import { loadSuit } from './load-suit';
 
 // docs/plans/2026-11-16-real-fight.md B8: both bodies together within the two models they replaced (angel.glb 1,990,440 B +
 // abyssal.glb 2,024,328 B at 86482c2), at most 6 materials per body, every texture 1k or smaller.
@@ -25,7 +28,7 @@ function size(data: Buffer, mime: string) {
 describe('the realistic bodies\' budget', () => {
   it('keeps archangel.glb and watcher.glb together within the bytes of the two models they replaced', () => {
     const total = glb('archangel').length + glb('watcher').length;
-    expect(total).toBeLessThanOrEqual(RETIRED_BYTES); // 2,797,708 B on 2026-11-17
+    expect(total).toBeLessThanOrEqual(RETIRED_BYTES);
     const record = JSON.parse(readFileSync('art/real-bodies/asset.json', 'utf8'));
     expect(record.archangel.bytes).toBe(glb('archangel').length); expect(record.watcher.bytes).toBe(glb('watcher').length);
   });
@@ -38,4 +41,30 @@ describe('the realistic bodies\' budget', () => {
       expect(w, image.name).toBeGreaterThan(0); expect(Math.max(w, h), image.name).toBeLessThanOrEqual(1024);
     }
   });
+});
+
+it('flutters the archangel skirt panels without moving the guard or sandals', async () => {
+  const { scene } = await loadSuit('archangel');
+  const chiton: SkinnedMesh[] = [];
+  scene.traverse(o => {
+    if (o instanceof SkinnedMesh && !Array.isArray(o.material) && o.material.name === REGALIA_MATERIALS.cloth) chiton.push(o);
+  });
+  expect(chiton).toHaveLength(1);
+  const { geometry, skeleton } = chiton[0];
+  const uv = geometry.getAttribute('uv'), joints = geometry.getAttribute('skinIndex'), weights = geometry.getAttribute('skinWeight');
+  const forearm = skeleton.bones.findIndex(b => b.name === 'forearm_l');
+  let panels = 0, guard = 0, sandals = 0;
+  for (let i = 0; i < uv.count; i++) {
+    const drapes = uv.getY(i) >= PANEL_UV_MIN;
+    if (drapes) panels++;
+    if (uv.getX(i) > .75) { sandals++; expect(drapes).toBe(false); }
+    for (let c = 0; c < 4; c++) {
+      if (joints.getComponent(i, c) === forearm && weights.getComponent(i, c) > .5) {
+        guard++; expect(drapes).toBe(false);
+      }
+    }
+  }
+  expect(panels).toBeGreaterThan(0);
+  expect(guard).toBeGreaterThan(0);
+  expect(sandals).toBeGreaterThan(0);
 });

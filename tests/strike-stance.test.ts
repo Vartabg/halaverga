@@ -76,16 +76,25 @@ describe('the load-time build', () => {
     expect(width(first) - width(plain)).toBeGreaterThan(.01); expect(Math.abs(width(second) - width(first))).toBeLessThan(1e-6);
     plain.dispose(); first.dispose(); second.dispose();
   });
-  it('moves no vertex weighted only to the head, hands or feet', () => {
+  it('keeps vertices pinned to the head, hands, feet or spine within their skin blend', () => {
     const plain = buildSuitRig(asset.scene), built = bulkSuit(buildSuitRig(asset.scene)), still = ['head', 'hand_l', 'hand_r', 'foot_l', 'foot_r', 'toe_l', 'toe_r', 'spine'].map(bone);
     const meshes = (r: typeof plain) => r.root.children.filter(c => c instanceof SkinnedMesh) as SkinnedMesh[];
     const a = meshes(plain), b = meshes(built); let checked = 0;
     a.forEach((mesh, k) => {
       const pa = mesh.geometry.getAttribute('position'), pb = b[k].geometry.getAttribute('position'), idx = mesh.geometry.getAttribute('skinIndex'), wt = mesh.geometry.getAttribute('skinWeight');
       for (let i = 0; i < pa.count; i++) {
-        let free = 0; for (let c = 0; c < 4; c++) if (wt.getComponent(i, c) > .01 && !still.includes(idx.getComponent(i, c))) free++;
-        // weights under .01 on a pushed bone still move it, at most .01 x 2 cm = .2 mm
-        if (!free) { checked++; expect(new Vector3(pa.getX(i), pa.getY(i), pa.getZ(i)).distanceTo(new Vector3(pb.getX(i), pb.getY(i), pb.getZ(i)))).toBeLessThan(2e-4); }
+        let smallBlend = 0, broadens = false;
+        for (let c = 0; c < 4; c++) {
+          if (still.includes(idx.getComponent(i, c))) continue;
+          const weight = wt.getComponent(i, c);
+          if (weight > .01) { broadens = true; break; }
+          smallBlend += weight;
+        }
+        if (broadens) continue;
+        // Up to four influences contribute to the displacement, each at most 2 cm times its weight.
+        const offset = new Vector3().fromBufferAttribute(pa, i).distanceTo(new Vector3().fromBufferAttribute(pb, i));
+        checked++;
+        expect(offset).toBeLessThan(.02 * smallBlend + 1e-7);
       }
     });
     expect(checked).toBeGreaterThan(100); plain.dispose(); built.dispose();

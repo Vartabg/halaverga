@@ -21,7 +21,7 @@ export function createAvianWing(side: number, material: Material) {
     bone.position.copy(point).sub(parent < 0 ? new Vector3() : points[parent]); bones.push(bone);
     (parent < 0 ? root : bones[parent]).add(bone);
   });
-  const geometry = featherWing(side), mesh = new SkinnedMesh(geometry, material), skeleton = new Skeleton(bones);
+  const geometry = featherWing(side, false, true), mesh = new SkinnedMesh(geometry, material), skeleton = new Skeleton(bones);
   root.add(mesh); root.updateMatrixWorld(true); mesh.bind(skeleton); mesh.castShadow = mesh.receiveShadow = true;
   mesh.boundingSphere = new Sphere(new Vector3(0, 0, 0), 3.3);
   const rest = bones.map(b => b.position.clone());

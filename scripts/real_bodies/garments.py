@@ -9,6 +9,7 @@ from math import atan2, hypot
 import bmesh
 import bpy
 from mathutils import Vector
+import archangel_cloth
 import shells
 import materials
 import skirt
@@ -53,9 +54,14 @@ def dress(name, rig, pieces, folder, belt=True):
     waist = pelvis.z + .4 * (spine3.z - pelvis.z)
     hip, knee = head('thigh_l').z, head('calf_l').z + .04
     hole = neck + Vector((0, -.02, 0))
+    hero = name == 'archangel'
 
     def keep(co, d):
-        if not d or (co - hole).length < NECK:
+        if not d:
+            return False
+        if hero and not d.startswith('thigh'):
+            return archangel_cloth.covers(rig, neck, co, d)
+        if (co - hole).length < NECK:
             return False
         if d in skirt.TORSO or d.startswith('clavicle'):
             return True
@@ -67,14 +73,23 @@ def dress(name, rig, pieces, folder, belt=True):
     inner = shells.shell(body, 'chiton inner', keep, .008, smooth=10, edge_smooth=8)
     inner_source = _tris(inner)
     shells.decimate_inside(inner, INNER_TRIANGLES)
-    materials.swatch(inner, 'cloth')
+    if hero:
+        archangel_cloth.bind_edge(inner, neck)
+    else:
+        materials.swatch(inner, 'cloth')
     outline = skirt.Outline(body, (pelvis.x, pelvis.y), waist, knee)
-    parts = [inner, skirt.skirt(body, rig, outline, waist, knee, hip)]
+    hems = archangel_cloth.HEMS if hero else None
+    parts = [inner, skirt.skirt(body, outline, waist, knee, hip, hems=hems)]
     if belt:
         parts.append(skirt.belt(body, outline, waist))
     report = {'inner': [inner_source, _tris(inner)], 'skirt': _tris(parts[1]), 'belt': _tris(parts[2]) if belt else 0,
               'waist_above_pelvis_m': round(waist - pelvis.z, 3), 'hem_above_knee_m': .04,
               'skirt_length_m': round(waist - knee, 3)}
+    if hero:
+        fittings = [archangel_cloth.clasp(inner, neck), archangel_cloth.guard(body, rig)]
+        report['fittings'] = {p.name: _tris(p) for p in fittings}
+        report['hem_above_knee_m'] = {panel: round(.04 + offset, 3) for panel, offset in hems.items()}
+        parts.extend(fittings)
     bpy.ops.object.select_all(action='DESELECT')
     for p in parts:
         p.select_set(True)
