@@ -10,10 +10,10 @@ describe('shooter state', () => {
   it('preallocates every drone array, target and event slot and serializes', () => {
     const s = createShooter();
     expect(() => JSON.stringify(s)).not.toThrow();
-    const f = s.drones as unknown as Record<string, unknown>;
-    for (const [key, value] of Object.entries(f)) {
-      if (key === 'count') continue;
-      expect([key, (value as ArrayLike<unknown>).length]).toEqual([key, key === 'flashHist' ? MAX_DRONES * 3 : MAX_DRONES]);
+    const { count, sealed, ...arrays } = s.drones;
+    expect(count).toBe(0); expect(sealed).toBe(0);
+    for (const [key, value] of Object.entries(arrays)) {
+      expect([key, value.length]).toEqual([key, key === 'flashHist' ? MAX_DRONES * 3 : MAX_DRONES]);
     }
     expect([...s.drones.flashHist].every(v => v === -Infinity)).toBe(true);
     expect(new Set(s.drones.pos).size).toBe(MAX_DRONES);

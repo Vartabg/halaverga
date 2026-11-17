@@ -106,7 +106,7 @@ describe('the angel flinches when hit', () => {
     const prone = run({ travel: FLIGHT.cruise }, 90); expect(Math.max(...prone.pitch)).toBeGreaterThan(FLINCH.arch * .9);
     expect(Math.max(...run({ reduced: true }).trace)).toBe(0);
     const suit = readFileSync('src/world/Suit.tsx', 'utf8');
-    expect(suit).toContain('Math.max(pose.brake, moves.current.flinch)'); // the wings flare
+    expect(suit).toMatch(/Math\.max\(pose\.brake, moves\.current\.flinch[,)]/);
   });
   it('ends when the pose epoch changes (a fatal hit pauses mid-flinch; Retry starts clean)', () => {
     const { trace } = run({ epoch: 1 }, 1, (n, i) => { if (n === 6) i.epoch = 2; });

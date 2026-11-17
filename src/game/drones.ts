@@ -25,7 +25,7 @@ const FLY_DUR = 50 / DRONE.flySpeed;
 const period = (i: number) => 2 * Math.PI / PATROLS[i].omega;
 export function createDroneSim(s: ShooterState, seed = 2033): DroneSim {
   const f = s.drones, list = () => Array.from({ length: MAX_DRONES }, v3);
-  f.count = PATROLS.length;
+  f.count = PATROLS.length; f.sealed = 0;
   f.flashHist.fill(-Infinity); f.lastHit.fill(-1e9); f.held.fill(0);
   for (let i = 0; i < f.count; i++) {
     f.patrol[i] = i; f.patrolT[i] = 0; f.phase[i] = PHASE.patrol; f.phaseT[i] = 0; f.hp[i] = DRONE_HP; f.broken[i] = 0;
@@ -118,7 +118,7 @@ export function advanceDrones(s: ShooterState, sim: DroneSim, ctx: DroneContext,
         f.phase[i] = PHASE.dead; f.phaseT[i] = 0; sim.respawnAt[i] = sim.time + DRONE.respawn;
       }
     } else if (ph === PHASE.dead) {
-      if (sim.time >= sim.respawnAt[i]) respawn(s, sim, ctx, i, clear);
+      if (!(f.sealed & (1 << i)) && sim.time >= sim.respawnAt[i]) respawn(s, sim, ctx, i, clear);
       continue;
     } else if (ph === PHASE.arriving) {
       const a = sim.flyStart[i], b = sim.flyEnd[i], u = Math.min(1, f.phaseT[i] / sim.flyDur[i]), sm = u * u * u * (u * (u * 6 - 15) + 10);

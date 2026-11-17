@@ -155,7 +155,10 @@ export function stepBanish(b: BanishState, s: ShooterState, player: Vec3, dt: nu
       }
       if (done) {
         b.mode[i] = MODE.free; b.resist[i] = BANISH.resistance; f.held[i] = 0; b.hit[i] = 0;
-        f.phase[i] = PHASE.dying; f.phaseT[i] = 0; s.stats.kills++; s.stats.lastKillT = s.clock;
+        f.phase[i] = PHASE.dying; f.phaseT[i] = 0;
+        const seal = 1 << i;
+        if (f.sealed & seal) continue;
+        f.sealed |= seal; s.stats.kills++; s.stats.lastKillT = s.clock;
         b.armor[i] = armorFor(i); emit(b, FX.seal, i, base, p);
         if (isElite(i) && dist(p, player) < 90) addTrauma(s.camFx, .45); // the ground takes the blow
       }

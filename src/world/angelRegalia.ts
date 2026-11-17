@@ -35,14 +35,28 @@ export function angelRegalia(body: Object3D, joints: Object3D[], sway = new Vect
     } else if (m.name === REGALIA_MATERIALS.cloth) {
       m.onBeforeCompile = shader => {
         shader.uniforms.uClothTime = flutter; shader.uniforms.uClothSway = { value: sway };
-        shader.vertexShader = 'uniform float uClothTime;\nuniform vec3 uClothSway;\n' + shader.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
+        shader.vertexShader = 'uniform float uClothTime;\nuniform vec3 uClothSway;\nvarying vec3 vClothRest;\n' + shader.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
+          vClothRest = position;
           float shod = smoothstep(${(SANDAL_TOP - .05).toFixed(2)}, ${(SANDAL_TOP + .05).toFixed(2)}, position.y);
           float hem = (1. - smoothstep(-.55, .05, position.y)) * shod, hang = clamp((.45 - position.y) / 1.5, 0., 1.) * shod;
           transformed.z += sin(uClothTime * 3.4 + position.x * 17. + position.y * 5.) * hem * .018;
           transformed += uClothSway * hang * hang;
         `);
+        shader.fragmentShader = 'varying vec3 vClothRest;\n' + shader.fragmentShader.replace('#include <color_fragment>', `
+          #include <color_fragment>
+          #ifdef USE_MAP
+          // The first quarter of the chiton atlas is the undyed cloth swatch.
+          float diagonal = abs(vClothRest.x - (.57 * vClothRest.y - .19));
+          float stitch = max(.002, fwidth(diagonal));
+          float sash = 1. - smoothstep(.046 - stitch, .046 + stitch, diagonal);
+          float border = smoothstep(.033 - stitch, .033 + stitch, diagonal);
+          sash *= smoothstep(.025, .05, vClothRest.y) * (1. - step(.25, vMapUv.x));
+          vec3 dye = mix(vec3(.47, .22, .072), vec3(.74, .43, .14), border);
+          diffuseColor.rgb = mix(diffuseColor.rgb, dye, .9 * sash);
+          #endif
+        `);
       };
-      m.customProgramCacheKey = () => 'archangel-chiton-v1';
+      m.customProgramCacheKey = () => 'archangel-chiton-v2';
     } else return;
     patched.add(m); m.needsUpdate = true;
   });

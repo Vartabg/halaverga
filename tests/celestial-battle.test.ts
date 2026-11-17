@@ -42,11 +42,26 @@ describe('the breach encounter', () => {
     stepBattle(b, s, player, .02, true, clear);
     expect(b.ward).toBe(2); expect(b.invulnerable).toBe(BATTLE.grace);
   });
-  it('ends in defeat at zero ward, and in victory after eight fresh banishments', () => {
+  it('ends in defeat at zero ward, and in victory only after all patrols are sealed', () => {
     const { b, s } = encounter(); b.ward = 1; b.bolts[0].live = true; Object.assign(b.bolts[0].p, player);
     stepBattle(b, s, player, .02, true, clear); expect(b.status).toBe('fallen');
-    const won = createBattle(12); s.stats.kills = 20; stepBattle(won, s, player, .02, true, clear);
+    const won = createBattle();
+    s.stats.kills = 20; s.drones.sealed = (1 << (BATTLE.goal - 1)) - 1;
+    stepBattle(won, s, player, .02, true, clear);
+    expect(won.banished).toBe(BATTLE.goal - 1); expect(won.status).toBe('battle');
+    s.drones.sealed |= 1 << (BATTLE.goal - 1);
+    stepBattle(won, s, player, .02, false, clear);
     expect(won.status).toBe('victory'); expect(won.bolts.some(o => o.live)).toBe(false);
+  });
+  it('chooses a dart Watcher even when an unsealed scout is closer', () => {
+    const { b, s } = encounter();
+    s.drones.count = 2; s.drones.hp[1] = 6; s.drones.phase[1] = PHASE.alert;
+    Object.assign(s.drones.pos[1], { x: 0, y: 20, z: -3 });
+    advance(b, s, 5.1);
+    expect(b.charging).toBe(0);
+    s.drones.phase[0] = PHASE.dying;
+    advance(b, s, 10);
+    expect(b.charging).toBe(-1); expect(b.bolts.some(o => o.live)).toBe(false);
   });
   it('uses a swept segment so projectiles cannot tunnel through the player', () => {
     expect(segmentDistance({ x: 0, y: 20, z: -10 }, { x: 0, y: 20, z: 10 }, player)).toBe(0);

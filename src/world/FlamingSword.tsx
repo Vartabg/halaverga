@@ -21,7 +21,7 @@ export default function FlamingSword() {
   const scene = useThree(three => three.scene);
   const sword = useMemo(() => {
     const root = new Group(); root.position.set(SWORD_GRIP.x, SWORD_GRIP.y, SWORD_GRIP.z); swordGripRotation(root.quaternion);
-    const metal = new Mesh(swordGeometry(), new MeshStandardMaterial({ color: '#f3dca2', metalness: .78, roughness: .22, emissive: '#ffb347', emissiveIntensity: .55, flatShading: true }));
+    const metal = new Mesh(swordGeometry(true), new MeshStandardMaterial({ color: '#d9b275', metalness: .76, roughness: .28, emissive: '#f6ad3c', emissiveIntensity: .22, flatShading: true }));
     const fire = flameMaterial(), shell = new Mesh(flameGeometry(), fire);
     root.add(metal, shell); root.visible = false;
     return { root, metal, shell, fire, trail: createRibbon(TRAIL.sections, '#ffbf66'), seen: false, since: 0 };

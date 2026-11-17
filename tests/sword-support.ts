@@ -26,7 +26,7 @@ export function landCut(b: BanishState, s: ShooterState, i: number, from: Vec3) 
 export function setup() {
   const s = createShooter(), sim = createDroneSim(s); buildTargets(s);
   for (const t of s.targets) t.los = true;
-  const b = createBanish(); resetBanish(b, s); resetBattle(0);
+  const b = createBanish(); resetBanish(b, s); resetBattle();
   const at = s.drones.pos[0], near = { x: at.x, y: at.y, z: at.z + 10 };
   s.aim.valid = true; s.aim.origin = { ...near }; s.aim.dir = { x: 0, y: 0, z: -1 };
   const run = (seconds: number) => { for (let n = 0; n < Math.ceil(seconds * 60); n++) { stepBanish(b, s, near, 1 / 60); buildTargets(s); for (const t of s.targets) t.los = true; } };

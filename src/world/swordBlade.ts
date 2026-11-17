@@ -15,10 +15,16 @@ function bladeShape(wide: number, length: number) {
   const g = mergeGeometries([lower, point])!; lower.dispose(); point.dispose();
   return g.scale(wide, 1, wide * .3);
 }
-export function swordGeometry(): BufferGeometry {
-  const parts = [bladeShape(1.25, BLADE), new BoxGeometry(.27, .034, .05).translate(0, -GUARD + .012, 0),
+export function swordGeometry(angel = false): BufferGeometry {
+  const guard = angel ? [-1, 1].map(side => new CylinderGeometry(.021, .031, .13, 8)
+    .rotateZ(-side * (Math.PI / 2 + .32)).translate(side * .091, -GUARD + .015, 0))
+    : [new BoxGeometry(.27, .034, .05).translate(0, -GUARD + .012, 0)];
+  const parts = [bladeShape(1.25, BLADE), ...guard,
     new BoxGeometry(.06, .05, .06).translate(0, -GUARD + .012, 0), new CylinderGeometry(.017, .02, .17, 6).translate(0, .01, 0),
-    new IcosahedronGeometry(.034, 0).translate(0, .115, 0)].map(g => g.index ? g.toNonIndexed() : g);
+    new IcosahedronGeometry(.034, 0).translate(0, .115, 0)].map(g => {
+    if (!g.index) return g;
+    const flats = g.toNonIndexed(); g.dispose(); return flats;
+  });
   for (const g of parts) g.deleteAttribute('uv');
   const merged = mergeGeometries(parts)!; parts.forEach(g => g.dispose()); merged.computeVertexNormals();
   return merged;
@@ -51,8 +57,8 @@ export function flameMaterial() {
         float across = (vP.x + vP.z) * 22.;
         float n = noise(vec2(across, vP.y * 7. + uTime * 4.4)) * .65 + noise(vec2(across * 2.1, vP.y * 15. + uTime * 7.3)) * .35;
         float body = smoothstep(.3, .85, n + .32 - along * .22 + uFlare * .3);
-        vec3 fire = mix(vec3(1., .4, .07), vec3(1., .88, .55), body);
-        float a = body * (.5 + .4 * uFlare) * (1. - along * .3);
+        vec3 fire = mix(vec3(1., .34, .055), vec3(1., .84, .44), body);
+        float a = body * (.2 + .53 * uFlare) * (1. - along * .3);
         gl_FragColor = vec4(fire, a); // additive blending multiplies by alpha once
       }`,
   });

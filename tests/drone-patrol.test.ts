@@ -66,8 +66,11 @@ describe('drone patrol paths', () => {
     const peak = patrolPeakSpeed(p);
     expect(peak).toBeGreaterThanOrEqual(2.5); expect(peak).toBeLessThanOrEqual(5.5);
   });
-  it('keeps every combat patrol in the portrait fighting band rather than pulling chains to the ceiling', () => {
-    for (const p of PATROLS) for (const at of samples(p)) { expect(at.y).toBeGreaterThan(23); expect(at.y).toBeLessThan(47); }
+  it('keeps narrow fighting bands at the gorge and above the sanctuary', () => {
+    for (const p of PATROLS) for (const at of samples(p)) {
+      expect(at.y).toBeGreaterThan(p.site === 'sanctuary' ? 78 : 23);
+      expect(at.y).toBeLessThan(p.site === 'sanctuary' ? 86 : 47);
+    }
   });
   it('measures peak speed numerically, matching finite differences', () => {
     for (const p of PATROLS) {

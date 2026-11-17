@@ -1,24 +1,24 @@
 import { PHASE, type ShooterState, type Vec3 } from './combat';
-import { isElite } from './encounter';
+import { PATROLS, sealedCount } from './dronePatrols';
 import { clearShove, shoveAngel } from './hurtShove';
 
-export const BATTLE = { goal: 8, ward: 3, bolts: 12, speed: 19, windup: .9, cadence: 4.8, range: 65, grace: 2.5 } as const;
+export const BATTLE = { goal: PATROLS.length, ward: 3, bolts: 12, speed: 19, windup: .9, cadence: 4.8, range: 65, grace: 2.5 } as const;
 /** src: the demon that threw it (a counter dives back at it). */
 type Bolt = { live: boolean; age: number; p: Vec3; v: Vec3; src: number };
 export type BattleState = {
-  status: 'battle' | 'victory' | 'fallen'; ward: number; banished: number; baseline: number;
+  status: 'battle' | 'victory' | 'fallen'; ward: number; banished: number;
   clock: number; nextAttack: number; charging: number; charge: number; invulnerable: number; hurt: number; bolts: Bolt[];
   /** Fiery darts quenched by the shield of faith (Ephesians 6:16), counted for the effects. */ quenched: number;
 };
 const v = (): Vec3 => ({ x: 0, y: 0, z: 0 });
-export function createBattle(kills = 0): BattleState {
-  return { status: 'battle', ward: BATTLE.ward, banished: 0, baseline: kills, clock: 0, nextAttack: 5,
+export function createBattle(): BattleState {
+  return { status: 'battle', ward: BATTLE.ward, banished: 0, clock: 0, nextAttack: 5,
     charging: -1, charge: 0, invulnerable: 0, hurt: 0, quenched: 0,
     bolts: Array.from({ length: BATTLE.bolts }, () => ({ live: false, age: 0, p: v(), v: v(), src: -1 })) };
 }
 export const battle = createBattle();
 /** Regroup and retry: a fresh battle, and a hit shove still under way is dropped. */
-export function resetBattle(kills = 0) { Object.assign(battle, createBattle(kills)); clearShove(); }
+export function resetBattle() { Object.assign(battle, createBattle()); clearShove(); }
 const old = v(), toPlayer = v();
 /** Swept sphere test: a long frame cannot let a bolt skip through the player. */
 export function segmentDistance(a: Vec3, b: Vec3, p: Vec3) {
@@ -35,11 +35,12 @@ export function shielded(s: ShooterState, v: Vec3) {
 /** Game fiction. This encounter does not assert that Revelation's visions describe these combat rules. */
 export function stepBattle(b: BattleState, s: ShooterState, player: Vec3, dt: number, active: boolean,
   lineClear: (a: Vec3, c: Vec3) => boolean, segmentClear = lineClear) {
-  if (!active || b.status !== 'battle') return;
+  if (b.status !== 'battle') return;
+  b.banished = sealedCount(s.drones.sealed);
+  if (b.banished >= BATTLE.goal) { b.status = 'victory'; b.charging = -1; b.bolts.forEach(o => o.live = false); return; }
+  if (!active) return;
   const step = Math.min(.04, Math.max(0, dt));
   b.clock += step; b.invulnerable = Math.max(0, b.invulnerable - step); b.hurt = Math.max(0, b.hurt - step);
-  b.banished = Math.max(0, s.stats.kills - b.baseline);
-  if (b.banished >= BATTLE.goal) { b.status = 'victory'; b.charging = -1; b.bolts.forEach(o => o.live = false); return; }
   for (const bolt of b.bolts) {
     if (!bolt.live) continue;
     old.x = bolt.p.x; old.y = bolt.p.y; old.z = bolt.p.z;
@@ -72,7 +73,7 @@ export function stepBattle(b: BattleState, s: ShooterState, player: Vec3, dt: nu
   if (b.clock < b.nextAttack) return;
   let nearest: number = BATTLE.range;
   for (let i = 0; i < f.count; i++) {
-    if (isElite(i)) continue; // Wardens own distinct, telegraphed attacks in wardenAttacks.ts.
+    if (PATROLS[i].role !== 'dart') continue;
     if (f.hp[i] <= 0 || f.held[i] || f.phase[i] === PHASE.arriving || f.phase[i] === PHASE.dying || f.phase[i] === PHASE.dead) continue;
     const p = f.pos[i], d = Math.hypot(p.x - player.x, p.y - player.y, p.z - player.z);
     if (d < nearest && lineClear(p, player)) { b.charging = i; nearest = d; }

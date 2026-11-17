@@ -12,8 +12,8 @@ export function createMembraneRig(joints: WingJoints) {
   const data = new Float32Array(MAX_DRONES * 8 * 16), palette = Array.from({ length: MAX_DRONES * 8 }, () => new Matrix4());
   const texture = new DataTexture(data, 4, MAX_DRONES * 8, RGBAFormat, FloatType); texture.needsUpdate = true;
   const world = [new Matrix4(), new Matrix4(), new Matrix4()];
-  const step = (index: number, time: number, speed: number, reduced: boolean, strain = 0) => {
-    const glide = smooth(5, 11, speed) * (1 - Math.min(1, strain)), phase = (time * 1.65 + index * .193) % 1;
+  const step = (index: number, time: number, speed: number, reduced: boolean, strain = 0, rate = 1.65) => {
+    const glide = smooth(5, 11, speed) * (1 - Math.min(1, strain)), phase = (time * rate + index * .193) % 1;
     const recovery = reduced || phase < .48 ? 0 : Math.sin((phase - .48) / .52 * Math.PI);
     const stroke = reduced ? 0 : phase < .48 ? 1 - 2 * smooth(0, .48, phase) : -1 + 2 * smooth(.48, 1, phase);
     for (const side of [-1, 1]) {

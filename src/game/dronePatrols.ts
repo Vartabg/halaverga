@@ -1,26 +1,31 @@
 import type { Vec3 } from './combat';
 import { WORLD } from './motion';
-// Patrol loops for the Watchers' host: a figure-eight wobble (y at twice the rate) on a horizontal ellipse.
-// The gorge's low and middle fighting band supports portrait fights; every loop clears the massif (tests/drone-patrol.test.ts).
-export type Patrol = { id: string; c: Vec3; r: Vec3; omega: number; phase: number };
+// Combat approaches through the same airspace the player can explore, in world metres.
+export const PATROL_SITES = [
+  { id: 'threshold', name: 'Threshold', approach: { x: 0, y: 29, z: 38 } },
+  { id: 'gorge', name: 'Watcher Gorge', approach: { x: -18, y: 44, z: -81 } },
+  { id: 'sanctuary', name: 'High Sanctuary', approach: { x: 43, y: 82, z: -42 } },
+] as const;
+export type PatrolSite = typeof PATROL_SITES[number];
+export type WatcherRole = 'scout' | 'dart' | 'lancer' | 'cantor';
+// A figure-eight wobble on a horizontal ellipse. Indices identify the same Watcher for the life of the encounter.
+export type Patrol = { id: string; site: PatrolSite['id']; role: WatcherRole; c: Vec3; r: Vec3; omega: number; phase: number };
 export const PATROLS: readonly Patrol[] = [
-  // Tutorial drone: c moved (-3, 0, -3) to stay inside the 25 deg spawn cone (23.3 deg) and 5.7 m off the departure route.
-  { id: 'terrace-greeter', c: { x: 4, y: 25, z: 33 }, r: { x: 6, y: 1.2, z: 4 }, omega: .5, phase: 0 },
-  // Starting values: 13.4 m from solids, 7.2 m from the route, 3.0 m/s peak.
-  { id: 'terrace-wing', c: { x: -9, y: 28, z: 40 }, r: { x: 5, y: 1, z: 4 }, omega: .55, phase: 1.7 },
-  // Starting values: 12.0 m from solids, 6.8 m from the route, 3.4 m/s peak.
-  { id: 'canal-mid', c: { x: -6, y: 26, z: 24 }, r: { x: 4, y: 1.5, z: 6 }, omega: .5, phase: 3.1 },
-  // omega .7 -> .75 lifts the peak from 2.52 to 2.70 m/s; 8.4 m from solids.
-  { id: 'viaduct-gap', c: { x: 0, y: 30, z: -1 }, r: { x: 3, y: 1, z: 2.5 }, omega: .75, phase: .6 },
-  // The former high loop joins the fighting band; the marked high landing remains an optional traversal space.
-  { id: 'tower-orbit', c: { x: -12, y: 36, z: -35 }, r: { x: 8, y: 1, z: 8 }, omega: .34, phase: 2.2 },
-  // The two wardens (north-avenue, east-basin) and the west loop hold the far end of the gorge.
-  { id: 'north-avenue', c: { x: 0, y: 42, z: -85 }, r: { x: 12, y: 1.5, z: 14 }, omega: .24, phase: .9 },
-  { id: 'west-basin', c: { x: -18, y: 45, z: -53 }, r: { x: 4, y: 1.4, z: 10 }, omega: .26, phase: 2.6 },
-  // On Hermon the summit terrace (x 7 to 53, z -58 to -17, 61 m) fills the old east loop (18, 45, -65) and shadows the whole east side
-  // from the approach, so this warden starts over the open west bank instead. The id is the combat pool's name and stays.
-  { id: 'east-basin', c: { x: -34, y: 45, z: -98 }, r: { x: 4, y: 1.4, z: 10 }, omega: .25, phase: 4.1 },
+  { id: 'terrace-greeter', site: 'threshold', role: 'dart', c: { x: 4, y: 25, z: 33 }, r: { x: 6, y: 1.2, z: 4 }, omega: .5, phase: 0 },
+  { id: 'terrace-wing', site: 'threshold', role: 'scout', c: { x: -9, y: 28, z: 40 }, r: { x: 5, y: 1, z: 4 }, omega: .55, phase: 1.7 },
+  { id: 'canal-mid', site: 'threshold', role: 'dart', c: { x: -6, y: 26, z: 24 }, r: { x: 4, y: 1.5, z: 6 }, omega: .5, phase: 3.1 },
+  { id: 'viaduct-gap', site: 'threshold', role: 'scout', c: { x: 0, y: 30, z: -1 }, r: { x: 3, y: 1, z: 2.5 }, omega: .75, phase: .6 },
+  { id: 'tower-orbit', site: 'sanctuary', role: 'dart', c: { x: 39, y: 82, z: -57 }, r: { x: 8, y: 1, z: 8 }, omega: .34, phase: 2.2 },
+  { id: 'north-avenue', site: 'gorge', role: 'lancer', c: { x: 0, y: 42, z: -85 }, r: { x: 12, y: 1.5, z: 14 }, omega: .24, phase: .9 },
+  { id: 'west-basin', site: 'sanctuary', role: 'scout', c: { x: 52, y: 81, z: -25 }, r: { x: 4, y: 1.4, z: 10 }, omega: .26, phase: 2.6 },
+  { id: 'east-basin', site: 'gorge', role: 'cantor', c: { x: -34, y: 45, z: -98 }, r: { x: 4, y: 1.4, z: 10 }, omega: .25, phase: 4.1 },
 ];
+
+export function sealedCount(mask: number) {
+  let count = 0;
+  for (let i = 0; i < PATROLS.length; i++) count += (mask >>> i) & 1;
+  return count;
+}
 export function patrolPosition(p: Patrol, t: number, out: Vec3): Vec3 {
   const a = p.omega * t + p.phase;
   out.x = p.c.x + p.r.x * Math.cos(a); out.y = p.c.y + p.r.y * Math.sin(2 * a); out.z = p.c.z + p.r.z * Math.sin(a);

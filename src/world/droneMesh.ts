@@ -4,8 +4,8 @@ import { createMembraneRig, membraneSkinGLSL } from './membraneRig';
 import { makeWatcherGeometry } from './watcherGeometry';
 import { WATCHER_JOINTS } from './watcherWings';
 import { featherAtlas } from './featherAtlas';
-/** feather: the dark tint over the feather atlas; blade: the Watchers' bronze, near the cuirass (watcher.glb `watcher bronze`). */
-export const DRONE_COLORS = { feather: '#3a3036', blade: '#b08a52', eyeIdle: '#ff5f19', eyeAlert: '#ff541a', telegraph: '#fff7de', rim: '#8c391e', flash: '#ffffff' } as const;
+/** Role tint comes from the wing instances. The blade bronze matches the Watcher's cuirass. */
+export const DRONE_COLORS = { blade: '#b08a52', eyeIdle: '#ff5f19', eyeAlert: '#ff541a', telegraph: '#fff7de', rim: '#8c391e', flash: '#ffffff' } as const;
 /** Public engine name retained for the combat pool: the pooled pieces of the Watchers (watcherGeometry.ts). */
 export const buildDroneGeometry = makeWatcherGeometry;
 /** World size that covers `px` CSS pixels at distance `dist` for a vertical FOV in degrees. */
@@ -63,7 +63,7 @@ export function createDroneMaterials() {
   const haloTexture = radialTexture(haloAlpha), ringTexture = radialTexture(ringAlpha);
   const glow = (map: DataTexture) => new MeshBasicMaterial({ map, transparent: true, depthWrite: false, blending: AdditiveBlending, toneMapped: false, fog: false });
   // Alpha-tested with alpha-to-coverage like the archangel's plumage (featherMaterial.ts): opaque cost, no sorting.
-  const feather = flashRim(new MeshStandardMaterial({ color: DRONE_COLORS.feather, vertexColors: true, map: atlas.colour, normalMap: atlas.normal,
+  const feather = flashRim(new MeshStandardMaterial({ vertexColors: true, map: atlas.colour, normalMap: atlas.normal,
     normalScale: new Vector2(.55, .55), alphaTest: .42, alphaToCoverage: true, metalness: .05, roughness: .72, side: DoubleSide }), .35, wings);
   const m = {
     feather, wings, atlas,

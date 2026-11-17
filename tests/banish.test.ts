@@ -1,22 +1,22 @@
 import { describe, expect, it } from 'vitest';
 import { PHASE, createShooter } from '../src/game/combat';
 import { COMMAND, requestCommand, SHIELD } from '../src/game/commands';
-import { createDroneSim, buildTargets } from '../src/game/drones';
+import { advanceDrones, createDroneContext, createDroneSim, buildTargets, DRONE } from '../src/game/drones';
 import { BANISH, MODE, createBanish, resetBanish, stepBanish } from '../src/game/banish';
 import { resetBattle, battle, shielded } from '../src/game/celestialBattle';
 import { cancelStrike, strike } from '../src/game/strike';
 import { landCut } from './sword-support';
 
 function setup() {
-  const s = createShooter(); createDroneSim(s); buildTargets(s);
+  const s = createShooter(), sim = createDroneSim(s); buildTargets(s);
   for (const t of s.targets) t.los = true;
-  const b = createBanish(); resetBanish(b, s); resetBattle(0);
+  const b = createBanish(); resetBanish(b, s); resetBattle();
   const near = { ...s.drones.pos[0], z: s.drones.pos[0].z + 10 }, far = { ...s.drones.pos[0], z: s.drones.pos[0].z + 200 };
   const act = (kind: number, at = near) => { requestCommand(s, kind, 0); stepBanish(b, s, at, 1 / 60); };
   // The sword dives (strike.ts): the blow lands when the angel reaches the demon.
   const blow = (kind: number = COMMAND.sword) => { act(kind); expect(strike.phase).toBe(1); stepBanish(b, s, { ...s.targets[0].c }, 1 / 60); };
   cancelStrike();
-  return { s, b, near, far, act, blow };
+  return { s, sim, b, near, far, act, blow };
 }
 describe('textual banishment loop', () => {
   it('rebuke interrupts, then the third sword cut binds and automatically casts without more commands', () => {
@@ -42,11 +42,19 @@ describe('textual banishment loop', () => {
     act(COMMAND.cast); expect(b.cue).toBe('notDown');
   });
   it('three sword cuts on a free demon finish it without a mandatory rebuke or ritual gesture', () => {
-    const { s, b, near, blow } = setup();
+    const { s, sim, b, near, blow } = setup(), initial = { ...s.drones.pos[0] };
     blow(COMMAND.flick); expect(b.wounds[0]).toBe(1); landCut(b, s, 0, near); landCut(b, s, 0, near);
     expect(b.resist[0]).toBe(0); expect(b.mode[0]).toBe(MODE.cast);
     for (let t = 0; t < 1.5; t += 1 / 30) stepBanish(b, s, near, 1 / 30);
-    expect(s.stats.kills).toBe(1); expect(s.drones.phase[0]).toBe(PHASE.dying);
+    expect(s.stats.kills).toBe(1); expect(s.drones.sealed).toBe(1); expect(s.drones.phase[0]).toBe(PHASE.dying);
+    // The generic combat simulation still respawns an unsealed actor. A sealed Watcher stays gone.
+    s.drones.phase[1] = PHASE.dying;
+    const context = { ...createDroneContext(), dt: 1 / 60 }, clear = () => true;
+    for (let t = 0; t < DRONE.respawn + 1; t += context.dt) advanceDrones(s, sim, context, clear);
+    expect(s.drones.phase[0]).toBe(PHASE.dead);
+    expect(s.drones.phase[1]).toBe(PHASE.arriving);
+    createDroneSim(s);
+    expect(s.drones.sealed).toBe(0); expect(s.drones.phase[0]).toBe(PHASE.patrol); expect(s.drones.pos[0]).toEqual(initial);
   });
   it('a rebuke breaks a charging attack', () => {
     const { b, act } = setup();

@@ -22,7 +22,7 @@ function setup() {
   Object.assign(s.drones.pos[0], { x: 0, y: 30, z: -20 }); Object.assign(s.drones.pos[1], { x: 15, y: 30, z: -30 });
   const a = s.aim; a.valid = true; Object.assign(a.origin, player); Object.assign(a.dir, { x: 0, y: 0, z: -1 });
   place(s); flowPaths.fill(1); flowVisible.fill(1);
-  resetBattle(0); resetBanish(banish, s); resetSlowMotion(); resetCounter(); cancelStrike();
+  resetBattle(); resetBanish(banish, s); resetSlowMotion(); resetCounter(); cancelStrike();
   counterState.serial = 0; counterState.deflects = 0;
   return s;
 }

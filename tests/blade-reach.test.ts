@@ -109,7 +109,7 @@ describe('blade contact: the swept test', () => {
 describe('blade contact in a live string', () => {
   it('lands all three cuts with the angel flown by the strike itself, while the demon is thrown between them', () => {
     const s = createShooter(); createDroneSim(s); buildTargets(s); for (const t of s.targets) t.los = true;
-    const b = createBanish(); resetBanish(b, s); resetBattle(0);
+    const b = createBanish(); resetBanish(b, s); resetBattle();
     const p = { x: s.drones.pos[0].x, y: s.drones.pos[0].y, z: s.drones.pos[0].z + 14 }, v = { x: 0, y: 0, z: 0 }, dt = 1 / 60;
     s.aim.valid = true; s.aim.origin = { ...p }; s.aim.dir = { x: 0, y: 0, z: -1 };
     let presses = 0, closest = Infinity;

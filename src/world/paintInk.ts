@@ -49,13 +49,13 @@ ${terrainFragment(wholeTerrain)}
         vec3 celTone = mix(shadowCol, mix(midCol, litCol, clamp(celBand * 2.0 - 1.0, 0.0, 1.0)), clamp(celBand * 2.0, 0.0, 1.0));
         vec3 shaded = mix(baseLight, celTone, mix(0.90, 0.6, tK));
         float snowSlope = smoothstep(0.34, 0.78, nW.y) * smoothstep(32.0, 74.0, vInkW.y) * (0.48 + 0.52 * celBand);
-        shaded = mix(shaded, vec3(0.97, 0.92, 0.85), snowSlope * 0.78);
+        shaded = mix(shaded, vec3(0.97, 0.92, 0.85), snowSlope * mix(0.78, 0.24, tK));
         float chisel = max(nEdge, max(ridgeLine * 0.85, contour * 0.75)) * step(0.08, nW.y + 0.38 * max(0.0, -nW.x)) * (1.0 - step(0.78, rawEdge));
-        vec3 rimGold = vec3(0.99, 0.78, 0.36) * (chisel * 0.65 + step(0.68, nW.y) * 0.14);
+        vec3 rimGold = vec3(0.99, 0.78, 0.36) * (chisel * 0.65 + step(0.68, nW.y) * 0.14) * ${wholeTerrain ? '0.28' : '1.0'};
         vec3 outgoingLight = mix(shaded + rimGold, vec3(0.04, 0.03, 0.09), inkMask);`,
       );
   };
-  const key = `paint-ink-hades-v9${wholeTerrain ? '-whole' : ''}`;
+  const key = `paint-ink-hermon-v10${wholeTerrain ? '-whole' : ''}`;
   material.customProgramCacheKey = () => key;
   const dispose = material.dispose.bind(material);
   material.dispose = () => { gradient.dispose(); dispose(); };

@@ -205,7 +205,7 @@ describe('a cast-down demon and a standing stone', () => {
   it('strikes the megalith, is thrown back, and dies on the ground below, not against the stone', () => {
     setObstacles(stones, true);
     const s = createShooter(); createDroneSim(s); buildTargets(s); for (const t of s.targets) t.los = true;
-    const b = createBanish(); resetBanish(b, s); resetBattle(0);
+    const b = createBanish(); resetBanish(b, s); resetBattle();
     const f = s.drones, w = west(), player = { x: -4, y: 20, z: 52 };
     const run = (seconds: number) => { for (let n = 0; n < Math.ceil(seconds * 60); n++) { stepBanish(b, s, player, 1 / 60); buildTargets(s); for (const t of s.targets) t.los = true; } };
     Object.assign(f.pos[0], { ...FROM, y: 16 }); f.held[0] = 1; b.mode[0] = MODE.cast; b.timer[0] = 0; b.hit[0] = 0;

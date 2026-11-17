@@ -2,7 +2,7 @@ import { useEffect, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { useRapier } from '@react-three/rapier';
 import { AdditiveBlending, InstancedMesh, Matrix4, MeshBasicMaterial, Quaternion, SphereGeometry, Vector3 } from 'three';
-import { battle, BATTLE, resetBattle, stepBattle } from '@/game/celestialBattle';
+import { battle, BATTLE, stepBattle } from '@/game/celestialBattle';
 import { gameDt } from '@/game/slowMotion';
 import { runtime } from '@/game/runtime';
 import { useGame } from '@/game/store';
@@ -18,7 +18,7 @@ export default function Battle() {
       transparent: true, opacity: .85, blending: AdditiveBlending, depthWrite: false }), BATTLE.bolts);
     m.frustumCulled = false; m.count = 0; return m;
   }, []);
-  useEffect(() => { resetBattle(runtime.shooter.stats.kills); return () => { mesh.geometry.dispose(); (mesh.material as MeshBasicMaterial).dispose(); mesh.dispose(); }; }, [mesh]);
+  useEffect(() => () => { mesh.geometry.dispose(); (mesh.material as MeshBasicMaterial).dispose(); mesh.dispose(); }, [mesh]);
   useFrame((_, dt) => {
     const s = useGame.getState();
     stepBattle(battle, runtime.shooter, runtime.position, gameDt(dt), !s.paused && s.flying, ray.lineClear, clearSegment);

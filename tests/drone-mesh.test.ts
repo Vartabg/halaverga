@@ -1,9 +1,10 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { Box3, BufferGeometry, MeshStandardMaterial, ShaderLib, Vector3, type DataTexture, type WebGLProgramParametersWithUniforms, type WebGLRenderer } from 'three';
+import { Box3, BufferGeometry, Color, MeshStandardMaterial, ShaderLib, Vector3, type DataTexture, type WebGLProgramParametersWithUniforms, type WebGLRenderer } from 'three';
 import { EYE_RADIUS } from '../src/game/combat';
 import { buildDroneGeometry, createDroneMaterials, minWorldSize } from '../src/world/droneMesh';
 import { EYE_MARKER } from '../src/world/watcherGeometry';
 import { WATCHER_WING } from '../src/world/watcherWings';
+import { WATCHER_LOOK } from '../src/world/watcherLook';
 import { BLADE, GUARD } from '../src/world/swordBlade';
 
 const tris = (g: BufferGeometry) => (g.index ? g.index.count : g.attributes.position.count) / 3;
@@ -50,7 +51,10 @@ describe('drone materials', () => {
     const m = createDroneMaterials(), mat = m.feather;
     expect(mat).toBeInstanceOf(MeshStandardMaterial); expect(mat.vertexColors).toBe(true);
     expect(mat.map).toBe(m.atlas.colour); expect(mat.alphaTest).toBeGreaterThan(0); expect(mat.alphaToCoverage).toBe(true);
-    expect(mat.color.getHSL({ h: 0, s: 0, l: 0 }).l).toBeLessThan(.25); // tinted dark
+    expect(mat.color.getHex()).toBe(0xffffff); // the instances supply each role's tint
+    const tints = Object.values(WATCHER_LOOK).map(look => new Color(look.wing));
+    expect(new Set(tints.map(tint => tint.getHex())).size).toBe(4);
+    expect(tints.every(tint => tint.getHSL({ h: 0, s: 0, l: 0 }).l < .25)).toBe(true);
     const key = mat.customProgramCacheKey(); expect(key).toBe(mat.customProgramCacheKey());
     // The real MeshStandardMaterial sources: the injection points must exist, and the rim runs after the normal is final.
     const shader = { uniforms: {}, vertexShader: ShaderLib.standard.vertexShader,

@@ -21,7 +21,7 @@ function setup(close = false) {
   for (let i = 0; i < 2; i++) { Object.assign(s.drones.pos[i], { x: i ? 15 : -15, y: 30, z: -30 }); s.drones.phase[i] = PHASE.patrol; }
   if (close) Object.assign(s.drones.pos[1], { x: 0, y: 30, z: -BLADE.reach }); // inside contactAt: the dive lands the step it launches
   buildTargets(s); for (const t of s.targets) t.los = true;
-  flowPaths.fill(1); resetBattle(0); resetBanish(banish, s); resetSlowMotion(); resetCounter(); cancelStrike();
+  flowPaths.fill(1); resetBattle(); resetBanish(banish, s); resetSlowMotion(); resetCounter(); cancelStrike();
   counterState.serial = 0; counterState.deflects = 0;
   battle.charging = 1; battle.charge = BATTLE.windup * .5;
   return s;

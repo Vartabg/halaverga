@@ -13,8 +13,12 @@ export function featherMaterial() {
     map: atlas.colour, normalMap: atlas.normal, normalScale: new Vector2(.55, .55), alphaTest: .42, alphaToCoverage: true,
     sheen: .4, sheenRoughness: .38, sheenColor: new Color('#fff4e2'), side: DoubleSide });
   material.onBeforeCompile = shader => {
-    shader.vertexShader = 'attribute float aThin;\nvarying float vThin;\n' + shader.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\nvThin = aThin;');
-    shader.fragmentShader = 'varying float vThin;\n' + shader.fragmentShader.replace('#include <lights_fragment_end>', `#include <lights_fragment_end>
+    shader.vertexShader = 'attribute float aThin;\nvarying float vThin;\nvarying float vSpan;\n' + shader.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\nvThin = aThin; vSpan = abs(position.x);');
+    shader.fragmentShader = 'varying float vThin;\nvarying float vSpan;\n' + shader.fragmentShader.replace('#include <color_fragment>', `
+      #include <color_fragment>
+      float outer = smoothstep(.4, 2., vSpan) * smoothstep(.34, .82, vThin);
+      diffuseColor.rgb *= mix(vec3(.67, .62, .61), vec3(1., .94, .85), outer);
+    `).replace('#include <lights_fragment_end>', `#include <lights_fragment_end>
       #if NUM_DIR_LIGHTS > 0
       #pragma unroll_loop_start
       for ( int i = 0; i < NUM_DIR_LIGHTS; i ++ ) {{
@@ -27,10 +31,10 @@ export function featherMaterial() {
       #endif`).replace('#include <dithering_fragment>', `
       float edgeInk = smoothstep(0.26, 0.62, length(fwidth(vNormal)));
       float fresnel = pow(1.0 - abs(dot(normalize(vNormal), normalize(vViewPosition))), 2.5);
-      gl_FragColor.rgb += vec3(0.99, 0.80, 0.38) * smoothstep(0.45, 0.72, fresnel) * 0.28;
+      gl_FragColor.rgb += vec3(0.99, 0.80, 0.38) * smoothstep(0.45, 0.72, fresnel) * (0.09 + 0.14 * vThin);
       gl_FragColor.rgb = mix(gl_FragColor.rgb, vec3(0.06, 0.04, 0.10), edgeInk * 0.72);
       #include <dithering_fragment>`);
   };
-  material.customProgramCacheKey = () => 'feather-atlas-hades-v2';
+  material.customProgramCacheKey = () => 'feather-atlas-hermon-v3';
   return { material, dispose() { material.dispose(); atlas.colour.dispose(); atlas.normal.dispose(); } };
 }

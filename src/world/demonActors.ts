@@ -2,7 +2,7 @@ import { Color, Group, Matrix4, MeshStandardMaterial, Quaternion, SkinnedMesh, V
 import { MAX_DRONES } from '../game/combat';
 import { bindAngelClips, blendAngelClip, blendUnder, clipTime, FULL, UPPER_BODY, type AngelClip } from './angelClips';
 import { buildSuitRig } from './suitRig';
-import { WA, banish } from '@/game/banishState';
+import { WA } from '@/game/banishState';
 import { SWORD_GRIP, swordGripRotation } from './swordGrip';
 import { WARDEN_BLEND, hitClipName, wardenClip, type PhaseClip } from './watcherClips';
 import { EYE_MARKER } from './watcherGeometry';
@@ -12,7 +12,7 @@ const ember = new Color('#ff591c');
  * banishState.twist); blow: the cut of the string that landed then (-1 for anything else), which picks the reaction clip.
  * attack/attackTime/move/tell/rush: a warden's phase, its clock, the turn's move, its tell length and the rush's length. */
 export type DemonPose = { time: number; charging: boolean; hit: number; down: boolean; reduced: boolean; damage: number; attack?: number; attackTime?: number;
-  move?: number; tell?: number; rush?: number; hitT?: number; hitSide?: number; blow?: number };
+  move?: number; tell?: number; rush?: number; hitT?: number; hitSide?: number; blow?: number; airspeed?: number };
 /**
  * The struck reaction (docs/plans/2026-11-16-real-fight.md A3, B7). The clip is chosen at the blow (watcherClips.ts hitClipName)
  * and kept on the actor beside the reaction it interrupted. From the blow it plays through at `rate`, on the upper body (a thrown
@@ -81,7 +81,7 @@ export function createDemonActors(source: Object3D, animations: AnimationClip[])
     const time = state.reduced ? 0 : state.time + index * .37;
     blendAngelClip(a.joints, clips.idle, clipTime(clips.idle, time, true), 1, FULL, hip);
     // The airborne legs and shoulders carry weight; only the upper body interrupts for the fiery-dart gesture.
-    const velocity = banish.wardens.navVelocity[index], speed = Math.hypot(velocity.x, velocity.y, velocity.z);
+    const speed = state.airspeed ?? 0;
     blendAngelClip(a.joints, clips.flight, clipTime(clips.flight, time * .7, true), Math.min(.78, .3 + speed * .04), FULL, hip);
     if (state.charging) blendAngelClip(a.joints, clips.charge, .18, .85, UPPER_BODY);
     if (state.reduced) { if (state.hit > 0) blendAngelClip(a.joints, clips.hit, .12, Math.min(.8, state.hit), UPPER_BODY); }

@@ -67,6 +67,8 @@ export type DroneTarget = { c: Vec3; r: number; eye: Vec3; eyeR: number; facing?
 /** Struct-of-arrays drone state. drones.ts is the only writer; the renderer, effects and the shooter read it. */
 export type DroneField = {
   count: number; phase: Uint8Array; phaseT: Float32Array; patrol: Uint8Array; patrolT: Float32Array;
+  /** One bit per Watcher sealed by the sword finisher in the current encounter. */
+  sealed: number;
   pos: Vec3[]; home: Vec3[]; anchor: Vec3[]; from: Vec3[]; to: Vec3[];
   yaw: Float32Array; pitch: Float32Array; tiltX: Float32Array; tiltZ: Float32Array;
   hp: Int8Array; broken: Uint8Array; flash: Float32Array; tint: Float32Array; lastHit: Float32Array; flashHist: Float64Array;
@@ -86,7 +88,7 @@ const list = <T>(make: () => T) => Array.from({ length: MAX_DRONES }, make);
 export function createDroneField(): DroneField {
   const f = () => new Float32Array(MAX_DRONES);
   return {
-    count: 0, phase: new Uint8Array(MAX_DRONES), phaseT: f(), patrol: new Uint8Array(MAX_DRONES), patrolT: f(),
+    count: 0, sealed: 0, phase: new Uint8Array(MAX_DRONES), phaseT: f(), patrol: new Uint8Array(MAX_DRONES), patrolT: f(),
     pos: list(v3), home: list(v3), anchor: list(v3), from: list(v3), to: list(v3), yaw: f(), pitch: f(), tiltX: f(), tiltZ: f(),
     hp: new Int8Array(MAX_DRONES), broken: new Uint8Array(MAX_DRONES), flash: f(), tint: f(), lastHit: f().fill(-1e9),
     flashHist: new Float64Array(MAX_DRONES * 3).fill(-Infinity),

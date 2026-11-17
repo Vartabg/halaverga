@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="-225 -208 450 336" role="img" aria-labelledby="title desc">
-  <title id="title">Mount Hermon exterior flight route</title>
-  <desc id="desc">A painted map of continuous Mount Hermon ridges and the cloven gorge. The gold route flies from the Threshold of Hermon through the dawn chasm and Cloven Arch to the Sanctuary of the Throne on the eastern peak.</desc>
+  <title id="title">Patrol sites on Mount Hermon</title>
+  <desc id="desc">From the Threshold, follow the water past the Cloven Arch to Watcher Gorge, or climb to 82 metres and fly east to the High Sanctuary.</desc>
   <rect x="-225" y="-208" width="450" height="336" rx="8" fill="#14111d"/>
   <path d="M-225-208H-28L-12-172-25-143-9-112-24-82-13-55-31-21-18 12-30 43-15 72-28 105-12 128H-225Z" fill="#2b213d"/>
   <path d="M225-208H34L17-174 31-146 14-117 29-89 16-57 31-26 18 4 34 34 19 66 33 99 15 128H225Z" fill="#302440"/>
@@ -12,18 +12,17 @@
   <path d="M-15 66-8 53 7 51 15 63 11 76-4 82-17 75Z" fill="#b9a58f" stroke="#e8cfa6" stroke-width="1"/>
   <path d="M15-42 24-55 41-52 48-39 40-26 23-28Z" fill="#c7b092" stroke="#e8cfa6" stroke-width="1"/>
   <path d="M-15-3Q0-15 15-3" fill="none" stroke="#b9a58f" stroke-width="3" stroke-linecap="round"/>
-  <polyline points="0,65 0,65 0,47 0,22 -3,-1 0,-27 9,-38 30,-38" fill="none" stroke="#f2b84b" stroke-width="2" stroke-linejoin="round"/>
-  <g fill="#f2b84b" font-family="sans-serif" font-size="9" font-weight="bold" text-anchor="middle">
-    <circle cx="0" cy="65" r="7"/><text x="0" y="68" fill="#171020">1</text>
-    <circle cx="0" cy="22" r="7"/><text x="0" y="25" fill="#171020">2</text>
-    <circle cx="-3" cy="-1" r="7"/><text x="-3" y="2" fill="#171020">3</text>
-    <circle cx="30" cy="-38" r="7"/><text x="30" y="-35" fill="#171020">4</text>
+  <path d="M0 65 V38 L-3 -1 -18 -81" fill="none" stroke="#f2d18a" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M0 38 L43 -42 M-18 -81 L43 -42" fill="none" stroke="#f2d18a" stroke-width="2" stroke-dasharray="4 5"/>
+  <g fill="#f2d18a" stroke="#1c1827" stroke-width="1.5">
+    <circle cx="0" cy="38" r="5"/><circle cx="-18" cy="-81" r="5"/><circle cx="43" cy="-42" r="5"/>
   </g>
-  <g fill="#f5efe2" font-family="sans-serif" font-size="8">
-    <text x="-205" y="-190" letter-spacing="1.5">MOUNT HERMON · DAWN FLIGHT · NORTH ↑</text>
-    <text x="-64" y="88">1 · THRESHOLD</text>
-    <text x="15" y="20">2 · DAWN CHASM</text>
-    <text x="12" y="-5">3 · CLOVEN ARCH</text>
-    <text x="48" y="-42">4 · HIGH SANCTUARY</text>
+  <g fill="#fff4df" stroke="#201829" stroke-width="2" paint-order="stroke" font-family="system-ui,sans-serif" font-size="10" font-weight="600">
+    <text x="-205" y="-190" letter-spacing="1.5">MOUNT HERMON · NORTH ↑</text>
+    <text x="-68" y="57">Threshold</text>
+    <text x="-93" y="-7">Cloven Arch</text>
+    <text x="-113" y="-89">Watcher Gorge</text>
+    <text x="53" y="-39">High Sanctuary</text>
+    <text x="-203" y="107">Dashed path · climb to 82 m before crossing east</text>
   </g>
 </svg>

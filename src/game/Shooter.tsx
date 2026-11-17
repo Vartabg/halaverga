@@ -16,6 +16,7 @@ import { createAssistMemory } from './aimAssist';
 import { createStepContext, stepShooter, type AudioSink } from './shooterStep';
 import { autoFire, resetAutoFire } from './autoFire';
 import { banish, resetBanish, stepBanish } from './banish';
+import { resetBattle } from './celestialBattle';
 import { commandKeyDown, commandKeyUp } from './commandKeys';
 import { updateFlowPaths } from './combatFlow';
 // The suit blaster's frame loop (scene chunk): priority -25, after the flight presentation (-30) and before the suit (-20) and
@@ -34,6 +35,10 @@ export default function Shooter() {
   const compiled = useRef(false);
   const frame = useMemo(() => guarded('Shooter', (state: RootState, delta: number) => {
     const game = useGame.getState(), p = runtime.position, h = presentation.position, ctx = parts.ctx;
+    if (banish.resetRequested) {
+      parts.sim = createDroneSim(runtime.shooter);
+      resetBattle(); resetBanish(banish, runtime.shooter); resetSlowMotion(); resetCounter();
+    }
     // Slow motion after a counter (slowMotion.ts): game systems take scaled steps; input and the camera keep real time.
     const scaled = delta * stepSlowMotion(delta, game.paused, game.reduced);
     ctx.dt = scaled; ctx.realDt = delta; ctx.paused = game.paused; ctx.reduced = game.reduced; ctx.flying = game.flying;
@@ -74,7 +79,7 @@ export default function Shooter() {
   // Switching the setting off returns look, camera and pose to exact main behaviour.
   // This component owns the slow-motion clock, so leaving (the fight switched off, a scene reload) returns game time to normal: flight
   // reads counterState.scale and would otherwise stay slow with no clock left to ease it back.
-  useEffect(() => { resetBanish(banish, runtime.shooter); resetSlowMotion(); resetCounter();
+  useEffect(() => { resetBattle(); resetBanish(banish, runtime.shooter); resetSlowMotion(); resetCounter();
     return () => { resetAutoFire(runtime.shooter, autoFire); resetShooterFeel(runtime.shooter); resetBanish(banish, runtime.shooter); resetSlowMotion(); resetCounter(); }; }, []);
   return null;
 }

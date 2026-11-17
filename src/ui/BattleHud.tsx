@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { battle, BATTLE, resetBattle } from '@/game/celestialBattle';
+import { battle, BATTLE } from '@/game/celestialBattle';
+import { nextPatrolSite, patrolDirection } from '@/game/patrolRoute';
 import { runtime } from '@/game/runtime';
 import { banish, MODE, REBUKE_LINE, type Cue } from '@/game/banishState';
 import { useGame } from '@/game/store';
@@ -24,17 +25,22 @@ const NEXT: Record<number, [string, string]> = {
   [MODE.cast]: ['Tap the next demon · keep moving', 'Click again · chain to the next demon'],
 };
 const nextStep = () => { const i = banish.last; return i >= 0 && runtime.shooter.targets[i]?.alive ? banish.mode[i] : -1; };
-const sample = () => ({ ward: battle.ward, kills: battle.banished, status: battle.status, hurt: battle.hurt > 0, charging: battle.charging >= 0,
-  combo: banish.combo, next: nextStep(), teaching: battle.clock < 5, rebuke: banish.clock - banish.rebukeT < REBUKE_LINE, fx: banish.fxSerial, modes: banish.mode.join(''), counter: counterState.attacker >= 0, slow: Math.min(1, Math.round((1 - counterState.scale) * 6.25) / 5), counters: counterState.serial, cue: (banish.clock - banish.cueT < 1.4 ? banish.cue : '') as Cue });
+const sample = () => {
+  const route = nextPatrolSite(runtime.position, runtime.shooter.drones.sealed);
+  return { ward: battle.ward, kills: battle.banished, status: battle.status, hurt: battle.hurt > 0, charging: battle.charging >= 0,
+    site: route?.site.name, direction: route && patrolDirection(route.site, runtime.position, runtime.yaw), remaining: route?.remaining,
+    combo: banish.combo, next: nextStep(), teaching: battle.clock < 5, rebuke: banish.clock - banish.rebukeT < REBUKE_LINE, fx: banish.fxSerial, modes: banish.mode.join(''), counter: counterState.attacker >= 0, slow: Math.min(1, Math.round((1 - counterState.scale) * 6.25) / 5), counters: counterState.serial, cue: (banish.clock - banish.cueT < 1.4 ? banish.cue : '') as Cue };
+};
 export default function BattleHud() {
   const [readout, setReadout] = useState(sample), paused = useGame(s => s.paused);
   useEffect(() => {
-    const tick = () => { const s = sample(); setReadout(old => Object.keys(s).every(k => s[k as keyof typeof s] === old[k as keyof typeof s]) ? old : s);
+    const tick = () => { if (banish.resetRequested) return;
+      const s = sample(); setReadout(old => Object.keys(s).every(k => s[k as keyof typeof s] === old[k as keyof typeof s]) ? old : s);
       if (s.status === 'fallen' && !useGame.getState().paused) pause(); };
     const id = setInterval(tick, 100); return () => clearInterval(id);
   }, []);
-  const retry = () => { resetBattle(runtime.shooter.stats.kills); banish.resetRequested = true; runtime.reset = true; setReadout(sample()); resume(); };
-  if (readout.status === 'fallen') return <Modal title="Your ward is broken" onClose={retry}>
+  const retry = () => { banish.resetRequested = true; runtime.reset = true; resume(); };
+  if (readout.status === 'fallen') return banish.resetRequested ? null : <Modal title="Your ward is broken" onClose={retry}>
     <p>The host has driven you back. Return to the Threshold of Hermon, take wing, and try again.</p>
     <button className={styles.retry} onClick={retry}>Return to the threshold</button>
   </Modal>;
@@ -44,8 +50,10 @@ export default function BattleHud() {
     {readout.status === 'battle' && <button className={styles.attack} aria-label="Strike next demon" onPointerDown={e => e.stopPropagation()} onPointerUp={e => e.stopPropagation()}
       onClick={e => { e.stopPropagation(); unlockBlasterAudio(); requestCommand(runtime.shooter, COMMAND.context); }}>{readout.combo > 0 ? 'Chain' : 'Strike'}</button>}
     <aside className={styles.mission} data-testid="battle-hud" data-combo={readout.combo} data-ward={readout.ward} data-banished={readout.kills} data-status={readout.status} data-banish-fx={readout.fx} data-modes={readout.modes} data-armor={banish.armor.join('')} data-counters={readout.counters} aria-label="Battle objective">
-      <span className={styles.chapter}>{readout.combo > 1 ? `${readout.combo} STRIKE CHAIN` : 'MOUNT HERMON / THE GORGE'}</span>
-      <strong>{readout.status === 'victory' ? 'The host is cast down' : 'Cast down the Watchers’ host'}</strong>
+      {readout.combo > 1 && <span className={styles.chapter}>{`${readout.combo} STRIKE CHAIN`}</span>}
+      <strong>{readout.status === 'victory' ? 'The host is cast down' : readout.site}</strong>
+      {readout.status === 'battle' && <span data-testid="patrol-route">{readout.direction === 'Patrol nearby'
+        ? `${readout.remaining} ${readout.remaining === 1 ? 'Watcher' : 'Watchers'} nearby` : readout.direction}</span>}
       <span>{readout.status === 'victory' ? 'Victory · continue your flight' : `${Math.min(BATTLE.goal, readout.kills)} / ${BATTLE.goal} cast down${readout.combo > 1 ? ` · ${readout.combo} hit chain` : ''}`}</span>
       <div className={styles.ward} aria-label={`Protective ward: ${readout.ward} of ${BATTLE.ward}`}>
         {[0, 1, 2].map(i => <i key={i} data-lit={readout.ward > i} />)}<span>WARD</span>
@@ -62,6 +70,6 @@ export default function BattleHud() {
       <span className={styles.coarse}>Tap a demon: strike · Chain: next demon · hold a 2nd finger: shield</span>
       <span className={styles.fine}>Click or C: strike / chain · 1: rebuke · hold V: shield</span></p>}
     {readout.hurt && <div className={styles.hurt} aria-hidden="true" />}
-    <div className="sr-only" aria-live="polite">{readout.status === 'victory' ? 'Victory. The host is cast down.' : `Protective ward ${readout.ward} of three. ${readout.kills} demons cast down.`}</div>
+    <div className="sr-only" aria-live="polite">{readout.status === 'victory' ? 'Victory. The host is cast down.' : `Protective ward ${readout.ward} of three. ${readout.kills} Watchers cast down.`}</div>
   </>;
 }

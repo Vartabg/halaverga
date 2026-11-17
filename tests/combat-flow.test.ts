@@ -20,7 +20,7 @@ function setup() {
   const command = (target = -1) => { requestCommand(s, COMMAND.context, target); step(); };
   return { s, b, step, command };
 }
-beforeEach(() => { flowPaths.fill(1); flowVisible.fill(1); cancelStrike(); resetBattle(0); });
+beforeEach(() => { flowPaths.fill(1); flowVisible.fill(1); cancelStrike(); resetBattle(); });
 it('buffers a chosen second demon, waits for impact, then carries into it without a circle', () => {
   const { s, b, step, command } = setup();
   command(0); command(1); expect(strike.target).toBe(0); expect(strike.queued).toBe(true);

@@ -15,7 +15,7 @@ import { SLOW, resetSlowMotion, startSlowMotion, stepSlowMotion } from '../src/g
 function setup(gap = 12) {
   const s = createShooter(); createDroneSim(s); buildTargets(s);
   for (const t of s.targets) t.los = true;
-  flowPaths.fill(1); resetBattle(0); resetBanish(banish, s); resetSlowMotion(); resetCounter(); cancelStrike();
+  flowPaths.fill(1); resetBattle(); resetBanish(banish, s); resetSlowMotion(); resetCounter(); cancelStrike();
   counterState.serial = 0; counterState.deflects = 0;
   const player = { ...s.drones.pos[0], z: s.drones.pos[0].z + gap };
   return { s, player };

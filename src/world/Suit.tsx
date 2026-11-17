@@ -94,8 +94,10 @@ export default function Suit() {
     // Spring follow-through, last over the body (suitSprings.ts): the pose above is the target each bone chases.
     Object.assign(frame, { dt, paused: state.paused, reduced: state.reduced, epoch: pose.epoch, ground: life.ground, command: runtime.shooter.aim.fireHold, brace: stance.current.brace });
     followBody(springs, frame); stepClothSway(springs, rig.root, v, dt, state.paused, state.reduced);
-    // A flinch flares the wings like a brake (angelMotion FLINCH); the wings counter the whole forward pitch, the prone top-up too.
-    stepArchangelWings(wings, state.flying, state.paused, state.reduced, pose.speed, v.y, roll, dt, Math.max(pose.brake, moves.current.flinch), strike.phase === 1);
+    // Fold on the travelling dive. The close cuts and their follow-through reopen the wings for braking.
+    const cutFlare = strike.phase === 2 ? .55 * Math.max(0, 1 - strike.t / .4) : 0;
+    stepArchangelWings(wings, state.flying, state.paused, state.reduced, pose.speed, v.y, roll, dt,
+      Math.max(pose.brake, moves.current.flinch, cutFlare), strike.phase === 1 && !strike.lunge);
     alignArchangelWings(wings, rig.root, pose.lean + moves.current.pitch);
     clearance.step(v, dt, state.paused, state.reduced);
     followWings(springs, wings, frame);
