@@ -75,7 +75,7 @@ export type AngelMotionInput = { dt: number; paused: boolean; flying: boolean; g
 function begin(m: AngelMotion, name: string, at = 0, cut = m.cut) {
   const old = fromWeight(m);
   if (m.act && m.since > 0 && m.weight > 0 && m.weight >= old) Object.assign(m, { from: actClip(m), fromT: m.actT, fromW: m.weight, fromCut: m.act === 'slash' ? m.cut : -1, fromTail: m.tail });
-  else if (old > 0) m.fromW = old; else m.from = '';
+  else if (old <= 0) m.from = '';
   m.act = name; m.cut = cut; m.actT = at; m.since = 0; m.tail = false;
 }
 /** The clip the act plays now: a gesture's own, or the cut's stroke, then (tail) its recovery. */
