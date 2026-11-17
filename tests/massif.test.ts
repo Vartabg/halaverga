@@ -4,7 +4,6 @@ import { WORLD } from '@/game/motion';
 import { makeCity } from '@/world/cityData';
 import { makeField } from '@/world/fieldData';
 import { heightAt, MASSIF } from '@/world/massifData';
-import { makeSkyline, makeSkylineChunks } from '@/world/skylineData';
 import type { TerrainChunk } from '@/world/massifGeometry';
 
 const near = makeCity();
@@ -79,10 +78,8 @@ describe('continuous Hermon massif', () => {
     expect(edge(centre, 'x', -225)).toEqual(edge(west, 'x', -225, -205, 130));
     expect(edge(centre, 'x', 225)).toEqual(edge(east, 'x', 225, -205, 130));
   });
-  it('joins every playable and distant strip, including mixed-resolution edges', () => {
-    const ranges = makeSkylineChunks();
-    expectJoined([...all, ...ranges]);
-    ranges.forEach(t => t.geometry.dispose());
+  it('joins every playable strip, including mixed-resolution edges', () => {
+    expectJoined(all);
   });
   it('winds the natural arch outward and spans each waystone with its collider', () => {
     const arch = near.terrains.find(t => t.id === 'cloven-arch')!;
@@ -105,20 +102,12 @@ describe('continuous Hermon massif', () => {
     }
   });
   it('retires grid ruins and box towers from all active terrain generators', () => {
-    for (const path of ['src/world/cityData.ts', 'src/world/fieldData.ts', 'src/world/skylineData.ts']) {
+    for (const path of ['src/world/cityData.ts', 'src/world/fieldData.ts']) {
       const source = readFileSync(path, 'utf8');
       for (const gone of ['ruinBuilding', 'fieldSpecs', 'anchorSpecs', 'bakeTower', 'stoneSpecs', 'street:', 'cell:']) {
         expect(source, `${path} must not contain ${gone}`).not.toContain(gone);
       }
     }
-  });
-  it('builds continuous distant ranges without tower records', () => {
-    const sky = makeSkyline();
-    expect(sky.triangles).toBeGreaterThan(3000);
-    expect(sky.triangles).toBeLessThan(40000);
-    expect(sky.geometry.attributes.position.count).toBeGreaterThan(9000);
-    expect('towers' in sky).toBe(false);
-    sky.geometry.dispose();
   });
 });
 

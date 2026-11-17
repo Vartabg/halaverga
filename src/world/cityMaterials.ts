@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { MeshStandardMaterial } from 'three';
 import { paintInkMaterial } from './paintInk';
+import { sharedTerrain } from './terrainArt';
 
 /** Procedural megalithic sanctuary materials: no modern concrete photographs or building texture grammar. */
 export function useCityMaterials() {
@@ -13,6 +14,6 @@ export function useCityMaterials() {
     const paint = new MeshStandardMaterial({ vertexColors: true, roughness: .45, metalness: .35,
       emissive: '#d98a2b', emissiveIntensity: .65 });
     const calm = stone.clone(); calm.roughness = .96;
-    return [stone, glass, metal, ground, paint, calm, paintInkMaterial()];
+    return [stone, glass, metal, ground, paint, calm, paintInkMaterial(sharedTerrain)];
   }, []);
 }

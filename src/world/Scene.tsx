@@ -7,8 +7,10 @@ import { ACESFilmicToneMapping, type DirectionalLight } from 'three';
 import City from './HermonCity';
 import RuinField from './RuinField';
 import DistrictBoundary from './DistrictBoundary';
-import { Sky, Water } from './Atmosphere';
-import Skyline from './Skyline';
+import { Water } from './Atmosphere';
+import Backdrop from './Backdrop';
+import EdgeRing from './EdgeRing';
+import TerrainLayer from './TerrainLayer';
 import Drift from './Drift';
 import SealedGround from './SealedGround';
 import FlightRush from './FlightRush';
@@ -28,7 +30,6 @@ import ShotFx from './ShotFx';
 import ImpactFx from './ImpactFx';
 import { useGame } from '@/game/store';
 import { clearInput, runtime } from '@/game/runtime';
-import EnvironmentLight from './EnvironmentLight';
 import { EXPOSURE, FOG, HEMISPHERE, SUN_COLOR, SUN_INTENSITY, SUN_POSITION } from './atmospherePalette';
 import { labFault } from '@/ui/labSwitch';
 import { useTouchCapable } from '@/ui/useTouchCapable';
@@ -95,7 +96,7 @@ export default function Scene({ onLoss }: { onLoss: () => void }) {
     <directionalLight ref={sun} position={SUN_POSITION} color={SUN_COLOR} intensity={SUN_INTENSITY} castShadow={quality === 'high'}
       shadow-mapSize={[2048, 2048]} shadow-camera-left={-110} shadow-camera-right={110}
       shadow-camera-top={110} shadow-camera-bottom={-110} shadow-camera-far={380} shadow-bias={-.0002} shadow-normalBias={.09} />
-    <EnvironmentLight /><Sky /><Water /><Skyline /><Drift /><SealedGround /><FlightRush />
+    <Backdrop /><TerrainLayer /><Water /><EdgeRing /><Drift /><SealedGround /><FlightRush />
     <Suspense fallback={null}>
       <Physics paused={paused} timeStep={1 / 60} updatePriority={-50} gravity={[0, -22, 0]}>
         <City /><RuinField /><DistrictBoundary /><Player /><FlightPresentation /><Suit /><CameraRig />

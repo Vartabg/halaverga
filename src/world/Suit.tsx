@@ -2,7 +2,8 @@ import { useEffect, useMemo, useRef } from 'react';
 import { useFrame, useLoader } from '@react-three/fiber';
 import { useRapier } from '@react-three/rapier';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { Vector3, type Object3D, type PerspectiveCamera } from 'three';
+import { TextureLoader, Vector3, type Object3D, type PerspectiveCamera } from 'three';
+import { BACKDROP_URL } from './backdropConst';
 import { wingTips } from './rushData';
 import { presentation as pose } from '@/game/presentation';
 import { runtime } from '@/game/runtime';
@@ -30,6 +31,7 @@ export const ADVERSARY_URL = '/models/abyssal.glb';
 export function clearWorldCache() {
   useLoader.clear(GLTFLoader, SUIT_URL);
   useLoader.clear(GLTFLoader, ADVERSARY_URL);
+  useLoader.clear(TextureLoader, BACKDROP_URL);
 }
 const input = { flying: false, landing: false, paused: true, reduced: false, velocity: runtime.velocity, turn: runtime.turn };
 const moveInput = { dt: 0, paused: true, flying: false, ground: 1, speed: 0, sword: false, reduced: false };

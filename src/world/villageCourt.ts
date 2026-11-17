@@ -1,6 +1,8 @@
 import { BufferGeometry, Color, Float32BufferAttribute } from 'three';
 import { INK } from './paintInk';
 
+/** The court's rings: muted bronze, not saturated gold. */
+export const BRONZE = '#b9803e';
 type Point = [number, number];
 type Patch = { points: Point[]; y: number; color: string };
 const polar = (rx: number, rz: number, a: number, cx = 0, cz = 65): Point => [cx + Math.cos(a) * rx, cz + Math.sin(a) * rz];
@@ -16,10 +18,10 @@ function patches(): Patch[] {
     out.push({ points: [polar(8.6, 7.0, a), outer[i], outer[(i + 1) % sides], polar(8.6, 7.0, b)], y: 20.08,
       color: i % 3 === 0 ? INK.lit : i % 2 ? INK.shaft : INK.rock });
   }
-  out.push({ points: Array.from({ length: 10 }, (_, i) => polar(6.2, 5.4, i / 10 * Math.PI * 2 + Math.PI / 10)), y: 20.11, color: INK.crown });
+  out.push({ points: Array.from({ length: 10 }, (_, i) => polar(6.2, 5.4, i / 10 * Math.PI * 2 + Math.PI / 10)), y: 20.11, color: BRONZE });
   out.push({ points: Array.from({ length: 10 }, (_, i) => polar(5.65, 4.9, i / 10 * Math.PI * 2 + Math.PI / 10)), y: 20.13, color: INK.plinth });
   out.push({ points: Array.from({ length: 8 }, (_, i) => polar(3.8, 3.4, i / 8 * Math.PI * 2 + Math.PI / 8)), y: 20.15, color: INK.rock });
-  out.push({ points: [[0, 61.6], [1.85, 65], [0, 68.4], [-1.85, 65]], y: 20.17, color: INK.crown });
+  out.push({ points: [[0, 61.6], [1.85, 65], [0, 68.4], [-1.85, 65]], y: 20.17, color: BRONZE });
   out.push({ points: [[0, 62.2], [1.35, 65], [0, 67.8], [-1.35, 65]], y: 20.19, color: INK.cap });
   return out;
 }

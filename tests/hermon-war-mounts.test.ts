@@ -6,7 +6,7 @@ import { expect, it } from 'vitest';
 const read = (path: string) => readFileSync(path, 'utf8');
 it('keeps the Hermon world and the whole fight mounted in the scene', () => {
   const scene = read('src/world/Scene.tsx');
-  for (const part of ["import City from './HermonCity'", '<City />', '<RuinField />', '<Sky />', '<Water />', '<Skyline />', '<Drift />', '<SealedGround />',
+  for (const part of ["import City from './HermonCity'", '<City />', '<RuinField />', '<Backdrop />', '<TerrainLayer />', '<Water />', '<EdgeRing />', '<Drift />', '<SealedGround />',
     '<Shooter />', '<Drones />', '<Battle />', '<Banishment />', '<FlamingSword />', 'useLoader(GLTFLoader, ADVERSARY_URL)']) expect(scene, part).toContain(part);
   for (const gone of ['Sanctuary', 'Abyss', 'CelestialVault', 'ThroneWitness', 'BreachRoutes', 'ArmCannon']) expect(scene, gone).not.toContain(gone);
 });
