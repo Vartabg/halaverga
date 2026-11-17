@@ -92,7 +92,7 @@ test('@vote the Controls sheet: Vote is the accent primary and Done the outline 
   const vote = sheet(page).getByTestId('controls-vote'), done = sheet(page).getByTestId('controls-done');
   await expect(vote).toHaveText('Vote'); await expect(vote).toHaveAccessibleName(VOTE_NAME);
   const bg = (l: typeof vote) => l.evaluate(e => getComputedStyle(e).backgroundColor);
-  expect(await bg(vote)).toBe('rgb(94, 230, 208)'); expect(await bg(done)).toBe('rgba(0, 0, 0, 0)');
+  expect(await bg(vote)).toBe('rgb(242, 184, 75)'); expect(await bg(done)).toBe('rgba(0, 0, 0, 0)');
   expect((await vote.boundingBox())!.x).toBeLessThan((await done.boundingBox())!.x); // the vote comes first
   await vote.click();
   await expect(card(page)).toBeVisible(); await expect(sheet(page)).toHaveCount(0);

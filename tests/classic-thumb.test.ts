@@ -72,6 +72,7 @@ describe('shooting stays out of the classic flight path', () => {
     }
     const hook = readFileSync('src/ui/useClassicThumbs.tsx', 'utf8');
     expect(hook).not.toMatch(/FireControls|setExternal|aria-label="Fire"|aria-label="Aim"/);
-    expect(hook).toMatch(/blastAt\(/); // tap a drone goes through the Lab's aimed-shot entry (tapFire.ts)
+    // War in Heaven: a finger on a demon draws a stroke command (combatStroke.ts); no aimed burst is fired.
+    expect(hook).toMatch(/requestCommand\(/); expect(hook).not.toMatch(/blastAt\(/);
   });
 });

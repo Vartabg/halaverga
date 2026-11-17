@@ -37,7 +37,7 @@ test('@vote a failed send survives a reload: the saved vote is offered with its 
   await pickAndSend(page, 'Draw');
   await expect(card(page).getByRole('status')).toHaveText(FAILED);
   await page.reload();
-  const begin = page.getByRole('button', { name: 'Begin expedition' });
+  const begin = page.getByRole('button', { name: 'Ascend Mount Hermon' });
   await expect(begin).toBeEnabled({ timeout: 60000 });
   await begin.click();
   await openFromChip(page);

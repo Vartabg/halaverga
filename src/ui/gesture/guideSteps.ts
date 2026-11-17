@@ -16,12 +16,12 @@ export type GuideStep = { readonly id: GuideEvent; readonly shape: GhostShape; r
 const step = (id: GuideEvent, shape: GhostShape, label: string, desk = label): GuideStep => ({ id, shape, label, desk });
 export const GUIDE_STEPS: Readonly<Record<LabScheme, readonly GuideStep[]>> = {
   draw: [step('curve', 'curve', 'Draw a rising curve to fly', 'Click, move: ink a curve up'), step('chain', 'chain', 'Draw again to chain', 'Ink again to chain'),
-    step('tap-drone', 'tap', 'Tap a drone to blast', 'Click a drone to blast'), step('rooftop', 'rooftop', 'End on a roof to land')],
+    step('tap-drone', 'tap', 'Tap an adversary to blast', 'Click an adversary to blast'), step('rooftop', 'rooftop', 'End on a roof to land')],
   conduct: [step('rest-steer', 'rest', 'Rest a finger to steer', 'Click below the horizon to fly'), step('stir', 'stir', 'Stir small circles: faster', 'Stir the pointer: faster'),
     step('lift-glide', 'lift', 'Lift your finger to glide', 'Click again to glide'), step('flick', 'flick', 'Flick to dash'),
-    step('circle', 'circle', 'Circle fast to roll'), step('tap-drone', 'tap', 'Tap a drone to blast', 'Click a drone to blast')],
+    step('circle', 'circle', 'Circle fast to roll'), step('tap-drone', 'tap', 'Tap an adversary to blast', 'Click an adversary to blast')],
   brush: [step('up', 'up', 'Swipe up to soar', 'Click, sweep up: soar'), step('turn', 'turn', 'Swipe sideways to turn', 'Click, sweep sideways: turn'),
-    step('down', 'down', 'Swipe down to dive', 'Click, sweep down: dive'), step('lasso', 'lasso', 'Circle a drone to lock', 'Click, circle a drone')],
+    step('down', 'down', 'Swipe down to dive', 'Click, sweep down: dive'), step('lasso', 'lasso', 'Circle an adversary to lock', 'Click, circle an adversary')],
 };
 
 /**

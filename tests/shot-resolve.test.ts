@@ -1,22 +1,21 @@
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import RAPIER from '@dimforge/rapier3d-compat';
-import { Euler, Quaternion } from 'three';
-import { makeCity } from '../src/world/cityData';
+import { physicsGeometry, mountPhysicsGeometry, type PhysicsGeometry } from './physicsWorld';
 import { WORLD } from '../src/game/motion';
 const WALL_HALF = (WORLD.ceiling + 45) / 2, WALL_Y = (WORLD.ceiling - 35) / 2;
 import { BOUNDARY_GROUPS, DRONE_RADIUS, EYE_FORWARD, EYE_RADIUS, SHOT_RANGE, WATER_LEVEL, type DroneTarget, type Vec3 } from '../src/game/combat';
 import { createShooterWorld, resolveShot, type ShotHit, type WorldHit } from '../src/game/shotResolve';
-let solids: ReturnType<typeof makeCity>['solids'];
+let geometry: PhysicsGeometry;
 const worlds: RAPIER.World[] = [];
 const v = (x: number, y: number, z: number): Vec3 => ({ x, y, z });
 const unit = (x: number, y: number, z: number) => { const l = Math.hypot(x, y, z); return v(x / l, y / l, z / l); };
-beforeAll(async () => { await RAPIER.init(); const city = makeCity(); solids = city.solids; city.geometry.dispose(); });
+beforeAll(async () => { await RAPIER.init(); geometry = physicsGeometry(false); });
 afterEach(() => { worlds.splice(0).forEach(w => w.free()); });
 /** The city as fixed cuboids plus the six DistrictBoundary cuboids (src/world/DistrictBoundary.tsx) in BOUNDARY_GROUPS. */
 function setup() {
   const world = new RAPIER.World({ x: 0, y: 0, z: 0 }); worlds.push(world);
-  solids.forEach(s => world.createCollider(RAPIER.ColliderDesc.cuboid(...s.size).setTranslation(...s.position).setRotation(new Quaternion().setFromEuler(new Euler(...s.rotation)))));
+  mountPhysicsGeometry(world, geometry);
   const width = WORLD.maxX - WORLD.minX, depth = WORLD.maxZ - WORLD.minZ, cz = (WORLD.minZ + WORLD.maxZ) / 2;
   const walls: [number, number, number, number, number, number][] = [
     // DistrictBoundary's walls: 40 m under the water to 5 m over the ceiling.
@@ -38,14 +37,12 @@ const rawRay = (world: RAPIER.World, o: Vec3, d: Vec3, max: number) => world.cas
 const fwd = v(0, 0, -1);
 
 describe('shot resolution against the city', () => {
-  it('lets a building occlude a drone behind it', () => {
-    const { sw } = setup(), o = v(-34, 10, 50), out = shot(), d = [target(v(-34, 10, 5))];
-    expect(resolveShot(sw, o, fwd, o, null, d, 1, -1, out)).toBe(out);
+  it('lets the summit cliff occlude a drone behind it', () => {
+    const { sw } = setup(), o = v(-15, 50, -38), out = shot(), d = [target(v(40, 50, -38))], east = v(1, 0, 0);
+    expect(resolveShot(sw, o, east, o, null, d, 1, -1, out)).toBe(out);
     expect(out.kind).toBe('world'); expect(out.drone).toBe(-1);
-    expect(out.point.z).toBeGreaterThan(30); expect(out.point.z).toBeLessThan(40);
-    expect(out.normal.z).toBeCloseTo(1, 3); expect(out.t).toBeCloseTo(50 - out.point.z, 6);
-    resolveShot(sw, v(-34, 10, 12), fwd, v(-34, 10, 12), null, d, 1, -1, out); // in front of the building the drone is hit
-    expect(out.kind).toBe('weak'); expect(out.drone).toBe(0); expect(out.t).toBeCloseTo(7 - EYE_FORWARD - EYE_RADIUS, 6);
+    expect(out.point.x).toBeGreaterThan(-15); expect(out.point.x).toBeLessThan(30);
+    expect(out.normal.x).toBeLessThan(0); expect(out.t).toBeCloseTo(out.point.x + 15, 6);
   });
   it('passes through the invisible boundary wall', () => {
     // 100 m from the east wall (since 2026-10-06 the walls are farther out than a shot's range from the centre).

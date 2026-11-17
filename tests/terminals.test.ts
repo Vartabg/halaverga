@@ -35,11 +35,11 @@ describe('terminal table', () => {
     expect(locationName({ x: 300, y: 30, z: -40 })).toBe('Mount of Simeon');
     expect(locationName({ x: 0, y: 20, z: 180 })).toBe('Gate of Gehenna');
   });
-  it('labels every tablet as a cited 1 Enoch quotation and marks the rest as game fiction', () => {
+  it('labels every tablet as a cited quotation and marks the rest as game fiction', () => {
     for (const { record } of TERMINALS) {
-      expect(record.kind).toMatch(/^Quoted source · 1 Enoch \d+:\d/);
+      expect(record.kind).toMatch(/^Quoted source · (1 Enoch|Revelation) \d+:\d/);
       expect(record.date).toBe(record.kind.replace('Quoted source · ', ''));
-      expect(record.note).toContain('R. H. Charles');
+      expect(record.note).toMatch(/R. H. Charles|World English Bible/);
       expect(record.note).toContain('game fiction');
       // 1 Enoch's Ophanim are holy (61:10, 71:7): never the enemy.
       expect(`${record.title} ${record.body}`).not.toMatch(/ophan/i);

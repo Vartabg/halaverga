@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { useFrame, useLoader } from '@react-three/fiber';
+import { useRapier } from '@react-three/rapier';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { MeshStandardMaterial, SkinnedMesh, type PerspectiveCamera } from 'three';
+import { TextureLoader, Vector3, type Object3D, type PerspectiveCamera } from 'three';
+import { BACKDROP_URL } from './backdropConst';
+import { wingTips } from './rushData';
 import { presentation as pose } from '@/game/presentation';
 import { runtime } from '@/game/runtime';
 import { useGame } from '@/game/store';
@@ -12,40 +15,57 @@ import { advanceFlightMix, createFlightMix } from './flightMix';
 import { applyFlightClips } from './flightPose';
 import { advanceSuitRoll, createSuitRoll, speedFade } from './suitRoll';
 import { createBlasterFrame, releaseSuitBlaster, stepSuitBlaster } from './suitBlaster';
-import { createArchangelWings, stepArchangelWings } from './archangelWings';
-import { TREE_URL } from './Reclamation';
-export const SUIT_URL = '/models/suit.glb';
+import { alignArchangelWings, createArchangelWings, stepArchangelWings } from './archangelWings';
+import { angelRegalia } from './angelRegalia';
+import { createWingClearance } from './wingClearance';
+import { bindAngelClips } from './angelClips';
+import { createAngelMotion, stepAngelMotion, turnBody } from './angelMotion';
+import { strike } from '@/game/strike';
+import { createStrikeStance, stepStrikeStance } from './strikeStance';
+import { bulkSuit } from './suitBulk';
+import { gameDt } from '@/game/slowMotion';
+import { cannonLink } from './cannonContract';
+import { beginSuitSprings, createSuitSprings, followBody, followWings, stepClothSway } from './suitSprings';
+export const SUIT_URL = '/models/angel.glb';
+export const ADVERSARY_URL = '/models/abyssal.glb';
 /** Reload scene: forget every model the world loads, so a failed download is fetched again instead of replaying the cached error.
  * One call per file: useLoader.clear with an array clears only the cache entry for that whole array, which nothing loads. */
 export function clearWorldCache() {
-  for (const url of [SUIT_URL, TREE_URL]) useLoader.clear(GLTFLoader, url);
+  useLoader.clear(GLTFLoader, SUIT_URL);
+  useLoader.clear(GLTFLoader, ADVERSARY_URL);
+  useLoader.clear(TextureLoader, BACKDROP_URL);
 }
 const input = { flying: false, landing: false, paused: true, reduced: false, velocity: runtime.velocity, turn: runtime.turn };
+const moveInput = { dt: 0, paused: true, flying: false, ground: 1, speed: 0, sword: false, reduced: false };
+const wrist = new Vector3(), hand = new Vector3();
+function publishTip(bones: readonly Object3D[], out: { x: number; y: number; z: number }) {
+  bones[2].getWorldPosition(wrist); bones[3].getWorldPosition(hand);
+  out.x = hand.x + (hand.x - wrist.x) * 1.4; out.y = hand.y + (hand.y - wrist.y) * 1.4; out.z = hand.z + (hand.z - wrist.z) * 1.4;
+}
 export default function Suit() {
+  const { world, rapier } = useRapier();
   const motion = useRef({ hero: 1, epoch: -1 }), animation = useRef(createSuitAnimation()), flight = useRef(createFlightMix()), turn = useRef(createSuitRoll());
   const asset = useLoader(GLTFLoader, SUIT_URL);
-  const rig = useMemo(() => {
-    const r = buildSuitRig(asset.scene);
-    r.root.traverse(o => {
-      if (!(o instanceof SkinnedMesh) || !(o.material instanceof MeshStandardMaterial)) return;
-      const m = o.material;
-      if (m.name === 'skin') { m.color.set('#e8d5b8'); m.emissive.set('#2c1d0a'); m.roughness = .48; }
-      else { m.color.set('#f4e2b8'); m.emissive.set('#4a2f0c'); m.metalness = .68; m.roughness = .28; }
-    });
-    return r;
-  }, [asset]);
+  const rig = useMemo(() => bulkSuit(buildSuitRig(asset.scene)), [asset]), stance = useRef(createStrikeStance());
+  const clips = useMemo(() => bindAngelClips(asset.animations), [asset]), moves = useRef(createAngelMotion());
   const wings = useMemo(() => {
     const w = createArchangelWings();
-    (rig.joints[2] ?? rig.root).add(w.root);
+    (rig.joints[11] ?? rig.root).add(w.root);
     return w;
   }, [rig]);
+  const clearance = useMemo(() => createWingClearance(wings, world, rapier), [wings, world, rapier]);
   // The blaster block's per-frame inputs (suitBlaster.ts), rewritten in place each frame.
+  const springs = useMemo(() => createSuitSprings(rig.root, rig.joints, wings), [rig, wings]);
+  const regalia = useMemo(() => angelRegalia(rig.root, rig.joints, springs.cloth.at, springs.hair.at), [rig, springs]);
+  const frame = useMemo(() => ({ dt: 0, paused: true, reduced: false, epoch: 0, ground: 1, command: 0, brace: 0 }), []);
   const blaster = useMemo(() => createBlasterFrame(rig, runtime.shooter), [rig]);
-  useEffect(() => () => { wings.root.removeFromParent(); wings.dispose(); releaseSuitBlaster(blaster); rig.dispose(); }, [rig, blaster, wings]);
-  useFrame((three, dt) => {
+  useEffect(() => () => { wings.root.removeFromParent(); wings.dispose(); regalia.dispose(); releaseSuitBlaster(blaster); rig.dispose(); }, [rig, blaster, wings, regalia]);
+  useFrame((three, realDt) => {
+    const dt = gameDt(realDt); // slow motion slows the angel's animation too
     const state = useGame.getState(), m = motion.current, life = animation.current, mix = flight.current;
     if (m.epoch !== pose.epoch) Object.assign(m, { epoch: pose.epoch, hero: state.heroPoses ? 1 : 0 });
     if (!state.paused) advanceSuitMotion(m, state.heroPoses, dt);
+    beginSuitSprings(springs);
     input.flying = state.flying; input.landing = state.landing; input.paused = state.paused; input.reduced = state.reduced;
     advanceSuitAnimation(life, pose, input, dt);
     advanceFlightMix(mix, pose, input, dt);
@@ -59,13 +79,28 @@ export default function Suit() {
     const authored = applyFlightClips(rig.joints, mix, pose, life, m.hero, state.reduced);
     // Visual only: the lift lowers or bobs the model, never the anchor the camera and physics share.
     rig.root.position.y += applySuitAnimation(rig.joints, life, pose, state.reduced, m.hero, authored);
-    stepArchangelWings(wings, state.flying, state.paused, state.reduced, pose.speed, v.y, roll, dt);
+    regalia.step(dt, state.paused || state.reduced || !state.flying);
     // The blaster (arm cannon, carry and aim, whole-body shot choreography, hand hide) layers over everything, in one guarded block.
     const f = blaster, cam = three.camera as PerspectiveCamera;
     f.on = state.shooter; f.third = state.camera === 'third'; f.paused = state.paused; f.reduced = state.reduced; f.epoch = pose.epoch;
     f.flight = pose.flight; f.speed = pose.speed; f.ground = life.ground; f.fov = cam.fov ?? 65; f.height = three.size.height;
     f.camera.x = cam.position.x; f.camera.y = cam.position.y; f.camera.z = cam.position.z;
     stepSuitBlaster(f, dt);
+    // Library clips (idle, the sword cut, the command gestures) over everything above; the springs below follow them through.
+    Object.assign(moveInput, { dt, paused: state.paused, flying: state.flying, ground: life.ground, speed: Math.hypot(v.x, v.z), sword: cannonLink.forearm !== null, reduced: state.reduced });
+    stepAngelMotion(moves.current, clips, rig.joints, moveInput); turnBody(rig.root, moves.current);
+    stepStrikeStance(stance.current, rig.joints, moves.current, moveInput);
+    // Spring follow-through, last over the body (suitSprings.ts): the pose above is the target each bone chases.
+    Object.assign(frame, { dt, paused: state.paused, reduced: state.reduced, epoch: pose.epoch, ground: life.ground, command: runtime.shooter.aim.fireHold, brace: stance.current.brace });
+    followBody(springs, frame); stepClothSway(springs, rig.root, v, dt, state.paused, state.reduced);
+    stepArchangelWings(wings, state.flying, state.paused, state.reduced, pose.speed, v.y, roll, dt, pose.brake, strike.phase === 1);
+    alignArchangelWings(wings, rig.root, pose.lean);
+    clearance.step(v, dt, state.paused, state.reduced);
+    followWings(springs, wings, frame);
+    pose.wingTuck.left = wings.tuck.left; pose.wingTuck.right = wings.tuck.right;
+    // The wingtips in the world, for the vapour they pull at speed (FlightRush.tsx): the hand joint, carried out along the hand.
+    wingTips.live = rig.root.visible && state.flying;
+    if (wingTips.live) { publishTip(wings.left.bones, wingTips.left); publishTip(wings.right.bones, wingTips.right); }
     pose.suitClip = mix.label; pose.suitRoll = roll;
   }, -20);
   return <primitive object={rig.root} dispose={null} />;

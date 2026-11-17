@@ -46,7 +46,7 @@ for (const viewport of [PORTRAIT, LANDSCAPE]) {
       expect(await flying(page)).toBe('true');
       await expect(surface).toHaveAttribute('data-control-mode', 'single');
       await send('touchEnd', [thumb]);
-      await expect.poll(() => speed(page), { timeout: 1500 }).toBeLessThan(.5);
+      await expect.poll(() => speed(page), { timeout: 5000 }).toBeLessThan(.5);
       const rest = await heading(page); await page.waitForTimeout(500); expect(await heading(page)).toBe(rest);
       expect(t.errors).toEqual([]); await t.context.close();
     });
@@ -111,7 +111,7 @@ for (const viewport of [PORTRAIT, LANDSCAPE]) {
       expect(await flying(page)).toBe('true'); expect(await speed(page)).toBeGreaterThan(cruise * .7);
       expect(await shots(page)).toBe(before);
       await send('touchEnd', [thumb]);
-      await expect.poll(() => speed(page), { timeout: 1500 }).toBeLessThan(.5);
+      await expect.poll(() => speed(page), { timeout: 5000 }).toBeLessThan(.5);
       expect(t.errors).toEqual([]); await t.context.close();
     });
     test('a second finger held on a drone becomes the look thumb (dual) and never fires', async ({ browser }) => {
@@ -162,7 +162,7 @@ for (const viewport of [PORTRAIT, LANDSCAPE]) {
 }
 test('fresh storage on a phone starts in the classic one thumb at controls version 6', async ({ browser }) => {
   const context = await browser.newContext({ viewport: PORTRAIT, isMobile: true, hasTouch: true });
-  const page = await context.newPage(); await page.goto('/'); await page.getByRole('button', { name: 'Begin expedition' }).tap();
+  const page = await context.newPage(); await page.goto('/'); await page.getByRole('button', { name: 'Ascend Mount Hermon' }).tap();
   await expect(page.getByTestId('flight-surface')).toHaveAttribute('data-scheme', 'classic');
   await expect(page.getByRole('button', { name: 'Lift', exact: true })).toBeVisible();
   await expect(page.getByTestId('rise-button')).toHaveCount(0); await expect(page.getByTestId('fire-button')).toHaveCount(0);

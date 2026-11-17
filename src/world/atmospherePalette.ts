@@ -31,10 +31,10 @@ export const SUN_XZ: [number, number] = [SUN_DIRECTION[0] / flat, SUN_DIRECTION[
 
 /** HAZE is the one horizon colour: pale dawn mist over the plain below Hermon's summit. Sea far end, fog, dome at and below eye
  * level all land on it. It is the lightest thing in a frame on purpose, so the outer ranges stand against it as dark silhouettes. */
-export const HAZE = '#d9bd97';
+export const HAZE = '#d6c2d0';
 /** The dawn firmament from the horizon up: apricot first light, lavender-grey mid sky, deep violet-blue vault overhead where the
  * stars (the Watchers) are still fading. `warm` lifts the low sky toward the risen sun. */
-export const SKY = { low: '#c99e72', mid: '#7f7fa3', zenith: '#1e2440', warm: '#f7c489' };
+export const SKY = { low: '#d2b4ad', mid: '#7f84b8', zenith: '#2c3262', warm: '#f7c489' };
 /** Dome elevation (dir.y) of the low and mid colour stops: about 10 and 30 degrees. */
 export const SKY_STOPS_H = { low: .17, mid: .5 };
 /** The dawn ceiling: thin high cloud over the summit, dawn-lit tops and violet shade, coverage, texture repeats per unit of plane
@@ -50,16 +50,8 @@ export const skyDirection = (az: number, el: number): Rgb => {
   return [Math.sin(a) * Math.cos(e), Math.sin(e), -Math.cos(a) * Math.cos(e)];
 };
 /** Fog is three's linear smoothstep on view depth, applied after tone mapping, so the colour is exactly what appears on screen.
- * Clear summit air at dawn: it starts farther out and has swallowed everything by 580 m, inside the camera far plane (650). */
-export const FOG = { color: HAZE, near: 50, far: 580 };
-/** The distant Hermon ranges: three layers of neighbouring peaks and watch towers outside the flyable box. `gaps` are metres from
- * the box edge to the nearest footprint on the [north, east and west, south] sides. Tints are display hex before fog, as [lit,
- * shaded]: dawn-lit rock and violet shade. `rust` is first light on the rock, `soot` the shadowed face, `foam` snow at the crest. */
-export const SKYLINE = {
-  seed: 2033, rust: '#d99a5f', soot: '#1c1a24', foam: '#ece7db',
-  gaps: [[110, 120, 200], [170, 180, 260], [240, 250, 330]] as [number, number, number][],
-  tints: [['#6d6a78', '#3f3c4c'], ['#7a7686', '#4c485c'], ['#8a8494', '#5c5768']] as [string, string][],
-};
+ * Clear summit air at dawn over a pale rose-lavender mist: it starts farther out (110 m) and has swallowed everything by 580 m, inside the camera far plane (650). */
+export const FOG = { color: HAZE, near: 110, far: 580 };
 /** Drifting dawn motes (Drift.tsx): snow crystals and dust in first light, per quality level, their size in pixels at 1 m (before
  * the pixel ratio), the side of the box around the camera they fill, their colour (display hex), fall range and wind (m/s) and opacity. */
 export const DRIFT = { count: { high: 2600, low: 1100 }, size: 28, box: 60, color: '#f6efdd', fall: [.3, .8] as [number, number], wind: [.6, .25] as [number, number], alpha: .55 };

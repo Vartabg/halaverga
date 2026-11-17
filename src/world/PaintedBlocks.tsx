@@ -1,5 +1,6 @@
 import { useEffect, useMemo } from 'react';
 import { paintInkMaterial } from './paintInk';
+import { sharedTerrain } from './terrainArt';
 import { paintBlockGeometry } from './paintBlocks';
 import type { Block } from './villageHouseData';
 
@@ -10,7 +11,7 @@ export default function PaintedBlocks({ parts, position = [0, 0, 0], rotation = 
   rotation?: [number, number, number];
 }) {
   const geometry = useMemo(() => paintBlockGeometry(parts), [parts]);
-  const material = useMemo(paintInkMaterial, []);
+  const material = useMemo(() => paintInkMaterial(sharedTerrain), []);
   useEffect(() => () => { geometry.dispose(); material.dispose(); }, [geometry, material]);
   return <mesh geometry={geometry} material={material} position={position} rotation={rotation} castShadow={false} receiveShadow={false} dispose={null} />;
 }

@@ -11,41 +11,41 @@ export function allowedClosing(distance: number) {
   return Math.sqrt(half * half + 2 * a * Math.max(0, distance - CLEARANCE.buffer)) - half;
 }
 export const BUILDING_ROUTE = [
-  { id: 'arrival', label: 'Arrival terrace', x: 0, y: 20 + FOOT, z: 65 },
-  { id: 'lift', label: 'Vertical departure', x: 0, y: 26, z: 65 },
-  { id: 'launch', label: 'Departure', x: 0, y: 26, z: 47 },
-  { id: 'boulevard', label: 'Water corridor', x: 0, y: 3.2, z: 22 },
-  { id: 'viaduct', label: 'Viaduct opening', x: -3, y: 3.2, z: -1 },
-  { id: 'north', label: 'North boulevard', x: 0, y: 8, z: -27 },
-  { id: 'ascent', label: 'Tower approach', x: 9, y: 69, z: -38 },
-  { id: 'roof', label: 'Marked tower roof', x: 30, y: 69, z: -38 },
+  { id: 'arrival', label: 'Threshold of Hermon', x: 0, y: 20 + FOOT, z: 65 },
+  { id: 'lift', label: 'Summit liftoff', x: 0, y: 26, z: 65 },
+  { id: 'launch', label: 'Oath sanctuary departure', x: 0, y: 26, z: 47 },
+  { id: 'boulevard', label: 'Dawn chasm descent', x: 0, y: 3.2, z: 22 },
+  { id: 'viaduct', label: 'Cloven Arch', x: -3, y: 3.2, z: -1 },
+  { id: 'north', label: 'Watcher gorge', x: 0, y: 8, z: -27 },
+  { id: 'ascent', label: 'High Sanctuary ascent', x: 9, y: 69, z: -38 },
+  { id: 'roof', label: 'Sanctuary of the Throne', x: 30, y: 69, z: -38 },
 ] as const;
 // Discoverable story terminals: physical spots paired with the record a
 // player recovers there. Adding a terminal is a content change — Player.tsx
 // reads this table without flight-loop edits.
 export interface Terminal { id: string; position: Vec; radius: number; location: string; record: typeof arrival }
-// Every record body is a verbatim 1 Enoch quotation (kind names the verses); the shared note marks everything around it as game fiction.
-const sourceNote = arrival.note;
+// Records cite their own literary source: Revelation at launch; 1 Enoch at the outlying tablets.
+const sourceNote = "Quoted word for word from R. H. Charles, The Book of Enoch (1917), public domain; his editorial marks are left out. This is a separate literary source from Revelation. The tablet, its title and place names are game fiction.";
 export const TERMINALS: Terminal[] = [
   { id: 'hermon-oath-01', position: { x: -7, y: 21, z: 58 }, radius: 5, location: 'Tablet of Semjaza', record: arrival },
   { id: 'north-core-12', position: { x: 0, y: 12, z: -260 }, radius: 8, location: 'Tablet of the Seven Stars', record: {
     id: 'north-core-12', locationId: 'halaverga-north-core-12', title: 'The Prison of the Burning Stars', kind: 'Quoted source · 1 Enoch 21:3, 6',
-    place: 'Northern Abyss · Prison of the Seven Stars', date: '1 Enoch 21:3, 6',
+    place: 'Northern Abyss · Northern Vigil', date: '1 Enoch 21:3, 6',
     body: "And there I saw seven stars of the heaven bound together in it, like great mountains and burning with fire. … ‘These are of the number of the stars of heaven, which have transgressed the commandment of the Lord, and are bound here till ten thousand years, the time entailed by their sins, are consummated.’",
     note: sourceNote } },
   { id: 'west-flats-09', position: { x: -230, y: 18, z: -40 }, radius: 8, location: 'Tablet of Azazel', record: {
     id: 'west-flats-09', locationId: 'halaverga-west-flats-09', title: 'The Binding in Dudael', kind: 'Quoted source · 1 Enoch 10:4–5',
-    place: 'Western Cleft · Chasm of Dudael', date: '1 Enoch 10:4–5',
+    place: 'Western Cleft · Western Vigil', date: '1 Enoch 10:4–5',
     body: "And again the Lord said to Raphael: ‘Bind Azâzêl hand and foot, and cast him into the darkness: and make an opening in the desert, which is in Dûdâêl, and cast him therein. And place upon him rough and jagged rocks, and cover him with darkness, and let him abide there for ever, and cover his face that he may not see light.’",
     note: sourceNote } },
   { id: 'east-flats-14', position: { x: 230, y: 18, z: -30 }, radius: 8, location: 'Tablet of Kokabiel', record: {
     id: 'east-flats-14', locationId: 'halaverga-east-flats-14', title: 'Secrets of the Firmament', kind: 'Quoted source · 1 Enoch 8:3',
-    place: 'Eastern Monoliths · Mount of Simeon', date: '1 Enoch 8:3',
+    place: 'Eastern Monoliths · Eastern Vigil', date: '1 Enoch 8:3',
     body: "Semjâzâ taught enchantments, and root-cuttings, Armârôs the resolving of enchantments, Barâqîjâl (taught) astrology, Kôkabêl the constellations, Êzêqêêl the knowledge of the clouds, Araqiêl the signs of the earth, Shamsiêl the signs of the sun, and Sariêl the course of the moon.",
     note: sourceNote } },
   { id: 'south-breach-03', position: { x: 0, y: 10, z: 165 }, radius: 8, location: 'Tablet of Michael', record: {
     id: 'south-breach-03', locationId: 'halaverga-south-breach-03', title: 'The Four Looked Down', kind: 'Quoted source · 1 Enoch 9:1',
-    place: 'Southern Abyss · Gate of Gehenna', date: '1 Enoch 9:1',
+    place: 'Southern Abyss · Outer Sanctuary', date: '1 Enoch 9:1',
     body: "And then Michael, Uriel, Raphael, and Gabriel looked down from heaven and saw much blood being shed upon the earth, and all lawlessness being wrought upon the earth.",
     note: sourceNote } },
 ];

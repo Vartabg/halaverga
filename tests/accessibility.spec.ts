@@ -5,13 +5,13 @@ import AxeBuilder from '@axe-core/playwright';
 import { twinTouchPage } from './shooter-browser';
 test('entry, field guide and settings satisfy automated AA checks', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' }); await page.goto('/');
-  await expect(page.getByRole('button', { name: 'Begin expedition' })).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Ascend Mount Hermon' })).toBeEnabled();
   await expect(page.locator('h1')).toHaveCount(1); await expect(page.locator('main')).toHaveCount(1);
   await page.keyboard.press('Tab'); await expect(page.getByText('Skip to text field guide')).toBeFocused();
   const scan = async () => expect((await new AxeBuilder({ page }).withTags(['wcag2a','wcag2aa','wcag21aa','wcag22aa']).analyze()).violations).toEqual([]);
   await scan(); await page.keyboard.press('Enter'); await expect(page.getByRole('dialog')).toBeVisible(); await scan();
   await page.keyboard.press('Escape'); await expect(page.getByRole('dialog')).toHaveCount(0);
-  await page.getByRole('button', { name: 'Begin expedition' }).click();
+  await page.getByRole('button', { name: 'Ascend Mount Hermon' }).click();
   await openSettings(page);
   await expect(page.getByLabel('Reduced camera motion')).toBeChecked(); await scan();
   // Tap controls sit under the More controls disclosure; scan once with it open.
@@ -43,7 +43,7 @@ for (const viewport of [{ width: 852, height: 393 }, { width: 393, height: 852 }
     await page.evaluate(() => history.back());
     await expect(page.getByRole('heading', { name: 'Leave the game?' })).toBeVisible(); await aa(page);
     await page.getByRole('button', { name: 'Keep playing' }).tap(); await page.getByRole('button', { name: 'Pause expedition' }).tap();
-    const card = (await page.getByRole('region', { name: 'Expedition paused' }).boundingBox())!;
+    const card = (await page.getByRole('region', { name: 'Ascent paused' }).boundingBox())!;
     await cdp.send('Input.synthesizePinchGesture', { x: Math.round(card.x + card.width / 2), y: Math.round(card.y + card.height / 2), scaleFactor: 2, relativeSpeed: 600, gestureSourceType: 'touch' });
     await expect.poll(() => page.evaluate(() => visualViewport!.scale)).toBeGreaterThan(1.5);
     await page.getByRole('button', { name: 'Resume flight' }).dispatchEvent('click');
@@ -63,7 +63,7 @@ const wcag = async (page: Page) => expect((await new AxeBuilder({ page }).withTa
 test('Controls on a desktop: the trigger and sheet by keyboard, list radios, fallback buttons and announcements', async ({ page }) => {
   const errors: string[] = []; page.on('pageerror', e => errors.push(e.message));
   await page.emulateMedia({ reducedMotion: 'reduce' }); await page.goto('/?controls=draw');
-  await page.getByRole('button', { name: 'Begin expedition' }).click();
+  await page.getByRole('button', { name: 'Ascend Mount Hermon' }).click();
   await expect(page.getByTestId('lab-surface')).toHaveCount(1);
   // The ghost tip is announced through its own polite live region (not the store message, which showed it twice); the ink canvas
   // and surface stay out of the accessibility tree.
@@ -142,12 +142,12 @@ test('Controls on a phone: play, the pause card row, the sheet over the paused g
   const context = await browser.newContext({ viewport: { width: 852, height: 393 }, isMobile: true, hasTouch: true });
   const page = await context.newPage(), errors: string[] = []; page.on('pageerror', e => errors.push(e.message));
   await page.emulateMedia({ reducedMotion: 'reduce' }); await page.goto('/?controls=brush');
-  await page.getByRole('button', { name: 'Begin expedition' }).tap();
+  await page.getByRole('button', { name: 'Ascend Mount Hermon' }).tap();
   await expect(page.getByTestId('lab-surface')).toHaveCount(1);
   await expect(page.getByRole('button', { name: 'Lift', exact: true })).toBeVisible();
   await aa(page);
   await page.getByRole('button', { name: 'Pause expedition' }).tap();
-  const card = page.getByRole('region', { name: 'Expedition paused' });
+  const card = page.getByRole('region', { name: 'Ascent paused' });
   // The pause card carries one Controls row, not the list: it names the control in use and opens the sheet over the paused game,
   // where the five touch controls are listed. A touch pick closes the sheet and the pause card is back, naming the new control.
   await expect(card.getByTestId('controls-list')).toHaveCount(0);

@@ -31,9 +31,9 @@ for (const viewport of [{ width: 667, height: 320 }, { width: 852, height: 340 }
   const t = await twinTouchPage(browser, viewport), { page } = t;
   await page.getByRole('button', { name: 'Pause expedition' }).tap();
   await expect(page.getByText('Tip: Share › Add to Home Screen for full screen.')).toBeVisible();
-  await inside(page, 'Expedition paused', 'Resume flight');
+  await inside(page, 'Ascent paused', 'Resume flight');
   // The tip is one muted line now (no Got it button): the two rows under Resume are the 44 px targets, side by side.
-  for (const name of ['Field guide', 'Flight settings']) expect((await page.getByRole('region', { name: 'Expedition paused' }).getByRole('button', { name, exact: true }).boundingBox())!.height).toBeGreaterThanOrEqual(44);
+  for (const name of ['Field guide', 'Flight settings']) expect((await page.getByRole('region', { name: 'Ascent paused' }).getByRole('button', { name, exact: true }).boundingBox())!.height).toBeGreaterThanOrEqual(44);
   await axe(page);
   await page.getByRole('button', { name: 'Resume flight' }).tap();
   await expect(page.getByRole('button', { name: 'Pause expedition' })).toBeVisible();

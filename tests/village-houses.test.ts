@@ -39,4 +39,8 @@ describe('village houses', () => {
     expect(src).not.toContain('CuboidCollider');
     expect(src).not.toContain('map:');
   });
+
+  it('keeps box-stacked houses retired from the active Hermon sanctuary scene', () => {
+    expect(readFileSync('src/world/HermonCity.tsx', 'utf8')).not.toContain('<VillageHouses />');
+  });
 });

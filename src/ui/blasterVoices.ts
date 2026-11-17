@@ -84,13 +84,13 @@ export const VOICES: Record<Voice, Build> = {
   },
   overheat(ctx, dest, noise, rng) {
     const t = ctx.currentTime; hiss(ctx, dest, noise, rng, t, .4, .08, 'highpass', 4000, .7, .05);
-    return tone(ctx, dest, 'sawtooth', 600, 200, t, .4, .18, .01);
+    return tone(ctx, dest, 'triangle', 520, 220, t, .4, .2, .01);
   },
   vent(ctx, dest, noise, rng) {
     const t = ctx.currentTime; hiss(ctx, dest, noise, rng, t, .01, .2, 'highpass', 2000, .7, .001);
-    return tone(ctx, dest, 'sine', 400, 1600, t, .18, .2, .01);
+    return tone(ctx, dest, 'sine', 880, 440, t, .18, .15, .01);
   },
-  telegraph: (ctx, dest) => tone(ctx, dest, 'square', 700, 1800, ctx.currentTime, .22, .08, .01),
+  telegraph: (ctx, dest) => tone(ctx, dest, 'triangle', 700, 1800, ctx.currentTime, .22, .08, .01),
   arrive(ctx, dest) {
     const t = ctx.currentTime; tone(ctx, dest, 'sine', 500, 500, t, .15, .16, .01);
     return tone(ctx, dest, 'sine', 750, 750, t + .15, .15, .16, .01);

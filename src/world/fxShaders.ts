@@ -37,7 +37,8 @@ void main(){ float d = abs(vUv.y - .5) * 2., hot = 1. - smoothstep(0., .38, d), 
   #include <colorspace_fragment>
 }`;
 /**
- * Per-instance alpha and view-space billboarding. The instance matrix carries position plus a 2x2 screen transform in its first two
+ * Per-instance alpha and view-space billboarding. An alpha above 1 is a density: the soft disc's middle fills in solid and only
+ * its edge stays soft (a thrown demon's dust and spray, fxSlam.ts); the result is held to 1. The instance matrix carries position plus a 2x2 screen transform in its first two
  * columns' xy: a plain scale (fxMaterials.place) draws an upright sprite; a rotated pair (fxMaterials.placeTurned) a turned one.
  * A slot whose matrix has its [0].w flag set to 1 (fxMaterials.placeOnSurface) is a world-oriented quad instead: the scorch marks
  * share the alpha pool's draw call this way (2026-10-07, so the impacts stay at 5 draw calls).
@@ -50,15 +51,16 @@ vec4 mvPosition = modelViewMatrix * fxM * vec4(fxFlat > .5 ? position : vec3(0.)
 if (fxFlat <= .5) mvPosition.xy += fxM[0].xy * position.x + fxM[1].xy * position.y;
 gl_Position = projectionMatrix * mvPosition;`);
   shader.fragmentShader = shader.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vAlpha;')
-    .replace('#include <color_fragment>', '#include <color_fragment>\ndiffuseColor.a *= vAlpha;');
+    .replace('#include <color_fragment>', '#include <color_fragment>\ndiffuseColor.a = min(1., diffuseColor.a * vAlpha);');
 }
 /**
  * The alpha-blended (smoke, dust) billboard with a lit edge: the puff's own colour fills its middle and a lighter shade of it
  * (2.4x + .06) takes over toward the soft edge, where the disc texture's alpha (1 - r)^2 falls off. Dark smoke then keeps a dark
- * centre against the overcast and a lit rim against the dark ruins, so it reads on either.
+ * centre against the overcast and a lit rim against the dark ruins, so it reads on either. A dense puff (alpha above 1) keeps its
+ * own colour across the part that density fills in, so the lit shade stays at the soft edge and never becomes a bright band.
  */
 export function billboardLit(shader: WebGLProgramParametersWithUniforms) {
   billboard(shader);
-  shader.fragmentShader = shader.fragmentShader.replace('#include <color_fragment>\ndiffuseColor.a *= vAlpha;',
-    '#include <color_fragment>\ndiffuseColor.rgb = mix(diffuseColor.rgb * 2.4 + .06, diffuseColor.rgb, sqrt(clamp(diffuseColor.a, 0., 1.)));\ndiffuseColor.a *= vAlpha;');
+  shader.fragmentShader = shader.fragmentShader.replace('#include <color_fragment>\ndiffuseColor.a = min(1., diffuseColor.a * vAlpha);',
+    '#include <color_fragment>\ndiffuseColor.rgb = mix(diffuseColor.rgb * 2.4 + .06, diffuseColor.rgb, sqrt(clamp(diffuseColor.a * max(1., vAlpha), 0., 1.)));\ndiffuseColor.a = min(1., diffuseColor.a * vAlpha);');
 }

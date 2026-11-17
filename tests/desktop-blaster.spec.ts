@@ -137,7 +137,7 @@ test('closing Flight settings by × or Escape returns to the pause card; Resume 
   await expect(scene(page)).toHaveAttribute('data-trackpad-active', 'true'); await expect(dialog).toHaveCount(0);
   // Back on the terrace (the reset waits for Resume, as the dialog closes onto the pause card), then the Escape close.
   await openSettings(page);
-  await page.getByRole('button', { name: 'Return to arrival terrace' }).click();
+  await page.getByRole('button', { name: 'Return to summit altar' }).click();
   await expect(pauseCard(page)).toBeVisible();
   await resume(page);
   await expect(telemetry(page)).toHaveAttribute('data-flying', 'false');

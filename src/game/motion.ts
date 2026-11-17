@@ -2,8 +2,7 @@ export type Vec = { x: number; y: number; z: number };
 export type Intent = { forward: number; strafe: number; vertical: number; precise?: true };
 export const FOOT = 1.06;
 export const START: Vec = { x: 0, y: 20 + FOOT, z: 65 };
-/** The flyable box. Since 2026-10-06 ("open it up") it holds the whole drowned city around the district, about five times the old
- * district box (-205..205, -188..108, ceiling 105); the ceiling clears the tallest ruins. */
+/** The flyable Mount Hermon open world: connected near slopes, outer alpine ranges, and clear air above their highest crests. */
 export const WORLD = { minX: -420, maxX: 420, minZ: -430, maxZ: 300, ceiling: 150 };
 /** Where a flying suit's floor is (boundMovement clamps at it); the water is at y = 0.1. */
 export const FLIGHT_FLOOR = 1.7;

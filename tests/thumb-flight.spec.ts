@@ -3,11 +3,11 @@ import { openSettings, openGuide, closeAndResume } from './lab-browser';
 import { CLASSIC, seed } from './shooter-browser';
 
 for (const [side, x, camera] of [['left', 90, 'Third person'], ['right', 290, 'First person']] as const) {
-  test(`one ${side} thumb lifts, aims, accelerates and brakes in ${camera}`, async ({ browser }) => {
+  test(`one ${side} thumb looks still, holds Fly and releases to hover in ${camera}`, async ({ browser }) => {
     const context = await browser.newContext({ viewport: { width: 393, height: 852 }, isMobile: true, hasTouch: true });
     const page = await context.newPage(), errors: string[] = []; await seed(page, CLASSIC);
     page.on('pageerror', e => errors.push(e.message));
-    await page.goto('/'); await page.getByRole('button', { name: 'Begin expedition' }).tap();
+    await page.goto('/'); await page.getByRole('button', { name: 'Ascend Mount Hermon' }).tap();
     if (camera === 'First person') {
       await openSettings(page, true);
       await page.getByRole('button', { name: camera, exact: true }).tap();
@@ -22,23 +22,20 @@ for (const [side, x, camera] of [['left', 90, 'Third person'], ['right', 290, 'F
     // A tap is not an accidental launch, even on the former look-only side.
     await page.getByTestId('flight-surface').tap({ position: { x, y: 650 } });
     await page.waitForTimeout(300); await expect(telemetry).toHaveAttribute('data-flying', 'false');
-    await send('touchStart', x, 650); await page.waitForTimeout(1100);
-    await expect(telemetry).toHaveAttribute('data-flying', 'true');
-    expect(await metric('speed')).toBeGreaterThan(5); expect(await metric('speed')).toBeLessThan(9);
-    const startHeight = JSON.parse((await telemetry.getAttribute('data-position'))!)[1];
-    // The same live contact steers right/up and increases speed without a button.
-    await send('touchMove', x + 40, 530); await page.waitForTimeout(1000);
-    expect(await metric('heading')).toBeLessThan(-.15); expect(await metric('pitch')).toBeGreaterThan(.4);
-    expect(await metric('speed')).toBeGreaterThan(25);
-    expect(JSON.parse((await telemetry.getAttribute('data-position'))!)[1]).toBeGreaterThan(startHeight + 3);
-    await send('touchMove', x - 30, 675); await page.waitForTimeout(500);
-    expect(await metric('heading')).toBeGreaterThan(.1); expect(await metric('pitch')).toBeLessThan(-.2);
-    // The edge continues a turn while this single thumb stays still.
-    await send('touchMove', 389, 630); await page.waitForTimeout(400);
-    const edgeHeading = await metric('heading'); await page.waitForTimeout(500);
-    expect(await metric('heading')).toBeLessThan(edgeHeading - .3);
+    // Empty-scene holding and dragging looks without launching, in either camera.
+    await send('touchStart', x, 650); await send('touchMove', x + 35, 610); await page.waitForTimeout(650);
+    await expect(telemetry).toHaveAttribute('data-flying', 'false'); expect(await metric('speed')).toBeLessThan(.5);
     await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
-    await page.waitForTimeout(1100); expect(await metric('speed')).toBeLessThan(.5);
+    const fly = (await page.getByRole('button', { name: 'Hold to fly', exact: true }).boundingBox())!;
+    const fx = fly.x + fly.width / 2, fy = fly.y + fly.height / 2;
+    await send('touchStart', fx, fy); await page.waitForTimeout(1100);
+    await expect(telemetry).toHaveAttribute('data-flying', 'true'); expect(await metric('speed')).toBeGreaterThan(8);
+    const startHeight = JSON.parse((await telemetry.getAttribute('data-position'))!)[1];
+    await send('touchMove', fx + 40, fy - 120); await page.waitForTimeout(1000);
+    expect(await metric('pitch')).toBeGreaterThan(.2);
+    expect(JSON.parse((await telemetry.getAttribute('data-position'))!)[1]).toBeGreaterThan(startHeight + 3);
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    await expect.poll(() => metric('speed'), { timeout: 6000 }).toBeLessThan(.5); // a flare over a distance, then hover
     const releasedHeading = await metric('heading'); await page.waitForTimeout(400);
     expect(await metric('heading')).toBe(releasedHeading);
     expect(errors).toEqual([]); await context.close();
@@ -48,7 +45,7 @@ for (const [side, x, camera] of [['left', 90, 'Third person'], ['right', 290, 'F
 test('long presses on controls and their surroundings do not select game text', async ({ browser }) => {
   const context = await browser.newContext({ viewport: { width: 393, height: 852 }, isMobile: true, hasTouch: true });
   const page = await context.newPage(); await seed(page, CLASSIC); await page.goto('/');
-  await page.getByRole('button', { name: 'Begin expedition' }).tap();
+  await page.getByRole('button', { name: 'Ascend Mount Hermon' }).tap();
   const lift = page.getByRole('button', { name: 'Lift', exact: true }), bounds = (await lift.boundingBox())!;
   const cdp = await context.newCDPSession(page);
   for (const x of [bounds.x + 3, bounds.x + bounds.width / 2, bounds.x - 6]) {
@@ -74,7 +71,7 @@ test('long presses on controls and their surroundings do not select game text', 
 test('rotation releases both thumbs and keeps playing, without changing the view', async ({ browser }) => {
   const context = await browser.newContext({ viewport: { width: 393, height: 852 }, isMobile: true, hasTouch: true });
   const page = await context.newPage(); await seed(page, CLASSIC); await page.goto('/');
-  await page.getByRole('button', { name: 'Begin expedition' }).tap();
+  await page.getByRole('button', { name: 'Ascend Mount Hermon' }).tap();
   const cdp = await context.newCDPSession(page), telemetry = page.getByTestId('flight-telemetry');
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: 90, y: 650, id: 1 }] });
   await page.waitForTimeout(850);

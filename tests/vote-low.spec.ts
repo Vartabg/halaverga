@@ -36,7 +36,7 @@ test('@vote V7 after this family voted the Controls sheet has no accent Vote but
   await openSheet(page);
   const vote = sheet(page).getByTestId('controls-vote');
   await expect(vote).toHaveText('Vote sent: see results');
-  expect(await vote.evaluate(e => getComputedStyle(e).backgroundColor)).not.toBe('rgb(94, 230, 208)');
+  expect(await vote.evaluate(e => getComputedStyle(e).backgroundColor)).not.toBe('rgb(242, 184, 75)');
   await expect(page.getByTestId('controls-tried')).toHaveText('Tried 2 of 8');
   await vote.click();
   await expect(card(page)).toBeVisible(); await expect(card(page)).toHaveAttribute('data-phase', 'done'); // it still opens the thanks

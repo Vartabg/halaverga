@@ -4,13 +4,15 @@ import { openSettings, openGuide, closeAndResume } from './lab-browser';
 test('loads, lifts, moves, brakes, switches cameras and survives pause', async ({ page }) => {
   const errors: string[] = []; page.on('pageerror', e => errors.push(e.message));
   page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
-  await page.goto('/?shooter=0'); await page.getByRole('button', { name: 'Begin expedition' }).click();
+  await page.goto('/?shooter=0'); await page.getByRole('button', { name: 'Ascend Mount Hermon' }).click();
   const telemetry = page.getByTestId('flight-telemetry');
   await page.keyboard.press('Space'); await expect(telemetry).toHaveAttribute('data-flying', 'true');
   await page.keyboard.down('KeyW'); await page.waitForTimeout(1000); await page.keyboard.up('KeyW');
   const traveled = JSON.parse((await telemetry.getAttribute('data-position'))!);
   expect(traveled[2]).toBeLessThan(64);
-  await page.waitForTimeout(1300); expect(Number(await telemetry.getAttribute('data-speed'))).toBeLessThan(.5);
+  await page.keyboard.press('KeyB'); await page.waitForTimeout(1300); expect(Number(await telemetry.getAttribute('data-speed'))).toBeLessThan(.5);
+  // Pause/camera switching must preserve the settled position, not the earlier position before braking finished.
+  const parked = JSON.parse((await telemetry.getAttribute('data-position'))!);
   await page.keyboard.press('Escape'); await expect(page.getByRole('heading', { name: 'Take your time.' })).toBeVisible();
   await page.getByRole('button', { name: 'Flight settings', exact: true }).click();
   await page.getByRole('button', { name: 'First person', exact: true }).click();
@@ -18,24 +20,24 @@ test('loads, lifts, moves, brakes, switches cameras and survives pause', async (
   await expect(telemetry).toHaveAttribute('data-flying', 'true');
   await page.waitForTimeout(500);
   const resumed = JSON.parse((await telemetry.getAttribute('data-position'))!);
-  expect(Math.abs(resumed[2] - traveled[2])).toBeLessThan(3);
+  expect(Math.hypot(...resumed.map((v: number, i: number) => v - parked[i]))).toBeLessThan(.4);
   await openSettings(page);
   await expect(page.getByRole('button', { name: 'First person', exact: true })).toHaveAttribute('aria-pressed', 'true');
-  await page.getByRole('button', { name: 'Return to arrival terrace' }).click();
+  await page.getByRole('button', { name: 'Return to summit altar' }).click();
   await resume(page); await expect(telemetry).toHaveAttribute('data-flying', 'false');
   expect(errors).toEqual([]);
 });
 test('portrait/landscape resize retains position and text route works', async ({ page }) => {
   await page.setViewportSize({ width: 393, height: 852 });
-  await page.goto('/?shooter=0'); await page.getByRole('button', { name: 'Begin expedition' }).click();
-  await page.keyboard.press('Space'); await page.waitForTimeout(800);
+  await page.goto('/?shooter=0'); await page.getByRole('button', { name: 'Ascend Mount Hermon' }).click();
+  await page.keyboard.press('Space'); await page.waitForTimeout(800); await page.keyboard.press('KeyB'); await page.waitForTimeout(1000);
   const telemetry = page.getByTestId('flight-telemetry');
   const before = JSON.parse((await telemetry.getAttribute('data-position'))!);
   await page.setViewportSize({ width: 852, height: 393 }); await page.waitForTimeout(500);
   const after = JSON.parse((await telemetry.getAttribute('data-position'))!);
   expect(Math.hypot(...after.map((v: number, i: number) => v - before[i]))).toBeLessThan(.4);
   await openGuide(page);
-  await page.getByRole('button', { name: 'Recover municipal record' }).click();
+  await page.getByRole('button', { name: 'Recover tablet record' }).click();
   await expect(page.getByText('The Oath upon Mount Hermon', { exact: true })).toBeVisible();
   await expect(page.getByText('Quoted source · 1 Enoch 6:6', { exact: true })).toBeVisible();
 });

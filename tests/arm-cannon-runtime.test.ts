@@ -155,7 +155,7 @@ describe('arm cannon handshake', () => {
 describe('arm cannon warm-up and disposal', () => {
   it('warms the shaders against the real scene (source guard)', () => {
     const tsx = readFileSync(new URL('../src/world/ArmCannon.tsx', import.meta.url), 'utf8');
-    expect(tsx).toMatch(/compileAsync\(\s*cannon\.root,\s*state\.camera,\s*state\.scene\s*\)/);
+    expect(tsx).toMatch(/compile\(\s*cannon\.root,\s*state\.camera,\s*state\.scene\s*\)/);
     expect(tsx).toMatch(/useFrame\(tick,\s*-19\)/);
     expect(tsx).toMatch(/guarded\('ArmCannon'/);
   });

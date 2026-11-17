@@ -15,7 +15,7 @@ export const CONTROLS_W = 108;
 export async function voteProblems(page: Page, mode: Mode): Promise<string[]> {
   const problems: string[] = [], n = (id: string) => page.getByTestId(id).count(), ready = mode.vote === 'ready';
   const trigger = page.getByTestId('controls-trigger'), has = await trigger.count() > 0, chips = await n('vote-chip'), doors = await n('vote-open'), buttons = await n('controls-vote');
-  const dotCount = await page.getByTestId('vote-dots').locator('i').count(), slot = await n('vote-dots'), pausedCard = await page.getByRole('region', { name: 'Expedition paused' }).count();
+  const dotCount = await page.getByTestId('vote-dots').locator('i').count(), slot = await n('vote-dots'), pausedCard = await page.getByRole('region', { name: 'Ascent paused' }).count();
   if (has) {
     if (chips !== (ready ? 1 : 0)) problems.push(`${chips} Vote pill(s) while ${mode.vote}`);
     if (dotCount !== (ready ? 0 : 2)) problems.push(`${dotCount} dots while ${mode.vote}`);

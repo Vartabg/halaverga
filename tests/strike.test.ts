@@ -1,0 +1,59 @@
+import { describe, expect, it } from 'vitest';
+import { STRIKE, beginStrike, cancelStrike, landStrike, strike, strikeVelocity } from '../src/game/strike';
+
+describe('sword strike dive', () => {
+  it('dives at the target at strike speed, freezes on the blow, runs its short carry and hands flight back', () => {
+    cancelStrike(); const p = { x: 0, y: 0, z: 0 }, v = { x: 0, y: 0, z: 0 };
+    beginStrike(0, { x: 0, y: 0, z: -30 }, 30);
+    for (let k = 0; k < 10; k++) strikeVelocity(v, p, 1 / 60, false);
+    expect(v.z).toBeCloseTo(-STRIKE.minSpeed - 16.43, 0); // 30 m in .42 s, above the minimum expect(Math.hypot(v.x, v.y)).toBeLessThan(1e-6);
+    landStrike(); strikeVelocity(v, p, 1 / 60, false);
+    expect(Math.hypot(v.x, v.y, v.z)).toBe(0); // the freeze
+    for (let k = 0; k < 4; k++) strikeVelocity(v, p, 1 / 60, false);
+    v.x = v.y = v.z = 0; strikeVelocity(v, p, 1 / 60, false); expect(v.z).toBeLessThan(-20); // momentum out the far side
+    for (let k = 0; k < 40; k++) { v.x = v.y = v.z = 0; strikeVelocity(v, p, 1 / 60, false); }
+    expect(strike.phase).toBe(0); expect(strikeVelocity(v, p, 1 / 60, false)).toBe(false);
+  });
+  it('enters a strike from incoming travel instead of snapping direction or dumping speed', () => {
+    cancelStrike(); const p = { x: 0, y: 0, z: 0 }, v = { x: 60, y: 0, z: 0 };
+    beginStrike(0, { x: 0, y: 0, z: -30 }, 30); strikeVelocity(v, p, 1 / 60, false);
+    expect(v.x).toBeGreaterThan(58); expect(Math.abs(v.z)).toBeLessThan(4); expect(Math.hypot(v.x, v.y, v.z)).toBeGreaterThanOrEqual(60);
+  });
+  it('a dive that never connects gives up after its time and hands flight back', () => {
+    cancelStrike(); const p = { x: 0, y: 0, z: 0 }, v = { x: 0, y: 0, z: 0 };
+    beginStrike(0, { x: 0, y: 0, z: -500 });
+    for (let t = 0; t < STRIKE.maxTime + .05; t += 1 / 60) strikeVelocity(v, p, 1 / 60, false);
+    expect(strike.phase).toBe(0); expect(strike.landed).toBe(false); expect(strike.target).toBe(-1);
+  });
+  it('a long dive zips faster, capped', () => {
+    cancelStrike(); beginStrike(0, { x: 0, y: 0, z: -50 }, 50); expect(strike.speed).toBeCloseTo(50 / STRIKE.dive, 3);
+    beginStrike(0, { x: 0, y: 0, z: -400 }, 400); expect(strike.speed).toBe(STRIKE.maxSpeed);
+  });
+  it('a finishing blow brakes to a hover instead of carrying through', () => {
+    cancelStrike(); const p = { x: 0, y: 0, z: 0 }, v = { x: 0, y: 0, z: -130 };
+    beginStrike(0, { x: 0, y: 0, z: -30 }, 30); landStrike(false);
+    for (let k = 0; k < 20 && strike.phase !== 0; k++) { v.z = -130; strikeVelocity(v, p, 1 / 60, false); }
+    expect(v.z).toBe(0); expect(strike.phase).toBe(0);
+  });
+  it('a finishing blow stops at the demon even with flight held: the strike never carries the angel on by itself', () => {
+    cancelStrike(); const p = { x: 0, y: 0, z: 0 }, v = { x: 0, y: 0, z: -100 };
+    beginStrike(0, { x: 0, y: 0, z: -70 }, 70);
+    strike.dir.x = 0; strike.dir.y = 0; strike.dir.z = -1; landStrike(false);
+    for (let k = 0; k < 24 && strike.phase; k++) { v.z = -100; strikeVelocity(v, p, 1 / 60, true, true); }
+    expect(strike.phase).toBe(0); expect(Math.hypot(v.x, v.y, v.z)).toBe(0);
+  });
+  it('the carry (a warden throwing the angel back) is never faster than its own speed, with or without the freeze', () => {
+    for (const reduced of [false, true]) {
+      cancelStrike(); const p = { x: 0, y: 0, z: 0 }, v = { x: 0, y: 0, z: -120 };
+      beginStrike(0, { x: 0, y: 0, z: -70 }, 70); landStrike(true, .07); strike.carrySpeed = 24;
+      let peak = 0;
+      for (let k = 0; k < 40 && strike.phase; k++) { if (reduced) v.z = -120; strikeVelocity(v, p, 1 / 60, reduced, false); peak = Math.max(peak, Math.hypot(v.x, v.y, v.z)); }
+      expect(strike.phase).toBe(0); expect(peak).toBeLessThanOrEqual(24); expect(peak).toBeGreaterThan(10);
+    }
+  });
+  it('reduced motion strikes without the freeze', () => {
+    cancelStrike(); const p = { x: 0, y: 0, z: 0 }, v = { x: 0, y: 0, z: 0 };
+    beginStrike(0, { x: 0, y: 0, z: -30 }); landStrike(); strikeVelocity(v, p, 1 / 60, true);
+    expect(Math.hypot(v.x, v.y, v.z)).toBeGreaterThan(0);
+  });
+});

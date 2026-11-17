@@ -15,7 +15,9 @@ export const FX = { core: new Color('#fffbe6'), fringe: new Color('#ffbe44'), ho
   metal: new Color('#454c55'), panel: new Color('#585f68'), rust: new Color('#5e2a1e'), char: new Color('#2b1d17'),
   // Lingering kill smoke and the failing drone's trail: darker than the dawn haze, lighter than the rock (the lit rim in
   // fxShaders.billboardLit does the rest), concrete dust, and the white-hot steel ping.
-  ash: new Color('#3b3733'), ashEnd: new Color('#5b5651'), scorch: new Color('#0d0b0a'), dust: new Color('#6a655c'), dustEnd: new Color('#8a847a'), steelHot: new Color('#fff3d6') };
+  ash: new Color('#3b3733'), ashEnd: new Color('#5b5651'), scorch: new Color('#0d0b0a'), dust: new Color('#6a655c'), dustEnd: new Color('#8a847a'), steelHot: new Color('#fff3d6'),
+  // A thrown demon striking the mountain or the gorge (fxSlam.ts): Hermon's pale stone as dust, the darker earth under it, and dawn-lit spray.
+  stone: new Color('#a69786'), stoneEnd: new Color('#d3c9ba'), earth: new Color('#5f4b3c'), spray: new Color('#f3e7d6'), sprayEnd: new Color('#ffffff') };
 /** Sparks never draw below this many drawing-buffer pixels (2 CSS px; ImpactFx sets it from the pixel ratio each frame). */
 export const sparkMinPx = { value: 2 };
 function haloTexture() {

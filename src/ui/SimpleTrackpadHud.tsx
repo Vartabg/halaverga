@@ -15,7 +15,7 @@ export default function SimpleTrackpadHud() {
   return <div className={styles.hud} data-testid="simple-trackpad-hud">
     <div className={styles.readout}><span>ONE FINGER + KEYS</span></div>
     {/* With the blaster the capture click never lifts (keys fly), so on the ground it too only frees the view. */}
-    <p>{engaged ? 'SLIDE TO LOOK · HOLD WASD TO MOVE · RELEASE KEYS TO HOVER' : flying || blaster ? 'CLICK THE SCENE TO LOOK FREELY' : 'CLICK THE SCENE TO LIFT INTO HOVER'}</p>
+    <p>{engaged ? 'SLIDE TO LOOK · HOLD WASD TO MOVE · RELEASE TO GLIDE · B TO BRAKE' : flying || blaster ? 'CLICK THE SCENE TO LOOK FREELY' : 'CLICK THE SCENE TO LIFT INTO HOVER'}</p>
     <small>R / F RISE / DESCEND · SHIFT SURGE · SPACE LIFT / LAND<br />{engaged ? locked : 'DRAG OR ARROW KEYS TO LOOK · ESC TO PAUSE'}</small>
   </div>;
 }

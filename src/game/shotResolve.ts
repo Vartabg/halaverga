@@ -10,6 +10,15 @@ export type ShooterWorld = {
 };
 export type ShotHit = { kind: 'miss' | 'world' | 'water' | 'hit' | 'weak' | 'blocked'; t: number; drone: number; point: Vec3; normal: Vec3; surface: number };
 
+const segmentDir: Vec3 = { x: 0, y: 0, z: 0 }, segmentHit: WorldHit = { t: 0, normal: { x: 0, y: 0, z: 0 }, surface: 0 };
+/** Projectiles need the WHOLE short segment: the aiming lineClear deliberately omits its final .5 m. */
+export function shotSegmentClear(w: ShooterWorld, a: Vec3, b: Vec3): boolean {
+  const x = b.x - a.x, y = b.y - a.y, z = b.z - a.z, length = Math.hypot(x, y, z);
+  if (length < 1e-8) return true;
+  segmentDir.x = x / length; segmentDir.y = y / length; segmentDir.z = z / length;
+  return !w.castShot(a, segmentDir, length, segmentHit);
+}
+
 /** Shots and line-of-sight rays see fixed colliders in group 0 only: the player capsule and district boundary are skipped. */
 export function createShooterWorld(world: RAPIER.World, rapier: typeof RAPIER): ShooterWorld {
   const ray = new rapier.Ray({ x: 0, y: 0, z: 0 }, { x: 0, y: 0, z: -1 });

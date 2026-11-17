@@ -27,6 +27,7 @@ import Landing, { Brand } from './Landing';
 import styles from './Experience.module.css';
 const Scene = dynamic(() => import('@/world/Scene'), { ssr: false });
 // The blaster HUD is its own chunk: the landing page's first load carries no shooter UI. It is warmed once the setting is on.
+const BattleHud = dynamic(() => import('./BattleHud'), { ssr: false });
 const Reticle = () => <div className={styles.reticle} aria-hidden="true"><span /></div>;
 const loadHud = () => import('./ShooterHud');
 const ShooterHud = dynamic(loadHud, { ssr: false, loading: Reticle });
@@ -150,6 +151,7 @@ export default function Experience() {
       {/* The title, the start card (with the first-visit demo note) and the footer, or the failed world's card (Landing.tsx). */}
       <Landing started={state.started} failed={failed} ready={ready} zoomNote={state.zoomNote} note={guide.note} onEnter={enter} onRetry={retry}><Optional><ControlsEntry part="note" /></Optional></Landing>
       {state.started && <>
+        {state.shooter && <Optional><BattleHud /></Optional>}
         {/* A fresh mount per pause state, as on main: the desktop trackpad hooks keep per-session refs (capture, strokes) that
             must reset on resume. inputEpoch moves only in desktop mode; touch controls re-anchor themselves on rotation. */}
         {standard ? TouchControls && <TouchControls key={`${state.paused}-${state.inputEpoch}`} />

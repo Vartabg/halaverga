@@ -1,13 +1,22 @@
 import { useEffect } from 'react';
 import { useThree } from '@react-three/fiber';
 import { SUN_UV, directionFromUv, skyBase } from './atmospherePalette';
-import { DataTexture, DataUtils, EquirectangularReflectionMapping, HalfFloatType, PMREMGenerator, RGBAFormat } from 'three';
+import { DataTexture, DataUtils, EquirectangularReflectionMapping, HalfFloatType, PMREMGenerator, RGBAFormat, type Texture } from 'three';
 
-/** A small shared sky reflection, generated once from the same dawn as the dome and the water (dawn light bouncing off the
- * valley waters below the horizon, a warm brightening where the sun has risen). No second scene render per frame. */
-export default function EnvironmentLight() {
+/** A small shared sky reflection, generated once. By default from the same dawn as the dome and the water (dawn light bouncing off
+ * the valley waters below the horizon, a warm brightening where the sun has risen); with `source` (the painted backdrop, turned by
+ * `turn` radians to the sun's azimuth) from that image, so reflections on the angel and metal agree with the painted sky. No second
+ * scene render per frame. */
+export default function EnvironmentLight({ source: painted, turn = 0 }: { source?: Texture; turn?: number }) {
   const { gl, scene, invalidate } = useThree();
   useEffect(() => {
+    if (painted) {
+      const generator = new PMREMGenerator(gl), target = generator.fromEquirectangular(painted);
+      const before = { map: scene.environment, intensity: scene.environmentIntensity, turn: scene.environmentRotation.y };
+      scene.environment = target.texture; scene.environmentIntensity = .4; scene.environmentRotation.y = turn;
+      generator.dispose(); invalidate();
+      return () => { scene.environment = before.map; scene.environmentIntensity = before.intensity; scene.environmentRotation.y = before.turn; target.dispose(); };
+    }
     const width = 256, height = 128, data = new Uint16Array(width * height * 4);
     for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
       const u = (x + .5) / width, v = (y + .5) / height;
@@ -32,6 +41,6 @@ export default function EnvironmentLight() {
     scene.environment = target.texture; scene.environmentIntensity = .45;
     source.dispose(); generator.dispose(); invalidate();
     return () => { scene.environment = previous; scene.environmentIntensity = intensity; target.dispose(); };
-  }, [gl, scene, invalidate]);
+  }, [gl, scene, invalidate, painted, turn]);
   return null;
 }

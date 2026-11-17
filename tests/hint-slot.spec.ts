@@ -38,14 +38,14 @@ test('@hint D6: a control picked under the open sheet is named once the sheet cl
 
 test('@hint G1: a 6 s lesson keeps its clock while the sheet covers the slot, and goes after its own 6 s', async ({ browser }) => {
   const t = await labPage(browser, 'standard', { viewport: { width: 1440, height: 900 }, saved: CAPTURED }), { page } = t;
-  await expect(lesson(page)).toHaveText('Hold C to fire');
+  await expect(lesson(page)).toHaveText('C: next step');
   await expect(lesson(page)).toHaveAttribute('data-track', 'line');
   await page.waitForTimeout(1200);
   await openSheet(page);
   await expect(hintSlot(page)).toHaveCount(0);
   await page.waitForTimeout(7500); // more than the whole 6 s: it would be gone if the clock ran under the sheet
   await sheet(page).getByTestId('controls-done').click();
-  await expect(lesson(page)).toHaveText('Hold C to fire');
+  await expect(lesson(page)).toHaveText('C: next step');
   const back = Date.now();
   await expect(lesson(page)).toHaveCount(0, { timeout: 9000 });
   expect(Date.now() - back, 'the rest of its 6 s, not a fresh 6 s').toBeLessThan(6500);
@@ -59,10 +59,10 @@ test('@hint a 6 s lesson comes back after each Resume until the first takeoff, a
     await page.getByRole('button', { name: 'Resume flight' }).click();
     await expect(page.getByRole('button', { name: 'Pause expedition' })).toBeVisible();
   };
-  await expect(lesson(page)).toHaveText('Hold C to fire');
+  await expect(lesson(page)).toHaveText('C: next step');
   await expect(lesson(page)).toHaveCount(0, { timeout: 9000 }); // its 6 s
   await pauseResume();
-  await expect(lesson(page)).toHaveText('Hold C to fire'); // re-armed: the player has not flown yet
+  await expect(lesson(page)).toHaveText('C: next step'); // re-armed: the player has not flown yet
   await expect(lesson(page)).toHaveCount(0, { timeout: 9000 });
   await page.keyboard.press('Space');
   await expect(page.getByTestId('flight-telemetry')).toHaveAttribute('data-flying', 'true');

@@ -92,7 +92,7 @@ export default function ShooterHud() {
       if (pendingKill && now - lastSay >= SAY_MS) {
         pendingKill = false; lastSay = now; says++;
         // Alternating a trailing no-break space changes the text node, so a repeated phrase is announced again.
-        setLive('Drone down' + (st.chain >= 2 ? ', chain ' + st.chain : '') + (says % 2 ? '' : '\u00a0'));
+        setLive('Demon cast down' + (st.chain >= 2 ? ', chain ' + st.chain : '') + (says % 2 ? '' : '\u00a0'));
       }
       if (st.shots !== shotsSeen) { if (st.shots > shotsSeen && !(mutedNudged && silentNudged)) nudge(); shotsSeen = st.shots; }
     });

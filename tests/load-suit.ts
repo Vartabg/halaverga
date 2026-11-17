@@ -3,8 +3,8 @@ import { Texture } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 /** Node tests inspect geometry/material bindings; browser tests decode the PNGs. */
-export async function loadSuit() {
-  const b = readFileSync(new URL('../public/models/suit.glb', import.meta.url));
+export async function loadSuit(name: 'suit' | 'angel' | 'abyssal' = 'suit') {
+  const b = readFileSync(new URL(`../public/models/${name}.glb`, import.meta.url));
   const loader = new GLTFLoader();
   loader.register(parser => ({
     name: 'NodeImageMetadata',

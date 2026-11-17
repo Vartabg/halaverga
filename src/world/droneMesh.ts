@@ -1,36 +1,10 @@
-import { AdditiveBlending, BoxGeometry, BufferGeometry, Color, DataTexture, IcosahedronGeometry, LinearFilter,
-  LinearMipmapLinearFilter, MeshBasicMaterial, MeshStandardMaterial, PlaneGeometry, RGBAFormat, SphereGeometry, TorusGeometry,
-  type WebGLProgramParametersWithUniforms } from 'three';
-import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-
-export const DRONE_COLORS = { body: '#1f1618', plate: '#8c6232', eyeIdle: '#ffaa2b', eyeAlert: '#ff2418', telegraph: '#fff7de', rim: '#ff8822', flash: '#ffffff' } as const;
-/** Wheel radius and crown offset: the crossed brass wheels sit inside the .95 m hit sphere. */
-const ARM_R = .58, ARM_Y = .04;
-
-function merge(parts: BufferGeometry[]) {
-  const flat = parts.map(g => g.index ? g.toNonIndexed() : g), out = mergeGeometries(flat);
-  parts.forEach(g => g.dispose()); flat.forEach(g => g.dispose());
-  if (!out) throw new Error('drone geometry merge failed');
-  return out;
-}
-/** A Fallen Watcher sentinel, facing -Z: dark obsidian core, crossed burning brass wheels, and the eye at eyeCenter(). Game fiction:
- * 1 Enoch's Ophanim are holy (61:10, 71:7), so the enemies are never called that. */
-export function buildDroneGeometry() {
-  const parts: BufferGeometry[] = [new IcosahedronGeometry(.54, 1)];
-  for (const deg of [45, 135]) parts.push(new BoxGeometry(ARM_R * 2.15, .09, .14).rotateZ(.32).rotateY(deg * Math.PI / 180).translate(0, ARM_Y, 0));
-  const tilts: [number, number][] = [[.62, .25], [-.62, -.25], [.28, -.68], [-.28, .68]];
-  for (let k = 0; k < 4; k++) {
-    const [rx, rz] = tilts[k], a = Math.PI / 4 + k * Math.PI / 2;
-    parts.push(new TorusGeometry(.54, .038, 6, 16).rotateX(rx).rotateZ(rz).translate(Math.cos(a) * .28, ARM_Y, Math.sin(a) * .28));
-  }
-  parts.push(new SphereGeometry(.62, 12, 6, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2));
-  return {
-    body: merge(parts),
-    plate: merge([new SphereGeometry(.64, 12, 5, 0, Math.PI * 2, 0, Math.PI * .42)]),
-    eye: new SphereGeometry(.32, 12, 8),
-    halo: new PlaneGeometry(1, 1),
-  };
-}
+import { AdditiveBlending, Color, DataTexture, DoubleSide, LinearFilter, LinearMipmapLinearFilter, MeshBasicMaterial,
+  MeshStandardMaterial, RGBAFormat, type WebGLProgramParametersWithUniforms } from 'three';
+import { createMembraneRig, membraneSkinGLSL } from './membraneRig';
+import { makeDemonGeometry } from './demonGeometry';
+export const DRONE_COLORS = { body: '#6c3025', plate: '#7e6845', eyeIdle: '#ff5f19', eyeAlert: '#ff541a', telegraph: '#fff7de', rim: '#8c391e', flash: '#ffffff' } as const;
+/** Public engine name retained for the combat pool; the rendered adversaries are original demon designs. */
+export const buildDroneGeometry = makeDemonGeometry;
 /** World size that covers `px` CSS pixels at distance `dist` for a vertical FOV in degrees. */
 export const minWorldSize = (px: number, dist: number, fovDeg: number, heightPx: number) =>
   px * dist * 2 * Math.tan(fovDeg * Math.PI / 360) / heightPx;
@@ -51,7 +25,7 @@ export const haloAlpha = (r: number) => { const k = Math.max(0, 1 - r); return k
 /** Thin ring: rises over .78..(.78+.07), falls over (1-.12)..1, so it peaks near r .85 and ends at the quad's inscribed edge. */
 export const ringAlpha = (r: number) => smooth(.78, .85, r) * (1 - smooth(1 - .12, 1, r));
 
-const CACHE_KEY = 'halaverga-drone-flash-rim-damage';
+const CACHE_KEY = 'halaverga-host-anatomical-wings-v3';
 /** The exposed core glows this colour (linear) through the open top once the plate is gone; aDamage scales it (Drones.tsx). */
 export const EMBER_GLOW = new Color('#ff5a18');
 /**
@@ -59,17 +33,31 @@ export const EMBER_GLOW = new Color('#ff5a18');
  * the shell from inside: an ember glow fading in over the open top (local y above .18, where the plate sat) and leaking through the
  * seams of the lower hull, so a damaged drone reads as a hull with a fire in it from any side, at range.
  */
-function flashRim(material: MeshStandardMaterial, rim: number) {
+function flashRim(material: MeshStandardMaterial, rim: number, clock: { value: number }, wings: ReturnType<typeof createMembraneRig>) {
   const uRim = { value: new Color(DRONE_COLORS.rim).multiplyScalar(rim) }, uEmber = { value: EMBER_GLOW };
   material.onBeforeCompile = (shader: WebGLProgramParametersWithUniforms) => {
     shader.uniforms.uRim = uRim; shader.uniforms.uEmber = uEmber;
-    shader.vertexShader = 'attribute float aFlash;\nvarying float vFlash;\nattribute float aDamage;\nvarying float vDamage;\nvarying vec3 vLocal;\n'
-      + shader.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\nvFlash = aFlash;\nvDamage = aDamage;\nvLocal = position;');
+    shader.uniforms.uHostClock = clock; shader.uniforms.uWingPose = { value: wings.texture };
+    shader.vertexShader = 'attribute float aFlash;\nvarying float vFlash;\nattribute float aDamage;\nvarying float vDamage;\nvarying vec3 vLocal;\nattribute float aPhase;\nuniform float uHostClock;\n'
+      + membraneSkinGLSL + shader.vertexShader.replace('#include <beginnormal_vertex>', `#include <beginnormal_vertex>
+if (aWingSide != 0.0) objectNormal = mat3(hostWingSkin()) * objectNormal;
+`).replace('#include <begin_vertex>', `#include <begin_vertex>
+vFlash = aFlash; vDamage = aDamage; vLocal = position;
+if (aWingSide != 0.0) { transformed = (hostWingSkin() * vec4(transformed, 1.0)).xyz; } else {
+float beat = uHostClock * 2.2 + aPhase;
+float limb = smoothstep(.26, .48, abs(position.x)) * (1. - smoothstep(.72, .86, abs(position.x)))
+  * (1. - smoothstep(.30, .45, position.y)) * smoothstep(-.34, -.15, position.y) * (1. - smoothstep(.10, .22, position.z));
+transformed.z += sin(beat + sign(position.x) * .7) * limb * .07;
+float knee = 1. - smoothstep(-.65, -.36, position.y);
+transformed.z += sin(beat * .65 + sign(position.x)) * knee * .055;
+transformed.z += sin(beat) * .009 * (1. - smoothstep(.18, .30, abs(position.x))) * smoothstep(-.2, .1, position.y) * (1. - smoothstep(.40, .55, position.y));
+}
+`);
     shader.fragmentShader = 'varying float vFlash;\nuniform vec3 uRim;\nvarying float vDamage;\nvarying vec3 vLocal;\nuniform vec3 uEmber;\n'
       + shader.fragmentShader.replace('#include <emissivemap_fragment>', `
       #include <emissivemap_fragment>
       totalEmissiveRadiance += vec3(vFlash) * 1.6 + uRim * pow(1.0 - saturate(dot(normal, normalize(vViewPosition))), 3.0);
-      float exposed = smoothstep(0.18, 0.5, vLocal.y) + 0.25 * smoothstep(0.35, 0.0, abs(vLocal.y));
+      float exposed = smoothstep(0.18, 0.5, vLocal.y) + 0.25 * (1.0 - smoothstep(0.0, 0.35, abs(vLocal.y)));
       totalEmissiveRadiance += uEmber * exposed * vDamage * 3.0;
     `);
   };
@@ -77,15 +65,16 @@ function flashRim(material: MeshStandardMaterial, rim: number) {
   return material;
 }
 export function createDroneMaterials() {
+  const clock = { value: 0 }, wings = createMembraneRig();
   const haloTexture = radialTexture(haloAlpha), ringTexture = radialTexture(ringAlpha);
   const glow = (map: DataTexture) => new MeshBasicMaterial({ map, transparent: true, depthWrite: false, blending: AdditiveBlending, toneMapped: false, fog: false });
   const m = {
-    body: flashRim(new MeshStandardMaterial({ color: DRONE_COLORS.body, metalness: .6, roughness: .45 }), .35),
-    plate: flashRim(new MeshStandardMaterial({ color: DRONE_COLORS.plate, metalness: .6, roughness: .45 }), .25),
+    body: flashRim(new MeshStandardMaterial({ vertexColors: true, side: DoubleSide, color: '#ffffff', metalness: .13, roughness: .73 }), .35, clock, wings),
+    plate: flashRim(new MeshStandardMaterial({ vertexColors: true, color: '#ffffff', metalness: .38, roughness: .47 }), .25, clock, wings), clock, wings,
     eye: new MeshBasicMaterial({ toneMapped: false }),
     halo: glow(haloTexture), ring: glow(ringTexture), haloTexture, ringTexture,
     dispose() {
-      m.body.dispose(); m.plate.dispose(); m.eye.dispose(); m.halo.dispose(); m.ring.dispose();
+      wings.dispose(); m.body.dispose(); m.plate.dispose(); m.eye.dispose(); m.halo.dispose(); m.ring.dispose();
       haloTexture.dispose(); ringTexture.dispose();
     },
   };

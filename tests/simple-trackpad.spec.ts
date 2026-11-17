@@ -11,7 +11,7 @@ const simpleShown = (p: Page) => expect(p.getByTestId('simple-trackpad-hud').or(
 // The classic free trackpad is the default again (controls v4), so these one-finger tests pin the profile by link.
 const SIMPLE = '/?trackpad=simple';
 async function begin(p: Page, url = SIMPLE) {
-  await p.goto(url); await p.getByRole('button', { name: 'Begin expedition' }).click();
+  await p.goto(url); await p.getByRole('button', { name: 'Ascend Mount Hermon' }).click();
   await simpleShown(p);
 }
 for (const camera of ['third', 'first']) test(`one-finger look, keyboard motion and release-to-hover in ${camera} person`, async ({ page }) => {
@@ -130,14 +130,14 @@ test('simple link overrides a saved Flow preference and saves the new selection'
   expect(await settingsCurrent(page)).toBe('one-finger-keys');
   await expect(page.getByRole('button', { name: 'First person', exact: true })).toHaveAttribute('aria-pressed', 'true');
   await page.getByLabel('Looking sensitivity').fill('1.4');
-  await page.goto('/'); await page.getByRole('button', { name: 'Begin expedition' }).click();
+  await page.goto('/'); await page.getByRole('button', { name: 'Ascend Mount Hermon' }).click();
   await simpleShown(page);
 });
 test('controls v5: an old free opens free, a v3 simple returns to free, a v4 simple stays with turning aids back on, a v5 save keeps its choices', async ({ page }) => {
   // Seeds before Begin and reloads unstarted, so no pagehide save from a live game overwrites the seed.
   const open = async (save: object) => {
     await page.goto('/'); await page.evaluate(v => { localStorage.setItem('halaverga-flight-v1', JSON.stringify(v)); }, save);
-    await page.reload(); await page.getByRole('button', { name: 'Begin expedition' }).click();
+    await page.reload(); await page.getByRole('button', { name: 'Ascend Mount Hermon' }).click();
     await openSettings(page);
     const value = ({ cursor: 'free', 'one-finger-keys': 'simple', flow: 'flow', captured: 'captured', 'mouse-keys': 'mouse' } as Record<string, string>)[await settingsCurrent(page)];
     await closeAndResume(page);

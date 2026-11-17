@@ -13,7 +13,7 @@ export const TWO_DESK = { 'desktop:cursor': 25, 'desktop:draw': 25 };
 export const TWO_TOUCH = { 'touch:one-finger': 25, 'touch:draw': 25 };
 export const card = (p: Page) => p.getByTestId('vote-card');
 export const chip = (p: Page) => p.getByTestId('vote-chip');
-export const paused = (p: Page) => p.getByRole('region', { name: 'Expedition paused' });
+export const paused = (p: Page) => p.getByRole('region', { name: 'Ascent paused' });
 export const playing = (p: Page) => p.getByRole('button', { name: 'Pause expedition' });
 export const notYet = (p: Page) => card(p).getByRole('button', { name: 'Not yet' });
 export const sendBtn = (p: Page) => card(p).getByRole('button', { name: /^(Send vote|Try again|Sending…)$/ });
