@@ -50,7 +50,7 @@ test('one finger + keyboard: the capture click never fires; a locked click fires
   const errors = errorsOf(page); await begin(page, '/?trackpad=simple');
   const locked = () => page.evaluate(() => !!document.pointerLockElement);
   await page.mouse.click(720, 450); await expect.poll(locked).toBe(true);
-  await expect(page.getByTestId('controls-hint')).toHaveText('Slide to look');
+  await expect(page.getByTestId('hint-live')).toHaveText('Slide to look'); // said, not drawn (Garo 2026-11-17: the screen was flooded with text)
   await page.waitForTimeout(300); expect(await shots(page)).toBe(0);
   // Stopped: sliding looks with no button held.
   let before = await heading(page); await page.mouse.move(820, 450, { steps: 10 });

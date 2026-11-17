@@ -19,19 +19,18 @@ async function tabTo(page: Page, name: string | RegExp, key = 'Tab') {
   expect(r.style, `${got} shows a focus ring`).not.toBe('none'); expect(r.width).toBeGreaterThanOrEqual(2);
 }
 
-test('keyboard: Tab runs through the top row as Vote, Controls, Pause and Shift+Tab runs back; every stop shows its ring', async ({ browser }) => {
+// The vote is off (src/lib/voteSwitch.ts, Garo 2026-11-17): even with two ways flown the row is Controls then Pause, with no Vote stop.
+test('keyboard: Tab runs through the top row as Controls, Pause (no Vote, even with two ways flown) and Shift+Tab runs back; every stop shows its ring', async ({ browser }) => {
   const t = await votePage(browser, TWO_DESK), { page } = t;
-  await expect(chip(page)).toBeVisible();
-  await chip(page).focus();
-  expect(await who(page)).toBe('vote-chip');
-  await tabTo(page, 'controls-trigger');
+  await expect(chip(page)).toHaveCount(0);
+  await trigger(page).focus();
+  expect(await who(page)).toBe('controls-trigger');
   await tabTo(page, 'Pause expedition');
   await tabTo(page, 'controls-trigger', 'Shift+Tab');
-  await tabTo(page, 'vote-chip', 'Shift+Tab');
   expect(t.errors).toEqual([]); await t.context.close();
 });
 
-test('keyboard: while the vote is locked the row is Controls then Pause, and Enter on Controls opens the sheet on the checked radio', async ({ browser }) => {
+test('keyboard: the row is Controls then Pause, and Enter on Controls opens the sheet on the checked radio', async ({ browser }) => {
   const t = await votePage(browser, ONE_DESK), { page } = t;
   await expect(chip(page)).toHaveCount(0);
   await trigger(page).focus();
@@ -46,14 +45,14 @@ test('keyboard: while the vote is locked the row is Controls then Pause, and Ent
   expect(t.errors).toEqual([]); await t.context.close();
 });
 
-test('keyboard: the pause card opens on Resume and Tab runs Vote, Controls, Field guide, Flight settings; Enter on the Controls row comes back to that row', async ({ browser }) => {
+test('keyboard: the pause card opens on Resume and Tab runs Controls, Field guide, Flight settings; Enter on the Controls row comes back to that row', async ({ browser }) => {
   const t = await votePage(browser, TWO_DESK), { page } = t;
-  await expect(chip(page)).toBeVisible();
+  await expect(chip(page)).toHaveCount(0);
   await playing(page).click();
   await expect(paused(page)).toBeVisible();
   await expect(paused(page).getByRole('button', { name: 'Resume flight' })).toBeFocused();
   await expect(paused(page).getByTestId('controls-row')).toBeVisible(); // the Controls rows are a lazy chunk: Tab only after they are in the card
-  await tabTo(page, 'vote-open');
+  await expect(paused(page).getByTestId('vote-open')).toHaveCount(0);
   await tabTo(page, 'controls-row');
   await tabTo(page, 'Field guide');
   await tabTo(page, 'Flight settings');

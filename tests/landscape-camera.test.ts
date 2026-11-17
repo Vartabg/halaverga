@@ -27,9 +27,14 @@ describe('short-viewport weight', () => {
   });
 });
 describe('hip and ADS FOV', () => {
-  it('stays exactly 65 wherever the weight is 0 (portrait, tablets, desktops)', () => {
-    for (const aspect of [.46, .75, 1, 1.44, 1.6, 1.78, 2.17, 3.5, NaN]) expect(hipFovFor(aspect, 0)).toBe(65);
+  it('stays exactly 65 wherever the weight is 0 on screens at least as wide as tall (tablets, desktops)', () => {
+    for (const aspect of [.84, .9, 1, 1.44, 1.6, 1.78, 2.17, 3.5, NaN]) expect(hipFovFor(aspect, 0)).toBe(65);
     expect(hipFovFor(.46, 1)).toBe(65); expect(hipFovFor(1.44, 1)).toBe(65); // narrow enough already: never widened
+  });
+  it('upright keeps at least a 56 deg horizontal view, opening the vertical field up to 88 deg (Garo, 2026-11-17)', () => {
+    expect(hfov(hipFovFor(.6, 0), .6)).toBeCloseTo(56, 9); expect(hipFovFor(.6, 0)).toBeCloseTo(83.08, 1); // 393x659, Safari with its bars
+    expect(hipFovFor(.75, 0)).toBeCloseTo(70.66, 1); expect(hipFovFor(.46, 0)).toBe(88); // full-screen iPhone: capped
+    expect(hfov(65, .6)).toBeCloseTo(41.84, 2); // before
   });
   it('caps the landscape phone at a 95 deg horizontal field', () => {
     const hip = hipFovFor(PHONE, 1);

@@ -72,7 +72,6 @@ export default function PauseCard({ ready, onEnter, note = '' }: Props) {
         <p id="settings-hint" className={`${styles.pauseNote} ${styles.settingsHint}`}>Size, left-handed, look speed</p>
       </div>
     </div>
-    <p className={`${styles.pauseNote} ${styles.portraitLine}`}>Best played sideways.</p>
     {showTip && <p className={styles.pauseNote}>Tip: Share › Add to Home Screen for full screen.</p>}
   </section></>;
 }

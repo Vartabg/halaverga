@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import { computeLayout } from '../src/game/touchLayout';
-import { VOTE_ROUND } from '../src/lib/vote/ballot';
+import { VOTE_UI } from '../src/lib/voteSwitch';
 import { NARROW, VIEWS, audit, openLanding, scaleText, type View } from './layout-audit';
 import { PLAYED, rowFormProblems } from './layout-vote';
 import { expectSlot } from './layout-hint';
@@ -58,6 +58,7 @@ for (const v of [...VIEWS, ...NARROW]) {
   // Two ways flown, an open ballot (the default mock): the one state with a Vote button, in its three places. The same overlap, target and surface
   // checks, plus the vote's rule: the pill beside Controls (8 px), Controls the same width as with the dots, no dots, the sheet's Vote, the pause door.
   test(`${v.name}: with two ways flown the Vote pill, the sheet's Vote and the pause card's door have no overlap, small target or lost surface`, async ({ browser }) => {
+    test.skip(!VOTE_UI, 'the vote UI is switched off (src/lib/voteSwitch.ts, Garo 2026-11-17)');
     test.setTimeout(120000);
     const t = await openLanding(browser, v, { storage: PLAYED(v) }), { page } = t, all: string[] = [];
     const check = async (state: string, mode: Parameters<typeof audit>[2]) => { for (const p of await audit(page, v, mode)) all.push(`${state}: ${p}`); };
@@ -100,11 +101,12 @@ for (const v of [...VIEWS, ...NARROW]) {
   if (!v.touch) continue;
   // The classic one-thumb lesson, as the real line (not a stand-in): on every phone it is in the slot, the row and surface checks hold with it up, the
   // slot steps aside under the Controls sheet and comes back when the sheet closes (the lesson's own clocks wait meanwhile).
-  test(`${v.name}: the hint slot's real classic lesson sits clean under the row, steps aside for the Controls sheet and returns`, async ({ browser }) => {
+  test(`${v.name}: the classic lesson is said, not drawn (Garo 2026-11-17: the screen was flooded with text); the row and surface checks hold, and the sheet opens and closes clean`, async ({ browser }) => {
     test.setTimeout(120000);
     const t = await openLanding(browser, v), { page } = t;
     await t.begin();
-    await expectSlot(page, v, 'coach', 'Drag to look · hold Fly');
+    await expect(page.getByTestId('hint-live')).toHaveText('Drag to look · hold Fly');
+    await expect(page.getByTestId('hint-slot')).toHaveCount(0);
     const problems = await audit(page, v, { play: true, vote: 'locked' }), form = await rowFormProblems(page);
     expect(problems.concat(form.problems), problems.concat(form.problems).join('\n')).toEqual([]);
     if (AXE_AT.includes(v.name)) await wcag(page);
@@ -112,7 +114,7 @@ for (const v of [...VIEWS, ...NARROW]) {
     await expect(page.getByTestId('controls-sheet')).toBeVisible();
     await expect(page.getByTestId('hint-slot')).toHaveCount(0);
     await t.press(page.getByTestId('controls-done'));
-    await expectSlot(page, v, 'coach', 'Drag to look · hold Fly');
+    await expect(page.getByTestId('hint-slot')).toHaveCount(0);
     expect(t.errors).toEqual([]); await t.context.close();
   });
   test(`${v.name}: Draw (the lab surface) and Twin stick keep the same clean top row and a free surface`, async ({ browser }) => {
@@ -124,8 +126,8 @@ for (const v of [...VIEWS, ...NARROW]) {
       if (state === 'playing-lab') await expect(page.getByTestId('lab-surface')).toHaveCount(1); else await expect(page.getByTestId('touch-stick')).toHaveCount(1);
       for (const p of await audit(page, v, { play: true })) all.push(`${state}: ${p}`);
       // Twin stick teaches with its own series: the first line is in the slot, as clean as the classic one. The lab has its own ghost guide, so no slot line.
-      if (state === 'playing-twin') await expectSlot(page, v, 'coach', 'Left thumb: move');
-      else await expect(page.getByTestId('hint-slot')).toHaveCount(0);
+      if (state === 'playing-twin') await expect(page.getByTestId('hint-live')).toHaveText('Left thumb: move');
+      await expect(page.getByTestId('hint-slot')).toHaveCount(0); // said, not drawn
       expect(t.errors).toEqual([]); await t.context.close();
     }
     expect(all, `${v.name}\n${all.join('\n')}`).toEqual([]);
@@ -139,9 +141,9 @@ for (const v of [...VIEWS, ...NARROW]) {
 const TABS: View[] = [{ name: '393x659 touch', width: 393, height: 659, touch: true }, { name: '390x664 touch', width: 390, height: 664, touch: true },
   { name: '375x553 touch', width: 375, height: 553, touch: true }, { name: '360x640 touch', width: 360, height: 640, touch: true },
   { name: '393x734 touch', width: 393, height: 734, touch: true }, { name: '430x740 touch', width: 430, height: 740, touch: true }];
-for (const v of [...VIEWS, ...NARROW, ...TABS]) for (const visit of ['first', 'return'] as const) test(`${v.name}: landing text, ${visit} visit, never overprints and is never set small`, async ({ browser }) => {
+for (const v of [...VIEWS, ...NARROW, ...TABS]) for (const visit of ['first', 'return'] as const) test(`${v.name}: landing text, ${visit} visit, never overprints and is never set small (no demo note while the vote is off)`, async ({ browser }) => {
   const t = await openLanding(browser, v, visit === 'return' ? { storage: { 'halaverga.controls.demo.v1': '1' } } : {}), { page } = t;
-  expect(await page.getByTestId('demo-note').count(), visit === 'first' ? 'the demo note shows on a first visit' : 'no demo note on a return visit').toBe(visit === 'first' ? 1 : 0); // mounted on a first visit (a landscape phone under 430 px high hides it by CSS)
+  expect(await page.getByTestId('demo-note').count(), 'no demo note: it asked for a vote').toBe(0); // (it was mounted on a first visit, a landscape phone under 430 px high hides it by CSS)
   const problems = await landingProblems(page, v);
   expect(problems, problems.join('\n')).toEqual([]);
   expect(t.errors).toEqual([]); await t.context.close();
@@ -178,43 +180,26 @@ test('375x667 twin: the cluster is the size and place the old header band gave i
 });
 
 // The top row at larger text (D1). The page's text is in px, so a bigger root font size scales nothing: scaleText doubles (or grows by 1.5)
-// every element's own computed size, and each test first checks the text really grew, then audits. Three vote states: sent (no dots, no pill),
-// locked (the dots take no width: Controls is the same box as in the other states) and ready (the Vote pill in the row).
-// The altitude number is never cut, at any size: with the pill, a phone at larger text has no room for the number beside three buttons, so the
-// row wraps the pill under Controls (the one case the header is taller than the 44 px row, `--row-extra`; rowFormProblems) and keeps the number.
-// Not covered, because the room is not there: 320 wide at 200 percent (Controls, Pause and the 77 px number are 326 px, locked or ready; the readout is
-// clipped there, never over a button), and 360 wide at 200 percent, where the skip link (globals.css, top:-70px) wraps to several lines and its
-// bottom edge slides into view over the row, a global rule that is not the row's.
-const SENT = { 'halaverga.vote.v1': JSON.stringify({ round: VOTE_ROUND, touch: { at: Date.now() }, desktop: { at: Date.now() } }) };
+// every element's own computed size, and each test first checks the text really grew, then audits. The vote is off (src/lib/voteSwitch.ts, Garo
+// 2026-11-17: the screen was flooded with text): the row is Controls and Pause only, no pill, no dots, and the readout has no text or box to cut,
+// so the old sent/locked/ready states and the altitude-number check are gone; the row never wraps.
 const P393: View = { name: '393x852 touch', width: 393, height: 852, touch: true }, P375: View = { name: '375x667 touch', width: 375, height: 667, touch: true };
 const P430: View = { name: '430x932 touch', width: 430, height: 932, touch: true }, P360: View = { name: '360x740 touch', width: 360, height: 740, touch: true };
 const P320: View = { name: '320x568 touch', width: 320, height: 568, touch: true };
-type VoteAt = 'sent' | 'locked' | 'ready';
-// [view, text factor, vote state, whether the pill must wrap (undefined: either, the checks hold for both)]
-const TEXT_AT: [View, number, VoteAt, boolean?][] = [
-  [P393, 2, 'sent'], [P375, 2, 'sent'], [P393, 2, 'locked'], [P375, 2, 'locked'],
-  [P393, 1.5, 'ready', false], [P375, 1.5, 'ready', false], [P393, 2, 'ready', true], [P375, 2, 'ready', true],
-  [P430, 1.5, 'ready'], [P430, 2, 'ready', true], [P360, 1.5, 'ready', true], [P320, 1.5, 'ready', true],
-];
-for (const [v, f, at, wraps] of TEXT_AT) test(`${v.name} at ${f * 100} percent text, vote ${at}: the text really grows, the number is whole and the top row still fits`, async ({ browser }) => {
-  const t = await openLanding(browser, v, at === 'sent' ? { storage: SENT } : at === 'ready' ? { storage: PLAYED(v) } : {}), { page } = t;
+const TEXT_AT: [View, number][] = [[P393, 2], [P375, 2], [P393, 1.5], [P375, 1.5], [P430, 1.5], [P430, 2], [P360, 1.5], [P360, 2], [P320, 1.5]];
+for (const [v, f] of TEXT_AT) test(`${v.name} at ${f * 100} percent text: the text really grows and the top row still fits`, async ({ browser }) => {
+  const t = await openLanding(browser, v), { page } = t;
   await t.begin();
   await expect(page.getByTestId('controls-trigger')).toBeVisible();
-  if (at === 'ready') await expect(page.getByTestId('vote-chip')).toBeVisible();
-  expect(await page.getByTestId('vote-chip').count(), at === 'ready' ? 'the pill is in the row' : 'no pill unless the vote works').toBe(at === 'ready' ? 1 : 0);
-  expect(await page.getByTestId('vote-dots').locator('i').count(), 'two dots only while locked').toBe(at === 'locked' ? 2 : 0);
+  await expect(page.locator('[data-testid=vote-chip], [data-testid=vote-dots]')).toHaveCount(0);
   const { before, after } = await scaleText(page, f);
   expect(before.every(n => n > 0), `probes found: ${before}`).toBe(true);
-  expect(after, 'the probes (Controls, the altitude number, the readout unit) grew by the factor').toEqual(before.map(n => n * f));
-  const problems = await audit(page, v, { play: true, scale: f, ...(at === 'sent' ? {} : { vote: at }) });
+  expect(after, 'the probes (Controls, the header, the page) grew by the factor').toEqual(before.map(n => n * f));
+  const problems = await audit(page, v, { play: true, scale: f });
   expect(problems, problems.join('\n')).toEqual([]);
-  // The number is whole: its box is as wide as its text, and it is the 20 px bold number grown by the factor (so the box is not simply collapsed).
-  const num = await page.getByTestId('flight-telemetry').evaluate(e => { const n = e.querySelector('span:last-child') as HTMLElement; return { box: n.clientWidth, text: n.scrollWidth }; });
-  expect(num.text, 'the number has a width').toBeGreaterThan(30 * f);
-  expect(num.box, `the altitude number is whole at ${f * 100} percent (box ${num.box}, text ${num.text})`).toBeGreaterThanOrEqual(num.text);
   const form = await rowFormProblems(page);
   expect(form.problems, form.problems.join('\n')).toEqual([]);
-  if (wraps !== undefined) expect(form.stacked, wraps ? 'the pill wraps under Controls to leave the number its room' : 'the pill stays beside Controls: the number has the room').toBe(wraps);
+  expect(form.stacked, 'no pill, so the row never wraps').toBe(false);
   await t.context.close();
 });
 

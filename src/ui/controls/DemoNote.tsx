@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useGame } from '@/game/store';
 import { demoSeen, markDemoSeen } from './demoSeen';
+import { VOTE_UI } from '@/lib/voteSwitch';
 import styles from './ControlsPicker.module.css';
 
 export const DEMO_COPY = 'A demo of new ways to fly. After you begin, try each in the Controls menu, then vote.';
@@ -17,7 +18,8 @@ export const seenAtBegin = (now: { started: boolean }, was: { started: boolean }
  * Begin is watched on the store, not on unmount, so a development double-mount cannot mark it seen early.
  */
 export default function DemoNote() {
-  const [open] = useState(() => !demoSeen()), note = useRef<HTMLDivElement>(null);
+  // The note asks for a vote, so it is shown only while the vote is on (VOTE_UI).
+  const [open] = useState(() => VOTE_UI && !demoSeen()), note = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!open) return;
     return useGame.subscribe((now, was) => { if (seenAtBegin(now, was, note.current)) markDemoSeen(); });

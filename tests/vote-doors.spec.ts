@@ -1,6 +1,8 @@
 import { expect, test } from '@playwright/test';
 import { controlId, openSheet, sheet } from './controls-browser';
 import { card, chip, land, lift, mock, notYet, ONE_DESK, paused, playing, PLAY_KEY, QUESTION, tel, TWO_DESK, VOTE_NAME, voteMark, votePage } from './vote-browser';
+import { VOTE_UI } from '../src/lib/voteSwitch';
+test.skip(!VOTE_UI, 'the vote UI is switched off (src/lib/voteSwitch.ts, Garo 2026-11-17)');
 // The doors to the card besides the chip (spec 1.3): the auto-open after a landing, the pause card, the Controls sheet; plus the card as
 // a modal and the play-time tracker. System Chrome emulation, /api/vote and /api/results always mocked. PLAYTEST_URL=http://127.0.0.1:3421.
 const ASK = QUESTION;

@@ -48,10 +48,11 @@ describe('grounded framing at rest', () => {
   it('keeps the feet at least 8 px clear at a level view too', () => {
     for (const s of LANDSCAPE) expect(frame(s, 0).clearance, `${s.width}x${s.height}`).toBeGreaterThan(8);
   });
-  it('leaves portrait phones (small ones in Safari\'s 100svh too), tablets and desktops on CHASE_BOOM at 65 deg', () => {
+  it('leaves portrait phones (small ones in Safari\'s 100svh too), tablets and desktops on CHASE_BOOM; upright views only widen', () => {
     for (const s of [...PORTRAIT, ...WIDE]) {
       const f = frame(s), at = `${s.width}x${s.height}`;
-      expect(f.w, at).toBe(0); expect(f.hip, at).toBe(65); expect(f.boom, at).toEqual(CHASE_BOOM);
+      expect(f.w, at).toBe(0); expect(f.boom, at).toEqual(CHASE_BOOM);
+      if (s.width >= s.height) expect(f.hip, at).toBe(65); else expect(f.hip, at).toBeGreaterThan(65); // portraitHipFov, 2026-11-17
     }
     // The iPhone SE case the review found: 375x548 is short, but portrait, so the boom must not move at all.
     expect(boomFor(0, 375 / 548, { x: 0, y: 0, z: 0 }, shortWeight(548, 375 / 548))).toEqual(CHASE_BOOM);

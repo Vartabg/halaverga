@@ -1,6 +1,8 @@
 import { expect, test } from '@playwright/test';
 import { box, inside, openSheet, sheet } from './controls-browser';
 import { card, chip, DESK, lift, lockedName, mock, notYet, paused, playing, PORTRAIT, TWO_DESK, TWO_TOUCH, VOTE_NAME, votePage } from './vote-browser';
+import { VOTE_UI } from '../src/lib/voteSwitch';
+test.skip(!VOTE_UI, 'the vote UI is switched off (src/lib/voteSwitch.ts, Garo 2026-11-17)');
 // Third-review low findings in a real browser (V4, V5, V7, CODE-4). System Chrome emulation, /api/vote and /api/results always mocked.
 // PLAYTEST_URL=http://127.0.0.1:3441. Emulation is not iPhone validation.
 

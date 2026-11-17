@@ -4,6 +4,8 @@ import { openSheet, row, sheet } from './controls-browser';
 import { counted, box, card, chip, dots, inside, LANDSCAPE, lockedName, mock, ONE_DESK, openFromChip, overlaps, paused, pickAndSend, playing, PORTRAIT, QUESTION, radio,
   READY_TEXT, sendBtn, tap, trigger, TWO_DESK, TWO_TOUCH, VOTE_NAME, voteMark, votePage, voteResults } from './vote-browser';
 import { said } from './lab-browser';
+import { VOTE_UI } from '../src/lib/voteSwitch';
+test.skip(!VOTE_UI, 'the vote UI is switched off (src/lib/voteSwitch.ts, Garo 2026-11-17)');
 // The top row's Vote (it exists only when it works), the two dots while it is locked, the ballot (spec 1.3 to 1.6; addendum C1 to C7), system
 // Chrome emulation, /api/vote and /api/results always mocked. Run against a production build on an own port:
 // PLAYTEST_URL=http://127.0.0.1:3421 pnpm test:browser -g "@vote". Sending, the doors and the axe/CSP/layout gates are vote-send, vote-doors and

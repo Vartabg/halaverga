@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useSyncExternalStore } from 'react';
 import type { ControlFamily } from '@/game/controlTypes';
 import { useGame } from '@/game/store';
 import { VOTE_MIN_TRIED } from '@/lib/vote/ballot';
+import { VOTE_UI } from '@/lib/voteSwitch';
 import { QUESTION } from '@/ui/vote/question';
 import { fetchResults, type Probe } from '@/ui/vote/voteClient';
 import { TRIED_S, canVote, livePlay, readMark, triedIds, type VoteMark, type VotePlay } from '@/ui/vote/voteTracker';
@@ -52,8 +53,9 @@ export function useVoteState(family: ControlFamily): VoteView {
   }, [family]);
   const [state, tried] = useSyncExternalStore(watch, snap, snap).split('|') as [VoteState, string];
   const asking = state === 'ready' || state === 'off';
-  useEffect(() => { if (asking) askBallot(); }, [asking]);
-  return { state, tried: Number(tried) };
+  useEffect(() => { if (VOTE_UI && asking) askBallot(); }, [asking]);
+  // With the vote switched off every family reads 'off': no dots, no Vote button, no toasts, and the ballot is never asked.
+  return { state: VOTE_UI ? state : 'off', tried: Number(tried) };
 }
 
 /** The text twin of the two dots (aria-label tail on the Controls button while locked): the visible word stays the start of the name. */

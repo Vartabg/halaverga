@@ -19,33 +19,32 @@ describe('pickHint: the one line', () => {
     expect(pickHint(at({ limitCue: 'wall', limitHint: 'EDGE AHEAD · TURN AWAY' }))).toEqual({ kind: 'limit', text: 'EDGE AHEAD · TURN AWAY' });
     expect(pickHint(at({ flying: true, descendBlocked: true }))).toEqual({ kind: 'blocked', text: BLOCKED_TEXT });
     expect(pickHint(at({ limitHint: 'plain' }))).toEqual({ kind: 'blocked', text: 'plain' });
-    expect(pickHint(at({ coach }))).toEqual({ kind: 'coach', text: 'Drag to fly' });
+    expect(pickHint(at({ coach })), 'the coach line is never drawn (2026-11-17)').toBeNull();
   });
   it('keeps the exact land and no-landing strings the browser specs read, and the record button text', () => {
     expect(LAND_TEXT).toBe('SURFACE IN REACH · LAND');
     expect(BLOCKED_TEXT).toBe('NO LANDING BELOW · MOVE TO OPEN GROUND');
     expect(RECORD_TEXT).toBe('◇ Tablet record · Read ↗');
   });
-  it('orders them: message, record, land, limit, no landing below, then the coach line', () => {
+  it('orders them: message, record, land, limit, no landing below; the coach line never shows', () => {
     const all = at({ message: 'm', nearTerminal: true, flying: true, canLand: true, limitCue: 'wall', limitHint: 'edge', descendBlocked: true, coach });
     const order: string[] = [];
     let s = all;
-    for (let n = 0; n < 6; n++) {
+    for (let n = 0; n < 5; n++) {
       const hint = pickHint(s)!; order.push(hint.kind);
       s = { ...s, ...(hint.kind === 'message' ? { message: '' } : hint.kind === 'record' ? { nearTerminal: false } : hint.kind === 'land' ? { canLand: false }
         : hint.kind === 'limit' ? { limitCue: '' as const, limitHint: '' } : hint.kind === 'blocked' ? { descendBlocked: false } : { coach: null }) };
     }
-    expect(order).toEqual(['message', 'record', 'land', 'limit', 'blocked', 'coach']);
+    expect(order).toEqual(['message', 'record', 'land', 'limit', 'blocked']);
     expect(pickHint(s)).toBeNull();
   });
   it('G2: the tablet record outranks a landing', () => {
     expect(pickHint(at({ nearTerminal: true, flying: true, canLand: true }))!.kind).toBe('record');
     expect(pickHint(at({ nearTerminal: true, message: 'x' }))!.kind).toBe('message');
   });
-  it('the coach line waits behind every other line and comes back when they clear', () => {
-    for (const o of [{ message: 'x' }, { nearTerminal: true }, { flying: true, canLand: true }, { limitCue: 'floor', limitHint: 'f' }, { limitHint: 'p' }, { flying: true, descendBlocked: true }] as Partial<HintInput>[])
-      expect(pickHint(at({ ...o, coach }))!.kind, JSON.stringify(o)).not.toBe('coach');
-    expect(pickHint(at({ coach }))!.kind).toBe('coach');
+  it('the coach line is never drawn, alone or behind any other line (Garo, 2026-11-17: the screen was flooded with text)', () => {
+    for (const o of [{}, { message: 'x' }, { nearTerminal: true }, { flying: true, canLand: true }, { limitCue: 'floor', limitHint: 'f' }, { limitHint: 'p' }, { flying: true, descendBlocked: true }] as Partial<HintInput>[])
+      expect(pickHint(at({ ...o, coach }))?.kind, JSON.stringify(o)).not.toBe('coach');
   });
   it('is null under any open dialog (the Controls sheet, the vote card, the Field guide, Flight settings), whatever else is true', () => {
     expect(pickHint(at({ hidden: true, message: 'x', nearTerminal: true, flying: true, canLand: true, limitHint: 'l', coach }))).toBeNull();

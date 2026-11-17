@@ -1,5 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { card, chip, mock, notYet, pickAndSend, radio, rankedDesktop, sendBtn, TWO_DESK, TWO_TOUCH, voteMark, votePage, voteResults, openFromChip } from './vote-browser';
+import { VOTE_UI } from '../src/lib/voteSwitch';
+test.skip(!VOTE_UI, 'the vote UI is switched off (src/lib/voteSwitch.ts, Garo 2026-11-17)');
 // The ballot's order, the touch family and the three-tap path (spec 1.1, 1.4, 1.6, 2.2), system Chrome emulation, /api/vote and /api/results
 // always mocked. Run against a production build on an own port: PLAYTEST_URL=http://127.0.0.1:3421 pnpm test:browser -g "@vote".
 

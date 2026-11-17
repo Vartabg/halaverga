@@ -2,6 +2,8 @@ import { readFileSync } from 'node:fs';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+// These pin the vote UI as it is when switched on (VOTE_UI); tests/vote-switch.test.ts pins the game with it off.
+vi.mock('@/lib/voteSwitch', () => ({ VOTE_UI: true }));
 // zustand's hook renders the store's initial state on the server. Here the hook reads the live state instead (same store, same
 // setState), so the SSR markup reflects each test's setup.
 vi.mock('@/game/store', async importOriginal => {

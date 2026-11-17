@@ -25,16 +25,16 @@ function flightLine(i: HintInput): Hint | null {
 }
 
 /**
- * Highest first: a message (a switch notice, a sound nudge, a lab fault, a vote toast), the tablet record (a Read button: it outranks
- * a landing, because a tablet in reach is the rarer thing), the flight lines above (land, limit, no landing below), then the coach line
- * the controls lessons publish. Null while a dialog is open. A message that was pre-empted is dropped (as it always was), a coach line is not:
- * it keeps its clock and returns once nothing above it is true.
+ * Highest first: a message (a switch notice, a sound nudge, a lab fault), the tablet record (a Read button: it outranks a landing,
+ * because a tablet in reach is the rarer thing), then the flight lines above (land, limit, no landing below). Null while a dialog is
+ * open. A message that was pre-empted is dropped (as it always was). The controls lessons' coach line is never drawn.
  */
 export function pickHint(i: HintInput): Hint | null {
   if (i.hidden) return null;
   if (i.message) return { kind: 'message', text: i.message };
   if (i.nearTerminal) return { kind: 'record', text: RECORD_TEXT };
-  return flightLine(i) ?? (i.coach ? { kind: 'coach', text: i.coach.text } : null);
+  // Coach lines are not drawn (Garo, 2026-11-17: the screen was flooded with text); ControlsHint still says them to screen readers.
+  return flightLine(i);
 }
 
 type Game = ReturnType<typeof useGame.getState>;

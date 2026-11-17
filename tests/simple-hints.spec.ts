@@ -2,20 +2,18 @@ import { expect, test, type Page } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import { begin, centre, resume, seed, shots, twinTouchPage } from './shooter-browser';
 import { legend } from './lab-browser';
-import { errorsOf, hint, locked, overlaps, recordSaid, said, saved, soundNotice } from './simple-hints-support';
+import { drawn, errorsOf, hint, locked, recordSaid, said, saved, soundNotice } from './simple-hints-support';
 // Progressive controls hints (docs/simple-controls.md): one instruction at a time, advanced by doing it, persisted so it never repeats.
 for (const size of [{ width: 1440, height: 1000 }, { width: 640, height: 900 }]) test(`one finger + keyboard: the full sequence at ${size.width} px, persisted`, async ({ page }) => {
   const errors = errorsOf(page); await page.setViewportSize(size); await recordSaid(page); await begin(page, '/?trackpad=simple');
-  await expect(hint(page)).toHaveText('Click the scene to start'); await expect(hint(page)).toHaveAttribute('data-step', '0');
-  const box = (await hint(page).boundingBox())!;
-  expect(box.x).toBeGreaterThanOrEqual(16); expect(box.x + box.width).toBeLessThanOrEqual(size.width - 16);
-  expect(box.y + box.height).toBeLessThan(size.height / 2 - 40); expect(box.height).toBeLessThanOrEqual(34);
+  await expect(hint(page)).toHaveText('Click the scene to start');
+  await expect(drawn(page)).toHaveCount(0); // said to screen readers, never drawn
   // One message at a time: the one-finger panel steps aside while a hint shows.
   await expect(page.getByTestId('simple-trackpad-hud')).toHaveCount(0);
   // The capture step is exempt from the one-second minimum: the next line follows the lock at once.
   const cx = size.width / 2, cy = size.height * .55;
   await page.mouse.click(cx, cy); await expect.poll(() => locked(page)).toBe(true);
-  await expect(hint(page)).toHaveText('Slide to look', { timeout: 500 }); await expect(hint(page)).toHaveAttribute('data-step', '1');
+  await expect(hint(page)).toHaveText('Slide to look', { timeout: 500 });
   await page.mouse.move(cx + 150, cy, { steps: 15 });
   await expect(hint(page)).toHaveText('Click: strike', { timeout: 2000 });
   for (let k = 0; k < 5; k++) { await page.mouse.click(cx + 150, cy); await page.waitForTimeout(200); }
@@ -23,7 +21,7 @@ for (const size of [{ width: 1440, height: 1000 }, { width: 640, height: 900 }])
   // Chain combat: a click launches a strike at the nearest visible demon ahead, which flies the angel (crediting the movement step)
   // and hides the hint during the dive. Either way the series completes; press W only if it is still asking for it.
   const progress = async () => (await saved(page))?.simple;
-  await expect.poll(async () => await progress() === 4 || (await hint(page).count() > 0 && await hint(page).textContent() === 'WASD to fly · Space lifts'),
+  await expect.poll(async () => await progress() === 4 || await hint(page).textContent() === 'WASD to fly · Space lifts',
     { timeout: 10000 }).toBe(true);
   if (await progress() !== 4) {
     // The sound notice (sound is off on a fresh save) waits while a hint speaks.
@@ -31,7 +29,7 @@ for (const size of [{ width: 1440, height: 1000 }, { width: 640, height: 900 }])
     await page.waitForTimeout(1100); await page.keyboard.down('KeyW'); await page.waitForTimeout(400); await page.keyboard.up('KeyW');
   }
   await expect.poll(progress, { timeout: 10000 }).toBe(4);
-  await expect(hint(page)).toHaveCount(0);
+  await expect(hint(page)).toHaveText('');
   await page.mouse.click(cx + 150, cy); await expect(soundNotice(page)).toBeVisible();
   expect((await said(page)).slice(0, 3)).toEqual(['Click the scene to start', 'Slide to look', 'Click: strike']);
   expect(await page.evaluate(() => {
@@ -40,7 +38,7 @@ for (const size of [{ width: 1440, height: 1000 }, { width: 640, height: 900 }])
   // Never repeats: after a reload only the panel's reminder remains.
   await page.keyboard.press('Escape'); await page.reload(); await page.getByRole('button', { name: 'Ascend Mount Hermon' }).click();
   await expect(page.getByTestId('shooter-hud')).toBeAttached(); await page.waitForTimeout(400);
-  await expect(hint(page)).toHaveCount(0);
+  await expect(hint(page)).toHaveText('');
   await expect(page.getByTestId('simple-trackpad-hud')).toContainText('CLICK THE SCENE TO LOOK FREELY');
   expect(errors).toEqual([]);
 });
@@ -57,7 +55,7 @@ test('Esc mid-sequence: the step is kept and the start line returns until the po
   await page.mouse.click(720, 550); await expect.poll(() => locked(page)).toBe(true);
   await expect(hint(page)).toHaveText('Click: strike');
   await page.keyboard.press('Escape'); await expect.poll(() => locked(page)).toBe(false); await resume(page);
-  await expect(hint(page)).toHaveText('Click the scene to start'); await expect(hint(page)).toHaveAttribute('data-step', '2');
+  await expect(hint(page)).toHaveText('Click the scene to start');
   await page.mouse.click(720, 550); await expect.poll(() => locked(page)).toBe(true);
   await expect(hint(page)).toHaveText('Click: strike');
   expect(errors).toEqual([]);
@@ -74,7 +72,7 @@ test('actions done out of order are credited: flying and shooting during "Slide 
   if (Number(await page.getByTestId('shooter-hud').getAttribute('data-hits')) === 0) await expect(hint(page)).toHaveText('Slide to look');
   // A gentle 80 px glance (about 0.24 rad) is enough, and the shoot and keys hints were already done.
   await page.mouse.move(800, 550, { steps: 10 });
-  await expect(hint(page)).toHaveCount(0, { timeout: 2000 });
+  await expect(hint(page)).toHaveText('', { timeout: 2000 });
   expect((await saved(page)).simple).toBe(4);
   expect(errors).toEqual([]);
 });
@@ -86,76 +84,46 @@ test('Esc on the last step keeps "WASD to fly": it needs no capture, and a W pre
   await page.keyboard.press('Escape'); await expect.poll(() => locked(page)).toBe(false); await resume(page);
   await expect(hint(page)).toHaveText('WASD to fly · Space lifts'); await page.waitForTimeout(1100);
   await page.keyboard.down('KeyW'); await page.waitForTimeout(400); await page.keyboard.up('KeyW');
-  await expect(hint(page)).toHaveCount(0); expect((await saved(page)).simple).toBe(4);
+  await expect(hint(page)).toHaveText(''); expect((await saved(page)).simple).toBe(4);
 });
 
 test('mouse mode: start, then move the mouse to look, then click to shoot', async ({ page }) => {
   await seed(page, { desktopMode: 'mouse' }); await begin(page);
-  await expect(hint(page)).toHaveText('Click the scene to start'); await expect(hint(page)).toHaveAttribute('data-track', 'mouse');
+  await expect(hint(page)).toHaveText('Click the scene to start');
   await page.mouse.click(720, 550); await expect.poll(() => locked(page)).toBe(true);
   await expect(hint(page)).toHaveText('Move the mouse to look', { timeout: 500 });
   await page.mouse.move(870, 550, { steps: 15 });
   await expect(hint(page)).toHaveText('Click: strike', { timeout: 2000 });
 });
 
-// The free cursor is the desktop default again (Garo 2026-09-24): no step hints, the bottom pill states the whole mapping.
-const pill = legend;
+// The free cursor is the desktop default again (Garo 2026-09-24): no step hints. The bottom pill that stated the mapping is gone (Garo 2026-11-17).
 const noHintFor = async (p: Page, ms: number) => {
-  for (let t = 0; t < ms; t += 250) { expect(await hint(p).count()).toBe(0); await p.waitForTimeout(250); }
+  for (let t = 0; t < ms; t += 250) { expect(await hint(p).textContent()).toBe(''); await p.waitForTimeout(250); }
 };
-test('free profile: no controls hint; the pill states the mapping', async ({ page }) => {
-  const errors = errorsOf(page); await begin(page, '/?trackpad=free'); const before = await saved(page);
-  await expect(pill(page)).toHaveText('SPACE TO FLY · CLICK A DEMON · DRAG TO LOOK');
-  await noHintFor(page, 3000);
-  await page.getByRole('button', { name: 'Lift', exact: true }).click();
-  await expect(pill(page)).toHaveText('W OR SPACE TO FLY · CLICK A DEMON · DRAG TO LOOK');
-  await expect(hint(page)).toHaveCount(0);
-  // A checkpoint save may write the default progress for the first time; nothing here advances it.
-  const none = { touch: 0, simple: 0, mouse: 0 };
-  expect((await saved(page)) ?? none).toEqual(before ?? none);
-  expect(errors).toEqual([]);
-});
-
-test('free profile, blaster off: the classic pill', async ({ page }) => {
-  await begin(page, '/?trackpad=free&shooter=0');
-  await expect(pill(page)).toHaveText('CLICK TO FLY · DRAG TO LOOK');
-});
-
-test('free profile at 325x928: the pill stays inside the viewport with no horizontal scroll', async ({ page }) => {
-  await page.setViewportSize({ width: 325, height: 928 }); await begin(page, '/?trackpad=free');
-  for (const text of ['SPACE TO FLY · CLICK A DEMON · DRAG TO LOOK', 'W OR SPACE TO FLY · CLICK A DEMON · DRAG TO LOOK']) {
-    if (text.startsWith('W')) await page.getByRole('button', { name: 'Lift', exact: true }).click();
-    await expect(pill(page)).toHaveText(text);
-    const box = (await pill(page).boundingBox())!;
-    expect(box.x).toBeGreaterThanOrEqual(16); expect(box.x + box.width).toBeLessThanOrEqual(325 - 16);
-    expect(box.y).toBeGreaterThanOrEqual(0); expect(box.y + box.height).toBeLessThanOrEqual(928);
-    // At most two lines: 10 px type on a 1.6 line height plus 16 px of padding.
-    expect(box.height).toBeLessThanOrEqual(2 * 16 + 16 + 1);
-    expect(await page.evaluate(() => document.scrollingElement!.scrollWidth <= innerWidth)).toBe(true);
-  }
-});
+for (const [name, url, vw] of [['free profile', '/?trackpad=free', null], ['free profile, blaster off', '/?trackpad=free&shooter=0', null], ['free profile at 325x928', '/?trackpad=free', { width: 325, height: 928 }]] as const) {
+  test(`${name}: no controls hint and no bottom pill`, async ({ page }) => {
+    const errors = errorsOf(page); if (vw) await page.setViewportSize(vw); await begin(page, url); const before = await saved(page);
+    await expect(legend(page)).toHaveCount(0);
+    await noHintFor(page, 1500);
+    await page.getByRole('button', { name: 'Lift', exact: true }).click();
+    await expect(legend(page)).toHaveCount(0); await expect(hint(page)).toHaveText('');
+    if (vw) expect(await page.evaluate(() => document.scrollingElement!.scrollWidth <= innerWidth)).toBe(true);
+    // A checkpoint save may write the default progress for the first time; nothing here advances it.
+    const none = { touch: 0, simple: 0, mouse: 0 };
+    expect((await saved(page)) ?? none).toEqual(before ?? none);
+    expect(errors).toEqual([]);
+  });
+}
 
 test('blaster off: no controls hint and main\'s one-finger panel', async ({ page }) => {
   await begin(page, '/?trackpad=simple&shooter=0');
   await expect(page.getByTestId('simple-trackpad-hud')).toContainText('CLICK THE SCENE TO LIFT INTO HOVER');
-  await page.waitForTimeout(400); await expect(hint(page)).toHaveCount(0);
+  await page.waitForTimeout(400); await expect(hint(page)).toHaveText('');
 });
 
-test('reduced motion: the hint has no transition or animation', async ({ page }) => {
-  await page.emulateMedia({ reducedMotion: 'reduce' }); await begin(page, '/?trackpad=simple');
-  await expect(hint(page)).toBeVisible();
-  expect(await hint(page).evaluate(el => { const s = getComputedStyle(el); return [s.transitionDuration, s.animationName]; })).toEqual(['0s', 'none']);
-});
-
-test('320 px fine pointer: the hint stays one line inside the gutters', async ({ page }) => {
-  await page.setViewportSize({ width: 320, height: 640 }); await begin(page, '/?trackpad=simple');
-  await expect(hint(page)).toBeVisible();
-  const box = (await hint(page).boundingBox())!;
-  expect(box.width).toBeLessThanOrEqual(288); expect(box.height).toBeLessThanOrEqual(34);
-});
-
-test('a visible hint passes automated WCAG A and AA checks', async ({ page }) => {
-  await begin(page, '/?trackpad=simple'); await expect(hint(page)).toBeVisible();
+test('the coach line is said once for screen readers and never drawn, at 320 px and with reduced motion, and the page passes automated WCAG A and AA checks', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' }); await page.setViewportSize({ width: 320, height: 640 }); await begin(page, '/?trackpad=simple');
+  await expect(hint(page)).toHaveText('Click the scene to start'); await expect(drawn(page)).toHaveCount(0);
   expect((await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze()).violations).toEqual([]);
 });
 
@@ -165,9 +133,7 @@ for (const viewport of [{ width: 393, height: 852 }, { width: 852, height: 393 }
   test('move, look, lift off, then shoot; progress survives a reload', async ({ browser }) => {
     const t = await twinTouchPage(browser, viewport), { page, touch } = t;
     await expect(hint(page)).toHaveText('Left thumb: move');
-    const box = (await hint(page).boundingBox())!;
-    expect(overlaps(box, { x: viewport.width / 2 - 45, y: viewport.height / 2 - 45, width: 90, height: 90 })).toBe(false);
-    for (const b of t.boxes) expect(overlaps(box, b)).toBe(false);
+    await expect(drawn(page)).toHaveCount(0);
     await page.waitForTimeout(1000);
     await touch.down(1, t.stickPoint); await touch.drag(1, 0, -40); await page.waitForTimeout(300); await touch.up(1);
     await expect(hint(page)).toHaveText('Right thumb: look', { timeout: 3000 }); await page.waitForTimeout(1000);
@@ -185,6 +151,6 @@ for (const viewport of [{ width: 393, height: 852 }, { width: 852, height: 393 }
     await expect(hint(t.page)).toHaveText('Fire: next step'); await t.context.close();
     t = await twinTouchPage(browser, viewport, { ...V3, hintProgress: { touch: 4, simple: 0, mouse: 0 } });
     await expect(t.page.getByTestId('shooter-hud')).toBeAttached(); await t.page.waitForTimeout(400);
-    await expect(hint(t.page)).toHaveCount(0); expect(t.errors).toEqual([]); await t.context.close();
+    await expect(hint(t.page)).toHaveText(''); expect(t.errors).toEqual([]); await t.context.close();
   });
 });

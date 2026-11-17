@@ -57,18 +57,6 @@
 .reticle{position:absolute;top:50%;left:50%;width:16px;height:16px;border:1px solid #ffe28acc;border-radius:50%;transform:translate(-50%,-50%);pointer-events:none}.reticle span{position:absolute;inset:6px;background:#fff4d2;border-radius:50%}
 .tapPad{position:absolute;left:5%;bottom:100px;z-index:var(--z-play);display:grid;grid-template-columns:repeat(4,44px);gap:5px;pointer-events:none}.tapPad button{pointer-events:auto}.tapPad button{min-width:44px;min-height:44px;background:#14111ded;border:1px solid var(--line-strong);border-radius:var(--r-sm);color:var(--ink);font-size:20px}.tapPad button:active{background:var(--accent);color:var(--accent-ink)}
 .actions{position:absolute;right:max(5%,env(safe-area-inset-right));bottom:max(55px,calc(env(safe-area-inset-bottom) + 30px));display:flex;gap:12px;z-index:var(--z-play)}.action{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;width:68px;min-height:68px;border:1px solid #f2b84b66;background:#14111dd9;border-radius:50%;font-size:10px;font-weight:600;letter-spacing:.04em;box-shadow:0 4px 16px #0b091266}.action>span{font-size:23px;line-height:1.1;font-weight:400}.action:hover{background:#2e2640}.action:active{color:var(--accent-ink);background:var(--accent);border-color:var(--accent)}
-/* The readout: top-left of the row on every screen, passive. Two lines above 600 px wide, one line at 600 and narrower, the number alone at
-   400 and narrower. The plate is at least 85 percent opaque so the numbers read over a bright sky. */
-.telemetry{position:absolute;z-index:var(--z-hud);left:max(var(--gx),env(safe-area-inset-left));top:var(--top);min-width:0;max-width:calc(100% - 2 * var(--gx) - max(160px, 104px + 4.7em));min-height:var(--row);display:flex;flex-direction:column;justify-content:center;gap:1px;padding:2px 10px;border-radius:var(--r-md);background:#14111de8;color:var(--ink);font-weight:600;font-size:11px;line-height:1.3;letter-spacing:.06em;font-variant-numeric:tabular-nums;pointer-events:none}
-.telemetry>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.telemetry i{font-style:normal;margin:0 5px;color:var(--accent)}.telemetry .alt{font-size:20px;font-weight:700;line-height:1.2;letter-spacing:0}.telemetry small{font-size:11px;font-weight:600;letter-spacing:.06em}
-@media(max-width:600px){.telemetry .place{display:none}}
-@media(max-width:400px){.telemetry small{display:none}}
-/* The readout's room is the row minus the buttons: Controls and Pause are 160 px at normal text (Controls 108, an 8 px gap, Pause 44), and because the
-   word in Controls grows with larger text while the rest does not, 104 px plus 4.7 em of this box's own font size (the word is about 51 px at 13 px).
-   With the Vote pill in the row (232 px, 108 + 64 + 44 + two gaps) the row wraps the pill under Controls when this box would not fit beside it
-   (ControlsPicker.module.css), so this budget holds in both forms. At 320 wide the box is 56 px: 10 px of padding a side left 36 px for a 38 px
-   number, so it was cut to `0...`; 6 px a side leaves 44. */
-@media(max-width:400px){.telemetry{padding:2px 6px}}
 /* The pause card: an obsidian plate in the middle of the screen. The kicker names the state, the title stays, Resume is the one accent, and the
    doors (Controls, Field guide, Flight settings, and Vote when it works) are a list of full-width rows under it, each with its line beneath. */
 /* The scrim under the pause card: invisible, the card's own layer, before the card in DOM order so the card paints over it. A click or tap on it
@@ -93,10 +81,6 @@
 .modal:has(.modalFoot){scroll-padding-bottom:89px}
 /* The failed world: the same plate as the pause card, centred, with Reload scene as its one action. */
 .recovery{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:min(440px,calc(100% - 2 * var(--gx)));max-height:calc(100dvh - 32px);overflow:auto;padding:24px;background:var(--panel);border:1px solid var(--line);border-radius:var(--r-lg);z-index:var(--z-card)}.recovery h2{font-size:24px;font-weight:600;letter-spacing:-.01em;margin:0 0 8px}.recovery p{margin:8px 0 0;font-size:14px;color:var(--muted)}.recovery .primary{width:100%;min-width:0;margin-top:16px}
-.legend{display:none;position:absolute;bottom:38px;left:50%;transform:translateX(-50%);max-width:55%;padding:8px 12px;margin:0;background:#14111de8;border-radius:var(--r-sm);color:var(--ink);font-size:10px;line-height:1.6;letter-spacing:.03em;text-align:center;pointer-events:none;z-index:var(--z-hud);text-wrap:balance}
-@media(pointer:fine){.legend{display:block}}
-/* Narrow panes: at most two centred lines, inside the 16 px gutters. */
-@media(max-width:600px){.legend{bottom:23%;max-width:min(85%,calc(100% - 32px));width:max-content}}
 @media(max-width:600px){.brand{font-size:13px;gap:8px}.brand svg{width:27px;height:27px}.brand small{font-size:11px;letter-spacing:.14em}.headerActions>button{padding:0 12px;font-size:13px}.hero{left:max(var(--gx),env(safe-area-inset-left));right:max(var(--gx),env(safe-area-inset-right));bottom:max(84px,calc(env(safe-area-inset-bottom) + 68px));align-items:stretch}.heroTitle{font-size:clamp(56px,min(20vw,13svh),110px)}.intro{width:auto;padding:18px 18px 18px}.introCopy{margin:14px 0 16px}.eyebrow{letter-spacing:.12em}.introHint{font-size:13px}.introFooter{bottom:max(24px,env(safe-area-inset-bottom));flex-direction:column;align-items:flex-start;gap:10px;font-size:11px}.actions{right:7%;bottom:max(66px,calc(env(safe-area-inset-bottom) + 40px));gap:10px}.action{width:61px;min-height:61px}.modal{--pad:18px}.modal p,.modal li{font-size:14px}.pauseCard{padding:20px}}
 /* A short narrow phone (an SE, or any phone with the Safari toolbars up): the same column, tighter, and the decorative right footer line steps out of the way, so the
    title, the card with the first-visit note and the footer still stack with room between them. */
@@ -120,7 +104,7 @@
 @media(prefers-reduced-motion:no-preference){.heroTitle,.intro{animation:settle .6s cubic-bezier(.2,.7,.2,1) both}.intro{animation-delay:.08s}.statusDot{animation:pulse 2.8s ease-in-out infinite}
   .primary,.secondary,.action,.headerActions>button,.read,.segment button,.modalTop button{transition:background-color .15s ease,border-color .15s ease,color .15s ease}}
 @keyframes settle{from{opacity:0;transform:translateY(8px)}}@keyframes pulse{50%{opacity:.4}}
-@media(forced-colors:active){.vignette{display:none}.header,.intro,.introFooter,.telemetry{background:Canvas;color:CanvasText}.hint{background:Canvas;color:CanvasText;border-color:CanvasText}.read:hover{background:Canvas}.primary,.action,.secondary,.headerActions>button{background:ButtonFace!important;color:ButtonText!important}.pause svg{fill:currentColor;forced-color-adjust:auto}.tapPad button[aria-pressed=true]{background:Highlight;color:HighlightText}.reticle{border-color:CanvasText}.statusDot{background:Highlight;box-shadow:none}.segment button[aria-pressed=true]{background:Highlight;color:HighlightText}}
+@media(forced-colors:active){.vignette{display:none}.header,.intro,.introFooter{background:Canvas;color:CanvasText}.hint{background:Canvas;color:CanvasText;border-color:CanvasText}.read:hover{background:Canvas}.primary,.action,.secondary,.headerActions>button{background:ButtonFace!important;color:ButtonText!important}.pause svg{fill:currentColor;forced-color-adjust:auto}.tapPad button[aria-pressed=true]{background:Highlight;color:HighlightText}.reticle{border-color:CanvasText}.statusDot{background:Highlight;box-shadow:none}.segment button[aria-pressed=true]{background:Highlight;color:HighlightText}}
 
 .districtMap{display:block;width:100%;height:auto;margin:16px 0;border:1px solid var(--line);border-radius:var(--r-md)}
 .qrHandoff{display:block;width:150px;height:150px;margin:16px 0 6px;border:1px solid var(--line);border-radius:var(--r-md);background:#fff}
@@ -144,8 +128,6 @@
 .pauseCard>.pauseNote{margin-top:14px}
 .pauseCard:focus{outline:none}
 .insetProbe{position:fixed;left:0;top:0;width:0;height:0;visibility:hidden;pointer-events:none;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
-.portraitLine{display:none}
-@media(orientation:portrait){:global(html[data-input=touch]) .pauseCard .portraitLine{display:block}}
 @media(max-height:420px) and (orientation:landscape){.pauseCard{padding:12px 16px}.pauseCard h2{font-size:20px;margin:0 0 2px}.pauseCard p{margin:4px 0 0}.pauseCard .primary{margin:8px 0 0}.pauseRows{gap:6px}.pauseCard .pauseNote{font-size:12px}}
 /* Gesture Lab: no crosshair (the finger aims); the lab surface replaces the flight surface. Classic one thumb on a touch screen
    (tap a drone to blast) hides it the same way. */

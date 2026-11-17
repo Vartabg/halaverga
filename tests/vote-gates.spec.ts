@@ -1,6 +1,8 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 import { box, card, chip, DESK, dots, LANDSCAPE, mock, notYet, ONE_DESK, openFromChip, PORTRAIT, radio, rankedDesktop, sendBtn, tap, TWO_DESK, TWO_TOUCH, votePage } from './vote-browser';
+import { VOTE_UI } from '../src/lib/voteSwitch';
+test.skip(!VOTE_UI, 'the vote UI is switched off (src/lib/voteSwitch.ts, Garo 2026-11-17)');
 // The gates for the vote surface: axe (WCAG AA), 44 px targets, focus order, forced colours, the CSP, and the card at phone sizes. System
 // Chrome emulation, /api/vote and /api/results always mocked. PLAYTEST_URL=http://127.0.0.1:3421 pnpm test:browser -g "@vote".
 const PRIVACY_LINK = ['How your vote is', 'counted'].join(' '); // split so the spec 11.4 grep for the retired thanks copy finds nothing

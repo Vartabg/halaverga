@@ -1,5 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { card, DESK, labPage, mock, openFromChip, pickAndSend, seedInit, TWO_DESK } from './vote-browser';
+import { VOTE_UI } from '../src/lib/voteSwitch';
+test.skip(!VOTE_UI, 'the vote UI is switched off (src/lib/voteSwitch.ts, Garo 2026-11-17)');
 // Anonymous funnel counts (src/lib/track.ts): the scene being ready, Begin, the ballot and Send each send one bare count through the vendor
 // queue (window.va), Do Not Track sends none, and with no queue at all the vote still works. The queue is a spy defined before the page runs
 // (read-only, so a Vercel build's boot script cannot replace it); /api/vote and /api/results are mocked. System Chrome emulation.

@@ -12,7 +12,7 @@ import { useFieldGuide } from './useFieldGuide';
 import { touchMode } from '@/game/pointerMode';
 import { unlockBlasterAudio } from './audioUnlock';
 import { useAudio } from './useAudio';
-import { trackpadPill } from './trackpadPill';
+import { VOTE_UI } from '@/lib/voteSwitch';
 import { coarsePointer } from './hintQueue';
 import { labFault } from './labSwitch';
 import { secondFingerTap } from './secondFingerTap';
@@ -47,9 +47,9 @@ const SimpleTrackpadHud = dynamic(() => import('./SimpleTrackpadHud'), { ssr: fa
 const loadPanel = () => import('./TestPanel');
 // The Gesture Lab (Draw, Conduct, Brush) replaces the standard controls only while chosen. Its surface is held in state like the
 // touch controls (loaded when a lab scheme is on, and Begin/Resume waits for it). The controls picker (ControlsEntry: the header
-// trigger and, on the start card, the first-visit demo note) and the in-game vote (VoteLayer) are chunks. The landing first load
-// carries no lab, picker or vote module: a failed lab chunk returns the session to the standard controls, and a failed picker or
-// vote chunk only leaves the header trigger or card out.
+// trigger and, on the start card, the first-visit demo note) and the in-game vote (VoteLayer, mounted only while VOTE_UI is on) are
+// chunks. The landing first load carries no lab, picker or vote module: a failed lab chunk returns the session to the standard
+// controls, and a failed picker or vote chunk only leaves the header trigger or card out.
 type LabProps = { scheme: 'draw' | 'conduct' | 'brush'; onError?: (error: unknown) => void };
 const loadLab = () => import('./gesture/LabControls');
 const ControlsEntry = dynamic(() => import('./controls/ControlsEntry'), { ssr: false, loading: () => null });
@@ -124,7 +124,6 @@ export default function Experience() {
   };
   const standard = lab === 'standard', playing = state.started && !state.paused, twin = state.touchScheme === 'twin';
   const ready = state.ready && touchReady && (standard || !!LabControls);
-  const pill = standard && trackpadPill({ steering: state.trackpadSteering, shooter: state.shooter, cruising: state.trackpadFlying, flying: state.flying, canLand: state.canLand });
   useMessageClock();
   return <>
     <a className="skip" href="#field-guide" onClick={() => { pause(); state.set({ journal: true }); }}>Skip to text field guide</a>
@@ -136,7 +135,7 @@ export default function Experience() {
       <div className={`${styles.vignette} ${!state.started ? styles.introVignette : ''}`} aria-hidden="true" />
       <header className={styles.header} data-play={bar ? '' : undefined}>
         {!bar && <Brand />}
-        {/* The top row: while playing, Vote (when it shows), Controls, Pause; the Field guide and Flight settings are on the pause card. */}
+        {/* The top row: while playing, Controls and Pause; the Field guide and Flight settings are on the pause card. */}
         <div className={styles.headerActions}>
           {bar ? <>
             <Optional><ControlsEntry part="trigger" /></Optional>
@@ -171,11 +170,10 @@ export default function Experience() {
           </div>
           {standard && state.desktopMode === 'trackpad' && state.trackpadSteering === 'flow' && <Optional><FlowHud /></Optional>}
           {standard && state.desktopMode === 'trackpad' && state.trackpadSteering === 'simple' && <Optional><SimpleTrackpadHud /></Optional>}
-          {/* The desktop legend: a control caption, not advice, so it stays at the bottom and steps aside for a limit cue. */}
-          {state.desktopMode === 'trackpad' && pill && !state.limitHint && <div className={styles.legend} data-testid="legend">{pill}</div>}
+          {/* No key legend at the bottom (Garo, 2026-11-17: the screen was flooded with text): keys are in the Field guide and Controls. */}
         </>}
         {state.paused && !state.panel && !guide.Guide && !failed && !state.voteOpen && !state.controlsOpen && <PauseCard ready={ready} onEnter={enter} note={guide.note} />}
-        {!failed && <Optional><VoteLayer onResume={enter} /></Optional>}
+        {VOTE_UI && !failed && <Optional><VoteLayer onResume={enter} /></Optional>}
       </>}
       <div className="sr-only" aria-live="polite">{state.message}</div>
       {guide.Guide && <Boundary fallback={null} onError={guide.fail}><guide.Guide onClose={closeGuide} /></Boundary>}

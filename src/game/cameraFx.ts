@@ -5,8 +5,8 @@ import { CHASE_BOOM } from './presentation';
 
 export const CAM = { kickW: 10, kickZ: .6, shotW: 30, shotZ: .7, killW: 2 * Math.PI * 3, killZ: .8, shotMax: 1, traumaDecay: 1,
   shakeDeg: 2.5, shakeHz: 15, adsIn: 20, adsOut: 14, adsFovDrop: 15, hipFov: 65, fovRate: 3,
-  hCap: 95, shortFrom: 440, shortTo: 600, wideFrom: 1.2, wideTo: 1.5, near: .12, hipDrop: .2, adsDrop: .1 } as const;
-const DEG = Math.PI / 180, TAN25 = Math.tan(25 * DEG);
+  hCap: 95, shortFrom: 440, shortTo: 600, wideFrom: 1.2, wideTo: 1.5, near: .12, hipDrop: .2, adsDrop: .1, portraitH: 56, portraitMax: 88 } as const;
+const DEG = Math.PI / 180;
 const clampDt = (elapsed: number) => elapsed > 0 ? Math.min(elapsed, .05) : 0;
 
 /** Peak of a spring released from rest with unit velocity: impulse = peak / peakFactor. */
@@ -79,9 +79,17 @@ export function shortWeight(cssHeight: number, aspect: number) {
   const t = Math.max(0, (cssHeight - CAM.shortFrom) / (CAM.shortTo - CAM.shortFrom)), a = Math.min(1, (aspect - CAM.wideFrom) / (CAM.wideTo - CAM.wideFrom));
   return (1 - smooth(t)) * smooth(a);
 }
-/** Hip vertical FOV: 65, or on short viewports toward a 95 deg horizontal cap (Hor+ capped). Exactly 65 at w 0. */
+/** An upright screen keeps at least a CAM.portraitH degree horizontal view (a Hor+ floor, Garo 2026-11-17: held upright he could not
+ * see the fight, the view was 42 deg wide at 393x659 in Safari), so the vertical FOV opens up to CAM.portraitMax. Exactly 65 from an aspect of
+ * about .84 up, and on every landscape screen. */
+export function portraitHipFov(aspect: number) {
+  if (!(aspect > 0) || aspect >= 1) return CAM.hipFov;
+  const v = 2 * Math.atan(Math.tan(CAM.portraitH * DEG / 2) / aspect) / DEG;
+  return Math.min(CAM.portraitMax, Math.max(CAM.hipFov, v));
+}
+/** Hip vertical FOV: 65 (wider upright, portraitHipFov), or on short landscape viewports toward a 95 deg horizontal cap (Hor+ capped). */
 export function hipFovFor(aspect: number, w: number) {
-  if (!(w > 0) || !(aspect > 0)) return CAM.hipFov;
+  if (!(w > 0) || !(aspect > 0)) return portraitHipFov(aspect);
   const capped = 2 * Math.atan(Math.tan(CAM.hCap * DEG / 2) / aspect) / DEG;
   return capped >= CAM.hipFov ? CAM.hipFov : CAM.hipFov - (CAM.hipFov - capped) * w;
 }
@@ -107,7 +115,7 @@ export function boomFor(blend: number, aspect: number, out: Vec3, w = 0) {
   const hx = CHASE_BOOM.x * k, hy = hw ? CHASE_BOOM.y - CAM.hipDrop * hw : CHASE_BOOM.y, hz = CHASE_BOOM.z * k;
   if (blend <= 0) { out.x = hx; out.y = hy; out.z = hz; return out; }
   const t = Math.min(1, Math.max(0, (aspect - .46) / .54)), z = (3.4 + (2.6 - 3.4) * t) * k, y = .55 + (.45 - .55) * t - CAM.adsDrop * hw;
-  const tanA = hw ? Math.tan(adsFovOf(hipFovFor(aspect, hw)) * DEG / 2) : TAN25;
+  const tanA = Math.tan(adsFovOf(hipFovFor(aspect, hw)) * DEG / 2); // tan 25 at a 65 deg hip
   const x = Math.min(.85, .6 * z * tanA * aspect), a = Math.min(blend, 1);
   out.x = hx + (x - hx) * a; out.y = hy + (y - hy) * a; out.z = hz + (z - hz) * a;
   return out;

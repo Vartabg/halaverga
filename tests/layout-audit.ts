@@ -95,7 +95,8 @@ export async function audit(page: Page, v: View, mode: Mode = {}): Promise<strin
   if (mode.play) {
     // 4 The readout is passive and clear of every control.
     const tel = page.getByTestId('flight-telemetry');
-    if (await tel.count()) {
+    // The readout is a hidden empty div now (no box; Garo 2026-11-17: the screen was flooded with text): nothing to overlap or cut.
+    if (await tel.count() && await tel.boundingBox()) {
       const pe = await tel.evaluate(e => getComputedStyle(e).pointerEvents), tb = (await tel.boundingBox())!;
       if (pe !== 'none') problems.push(`readout takes touches (pointer-events ${pe})`);
       for (const i of items) if (overlap(tb, i)) problems.push(`readout overlaps ${at(i)}`);
@@ -174,7 +175,7 @@ export async function audit(page: Page, v: View, mode: Mode = {}): Promise<strin
  */
 export async function scaleText(page: Page, factor: number): Promise<{ before: number[]; after: number[] }> {
   return page.evaluate(f => {
-    const probes = ['[data-testid=controls-trigger]', '[data-testid=flight-telemetry] > span:last-child', '[data-testid=flight-telemetry] small'];
+    const probes = ['[data-testid=controls-trigger]', 'header', 'main'];
     const sizes = () => probes.map(q => { const e = document.querySelector(q); return e ? parseFloat(getComputedStyle(e).fontSize) : NaN; });
     const before = sizes(), els = [...document.querySelectorAll<HTMLElement>('body *')], px = els.map(e => parseFloat(getComputedStyle(e).fontSize));
     els.forEach((e, i) => e.style.setProperty('font-size', `${px[i] * f}px`, 'important'));

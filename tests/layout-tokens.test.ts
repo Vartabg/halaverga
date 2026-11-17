@@ -63,37 +63,10 @@ describe('the one-row header', () => {
 });
 
 describe('the readout', () => {
-  const telemetry = rule('.telemetry');
-  it('is passive, top-left of the row, and its plate is at least 85 percent opaque (D2)', () => {
-    expect(telemetry).toContain('pointer-events:none'); expect(telemetry).toContain('top:var(--top)'); expect(telemetry).toContain('min-height:var(--row)');
-    const alpha = /background:#[0-9a-f]{6}([0-9a-f]{2})/.exec(telemetry)?.[1];
-    expect(alpha, 'an 8-digit hex plate').toBeDefined();
-    expect(parseInt(alpha!, 16) / 255).toBeGreaterThanOrEqual(.85);
-  });
-  it('drops the place line at 600 px and narrower and the unit at 400 and narrower (D1); the number stays 20 px bold', () => {
-    expect(css).toContain('@media(max-width:600px){.telemetry .place{display:none}}');
-    expect(css).toContain('@media(max-width:400px){.telemetry small{display:none}}');
-    expect(css).toMatch(/\.telemetry \.alt\{font-size:20px;font-weight:700/);
-  });
-  it('pads 6 px a side at 400 px wide and narrower, so the 38 px number fits the 56 px box it gets at 320 wide and is not cut to an ellipsis', () => {
-    // Room for the readout = the row minus the buttons: Controls + Pause is 160 px at normal text, and the pill adds up to 232 px (Vote 64 + Controls 108 +
-    // Pause 44 + 2 gaps). 320 - 2 x 16 - 232 = 56 px with the pill, less 12 px of padding = 44 for the number. The words grow with larger text, the
-    // rest does not, so the budget is `max(normal, fixed px + k em)` of the readout's own font size (layout-fit.spec.ts: 150 and 200 percent).
-    expect(telemetry).toMatch(/max-width:calc\(100% - 2 \* var\(--gx\) - max\(160px, 104px \+ 4\.7em\)\)/);
-    expect(css).toContain('@media(max-width:400px){.telemetry{padding:2px 6px}}');
-  });
-  it('with the Vote pill the row, not the readout, gives way: the header is capped at the row minus the readout\'s natural width and the pill wraps under Controls (the 200 percent repair)', () => {
-    const picker = readFileSync(new URL('../src/ui/controls/ControlsPicker.module.css', import.meta.url), 'utf8');
-    // The readout's natural width in em of its own 11 px (measured: 3.5 em + 12 px of padding for the number alone, 7.0 to 7.2 em + 20 px with its unit), plus a little slack.
-    expect(picker).toContain('@media(max-width:400px){:global(header[data-play]):has(.chip){font-size:11px;max-width:calc(100% - 2 * var(--gx) - 3.6em - 12px)}}');
-    expect(picker).toContain('@media(min-width:401px) and (max-width:600px){:global(header[data-play]):has(.chip){font-size:11px;max-width:calc(100% - 2 * var(--gx) - 7.3em - 20px)}}');
-    expect(picker).toContain('.root:has(.chip){display:flex;flex-wrap:wrap-reverse;justify-content:flex-end;gap:8px}');
-    // The readout is no longer budgeted for the pill (that clipped the number at 200 percent); its own cap is the room beside Controls and Pause.
-    expect(picker).not.toMatch(/has\(\.chip\) ~ :global\(\[data-testid=flight-telemetry\]\)/);
-    expect(css).toMatch(/\.headerActions\{[^}]*align-items:flex-start/); // so Pause stays on the first line when the pill wraps under Controls
-  });
-  it('has one rule: no per-orientation touch overrides', () => {
-    expect(css).not.toMatch(/data-input=touch\]\) \.telemetry/);
+  it('is a hidden data element: the place and height left the screen (Garo, 2026-11-17: the screen was flooded with text)', () => {
+    const tsx = readFileSync(new URL('../src/ui/Telemetry.tsx', import.meta.url), 'utf8');
+    expect(tsx).toContain('<div hidden data-testid="flight-telemetry"'); expect(tsx).not.toMatch(/M ELEV|ON WING|SANCTUARY/);
+    expect(css).not.toContain('.telemetry');
   });
 });
 
@@ -135,7 +108,7 @@ describe('the layers: every z-index is one named layer, defined once in globals.
     const MAP: [string, string, string][] = [
       ['ui/Experience.module.css', '.world', 'world'], ['ui/Experience.module.css', '.vignette', 'veil'],
       ['ui/Experience.module.css', '.flightSurface', 'surface'], ['ui/gesture/Gesture.module.css', '.surface', 'surface'],
-      ['ui/Experience.module.css', '.telemetry', 'hud'], ['ui/Experience.module.css', '.legend', 'hud'], ['ui/Flow.module.css', '.hud', 'hud'],
+      ['ui/Flow.module.css', '.hud', 'hud'],
       ['ui/ShooterHud.module.css', '.hud', 'surface'], ['ui/gesture/Gesture.module.css', '.ink', 'hud'],
       ['ui/Experience.module.css', '.stick', 'play'], ['ui/Experience.module.css', '.actions', 'play'], ['ui/Experience.module.css', '.tapPad', 'play'], ['ui/TouchControls.module.css', '.layer', 'play'],
       ['ui/controls/ControlsPicker.module.css', '.backdrop', 'sheet'], ['ui/controls/ControlsPicker.module.css', '.sheet', 'sheet'],

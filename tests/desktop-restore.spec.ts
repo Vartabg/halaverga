@@ -6,11 +6,7 @@ import { begin, heading, resume, seed, shots, speed, telemetry } from './shooter
 // and W (in the air) or Space starts flying. Seeded with Garo's live save: the 'simple' default from before controls version 4.
 // A non-touch desktop (hasTouch false) at a full desktop size and at his 325 px Claude pane.
 const GARO = { trackpadSteering: 'simple', controlsVersion: 3, hintProgress: { touch: 0, simple: 0, mouse: 0 } };
-const GROUND = 'SPACE TO FLY · CLICK A DEMON · DRAG TO LOOK';
-// Hovering: W or Space flies; with a surface in reach Space lands, so the pill names only W.
-const HOVER = /^(W OR SPACE TO FLY|W TO FLY · SPACE TO LAND) · CLICK A DEMON · DRAG TO LOOK$/;
-const CRUISE = 'MOVE TO STEER · SCROLL FOR SPEED · CLICK TO HOVER · C TO STRIKE';
-const pill = legend;
+const pill = legend; // the bottom legend is gone (Garo 2026-11-17: the screen was flooded with text): every pill check is now an absent check
 const scene = (p: Page) => p.getByTestId('flight-surface');
 const locked = (p: Page) => p.evaluate(() => !!document.pointerLockElement);
 /** data-shots is stamped every 100 ms and telemetry every 350 ms: let both settle before an exact comparison. */
@@ -26,7 +22,7 @@ for (const viewport of [{ width: 1440, height: 900 }, { width: 325, height: 928 
     const a = { x: Math.round(w * .5), y: Math.round(h * .38) }, b = { x: Math.round(w * .5) + 100, y: a.y }, c = { x: a.x, y: Math.round(h * .45) };
 
     // On the ground: the ground pill, no simple-profile panel or hint series, and the aim cursor.
-    await expect(pill(page)).toHaveText(GROUND);
+    await expect(pill(page)).toHaveCount(0);
     await expect(telemetry(page)).toHaveAttribute('data-flying', 'false');
     await expect(page.getByTestId('controls-hint')).toHaveCount(0);
     await expect(page.getByTestId('simple-trackpad-hud')).toHaveCount(0);
@@ -51,7 +47,7 @@ for (const viewport of [{ width: 1440, height: 900 }, { width: 325, height: 928 
     await expect(scene(page)).toHaveAttribute('data-trackpad-active', 'true');
     await expect(telemetry(page)).toHaveAttribute('data-flying', 'true');
     await expect.poll(() => speed(page)).toBeGreaterThan(5);
-    await expect(pill(page)).toHaveText(CRUISE);
+    await expect(pill(page)).toHaveCount(0);
     await expect(scene(page)).toHaveAttribute('data-hover-fire', 'false');
 
     // Moving the pointer steers (no button held).
@@ -66,7 +62,7 @@ for (const viewport of [{ width: 1440, height: 900 }, { width: 325, height: 928 
     await expect.poll(() => speed(page)).toBeLessThan(.3);
     await expect(telemetry(page)).toHaveAttribute('data-flying', 'true');
     await settle(page); expect(await shots(page)).toBe(fired);
-    await expect(pill(page)).toHaveText(HOVER);
+    await expect(pill(page)).toHaveCount(0);
     await expect(scene(page)).toHaveAttribute('data-hover-fire', 'true');
     expect(await scene(page).evaluate(e => getComputedStyle(e).cursor)).not.toBe('none');
 
@@ -114,7 +110,7 @@ for (const viewport of [{ width: 1440, height: 900 }, { width: 325, height: 928 
     await page.keyboard.press('Escape');
     await expect(page.getByRole('button', { name: 'Resume flight' })).toBeVisible();
     await resume(page);
-    await expect(pill(page)).toHaveText(flying ? HOVER : GROUND);
+    await expect(pill(page)).toHaveCount(0);
 
     // The save moved to the free cursor (controls version 4), on to version 5, which turns look acceleration, sustained edges and
     // edge rest on (turn-360, 2026-09-25), and on to version 6 (one-finger flight the phone default, 2026-09-26). Written on pagehide.

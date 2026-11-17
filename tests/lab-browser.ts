@@ -15,7 +15,7 @@ export const flightSettings = (page: Page) => page.getByRole('dialog', { name: '
 export const controlsSheet = (page: Page) => page.getByTestId('controls-sheet');
 /** The one hint slot under the top row (a message, the tablet record, a landing or limit line, or the controls lesson). */
 export const hintSlot = (page: Page) => page.getByTestId('hint-slot');
-/** The desktop control legend at the bottom of the screen: a caption, not advice, so it is not in the hint slot. */
+/** The desktop control legend: removed (Garo 2026-11-17: the screen was flooded with text); specs assert it is absent. */
 export const legend = (page: Page) => page.getByTestId('legend');
 /**
  * Flight settings. The gear left the top row: Pause, then the pause card's Flight settings row. The dialog is open on return and the game

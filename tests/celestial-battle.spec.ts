@@ -18,7 +18,9 @@ test('the Hermon entry, accessible source distinction and battle objective agree
   await page.keyboard.press('Space');
   await expect(page.getByTestId('flight-telemetry')).toHaveAttribute('data-flying', 'true');
   // No bracer shots (docs/research/combat-texts.md): C is the next step on the demon under the reticle, and never fires.
-  await expect(page.getByLabel('Combat strokes')).toContainText('Click or C: strike / chain');
+  // Garo 2026-11-17: the screen was flooded with text, so the key line and the coaching line are gone; the card shows only the count and wards.
+  await expect(page.getByLabel('Combat strokes')).toHaveCount(0);
+  await expect(page.getByTestId('next-move')).toHaveCount(0);
   // Once the press has been processed (every command counts as one attempt), the bracer has not fired: the weapon never heated,
   // no arm cannon is mounted, and its model was never downloaded.
   const hud = page.getByTestId('shooter-hud');

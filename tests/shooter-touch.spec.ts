@@ -18,7 +18,7 @@ for (const viewport of [PORTRAIT, LANDSCAPE]) {
     });
     test('with tap controls: pad toggles, Stop keeps Aim latched, no drag hint', async ({ browser }) => {
       const t = await autoTouchPage(browser, viewport, { tapControls: true }), { page } = t;
-      await expect(page.getByTestId('controls-hint')).toContainText(/tap pad: fire and aim toggle/i);
+      await expect(page.getByTestId('hint-live')).toContainText(/tap pad: fire and aim toggle/i);
       expect(await page.locator('body').innerText()).not.toContain('DRAG IT TO AIM');
       await expect(page.getByRole('button', { name: 'Fire', exact: true })).toHaveCount(0);
       await expect(page.getByRole('button', { name: 'Aim', exact: true })).toHaveCount(0);

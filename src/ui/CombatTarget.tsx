@@ -10,13 +10,13 @@ import styles from './BattleHud.module.css';
 import { combatCameraReadout as camera } from '@/game/combatCamera';
 /** Show the current strike until contact, then the next chain candidate, including a direction cue outside the view. */
 export default function CombatTarget() {
-  const ref = useRef<HTMLDivElement>(null), ring = useRef<HTMLElement>(null), label = useRef<HTMLSpanElement>(null);
+  const ref = useRef<HTMLDivElement>(null), ring = useRef<HTMLElement>(null);
   useEffect(() => {
     const point = { x: 0, y: 0 }, aim = createAimFrame(), rect = { left: 0, top: 0, width: innerWidth, height: innerHeight }; let raf = 0;
     const frame = () => {
       raf = requestAnimationFrame(frame);
       const el = ref.current, s = runtime.shooter, state = useGame.getState();
-      if (!el || !ring.current || !label.current) return;
+      if (!el || !ring.current) return;
       el.dataset.camera = JSON.stringify(camera);
       rect.width = innerWidth; rect.height = innerHeight; aimFrameFrom(s.aim, rect, performance.now(), aim);
       const active = strike.phase === 1 && strike.target >= 0;
@@ -52,8 +52,8 @@ export default function CombatTarget() {
         ring.current.style.transform = `rotate(${Math.atan2(dy, dx)}rad)`;
       } else if (el.dataset.edge !== 'false') { ring.current.style.cssText = ''; ring.current.textContent = ''; }
       const wounds = banish.wounds[i] ?? 0;
-      const text = active ? 'STRIKING' : queued ? 'QUEUED' : edge ? 'TURN' : i === offered ? 'COUNTER' : wounds >= LAST ? 'FINISH' : wounds > 0 ? `CUT ${wounds + 1}` : banish.combo > 0 ? 'CHAIN' : 'STRIKE';
-      if (label.current.textContent !== text) label.current.textContent = text;
+      // The state stays as data only: the word under the ring left the screen (Garo, 2026-11-17: the screen was flooded with text).
+      el.dataset.state = active ? 'striking' : queued ? 'queued' : edge ? 'turn' : i === offered ? 'counter' : wounds >= LAST ? 'finish' : wounds > 0 ? `cut-${wounds + 1}` : banish.combo > 0 ? 'chain' : 'strike';
       el.style.transform = `translate(${point.x}px,${point.y}px)`;
       el.dataset.target = String(i); el.dataset.x = point.x.toFixed(1); el.dataset.y = point.y.toFixed(1);
       el.dataset.edge = String(edge); el.dataset.active = String(active); el.dataset.strikeTarget = String(strike.target);
@@ -61,5 +61,5 @@ export default function CombatTarget() {
     };
     frame(); return () => cancelAnimationFrame(raf);
   }, []);
-  return <div ref={ref} hidden className={styles.target} aria-hidden="true" data-testid="combat-target"><i ref={ring} /><span ref={label}>STRIKE</span></div>;
+  return <div ref={ref} hidden className={styles.target} aria-hidden="true" data-testid="combat-target"><i ref={ring} /></div>;
 }

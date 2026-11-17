@@ -10,6 +10,7 @@ import { takeHeldName } from './selectControl';
 import { useControlFamily } from './useControlFamily';
 import { useRowExtra } from './useRowExtra';
 import { secondFingerTap } from '../secondFingerTap';
+import { VOTE_UI } from '@/lib/voteSwitch';
 import { lockedTail, useOneWayToast, useReadyToast, useVoteState } from './useVoteState';
 import styles from './ControlsPicker.module.css';
 // The top row's Vote pill and Controls button (a lazy chunk, mounted after Begin and shown only while playing). The sheet itself is
@@ -54,7 +55,7 @@ export default function ControlsPicker({ family: forced }: { family?: ControlFam
       aria-label={`Controls: ${controlById(current).label}${locked ? lockedTail(vote.tried) : ''}`} onMouseDown={e => e.preventDefault()} onClick={click}
       onPointerUp={secondFingerTap(() => { second.current = performance.now(); toggle(); })}>
       Controls
-      <span className={styles.dots} data-testid="vote-dots" aria-hidden="true">{locked && [0, 1].map(i => <i key={i} data-on={vote.tried > i ? '' : undefined} />)}</span>
+      {VOTE_UI && <span className={styles.dots} data-testid="vote-dots" aria-hidden="true">{locked && [0, 1].map(i => <i key={i} data-on={vote.tried > i ? '' : undefined} />)}</span>}
     </button>
   </div>;
 }

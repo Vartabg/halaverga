@@ -1,6 +1,8 @@
 import { expect, test } from '@playwright/test';
 import { openSheet, sheet } from './controls-browser';
 import { card, chip, mock, notYet, openFromChip, paused, pickAndSend, playing, radio, sendBtn, TWO_DESK, voteMark, votePage, voteResults } from './vote-browser';
+import { VOTE_UI } from '../src/lib/voteSwitch';
+test.skip(!VOTE_UI, 'the vote UI is switched off (src/lib/voteSwitch.ts, Garo 2026-11-17)');
 // What Send does with each answer (spec 1.7, 1.8, 1.5): one nonce, a kept pick, honest copy, focus and Escape after a failure. System
 // Chrome emulation; /api/vote and /api/results are always mocked. PLAYTEST_URL=http://127.0.0.1:3421 pnpm test:browser -g "@vote".
 const BUSY = 'Voting is busy right now. Try again later.', FAILED = "Couldn't send. Tap Send to try again.";

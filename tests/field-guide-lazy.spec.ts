@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { mockResults, playInit } from './controls-browser';
+import { VOTE_UI } from '../src/lib/voteSwitch';
 // The Field guide is a lazy chunk (src/ui/useFieldGuide.ts). System Chrome emulation: these check the wiring a player can see (the status
 // line while it loads, the failure line, the retry on the next open, no stranded pause card), never how it behaves on a real phone.
 type Mode = 'fail' | 'slow' | 'hold' | 'pass';
@@ -163,6 +164,7 @@ test('Flight settings in the loading window cancels the guide: one dialog, and t
 // below) are the ones that can claim the screen while the guide loads. The vote door is only there once the vote works: two ways flown, an open ballot.
 
 test('the vote door in the loading window cancels the guide: one dialog, and closing it puts the pause card back', async ({ page }) => {
+  test.skip(!VOTE_UI, 'the vote UI is switched off (src/lib/voteSwitch.ts, Garo 2026-11-17)');
   await claimedWhileLoading(page, async () => {
     await card(page).getByTestId('vote-open').click();
     await expect(page.getByTestId('vote-card')).toBeVisible();

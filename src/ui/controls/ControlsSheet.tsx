@@ -3,6 +3,7 @@ import { useEffect, useId, useRef } from 'react';
 import { controlsFor, type ControlFamily } from '@/game/controlTypes';
 import { useGame } from '@/game/store';
 import { VOTE_MIN_TRIED } from '@/lib/vote/ballot';
+import { VOTE_UI } from '@/lib/voteSwitch';
 import { canVote, readMark } from '@/ui/vote/voteTracker';
 import { pause } from '../useInput';
 import ControlList, { useTried } from './ControlList';
@@ -22,7 +23,7 @@ export function KeysToggle() {
  * otherwise 'Tried n of N'. One target at a time, announced politely as more get played.
  */
 export function TriedLine({ family, voting = true }: { family: ControlFamily; voting?: boolean }) {
-  const n = useTried(family).length, need = voting && n < VOTE_MIN_TRIED && canVote(readMark(), Date.now(), family);
+  const n = useTried(family).length, need = VOTE_UI && voting && n < VOTE_MIN_TRIED && canVote(readMark(), Date.now(), family);
   return <p className={styles.tried} aria-live="polite" data-testid="controls-tried">
     {need ? `Tried ${n} of ${VOTE_MIN_TRIED} needed to vote` : `Tried ${n} of ${controlsFor(family).length}`}</p>;
 }

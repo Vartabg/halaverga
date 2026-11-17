@@ -21,7 +21,7 @@ test('Cursor is the default: the free-cursor surface, no lab surface or data-con
   await isCurrent(page, 'Cursor');
   expect(await controls(page)).toBeNull();
   expect(await controlId(page)).toBe('cursor');
-  await expect(legend(page)).toHaveText('SPACE TO FLY · CLICK A DEMON · DRAG TO LOOK');
+  await expect(legend(page)).toHaveCount(0); // Garo 2026-11-17: the screen was flooded with text, so the legend is gone
   expect(t.errors).toEqual([]); await t.context.close();
 });
 
@@ -179,7 +179,8 @@ for (const viewport of [{ width: 393, height: 852 }, { width: 375, height: 667 }
     await row(page, 'draw').tap();
     const hint = hintSlot(page), telemetry = page.getByTestId('flight-telemetry');
     await expect(hint).toHaveText('Draw controls');
-    const a = (await hint.boundingBox())!, b = (await telemetry.boundingBox())!;
+    // The readout is a hidden empty div now (no box; Garo 2026-11-17: the screen was flooded with text): nothing to overlap.
+    const a = (await hint.boundingBox())!, b = (await telemetry.boundingBox()) ?? { x: 0, y: 0, width: 0, height: 0 };
     const overlap = Math.max(0, Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x)) * Math.max(0, Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y));
     expect(overlap, `toast ${JSON.stringify(a)} vs telemetry ${JSON.stringify(b)}`).toBe(0);
     // The first tip appears at the bottom with Skip tip and is announced, but never as the top toast.

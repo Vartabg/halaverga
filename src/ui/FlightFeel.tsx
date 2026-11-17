@@ -29,8 +29,8 @@ export default function FlightFeel() {
   }, []);
   if ((!flying && !phone) || paused) return null;
   return <aside className={styles.panel} aria-label="Flight controls">
-    <span data-testid="momentum-readout">{sample.status} · {sample.speed} m/s</span>
-    <div className={styles.actions}>{phone && <PhoneFlight />}<button type="button" onClick={brake} onPointerUp={secondFingerTap(brake)} aria-label="Brake to hover">Brake <kbd>B</kbd></button></div>
-    <small>{phone ? 'Drag to look · release Fly to hover' : 'Dive for speed · release to hover'}</small>
+    {/* Buttons only: the speed line and the tip under them left the screen (Garo, 2026-11-17); the state stays as data. */}
+    <div className={styles.actions} data-testid="momentum-readout" data-status={sample.status} data-speed={sample.speed}>{phone && <PhoneFlight />}
+      <button type="button" onClick={brake} onPointerUp={secondFingerTap(brake)} aria-label="Brake to hover">Brake{!phone && <kbd>B</kbd>}</button></div>
   </aside>;
 }

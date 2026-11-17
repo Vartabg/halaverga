@@ -6,8 +6,9 @@ import { ONE_DESK, votePage } from './vote-browser';
 // and then has its 4 s; the controls lesson's clocks wait while the slot is busy and come back after Resume until the first takeoff; the record line is a
 // Read button; the first way flown for 20 s gets one line. System Chrome emulation: the wiring, never how it reads on an iPhone.
 const CAPTURED = { desktopMode: 'trackpad', trackpadSteering: 'captured', flowIntroSeen: true } as const;
-const lesson = (p: import('@playwright/test').Page) => p.getByTestId('controls-hint');
-const ONE_WAY = 'One way flown. Try another for 20 s, then vote.';
+// The coach line is never drawn now (Garo 2026-11-17: the screen was flooded with text): its clocks are read from the screen-reader region (hint-live).
+const lesson = (p: import('@playwright/test').Page) => p.getByTestId('hint-live');
+const ONE_WAY = 'One way flown. Try another for 20 s, then vote.'; // retired with the vote switch (src/lib/voteSwitch.ts)
 // Beside the Tablet of Semjaza (-7, 21, 58; in reach within 5 m). The old spot (-6, 21.1, 60) fails the landing check since the terrain redo, so the
 // save was replaced by the start and the record line never showed (2026-11-17, also on main 547a7cc).
 const TERMINAL = { checkpoint: { x: -5, y: 21.06, z: 62 }, flowIntroSeen: true };
@@ -41,7 +42,7 @@ test('@hint D6: a control picked under the open sheet is named once the sheet cl
 test('@hint G1: a 6 s lesson keeps its clock while the sheet covers the slot, and goes after its own 6 s', async ({ browser }) => {
   const t = await labPage(browser, 'standard', { viewport: { width: 1440, height: 900 }, saved: CAPTURED }), { page } = t;
   await expect(lesson(page)).toHaveText('C: next step');
-  await expect(lesson(page)).toHaveAttribute('data-track', 'line');
+  await expect(hintSlot(page)).toHaveCount(0); // said, not drawn
   await page.waitForTimeout(1200);
   await openSheet(page);
   await expect(hintSlot(page)).toHaveCount(0);
@@ -49,7 +50,7 @@ test('@hint G1: a 6 s lesson keeps its clock while the sheet covers the slot, an
   await sheet(page).getByTestId('controls-done').click();
   await expect(lesson(page)).toHaveText('C: next step');
   const back = Date.now();
-  await expect(lesson(page)).toHaveCount(0, { timeout: 9000 });
+  await expect(lesson(page)).toHaveText('', { timeout: 9000 });
   expect(Date.now() - back, 'the rest of its 6 s, not a fresh 6 s').toBeLessThan(6500);
   expect(t.errors).toEqual([]); await t.context.close();
 });
@@ -62,16 +63,16 @@ test('@hint a 6 s lesson comes back after each Resume until the first takeoff, a
     await expect(page.getByRole('button', { name: 'Pause expedition' })).toBeVisible();
   };
   await expect(lesson(page)).toHaveText('C: next step');
-  await expect(lesson(page)).toHaveCount(0, { timeout: 9000 }); // its 6 s
+  await expect(lesson(page)).toHaveText('', { timeout: 9000 }); // its 6 s
   await pauseResume();
   await expect(lesson(page)).toHaveText('C: next step'); // re-armed: the player has not flown yet
-  await expect(lesson(page)).toHaveCount(0, { timeout: 9000 });
+  await expect(lesson(page)).toHaveText('', { timeout: 9000 });
   await page.keyboard.press('Space');
   await expect(page.getByTestId('flight-telemetry')).toHaveAttribute('data-flying', 'true');
   await page.waitForTimeout(600);
   await pauseResume();
   await page.waitForTimeout(1500);
-  await expect(lesson(page)).toHaveCount(0); // flown: it does not come back
+  await expect(lesson(page)).toHaveText(''); // flown: it does not come back
   expect(t.errors).toEqual([]); await t.context.close();
 });
 
@@ -85,22 +86,16 @@ test('@hint the record line is a Read button: it pauses, opens the Field guide a
   expect(t.errors).toEqual([]); await t.context.close();
 });
 
-test('@hint C3: the first way to reach 20 s puts one line in the slot (once, and only if you watched it); arriving with a way flown does not', async ({ browser }) => {
+test('@hint C3: the first way to reach 20 s puts no line in the slot and says nothing about a vote (the vote is off, Garo 2026-11-17)', async ({ browser }) => {
   const t = await votePage(browser, { 'desktop:cursor': 15 }), { page } = t;
-  await expect(hintSlot(page).filter({ hasText: ONE_WAY })).toHaveCount(0);
   await page.waitForTimeout(2600); // Begin's own press is outside the 2 s input window by now
-  await page.keyboard.down('ArrowRight');
-  await expect(hintSlot(page)).toHaveText(ONE_WAY, { timeout: 25000 }); // the seconds ran out while the key was held
-  await page.keyboard.up('ArrowRight');
-  await expect(hintSlot(page)).toHaveAttribute('data-kind', 'message');
-  expect(await said(page)).toContain(ONE_WAY);
-  await expect(hintSlot(page).filter({ hasText: ONE_WAY })).toHaveCount(0, { timeout: 8000 }); // a 4 s message
-  await page.keyboard.down('ArrowLeft'); await page.waitForTimeout(2500); await page.keyboard.up('ArrowLeft');
-  await expect(hintSlot(page).filter({ hasText: ONE_WAY })).toHaveCount(0); // once per page load
+  await page.keyboard.down('ArrowRight'); await page.waitForTimeout(8000); await page.keyboard.up('ArrowRight'); // past 20 s of play
+  await expect(hintSlot(page).filter({ hasText: ONE_WAY })).toHaveCount(0);
+  expect((await said(page)).join(' | ')).not.toMatch(/vote/i);
   expect(t.errors).toEqual([]); await t.context.close();
   const had = await votePage(browser, ONE_DESK);
   await had.page.waitForTimeout(1800);
-  expect(await said(had.page)).not.toContain(ONE_WAY); // someone who arrives with a way flown is not told
+  expect(await said(had.page)).not.toContain(ONE_WAY);
   expect(had.errors).toEqual([]); await had.context.close();
 });
 

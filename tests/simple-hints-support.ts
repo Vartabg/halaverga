@@ -1,6 +1,8 @@
 // Shared helpers for simple-hints.spec.ts (split out to keep the spec under the 200-line module rule).
 import type { Page } from '@playwright/test';
-export const hint = (p: Page) => p.getByTestId('controls-hint');
+// The coach line is never drawn (Garo 2026-11-17: the screen was flooded with text): lesson progress is read from the screen-reader region.
+export const hint = (p: Page) => p.getByTestId('hint-live');
+export const drawn = (p: Page) => p.getByTestId('hint-slot');
 export const soundNotice = (p: Page) => p.locator('p', { hasText: 'Blaster sound is off · Pause, then Flight settings' });
 export const locked = (p: Page) => p.evaluate(() => !!document.pointerLockElement);
 export const saved = (p: Page) => p.evaluate(() => JSON.parse(localStorage.getItem('halaverga-flight-v1') || '{}').hintProgress);
