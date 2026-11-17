@@ -22,7 +22,7 @@ import { BONE_NAMES } from '../src/world/suitSkeleton';
 // Plan 2026-11-16-real-fight A3: blows land on bodies. The angel is shoved and flinches; a struck Watcher plays its whole hit
 // reaction and turns the way the cut pushed it.
 let angel: Awaited<ReturnType<typeof loadSuit>>, demon: Awaited<ReturnType<typeof loadSuit>>, angelClips: AngelClips;
-beforeAll(async () => { angel = await loadSuit('angel'); demon = await loadSuit('watcher'); angelClips = bindAngelClips(angel.animations); });
+beforeAll(async () => { angel = await loadSuit('archangel'); demon = await loadSuit('watcher'); angelClips = bindAngelClips(angel.animations); });
 beforeEach(() => { cancelStrike(); clearShove(true); resetBattle(); });
 const length = (v: { x: number; y: number; z: number }) => Math.hypot(v.x, v.y, v.z);
 

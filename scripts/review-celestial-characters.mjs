@@ -8,10 +8,10 @@ const browser=await chromium.launch({executablePath:'/Applications/Google Chrome
 const modules={'three.module.js':'build/three.module.js','three.core.js':'build/three.core.js','SkeletonUtils.js':'examples/jsm/utils/SkeletonUtils.js','GLTFLoader.js':'examples/jsm/loaders/GLTFLoader.js','BufferGeometryUtils.js':'examples/jsm/utils/BufferGeometryUtils.js'};
 const html=`<!doctype html><html><head><meta charset="utf-8"><style>body{margin:0;background:#111820;color:#d6c8a8;font:12px Arial}header{height:72px;box-sizing:border-box;padding:26px 28px;letter-spacing:3px}main{display:grid;grid-template-columns:repeat(3,480px)}section{position:relative;height:560px}span{position:absolute;bottom:20px;left:24px;letter-spacing:2px}</style><script type="importmap">{"imports":{"three":"/study/three.module.js","three/addons/":"/study/"}}</script></head><body><header>HALAVERGA / CHARACTER STUDY · ACTUAL RUNTIME ASSETS</header><main></main><script type="module">
 import * as T from 'three';import{GLTFLoader}from'three/addons/loaders/GLTFLoader.js';import{buildSuitRig}from'/study/world/suitRig';import{createArchangelWings,stepArchangelWings}from'/study/world/archangelWings';import{angelRegalia}from'/study/world/angelRegalia';
-const loader=new GLTFLoader(),hero=await loader.loadAsync('/models/angel.glb'),demon=await loader.loadAsync('/models/abyssal.glb');
+const loader=new GLTFLoader(),hero=await loader.loadAsync('/models/archangel.glb'),demon=await loader.loadAsync('/models/watcher.glb');
 for(const [title,kind,position,target]of[
  ['WARRIOR / FRONT','hero',[1.0,.55,-8.2],[0,.02,0]],['WARRIOR / BACK','hero',[-.9,.5,8.2],[0,.02,0]],['FACE & FITTED REGALIA','face',[.42,.74,-1.80],[0,.60,0]],
- ['ABYSSAL HOST / FRONT','demon',[.8,.6,-7.4],[0,.10,0]],['MEMBRANE & ANATOMY','demon',[-3.5,.9,1.5],[0,.1,0]],['CROWN & FACIAL PLANES','demonFace',[.36,.78,-1.7],[0,.72,0]]]){
+ ['WATCHER / FRONT','demon',[.8,.6,-7.4],[0,-.05,0]],['WATCHER / BACK','demon',[-3.5,.9,1.5],[0,-.05,0]],['WATCHER / FACE','demonFace',[.36,.8,-1.7],[0,.76,0]]]){
  const el=document.createElement('section');el.innerHTML='<span>'+title+'</span>';document.querySelector('main').append(el);
  const renderer=new T.WebGLRenderer({antialias:true});renderer.setPixelRatio(1.5);renderer.setSize(480,560);renderer.setClearColor('#111820');renderer.toneMapping=T.ACESFilmicToneMapping;el.prepend(renderer.domElement);
  const scene=new T.Scene();scene.add(new T.HemisphereLight('#d2ddf5','#61564b',2));

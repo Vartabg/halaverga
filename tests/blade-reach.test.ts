@@ -14,6 +14,7 @@ import { buildTargets, createDroneSim } from '../src/game/drones';
 import { MODE, createBanish, resetBanish, stepBanish } from '../src/game/banish';
 import { resetBattle } from '../src/game/celestialBattle';
 import { flowPaths, flowVisible } from '../src/game/combatFlow';
+import { CUT_CLIPS } from '../src/world/cutClips';
 
 // Plan 2026-11-16-real-fight A1: the blow lands where the blade meets the body. The constants are measured from the shipped GLBs
 // in the game rig; these tests re-measure them so a new body or blade cannot leave them stale.
@@ -26,7 +27,7 @@ function restVertices(root: Object3D, each: (v: Vector3) => void) {
   });
 }
 let demon: Awaited<ReturnType<typeof loadSuit>>, angel: Awaited<ReturnType<typeof loadSuit>>;
-beforeAll(async () => { demon = await loadSuit('abyssal'); angel = await loadSuit('angel'); });
+beforeAll(async () => { demon = await loadSuit('watcher'); angel = await loadSuit('archangel'); });
 beforeEach(() => { cancelStrike(); flowPaths.fill(1); flowVisible.fill(1); });
 
 describe('blade contact: measured bodies and blade', () => {
@@ -35,20 +36,24 @@ describe('blade contact: measured bodies and blade', () => {
     restVertices(rig.root, v => { radius = Math.max(radius, Math.hypot(v.x, v.z)); low = Math.min(low, v.y); high = Math.max(high, v.y); });
     rig.dispose();
     // radius: the widest point from the vertical axis; half: half the rest height, less the radius (the caps add it back).
+    // y: the middle of the rest body from the combat centre (the pelvis), where the capsule is centred.
     for (const body of [BODY.lesser, BODY.warden]) {
       expect(body.radius).toBeCloseTo(radius, 1.7); expect(body.half).toBeCloseTo((high - low) / 2 - radius, 1.7);
+      expect(body.y).toBeCloseTo((high + low) / 2, 1.7);
     }
-    expect(Math.abs((high + low) / 2)).toBeLessThan(.06); // the rest body is centred on the combat centre, so the capsule is too
   });
-  it('measures the reach from the angel\'s chest to the sword tip at the slash\'s impact frame', () => {
+  it('measures the reach from the angel\'s chest to the sword tip at each cut\'s impact, and keeps the least of the three', () => {
     const rig = buildSuitRig(angel.scene), clips = bindAngelClips(angel.animations);
     rig.root.updateMatrixWorld(true);
     expect(rig.joints[11].getWorldPosition(new Vector3()).y).toBeCloseTo(BLADE.chest, 1.7); // the chest bone over the centre
-    // angel.glb's single library cut at its raised blade (.36 s); Stage B re-measures this per cut on archangel.glb.
-    blendAngelClip(rig.joints, clips.slash, clipTime(clips.slash, .36, false), 1, FULL); rig.root.updateMatrixWorld(true);
-    const tip = new Vector3(0, -GUARD - SWORD_LENGTH, 0).applyQuaternion(swordGripRotation(new Quaternion()))
-      .add(new Vector3(SWORD_GRIP.x, SWORD_GRIP.y, SWORD_GRIP.z)).applyMatrix4(rig.joints[16].matrixWorld);
-    expect(tip.distanceTo(rig.joints[11].getWorldPosition(new Vector3()))).toBeCloseTo(BLADE.reach, 1.7);
+    const reach = CUT_CLIPS.map(c => {
+      for (const j of rig.joints) j.quaternion.identity();
+      blendAngelClip(rig.joints, clips[c.clip], clipTime(clips[c.clip], c.impact, false), 1, FULL); rig.root.updateMatrixWorld(true);
+      const tip = new Vector3(0, -GUARD - SWORD_LENGTH, 0).applyQuaternion(swordGripRotation(new Quaternion()))
+        .add(new Vector3(SWORD_GRIP.x, SWORD_GRIP.y, SWORD_GRIP.z)).applyMatrix4(rig.joints[16].matrixWorld);
+      return tip.distanceTo(rig.joints[11].getWorldPosition(new Vector3()));
+    });
+    expect(reach).toHaveLength(3); expect(Math.min(...reach)).toBeCloseTo(BLADE.reach, 1.7); // the rising cut, 1.37 m (2026-11-17)
     rig.dispose();
   });
   it('replaces every use of the old flat contact distance with contactAt', () => {
@@ -67,7 +72,7 @@ describe('blade contact: the swept test', () => {
   const c = { x: 4, y: 30, z: -7 };
   for (const [kind, i] of [['lesser', 0], ['warden', 5]] as const) {
     it(`lands on the ${kind} capsule at the reach and not beyond it, from the side and over the top`, () => {
-      const body = BODY[kind], at = (x: number, y: number, z: number, serial: number) => bladeReaches(i, c, { x: c.x + x, y: c.y + y - BLADE.chest, z: c.z + z }, serial);
+      const body = BODY[kind], at = (x: number, y: number, z: number, serial: number) => bladeReaches(i, c, { x: c.x + x, y: c.y + body.y + y - BLADE.chest, z: c.z + z }, serial);
       expect(at(0, 0, contactAt(i) - .02, 1)).toBe(true); expect(at(0, 0, contactAt(i) + .02, 2)).toBe(false);
       expect(at(contactAt(i) - .02, body.half, 0, 3)).toBe(true); // level with the top of the axis
       expect(at(0, body.half + contactAt(i) - .02, 0, 4)).toBe(true); expect(at(0, body.half + contactAt(i) + .02, 0, 5)).toBe(false);
@@ -115,7 +120,7 @@ describe('blade contact in a live string', () => {
       if (!strikeVelocity(v, p, dt, false)) v.x = v.y = v.z = 0;
       p.x += v.x * dt; p.y += v.y * dt; p.z += v.z * dt;
       if (strike.phase === 1) { // in 3D: the chest to the body's capsule axis, the gap the contact test measures
-        const q = s.targets[0].c, x = p.x - q.x, y = p.y + BLADE.chest - q.y, z = p.z - q.z;
+        const q = s.targets[0].c, x = p.x - q.x, y = p.y + BLADE.chest - q.y - BODY.lesser.y, z = p.z - q.z;
         closest = Math.min(closest, axisGap(x, y, z, x, y, z, BODY.lesser.half));
       }
     }

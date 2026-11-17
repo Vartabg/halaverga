@@ -31,9 +31,10 @@ export function proneTarget(speed: number) {
   if (speed < PRONE.cruise) { const u = (speed - PRONE.hover) / (PRONE.cruise - PRONE.hover); return PRONE.atCruise * u * u * (3 - 2 * u); }
   return PRONE.atCruise + (PRONE.atDive - PRONE.atCruise) * Math.min(1, (speed - PRONE.cruise) / (PRONE.dive - PRONE.cruise));
 }
-/** Prone legs: together, straight and pointed (local XYZ Euler; the climb and power clips' legs). [bone, x, y, z]. */
+/** Prone legs: together, straight and pointed (local XYZ Euler; the climb and power clips' legs). [bone, x, y, z]. The thighs close
+ * .1 rad: archangel.glb's hip joints stand .23 m apart, and at the old .03 its feet stayed .36 m apart. */
 export const PRONE_LEGS: readonly (readonly [number, number, number, number])[] = [
-  [at('thigh_l'), .02, 0, .03], [at('thigh_r'), .02, 0, -.03], [at('shin_l'), -.08, 0, 0], [at('shin_r'), -.08, 0, 0],
+  [at('thigh_l'), .02, 0, .1], [at('thigh_r'), .02, 0, -.1], [at('shin_l'), -.08, 0, 0], [at('shin_r'), -.08, 0, 0],
   [at('foot_l'), -.85, 0, 0], [at('foot_r'), -.85, 0, 0], [at('toe_l'), -.2, 0, 0], [at('toe_r'), -.2, 0, 0],
 ];
 /**
@@ -165,7 +166,7 @@ function flinchBody(m: AngelMotion, joints: readonly Object3D[], input: AngelMot
   joints[UA_R].rotateZ(-FLINCH.arm * f); joints[UA_L].rotateZ(FLINCH.arm * f); // in toward the body
   joints[FA_R].rotateX(FLINCH.elbow * f); joints[FA_L].rotateX(FLINCH.elbow * f);
 }
-/** The cut's move pivots about PIVOT (as tuned for the leans); the prone pitch about the chest bone at rest (angel.glb: .4 m over
+/** The cut's move pivots about PIVOT (as tuned for the leans); the prone pitch about the chest bone at rest (archangel.glb: .4 m over
  * the root), so the chest stays where the camera frames it. */
 const PIVOT = new Vector3(0, 1.1, 0), CHEST_AT = new Vector3(0, .4, 0), before = new Vector3(), after = new Vector3();
 function about(root: Object3D, pivot: Vector3, x: number, y: number) {

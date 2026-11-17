@@ -12,7 +12,7 @@ import { SHOVE, clearShove, shoveAngel, shoveStep } from '../src/game/hurtShove'
 // Plan 2026-11-16-real-fight A2: the angel flies prone at speed (along its facing, or down), upright at hover and in a climb, and
 // never doubles the lean.
 let asset: Awaited<ReturnType<typeof loadSuit>>, clips: AngelClips;
-beforeAll(async () => { asset = await loadSuit('angel'); clips = bindAngelClips(asset.animations); });
+beforeAll(async () => { asset = await loadSuit('archangel'); clips = bindAngelClips(asset.animations); });
 beforeEach(() => { cancelStrike(); clearShove(true); });
 const deg = (r: number) => r * 180 / Math.PI;
 const at = (name: string) => BONE_NAMES.indexOf(name as typeof BONE_NAMES[number]);
@@ -50,7 +50,8 @@ describe('prone flight', () => {
   it('keeps the body upright at hover speed and in a straight climb', () => {
     for (const travel of [0, 1.5, PRONE.hover]) {
       const r = fly(flight({ travel }), 1); expect(r.m.pitch).toBe(0); expect(r.m.prone).toBe(0);
-      expect(r.head.z).toBeCloseTo(r.chest.z, 1); // the head straight over the chest
+      // The head over the chest: archangel.glb's idle mocap carries it 5.6 cm forward (-Z) at hover; prone at cruise it is 29 cm.
+      expect(Math.abs(r.head.z - r.chest.z)).toBeLessThan(.08);
     }
   });
   it('lays the body prone at cruise during a fight (no lean), eased over about .3 s, about the chest', () => {

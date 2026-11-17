@@ -21,3 +21,8 @@ join), `textures.py` (downscale and recolour), `retarget.py` (clips onto the 21 
 
 `scripts/celestial_characters/build.py` still writes the old procedural angel to the same path; run it only to rebuild
 `abyssal.glb`, then restore the angel with this build.
+
+Retired 2026-11-17 (docs/plans/2026-11-16-real-fight.md B9): the game now loads `public/models/archangel.glb` and
+`public/models/watcher.glb` (scripts/real_bodies, art/real-bodies). The files this note describes were removed from the tree;
+they remain in git history at 86482c2.
+`scripts/angel_asset/` stays: `scripts/real_bodies/` imports its pack loader, rest pose, assembly names and retargeting.

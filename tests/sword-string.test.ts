@@ -6,7 +6,7 @@ import { FX, MODE, createBanish, resetBanish, stepBanish } from '../src/game/ban
 import { resetBattle } from '../src/game/celestialBattle';
 import { flowPaths, flowVisible } from '../src/game/combatFlow';
 import { STRIKE, cancelStrike, strike, strikeVelocity } from '../src/game/strike';
-import { BLADE } from '../src/game/bladeReach';
+import { BLADE, BODY, contactAt } from '../src/game/bladeReach';
 import { CUTS, LAST, REEL, STRING, cutFor, powerOf, pressTarget, stepInTime, stringOpen, stringTarget } from '../src/game/swordString';
 import { advanceDrones, createDroneContext } from '../src/game/drones';
 import { castDuration } from '../src/game/encounter';
@@ -116,7 +116,9 @@ describe('the sword string', () => {
     landCut(b, s, 0, near); landCut(b, s, 0, near);
     const above = { ...s.targets[0].c, y: s.targets[0].c.y + 6 }; s.aim.dir = { x: 1, y: -.6, z: 0 }; // looking east and down at it
     settle(above); requestCommand(s, COMMAND.sword, 0); stepBanish(b, s, above, 1 / 60);
-    strikeVelocity({ x: 0, y: 0, z: 0 }, above, strike.minTime + .01, false); stepBanish(b, s, { ...s.targets[0].c, y: s.targets[0].c.y + 2 }, 1 / 60);
+    // The blow lands from just inside the blade's reach over the top of the body's capsule.
+    const over = BODY.lesser.y + BODY.lesser.half + contactAt(0) - BLADE.chest - .1;
+    strikeVelocity({ x: 0, y: 0, z: 0 }, above, strike.minTime + .01, false); stepBanish(b, s, { ...s.targets[0].c, y: s.targets[0].c.y + over }, 1 / 60);
     expect(b.mode[0]).toBe(MODE.cast); expect(b.vel[0].x).toBeGreaterThan(35); expect(Math.abs(b.vel[0].z)).toBeLessThan(1e-6); expect(b.vel[0].y).toBeLessThan(-20);
   });
   // ---- found by the second independent review, 2026-11-10 ----
