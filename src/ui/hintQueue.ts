@@ -1,6 +1,6 @@
 // The one hint slot's picker: pure, no React, first-load (Experience and HintSlot import it, so it holds no control names, vote copy or
 // markers). One line at a time under the top row. Not a timed queue: most of these are true while a state holds (a surface in reach, a
-// limit ahead, a terminal near), so the highest one that is true wins and the rest wait, and a lower one comes back when it clears.
+// limit ahead, a tablet near), so the highest one that is true wins and the rest wait, and a lower one comes back when it clears.
 // Timing stays where it was: `message` clears after 4 s (HintSlot's clock), a coach line keeps its own clock in ControlsHint (and that clock
 // waits while the slot shows anything else).
 import type { Coach, useGame } from '@/game/store';
@@ -14,7 +14,7 @@ export interface HintInput {
   hidden: boolean;
 }
 /** The land and no-landing texts are asserted by the browser specs: caps stay. */
-export const LAND_TEXT = 'SURFACE IN REACH · LAND', BLOCKED_TEXT = 'NO LANDING BELOW · MOVE TO OPEN GROUND', RECORD_TEXT = '◇ Municipal record · Read ↗';
+export const LAND_TEXT = 'SURFACE IN REACH · LAND', BLOCKED_TEXT = 'NO LANDING BELOW · MOVE TO OPEN GROUND', RECORD_TEXT = '◇ Tablet record · Read ↗';
 
 /** What Experience used to compute inline for the flight toast, moved as it was: land, a limit cue, no landing below, then a plain limit hint. */
 function flightLine(i: HintInput): Hint | null {
@@ -25,8 +25,8 @@ function flightLine(i: HintInput): Hint | null {
 }
 
 /**
- * Highest first: a message (a switch notice, a sound nudge, a lab fault, a vote toast), the Municipal record (a Read button: it outranks
- * a landing, because a terminal in reach is the rarer thing), the flight lines above (land, limit, no landing below), then the coach line
+ * Highest first: a message (a switch notice, a sound nudge, a lab fault, a vote toast), the tablet record (a Read button: it outranks
+ * a landing, because a tablet in reach is the rarer thing), the flight lines above (land, limit, no landing below), then the coach line
  * the controls lessons publish. Null while a dialog is open. A message that was pre-empted is dropped (as it always was), a coach line is not:
  * it keeps its clock and returns once nothing above it is true.
  */

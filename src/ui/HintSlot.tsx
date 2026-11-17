@@ -21,7 +21,7 @@ export function useMessageClock() {
 }
 
 /**
- * The one hint slot under the top row: one line, one style, never stacked. What it says is hintQueue.pickHint (a message, the Municipal
+ * The one hint slot under the top row: one line, one style, never stacked. What it says is hintQueue.pickHint (a message, the tablet
  * record, a landing, a limit, then the controls lesson). Passive text, so the flight surface under it still flies; only the record's Read
  * button takes touches (44 px). It exists only while playing and not under a dialog. The lesson keeps `controls-hint` with its track and
  * step for the specs; the spoken copy of a lesson is ControlsHint's own live region.

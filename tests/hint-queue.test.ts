@@ -24,7 +24,7 @@ describe('pickHint: the one line', () => {
   it('keeps the exact land and no-landing strings the browser specs read, and the record button text', () => {
     expect(LAND_TEXT).toBe('SURFACE IN REACH · LAND');
     expect(BLOCKED_TEXT).toBe('NO LANDING BELOW · MOVE TO OPEN GROUND');
-    expect(RECORD_TEXT).toBe('◇ Municipal record · Read ↗');
+    expect(RECORD_TEXT).toBe('◇ Tablet record · Read ↗');
   });
   it('orders them: message, record, land, limit, no landing below, then the coach line', () => {
     const all = at({ message: 'm', nearTerminal: true, flying: true, canLand: true, limitCue: 'wall', limitHint: 'edge', descendBlocked: true, coach });
@@ -38,7 +38,7 @@ describe('pickHint: the one line', () => {
     expect(order).toEqual(['message', 'record', 'land', 'limit', 'blocked', 'coach']);
     expect(pickHint(s)).toBeNull();
   });
-  it('G2: the Municipal record outranks a landing', () => {
+  it('G2: the tablet record outranks a landing', () => {
     expect(pickHint(at({ nearTerminal: true, flying: true, canLand: true }))!.kind).toBe('record');
     expect(pickHint(at({ nearTerminal: true, message: 'x' }))!.kind).toBe('message');
   });

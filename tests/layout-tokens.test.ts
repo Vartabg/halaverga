@@ -156,7 +156,7 @@ describe('the names the cleanup removed are gone from src (spec 10.2)', () => {
     const hits = files.flatMap(f => { const text = read(under(f)); return GONE.filter(g => text.includes(g)).map(g => `${under(f)}: ${g}`); });
     expect(hits).toEqual([]);
   });
-  it('the Municipal record line in the hint slot is a 44 px target', () => {
+  it('the tablet record line in the hint slot is a 44 px target', () => {
     expect(css).toMatch(/\.hint\[data-kind=record\]\{[^}]*min-height:44px/);
     expect(css).toMatch(/\.read\{[^}]*min-height:44px/);
   });
