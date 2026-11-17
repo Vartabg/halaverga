@@ -1,13 +1,12 @@
 import EliteGuard from './EliteGuard';
 import WardenAttacks from './WardenAttacks';
 import { WA } from '@/game/banishState';
-import { eyeCenter } from '@/game/adversaryPose';
 import { useEffect, useMemo } from 'react';
 import { useFrame, useLoader, type RootState } from '@react-three/fiber';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { Color, DynamicDrawUsage, Euler, InstancedBufferAttribute, InstancedMesh, Matrix4, Quaternion, Vector3,
   type BufferGeometry, type Camera, type Material, type PerspectiveCamera } from 'three';
-import { MAX_DRONES, PHASE, droneAlive, mulberry32, type Vec3 } from '@/game/combat';
+import { MAX_DRONES, PHASE, droneAlive, mulberry32 } from '@/game/combat';
 import { guarded } from '@/game/shooterFault';
 import { runtime } from '@/game/runtime';
 import { useGame } from '@/game/store';
@@ -17,14 +16,16 @@ import { DRONE_COLORS, buildDroneGeometry, createDroneMaterials, minWorldSize } 
 import { ADVERSARY_URL } from './Suit';
 import { createDemonActors, type DemonPose } from './demonActors';
 import { banish, MODE } from '@/game/banishState';
-// Damage reads in stages on the drone itself: broken (4 HP and under: the plate is gone, the open top glows ember, the eye pulses
-// slowly at 1.5 Hz), failing (2 HP and under: the glow deepens, the eye drops out at 1.5 Hz, and the body wobbles and sags as its
-// wing power fades). Dying (the 80 ms hit-stop): the body jitters and, when the kill flash passed its gate, the eye halo swells white
+// The Watchers (docs/plans/2026-11-16-real-fight.md B7): eight skinned watcher.glb bodies (demonActors.ts) and, pooled for all
+// eight, the dark feather wings (two draws), the bronze blades, the eye markers, halos and telegraph rings (watcherGeometry.ts).
+// Damage reads in stages on the Watcher itself: broken (4 HP and under: the cuirass is gone, the body and wings glow ember, the
+// eye pulses slowly at 1.5 Hz), failing (2 HP and under: the glow deepens, the eye drops out at 1.5 Hz, and the body wobbles and
+// sags as its wing power fades). Dying (the 80 ms hit-stop): the body jitters and, when the kill flash passed its gate, the eye halo swells white
 // into the pop. All pulses stay at 1.5 Hz (WCAG 2.3.1: at most 3 flashes per second); reduced motion holds every pulse steady.
 const HALO_RANGE = 85, TELEGRAPH = .22, DYING = .08, PULSE_HZ = 1.5, WOBBLE = { x: .12, z: .16, hzX: 1.3, hzZ: .9, sag: .08, sagHz: .7 };
 const smooth = (a: number, b: number, x: number) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
-const m4 = new Matrix4(), q = new Quaternion(), e = new Euler(), p = new Vector3(), s = new Vector3(), one = new Vector3(1, 1, 1);
-const zero = new Vector3(0, 0, 0), eye: Vec3 = { x: 0, y: 0, z: 0 }, shake = new Vector3();
+const m4 = new Matrix4(), q = new Quaternion(), e = new Euler(), p = new Vector3(), s = new Vector3();
+const zero = new Vector3(0, 0, 0), shake = new Vector3();
 const idle = new Color(DRONE_COLORS.eyeIdle), alert = new Color(DRONE_COLORS.eyeAlert), tele = new Color(DRONE_COLORS.telegraph);
 const white = new Color(DRONE_COLORS.flash), c = new Color(), glow = new Color();
 const jitter = mulberry32(0xd40e);
@@ -46,37 +47,32 @@ const phaseColor = (ph: number) => ph === PHASE.telegraph ? tele : ph === PHASE.
 export default function Drones() {
   const asset = useLoader(GLTFLoader, ADVERSARY_URL);
   const parts = useMemo(() => {
-    const geo = buildDroneGeometry(asset.scene), mat = createDroneMaterials();
+    const geo = buildDroneGeometry(), mat = createDroneMaterials();
     const actors = createDemonActors(asset.scene, asset.animations);
     const flash = new InstancedBufferAttribute(new Float32Array(MAX_DRONES), 1).setUsage(DynamicDrawUsage);
     const damage = new InstancedBufferAttribute(new Float32Array(MAX_DRONES), 1).setUsage(DynamicDrawUsage);
-    const phase = new InstancedBufferAttribute(Float32Array.from({ length: MAX_DRONES }, (_, i) => i * 1.8), 1);
-    for (const g of [geo.body, geo.plate, geo.wingL, geo.wingR]) g.setAttribute('aFlash', flash);
-    for (const g of [geo.body, geo.plate, geo.wingL, geo.wingR]) g.setAttribute('aDamage', damage);
-    for (const g of [geo.body, geo.plate, geo.wingL, geo.wingR]) g.setAttribute('aPhase', phase);
+    for (const g of [geo.wingL, geo.wingR]) { g.setAttribute('aFlash', flash); g.setAttribute('aDamage', damage); }
     const meshes = {
-      left: instanced(geo.wingL, mat.body, false), right: instanced(geo.wingR, mat.body, false),
-      body: instanced(geo.body, mat.body, false), plate: instanced(geo.plate, mat.plate, false), eye: instanced(geo.eye, mat.eye, true),
-      halo: instanced(geo.halo, mat.halo, true), ring: instanced(geo.halo, mat.ring, true),
+      left: instanced(geo.wingL, mat.feather, false), right: instanced(geo.wingR, mat.feather, false), blade: instanced(geo.blade, mat.blade, false),
+      eye: instanced(geo.eye, mat.eye, true), halo: instanced(geo.halo, mat.halo, true), ring: instanced(geo.halo, mat.ring, true),
     };
     meshes.halo.renderOrder = meshes.ring.renderOrder = 1;
     return { geo, mat, actors, actorPose: { time: 0, charging: false, hit: 0, down: false, reduced: false, damage: 0 } as DemonPose, flash, damage, meshes, lastPositions: new Float64Array(MAX_DRONES * 3), airspeed: new Float32Array(MAX_DRONES), list: Object.values(meshes) };
   }, [asset]);
   useEffect(() => () => {
     parts.actors.dispose(); parts.list.forEach(mesh => mesh.dispose());
-    parts.geo.wingL.dispose(); parts.geo.wingR.dispose(); parts.geo.body.dispose(); parts.geo.plate.dispose(); parts.geo.eye.dispose(); parts.geo.halo.dispose(); parts.mat.dispose();
+    Object.values(parts.geo).forEach(g => g.dispose()); parts.mat.dispose();
   }, [parts]);
   const frame = useMemo(() => guarded('Drones', (state: RootState, delta: number) => {
-    const f = runtime.shooter.drones, { body, plate, left, right, eye: eyes, halo, ring } = parts.meshes, flash = parts.flash.array as Float32Array;
+    const f = runtime.shooter.drones, { blade, left, right, eye: eyes, halo, ring } = parts.meshes, flash = parts.flash.array as Float32Array;
     const { lastPositions, airspeed } = parts;
     const damage = parts.damage.array as Float32Array;
     const cam: Camera = state.camera, fov = (cam as PerspectiveCamera).isPerspectiveCamera ? (cam as PerspectiveCamera).fov : runtime.shooter.aim.fov;
     const h = state.gl.domElement.clientHeight || state.size.height || 1, t = runtime.shooter.clock, reduced = useGame.getState().reduced;
-    parts.mat.clock.value = reduced ? 0 : t;
     const n = Math.min(f.count, MAX_DRONES);
-    // Body, plate and eye stay indexed by drone (aFlash is shared by index). Halo and ring are compacted into the first slots
+    // Wings, blades and eyes stay indexed by drone (aFlash is shared by index). Halo and ring are compacted into the first slots
     // that are actually shown, so a pool with nothing to show issues no draw call.
-    body.count = plate.count = 0; eyes.count = left.count = right.count = n;
+    eyes.count = left.count = right.count = blade.count = n;
     for (let i = n; i < MAX_DRONES; i++) parts.actors.actors[i].root.visible = false;
     let hk = 0, rk = 0;
     for (let i = 0; i < n; i++) {
@@ -94,33 +90,28 @@ export default function Drones() {
       e.set(f.tiltX[i] + .5 * f.pitch[i] + .5 * f.wobble[i] + wob * WOBBLE.x * Math.sin(2 * Math.PI * WOBBLE.hzX * t + i), f.yaw[i],
         f.tiltZ[i] + f.wobble[i] + wob * WOBBLE.z * Math.sin(2 * Math.PI * WOBBLE.hzZ * t + 2 * i), 'YXZ');
       q.setFromEuler(e);
-      const scale = dead ? zero : one;
-      place(body, i, p, q, scale);
-      place(plate, i, p, q, f.broken[i] === 1 ? zero : scale);
       if (!useGame.getState().paused) {
         const k = i * 3, d = Math.hypot(pos.x - lastPositions[k], pos.y - lastPositions[k + 1], pos.z - lastPositions[k + 2]);
         const v = delta > 0 && d < 2 ? d / delta : 0; airspeed[i] += (v - airspeed[i]) * (1 - Math.exp(-4 * Math.min(.1, delta)));
         lastPositions[k] = pos.x; lastPositions[k + 1] = pos.y; lastPositions[k + 2] = pos.z;
         parts.mat.wings.step(i, t, airspeed[i], reduced, failing ? .8 : 0);
       }
-      place(left, i, p, q, scale); place(right, i, p, q, scale);
       flash[i] = Math.max(f.flash[i], f.tint[i]);
       damage[i] = failing ? (reduced ? .85 : .75 + .25 * pulse) : broken ? .45 : 0;
-      Object.assign(parts.actorPose, { time: t, charging: battle.charging === i, hit: flash[i], hitT: t - f.lastHit[i], hitSide: banish.twist[i], attack: banish.wardens.phase[i], attackTime: banish.wardens.time[i], rusher: i === 5,
+      const w = banish.wardens;
+      Object.assign(parts.actorPose, { time: t, charging: battle.charging === i, hit: flash[i], hitT: t - f.lastHit[i], hitSide: banish.twist[i],
+        blow: banish.blowAt[i] === f.lastHit[i] ? banish.blow[i] : -1,
+        attack: w.phase[i], attackTime: w.time[i], move: w.move[i], tell: w.tell[i], rush: w.duration[i],
         down: banish.mode[i] === MODE.down || banish.mode[i] === MODE.bound || banish.mode[i] === MODE.cast,
         reduced, damage: damage[i] });
       parts.actors.step(i, p, q, !dead, parts.actorPose);
-      // The collar is the breakable plate on the sculpted model.
-      const collar = parts.actors.actors[i].plate; if (collar) collar.visible = f.broken[i] !== 1;
-      if (!dead) {
-        left.setMatrixAt(i, parts.actors.actors[i].wingMatrix); right.setMatrixAt(i, parts.actors.actors[i].wingMatrix);
+      // The cuirass is the breakable plate (watcher.glb's `plate`).
+      const actor = parts.actors.actors[i]; if (actor.plate) actor.plate.visible = f.broken[i] !== 1;
+      // Wings from the chest, the blade from the right fist and the eye marker from the head, as the body moves.
+      for (const [mesh, matrix] of [[left, actor.wingMatrix], [right, actor.wingMatrix], [blade, actor.bladeMatrix], [eyes, actor.eyeMatrix]] as const) {
+        if (dead) place(mesh, i, p, q, zero); else mesh.setMatrixAt(i, matrix);
       }
-      eyeCenter(f, i, eye);
-      p.set(eye.x, eye.y, eye.z).add(shake);
-      place(eyes, i, p, q, scale);
-      if (!dead && parts.actorPose.down) {
-        eyes.setMatrixAt(i, parts.actors.actors[i].eyeMatrix); p.setFromMatrixPosition(parts.actors.actors[i].eyeMatrix);
-      }
+      p.setFromMatrixPosition(actor.eyeMatrix);
       c.copy(battle.charging === i || banish.wardens.phase[i] === WA.tell ? tele : phaseColor(ph)).lerp(white, Math.min(f.flash[i], .6));
       // The eye: a slow pulse once broken, 1.5 Hz dropouts once failing (reduced motion: a steady dim).
       if (failing) c.multiplyScalar(reduced ? .7 : .35 + .65 * smooth(-.25, .35, pulse));

@@ -3,9 +3,9 @@
 // docs/art/real-bodies/PROVENANCE.md), so the blade leaves the thumb side of the fist, pointing forward when the arm hangs at rest.
 import { Quaternion, Vector3 } from 'three';
 
-/** The middle of the grip, inside the closed fingers: the centre of archangel.glb's fist (its hand_r-weighted vertices between
- * 7 and 11 cm from the wrist), measured 2026-11-17 and pinned by tests/sword-grip.test.ts. */
-export const SWORD_GRIP: Readonly<{ x: number; y: number; z: number }> = { x: -.015, y: -.09, z: -.003 };
+/** The middle of the grip, inside the closed fingers of both archangel.glb's and watcher.glb's right fist (their hand_r skin
+ * closes within 4 mm all round it), measured 2026-11-17 and pinned by tests/sword-grip.test.ts. */
+export const SWORD_GRIP: Readonly<{ x: number; y: number; z: number }> = { x: -.0175, y: -.0925, z: -.003 };
 /** Blade direction, grip to tip. */
 export const SWORD_BLADE: Readonly<{ x: number; y: number; z: number }> = { x: 0, y: 0, z: -1 };
 /** Rotation taking a sword modelled along -Y (FlamingSword's blade) onto SWORD_BLADE. */

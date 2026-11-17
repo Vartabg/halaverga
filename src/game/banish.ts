@@ -28,7 +28,7 @@ export function resetBanish(b: BanishState, s: ShooterState) {
   b.mode.fill(0); b.resist.fill(BANISH.resistance); b.timer.fill(0); b.cool = 0; b.handled = s.input.cmd; b.cue = ''; b.last = -1; b.resetRequested = false;
   b.combo = 0; b.comboUntil = 0; b.guardTime.fill(0); b.retaliate.fill(0); b.armor.forEach((_, i) => { b.armor[i] = armorFor(i); }); cancelStrike();
   b.quenched = battle.quenched; s.drones.held.fill(0); b.wounds.fill(0); b.string.target = -1;
-  b.vel.forEach(v => { v.x = v.y = v.z = 0; }); b.spin.fill(0); b.hit.fill(0); b.struck.fill(0); b.twist.fill(0);
+  b.vel.forEach(v => { v.x = v.y = v.z = 0; }); b.spin.fill(0); b.hit.fill(0); b.struck.fill(0); b.twist.fill(0); b.blow.fill(-1); b.blowAt.fill(-1);
   resetWardens(b.wardens);
 }
 /** The visible, reachable demon most aligned with the view; excludes targets already being banished. */

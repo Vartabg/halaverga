@@ -3,10 +3,11 @@ import { SkinnedMesh, Vector3 } from 'three';
 import { loadSuit } from './load-suit';
 import { SWORD_BLADE, SWORD_GRIP } from '../src/world/swordGrip';
 
-// docs/plans/2026-11-16-real-fight.md B6: the grip sits inside archangel.glb's closed fist. Around the grip, in a 6 cm slab across
-// the blade line, the hand's own skin closes in every direction within a centimetre: the hilt is held, not floating by the hand.
-it('holds the hilt inside archangel.glb\'s fist, with the blade leaving along the fist\'s hole', async () => {
-  const scene = (await loadSuit('archangel')).scene; scene.updateMatrixWorld(true);
+// docs/plans/2026-11-16-real-fight.md B6, B7: the grip sits inside the closed right fist of archangel.glb and of watcher.glb (whose
+// Watchers hold their bronze blades with the same offset). Around the grip, in a 6 cm slab across the blade line, the hand's own
+// skin closes in every direction within a centimetre: the hilt is held, not floating by the hand.
+it.each(['archangel', 'watcher'] as const)('holds the hilt inside %s.glb\'s fist, with the blade leaving along the fist\'s hole', async body => {
+  const scene = (await loadSuit(body)).scene; scene.updateMatrixWorld(true);
   const meshes: SkinnedMesh[] = []; scene.traverse(o => { if (o instanceof SkinnedMesh) meshes.push(o); });
   const bones = meshes[0].skeleton.bones, hand = bones.findIndex(b => b.name === 'hand_r'), wrist = bones[hand].getWorldPosition(new Vector3());
   const fist: Vector3[] = [];

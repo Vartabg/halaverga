@@ -1,8 +1,10 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { Box3, BufferGeometry, MeshStandardMaterial, ShaderLib, Sphere, Vector3, type DataTexture, type WebGLProgramParametersWithUniforms, type WebGLRenderer } from 'three';
-import { DRONE_RADIUS } from '../src/game/combat';
+import { Box3, BufferGeometry, MeshStandardMaterial, ShaderLib, Vector3, type DataTexture, type WebGLProgramParametersWithUniforms, type WebGLRenderer } from 'three';
+import { EYE_RADIUS } from '../src/game/combat';
 import { buildDroneGeometry, createDroneMaterials, minWorldSize } from '../src/world/droneMesh';
-import { loadSuit } from './load-suit';
+import { EYE_MARKER } from '../src/world/watcherGeometry';
+import { WATCHER_WING } from '../src/world/watcherWings';
+import { BLADE, GUARD } from '../src/world/swordBlade';
 
 const tris = (g: BufferGeometry) => (g.index ? g.index.count : g.attributes.position.count) / 3;
 const maxRadius = (g: BufferGeometry) => {
@@ -13,72 +15,64 @@ const maxRadius = (g: BufferGeometry) => {
 const alphaAt = (tex: DataTexture, x: number, y: number) => (tex.image.data as Uint8Array)[(y * tex.image.width + x) * 4 + 3];
 const rOf = (x: number) => Math.abs((x + .5) / 32 - 1);
 
-describe('drone geometry', () => {
+describe('the Watchers\' pooled geometry (watcherGeometry.ts)', () => {
   let g: ReturnType<typeof buildDroneGeometry>;
-  beforeAll(async () => { g = buildDroneGeometry((await loadSuit('abyssal')).scene); });
+  beforeAll(() => { g = buildDroneGeometry(); });
   afterAll(() => Object.values(g).forEach(geo => geo.dispose()));
-  it('stays within the 26000 triangle character budget including its animated wings', () => {
-    const total = tris(g.body) + tris(g.plate) + tris(g.wingL) + tris(g.wingR) + tris(g.eye) + tris(g.halo) * 2;
-    expect(total).toBeGreaterThan(15000);
-    expect(tris(g.wingL) + tris(g.wingR)).toBeGreaterThan(50);
-    expect(total).toBeLessThanOrEqual(26000);
-  });
-  it('merges to consistent non-indexed attributes with normals', () => {
-    for (const geo of [g.body, g.plate]) {
-      expect(geo.index).toBeNull();
-      expect(geo.attributes.normal.count).toBe(geo.attributes.position.count);
+  it('builds one reduced feather wing pair of at most 4000 triangles a side, mirrored, skinned to the rig', () => {
+    expect(tris(g.wingL)).toBeLessThanOrEqual(4000); expect(tris(g.wingR)).toBe(tris(g.wingL));
+    expect(tris(g.wingL)).toBeGreaterThan(1000); // every feather kept, at fewer rows and columns
+    for (const [geo, side] of [[g.wingL, -1], [g.wingR, 1]] as const) {
+      const w = geo.attributes.aWingWeights, s = geo.attributes.aWingSide, p = geo.attributes.position;
+      for (let i = 0; i < w.count; i++) {
+        expect(w.getX(i) + w.getY(i) + w.getZ(i) + w.getW(i)).toBeCloseTo(1, 6); expect(s.getX(i)).toBe(side);
+        expect(Math.sign(p.getX(i))).toBe(side); // each wing stays on its own side of the spine
+      }
+      for (const name of ['skinIndex', 'skinWeight']) expect(geo.attributes[name]).toBeUndefined();
+      expect(geo.attributes.uv).toBeDefined(); expect(geo.attributes.color).toBeDefined();
     }
+    // The span: the archangel's wing (2.30 m tip at WING_SCALE .8) at the Watcher's scale, from its shoulder.
+    const span = new Box3().setFromBufferAttribute(g.wingR.attributes.position as never);
+    expect(span.max.x).toBeCloseTo(WATCHER_WING.root[0] + 2.30 * WATCHER_WING.scale, 1);
   });
-  it('keeps body and armour close to the hit sphere; decorative wings sit outside it', () => {
-    expect(maxRadius(g.body)).toBeLessThanOrEqual(1.05);
-    expect(maxRadius(g.plate)).toBeLessThanOrEqual(1.35); // curved crown horns extend past the body hit sphere
-    expect(maxRadius(g.body)).toBeGreaterThan(DRONE_RADIUS * .8);
-  });
-  it('keeps the paired eyes and fiery maw inside the .32 m weak-point sphere', () => {
+  it('holds the blade along -Y from the grip and keeps the eye marker a small pair inside the weak-point sphere', () => {
+    const blade = new Box3().setFromBufferAttribute(g.blade.attributes.position as never);
+    expect(blade.min.y).toBeCloseTo(-GUARD - BLADE, 2); expect(blade.max.y).toBeLessThan(.2);
     const box = new Box3().setFromBufferAttribute(g.eye.attributes.position as never), c = box.getCenter(new Vector3());
-    expect(c.length()).toBeLessThan(.08);
-    g.eye.computeBoundingSphere();
-    expect((g.eye.boundingSphere as Sphere).radius).toBeLessThan(.32);
+    expect(Math.abs(c.x)).toBeLessThan(1e-6); expect(c.length()).toBeLessThan(.01);
+    expect(box.max.x).toBeCloseTo(EYE_MARKER.apart + EYE_MARKER.radius, 3);
+    expect(maxRadius(g.eye)).toBeLessThan(EYE_RADIUS);
   });
 });
 
 describe('drone materials', () => {
-  it('injects the flash attribute and rim with a stable program cache key', () => {
-    const m = createDroneMaterials();
-    for (const mat of [m.body, m.plate]) {
-      expect(mat).toBeInstanceOf(MeshStandardMaterial);
-      expect(mat.vertexColors).toBe(true);
-      expect(mat.metalness).toBe(mat === m.body ? .13 : .38); expect(mat.roughness).toBe(mat === m.body ? .73 : .47);
-      expect(typeof mat.onBeforeCompile).toBe('function');
-      const key = mat.customProgramCacheKey();
-      expect(key).toBe(mat.customProgramCacheKey());
-      // The real MeshStandardMaterial sources: the injection points must exist, and the rim runs after the normal is final.
-      const shader = { uniforms: {}, vertexShader: ShaderLib.standard.vertexShader,
-        fragmentShader: ShaderLib.standard.fragmentShader } as unknown as WebGLProgramParametersWithUniforms;
-      mat.onBeforeCompile(shader, null as unknown as WebGLRenderer);
-      expect(shader.vertexShader).toContain('attribute float aFlash;');
-      expect(shader.vertexShader).toContain('#include <begin_vertex>\nvFlash = aFlash;');
-      const fs = shader.fragmentShader, at = fs.indexOf('totalEmissiveRadiance += vec3(vFlash) * 1.6');
-      expect(at).toBeGreaterThan(fs.indexOf('#include <normal_fragment_maps>'));
-      expect(at).toBeGreaterThan(fs.indexOf('#include <emissivemap_fragment>'));
-      expect(fs.startsWith('varying float vFlash;\nuniform vec3 uRim;')).toBe(true);
-      expect(shader.uniforms.uRim).toBeDefined();
-      expect(fs).toContain('1.0 - smoothstep(0.0, 0.35, abs(vLocal.y))');
-      expect(shader.vertexShader).toContain('uHostClock');
-    }
-    expect(m.body.customProgramCacheKey()).toBe(m.plate.customProgramCacheKey());
-    const rim = (mat: MeshStandardMaterial) => {
-      const shader = { uniforms: {} as Record<string, { value: { r: number } }>, vertexShader: '', fragmentShader: '' };
-      mat.onBeforeCompile(shader as unknown as WebGLProgramParametersWithUniforms, null as unknown as WebGLRenderer);
-      return shader.uniforms.uRim.value.r;
-    };
-    expect(rim(m.body) / rim(m.plate)).toBeCloseTo(.35 / .25, 5);
+  it('injects the flash, damage and wing skin into the dark feather material with a stable program cache key', () => {
+    const m = createDroneMaterials(), mat = m.feather;
+    expect(mat).toBeInstanceOf(MeshStandardMaterial); expect(mat.vertexColors).toBe(true);
+    expect(mat.map).toBe(m.atlas.colour); expect(mat.alphaTest).toBeGreaterThan(0); expect(mat.alphaToCoverage).toBe(true);
+    expect(mat.color.getHSL({ h: 0, s: 0, l: 0 }).l).toBeLessThan(.25); // tinted dark
+    const key = mat.customProgramCacheKey(); expect(key).toBe(mat.customProgramCacheKey());
+    // The real MeshStandardMaterial sources: the injection points must exist, and the rim runs after the normal is final.
+    const shader = { uniforms: {}, vertexShader: ShaderLib.standard.vertexShader,
+      fragmentShader: ShaderLib.standard.fragmentShader } as unknown as WebGLProgramParametersWithUniforms;
+    mat.onBeforeCompile(shader, null as unknown as WebGLRenderer);
+    expect(shader.vertexShader).toContain('attribute float aFlash;');
+    expect(shader.vertexShader).toContain('#include <begin_vertex>\nvFlash = aFlash;');
+    expect(shader.vertexShader).toContain('transformed = (hostWingSkin() * vec4(transformed, 1.0)).xyz;');
+    const fs = shader.fragmentShader, at = fs.indexOf('totalEmissiveRadiance += vec3(vFlash) * 1.6');
+    expect(at).toBeGreaterThan(fs.indexOf('#include <normal_fragment_maps>'));
+    expect(at).toBeGreaterThan(fs.indexOf('#include <emissivemap_fragment>'));
+    expect(fs.startsWith('varying float vFlash;\nuniform vec3 uRim;')).toBe(true);
+    expect(fs).toContain('totalEmissiveRadiance += uEmber * exposed * vDamage * 3.0;');
+    expect((shader.uniforms as Record<string, { value: unknown }>).uWingPose.value).toBe(m.wings.texture);
+    expect(m.blade.metalness).toBeGreaterThan(.5); expect(m.blade.map).toBeNull();
     expect(m.eye.toneMapped).toBe(false);
     for (const glow of [m.halo, m.ring]) {
       expect(glow.transparent).toBe(true); expect(glow.depthWrite).toBe(false);
       expect(glow.toneMapped).toBe(false); expect(glow.fog).toBe(false);
     }
     expect(m.halo.map).toBe(m.haloTexture); expect(m.ring.map).toBe(m.ringTexture);
+    m.dispose();
   });
   it('builds a 64x64 halo that is bright at the centre and clear at the corners', () => {
     const { haloTexture: t } = createDroneMaterials();
@@ -101,7 +95,7 @@ describe('drone materials', () => {
   });
   it('dispose() disposes every material and texture', () => {
     const m = createDroneMaterials(), seen = new Set<unknown>();
-    const all = [m.body, m.plate, m.eye, m.halo, m.ring, m.haloTexture, m.ringTexture, m.wings.texture];
+    const all = [m.feather, m.blade, m.eye, m.halo, m.ring, m.haloTexture, m.ringTexture, m.wings.texture, m.atlas.colour, m.atlas.normal];
     all.forEach(o => o.addEventListener('dispose', () => seen.add(o)));
     m.dispose();
     expect(seen.size).toBe(all.length);

@@ -1,7 +1,7 @@
 import { eyeCenter } from '../src/game/adversaryPose';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { Box3, DataTexture, Euler, Mesh, SkinnedMesh, Vector3 } from 'three';
+import { Box3, DataTexture, Euler, Mesh, Quaternion, SkinnedMesh, Vector3 } from 'three';
 import { createShooter, EYE_FORWARD, EYE_UP, type DroneTarget } from '../src/game/combat';
 import { buildTargets } from '../src/game/drones';
 import { hitDrones } from '../src/game/shotMath';
@@ -10,10 +10,12 @@ import { BONE_NAMES } from '../src/world/suitSkeleton';
 import { createArchangelWings } from '../src/world/archangelWings';
 import { angelRegalia } from '../src/world/angelRegalia';
 import { createHarness, loadAssets, settle } from './blaster-harness';
+import { createDemonActors } from '../src/world/demonActors';
+import { EYE_MARKER } from '../src/world/watcherGeometry';
 import { loadSuit } from './load-suit';
 
 let hero: Awaited<ReturnType<typeof loadSuit>>, demon: Awaited<ReturnType<typeof loadSuit>>;
-beforeAll(async () => { [hero, demon] = await Promise.all([loadSuit('angel'), loadSuit('abyssal')]); });
+beforeAll(async () => { [hero, demon] = await Promise.all([loadSuit('angel'), loadSuit('watcher')]); });
 
 describe('the actual celestial assets', () => {
   it('delivers the warrior within its 2.5 MB / 80000 triangle budget on the original 21-bone flight contract', () => {
@@ -55,18 +57,25 @@ describe('the actual celestial assets', () => {
       const v = o.getVertexPosition(i, new Vector3()); expect(v.length()).toBeLessThan(3); expect(v.toArray().every(Number.isFinite)).toBe(true);
     } });
   });
-  it('aligns the rendered demon eyes and target centre through yaw, pitch and bank', () => {
-    const eye = demon.scene.getObjectByName('eye')!; demon.scene.updateMatrixWorld(true);
-    const centre = new Box3().setFromObject(eye).getCenter(new Vector3());
-    expect(centre.distanceTo(new Vector3(0, EYE_UP, -EYE_FORWARD))).toBeLessThan(.002);
+  it('aligns the rendered Watcher eyes and target centre through yaw, pitch and bank', () => {
+    // The marker is bound at watcher.glb's own eyes (the face mesh's centre in the bind pose) and rides the head; the weak point is
+    // where those eyes are in the hover pose (combat.ts EYE_UP / EYE_FORWARD).
+    const face: Vector3[] = []; demon.scene.updateMatrixWorld(true);
+    demon.scene.traverse(o => { if (o instanceof SkinnedMesh && (o.material as { name: string }).name === 'watcher face') {
+      const p = o.geometry.attributes.position; for (let i = 0; i < p.count; i++) face.push(new Vector3().fromBufferAttribute(p, i).applyMatrix4(o.matrixWorld));
+    } });
+    expect(new Box3().setFromPoints(face).getCenter(new Vector3()).distanceTo(new Vector3(...EYE_MARKER.centre))).toBeLessThan(.002);
+    const pool = createDemonActors(demon.scene, demon.animations), at = new Vector3(), q = new Quaternion();
     const s = createShooter(), f = s.drones; f.count = 1;
     for (const [yaw, pitch, bank] of [[0, 0, 0], [1.2, .4, -.2], [-2, -.7, .3]]) {
       f.yaw[0] = yaw; f.pitch[0] = pitch; f.tiltX[0] = .13; f.tiltZ[0] = bank;
-      const rendered = centre.clone().applyEuler(new Euler(f.tiltX[0] + .5 * f.pitch[0], f.yaw[0], f.tiltZ[0], 'YXZ'));
-      const target = eyeCenter(f, 0, { x: 0, y: 0, z: 0 });
-      expect(rendered.distanceTo(new Vector3(target.x, target.y, target.z))).toBeLessThan(.002);
+      q.setFromEuler(new Euler(f.tiltX[0] + .5 * f.pitch[0], f.yaw[0], f.tiltZ[0], 'YXZ'));
+      pool.step(0, at, q, true, { time: 0, charging: false, hit: 0, down: false, reduced: true, damage: 0 }); // the hover frame
+      const rendered = new Vector3().setFromMatrixPosition(pool.actors[0].eyeMatrix), target = eyeCenter(f, 0, { x: 0, y: 0, z: 0 });
+      expect(rendered.distanceTo(new Vector3(target.x, target.y, target.z))).toBeLessThan(.06);
       buildTargets(s); expect(s.targets[0].facing!.z).toBeCloseTo(-Math.cos(f.yaw[0]) * Math.cos(f.tiltX[0] + .5 * f.pitch[0]), 6);
     }
+    pool.dispose();
   });
   it('rejects a rear-facing weak point even when the shot comes down from above it', () => {
     const c = { x: 0, y: 0, z: 0 }, eye = { x: 0, y: EYE_UP, z: -EYE_FORWARD };

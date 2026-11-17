@@ -24,6 +24,7 @@ export function landBlow(b: BanishState, s: ShooterState, i: number, player: Vec
   const n = cutFor(b, i, guarded, armor), cut = CUTS[n], last = !guarded && n === LAST;
   b.combo = b.clock <= b.comboUntil ? b.combo + 1 : 1; b.comboUntil = b.clock + 4;
   jolt(s, i, player, 9); b.twist[i] = guarded ? 0 : cutTwist(cut); // armour turns the blade: no twist
+  b.blow[i] = n; b.blowAt[i] = f.lastHit[i];
   f.knockV[i].x += dive.dir.x * 10; f.knockV[i].y += dive.dir.y * 10; f.knockV[i].z += dive.dir.z * 10;
   addTrauma(s.camFx, cut.trauma); punchFov(s.camFx, 'kill', cut.fov); kick(s.camFx, cut.kick, 0);
   emit(b, FX.sword, i, player, f.pos[i], n);
