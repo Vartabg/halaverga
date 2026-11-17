@@ -28,6 +28,11 @@ export function createBanish() {
     // Thrown bodies (thrown.ts): each struck demon's velocity and tumble, when a cast-down demon first struck the ground, and the
     // demons it has already shoved on this throw (a bit each).
     vel: Array.from({ length: MAX }, v3), spin: new Float32Array(MAX), hit: new Float32Array(MAX), struck: new Uint8Array(MAX),
+    // The way the last sword cut turned each demon about the vertical (swordBlow.ts cutTwist, -1..1); the hit reaction yaws by it.
+    twist: new Float32Array(MAX),
+    // The cut of each demon's last sword blow (swordString CUTS) and the shooter clock it landed at (the f.lastHit it set), so the
+    // renderer can tell that blow from a later shot or rebuke and pick the reaction clip (watcherClips.ts).
+    blow: new Int8Array(MAX).fill(-1), blowAt: new Float64Array(MAX).fill(-1),
     combo: 0, comboUntil: 0, base: Array.from({ length: MAX }, v3), cool: 0, handled: 0, clock: 0, cue: '' as Cue, cueT: -1e9, rebukeT: -1e9, quenched: 0, last: -1, resetRequested: false,
     fx: Array.from({ length: RING }, (): BanishFx => ({ serial: 0, kind: 0, t: 0, drone: -1, from: v3(), to: v3(), n: 0 })), fxSerial: 0 };
 }

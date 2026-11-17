@@ -1,7 +1,7 @@
 import { finishString } from './flight-support';
 import { expect, test } from '@playwright/test';
 
-test('the CC0 angel dives into a live demon and continues the banishment loop', async ({ page }) => {
+test('the archangel dives into a live demon and continues the banishment loop', async ({ page }) => {
   test.setTimeout(90000);
   const errors: string[] = [], models = new Set<string>();
   page.on('pageerror', e => errors.push(e.message));
@@ -17,7 +17,7 @@ test('the CC0 angel dives into a live demon and continues the banishment loop', 
     await page.keyboard.press('Digit1'); await page.waitForTimeout(90);
     found = Number(await hud.getAttribute('data-banish-fx')) > before;
   }
-  expect(found).toBe(true); expect(models.has('/models/angel.glb')).toBe(true);
+  expect(found).toBe(true); expect(models.has('/models/archangel.glb')).toBe(true);
   const before = Number(await hud.getAttribute('data-banish-fx'));
   const at = async () => JSON.parse((await telemetry.getAttribute('data-position'))!) as number[], from = await at();
   await page.keyboard.press('Digit2');

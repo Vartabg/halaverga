@@ -13,6 +13,8 @@ import { REGION_RADIUS, blasterWeights, inBlasterRegion, relaxArmShare, share, t
  * carry 0 -> 0; aim grid worst 240/.172 -> 10/.060; flight extreme 319/.188 -> 18/.068. Without the ring the front armpit fold
  * (pure upperarm_r vertices beside relaxed ones) stood as a 17 mm ridge on the raised arm; with it the shoulder top matches the original.
  * Build: about 30-40 ms cold, 13 ms warm, in node on the dev machine.
+ * archangel.glb (the game's angel since Stage B): its skin is 'archangel body' and its chiton 'archangel chiton' (kinds below);
+ * the hand rule reads the barrel axis as the cannon sits on that forearm (cannonContract.ts FIT).
  */
 export type BlasterMesh = { mesh: SkinnedMesh; origIndex: BufferAttribute; origWeight: BufferAttribute;
   index: BufferAttribute; weight: BufferAttribute };
@@ -21,7 +23,7 @@ export type BlasterSkin = { meshes: BlasterMesh[]; on: boolean; buildMs: number;
 const inverse = new Matrix4();
 function kindOf(mesh: SkinnedMesh): Kind {
   const m = mesh.material as Material | Material[], name = Array.isArray(m) ? m[0]?.name : m.name;
-  return name === 'skin' || name === 'Living skin' ? 'anatomy' : name === 'textile' || name === 'Ivory linen' ? 'undersuit' : 'other';
+  return name === 'skin' || name === 'archangel body' ? 'anatomy' : name === 'textile' || name === 'archangel chiton' ? 'undersuit' : 'other';
 }
 /** Bind head of skeleton bone `i`: the translation of inverse(boneInverse), never the current (posed) joint. */
 function bindHead(mesh: SkinnedMesh, i: number) {

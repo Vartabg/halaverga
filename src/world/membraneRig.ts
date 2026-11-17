@@ -1,10 +1,14 @@
 import { DataTexture, Euler, FloatType, Matrix4, Quaternion, RGBAFormat, Vector3 } from 'three';
 import { MAX_DRONES } from '../game/combat';
 import { smooth } from './wingMotion';
-export const MEMBRANE_JOINTS = [[.20, .34, .09], [.54, .36, .26], [.92, .37, .10]] as const;
+/** A joint table: the right wing's shoulder, elbow and wrist in the model frame (the left mirrors x). */
+export type WingJoints = readonly (readonly [number, number, number])[];
 const e = new Euler(), q = new Quaternion(), translation = new Matrix4(), one = new Vector3(1, 1, 1), point = new Vector3();
-/** Four skin matrices per side: fixed flank, shoulder, elbow, wrist. A small float texture avoids mobile uniform-array limits. */
-export function createMembraneRig() {
+/**
+ * Four skin matrices per side: fixed flank, shoulder, elbow, wrist. A small float texture avoids mobile uniform-array limits.
+ * `joints` places the hinges (the Watchers' feather wings: watcherWings.ts WATCHER_JOINTS).
+ */
+export function createMembraneRig(joints: WingJoints) {
   const data = new Float32Array(MAX_DRONES * 8 * 16), palette = Array.from({ length: MAX_DRONES * 8 }, () => new Matrix4());
   const texture = new DataTexture(data, 4, MAX_DRONES * 8, RGBAFormat, FloatType); texture.needsUpdate = true;
   const world = [new Matrix4(), new Matrix4(), new Matrix4()];
@@ -15,7 +19,7 @@ export function createMembraneRig() {
     for (const side of [-1, 1]) {
       const base = index * 8 + (side < 0 ? 0 : 4); palette[base].identity();
       for (let j = 0; j < 3; j++) {
-        const p = MEMBRANE_JOINTS[j], previous = j ? MEMBRANE_JOINTS[j - 1] : [0, 0, 0];
+        const p = joints[j], previous = j ? joints[j - 1] : [0, 0, 0];
         point.set(side * (p[0] - previous[0]), p[1] - previous[1], p[2] - previous[2]);
         if (j === 0) e.set(.10 + recovery * .20, side * -.06, side * (.10 + stroke * (.73 - glide * .38)), 'ZXY');
         else if (j === 1) e.set(0, side * recovery * .85, 0, 'XYZ');
@@ -29,12 +33,6 @@ export function createMembraneRig() {
   };
   for (let i = 0; i < MAX_DRONES; i++) step(i, 0, 0, true);
   return { texture, palette, step, dispose() { texture.dispose(); } };
-}
-/** Blend continuously over limb joints; the trailing inner edge stays attached to the torso. */
-export function membraneWeights(x: number, y: number, out: number[]) {
-  const span = Math.abs(x), body = (1 - smooth(.24, .42, span)) * (1 - smooth(.02, .29, y));
-  const elbow = smooth(.36, .63, span), hand = smooth(.73, 1.02, span);
-  out[0] = body; out[1] = (1 - body) * (1 - elbow); out[2] = (1 - body) * elbow * (1 - hand); out[3] = (1 - body) * elbow * hand;
 }
 export const membraneSkinGLSL = `
 attribute vec4 aWingWeights;

@@ -16,12 +16,14 @@ const leadZ = (x: number) => x < .48 ? x / .48 * .16 - .045 : .16 - Math.min(1, 
 const boneAt = (x: number) => x < .48 ? 0 : x < 1.02 ? 1 : 3;
 /**
  * Remiges attach to forearm/hand; overlapping coverts hide their roots on both surfaces; marginal coverts round the leading
- * edge. Each feather is an atlas card (featherCard): outer primaries notched, secondaries blunt, coverts rounded.
+ * edge. Each feather is an atlas card (featherCard): outer primaries notched, secondaries blunt, coverts rounded. `coarse` keeps
+ * every feather but cuts each card's rows to a third and its columns to a half (and the bed likewise), for the Watchers' pooled
+ * wings (watcherWings.ts): the same outline from the atlas alpha, with less camber and curl.
  */
-export function featherWing(side: number) {
-  const pieces: BufferGeometry[] = [wingAirfoil(side)];
+export function featherWing(side: number, coarse = false) {
+  const pieces: BufferGeometry[] = [wingAirfoil(side, coarse)];
   const add = (a: Vector3, b: Vector3, width: number, bone: number, kind: number, top = true, shade = .95, rows = 6, cols = 3) =>
-    pieces.push(featherCard(side, a, b, width, bone, top, shade, kind, rows, cols));
+    pieces.push(featherCard(side, a, b, width, bone, top, shade, kind, coarse ? Math.max(2, Math.round(rows / 3)) : rows, coarse ? Math.max(1, cols >> 1) : cols));
   const v = (x: number, y: number, z: number) => new Vector3(x, y, z);
   // The outer four primaries are narrow and notched, so they part into separate fingers when the hand spreads.
   for (let i = 0; i < 10; i++) add(primaryRoot(i), primaryTip(i), i < 4 ? .074 + i * .007 : .105 + Math.sin(i / 9 * Math.PI) * .023, 4 + i, i < 4 ? FEATHER.emarginated : FEATHER.primary, true, .98, 14, 4);

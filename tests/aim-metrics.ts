@@ -1,8 +1,9 @@
 import { Euler, PerspectiveCamera, Quaternion, Vector2, Vector3, type Object3D } from 'three';
 import { CHASE_HEAD } from '../src/game/presentation';
 import { boomFor, fovFor, hipFovFor } from '../src/game/cameraFx';
-import { BARREL_AXIS, MUZZLE } from '../src/world/cannonContract';
-/** Geometry the aim solver is judged by: the arm cannon's barrel (forearm_r frame, cannonContract.ts) and the camera projection. */
+import { BARREL_AXIS, MUZZLE, fitDir, fitPoint } from '../src/world/cannonContract';
+/** Geometry the aim solver is judged by: the arm cannon's barrel as it sits on the forearm (forearm_r frame, cannonContract.ts FIT)
+ * and the camera projection. */
 const DEG = Math.PI / 180, FORE = 7, UPPER = 3;
 /** w: CameraRig's short-viewport weight (cameraFx.shortWeight): 1 on a phone in landscape, which narrows the FOV and nears the boom. */
 export type View = { name: string; blend: number; aspect: number; w?: number };
@@ -22,8 +23,8 @@ export function cameraRay(viewYaw: number, viewPitch: number, dist: number, view
 /** The cannon muzzle and the unit barrel direction in world space, from the current forearm_r pose. */
 export function barrel(joints: Object3D[], root: Object3D) {
   root.updateMatrixWorld(true);
-  const muzzle = joints[FORE].localToWorld(new Vector3(MUZZLE.x, MUZZLE.y, MUZZLE.z));
-  const dir = new Vector3(BARREL_AXIS.x, BARREL_AXIS.y, BARREL_AXIS.z).normalize().applyQuaternion(joints[FORE].getWorldQuaternion(new Quaternion()));
+  const tip = fitPoint(MUZZLE), axis = fitDir(BARREL_AXIS), muzzle = joints[FORE].localToWorld(new Vector3(tip.x, tip.y, tip.z));
+  const dir = new Vector3(axis.x, axis.y, axis.z).normalize().applyQuaternion(joints[FORE].getWorldQuaternion(new Quaternion()));
   return { muzzle, dir };
 }
 const camera = new PerspectiveCamera();

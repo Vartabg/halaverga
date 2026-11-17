@@ -31,7 +31,7 @@ export function stepWardenBolts(w: Wardens, s: ShooterState, player: Vec3, dt: n
     if (shielded(s, o.v)) {
       battle.quenched++;
       if (w.shieldAge <= WARDEN.parry) { w.hit[o.src] = 0; exposeWarden(w, o.src, true); }
-    } else { w.hit[o.src] = 1; wardenDamage(s); w.last = o.src; w.result = 'hit'; w.serial++; }
+    } else { w.hit[o.src] = 1; wardenDamage(s, old, o.p); w.last = o.src; w.result = 'hit'; w.serial++; }
   }
 }
 export function stepWardenVolley(w: Wardens, s: ShooterState, i: number) {

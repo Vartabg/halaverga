@@ -4,12 +4,13 @@ import { loadSuit } from './load-suit';
 import { buildSuitRig } from '../src/world/suitRig';
 import { BONE_NAMES } from '../src/world/suitSkeleton';
 import { bindAngelClips, blendAngelClip, FULL, type AngelClips } from '../src/world/angelClips';
-import { createAngelMotion, SLASH, stepAngelMotion, turnBody, type AngelMotionInput } from '../src/world/angelMotion';
+import { createAngelMotion, stepAngelMotion, turnBody, type AngelMotionInput } from '../src/world/angelMotion';
+import { CUT_CLIPS, cutClip } from '../src/world/cutClips';
 import { banish, FX } from '../src/game/banishState';
 import { beginStrike, cancelStrike, landStrike, strike } from '../src/game/strike';
 
 let asset: Awaited<ReturnType<typeof loadSuit>>, clips: AngelClips;
-beforeAll(async () => { asset = await loadSuit('angel'); clips = bindAngelClips(asset.animations); });
+beforeAll(async () => { asset = await loadSuit('archangel'); clips = bindAngelClips(asset.animations); });
 beforeEach(() => cancelStrike());
 const bone = (name: string) => BONE_NAMES.indexOf(name as typeof BONE_NAMES[number]);
 function posed(clip?: string, time = 0) {
@@ -24,8 +25,8 @@ function emit(kind: number) {
 const flight = (over: Partial<AngelMotionInput> = {}): AngelMotionInput => ({ dt: 1 / 60, paused: false, flying: true, ground: 0, speed: 30, sword: true, ...over });
 
 describe('the library clips on the angel', () => {
-  it('carries the five game clips with a rotation track for every game bone and the pelvis shift', () => {
-    for (const name of ['idle', 'swordIdle', 'slash', 'rebuke', 'cast']) {
+  it('carries the game clips with a rotation track for every game bone and the pelvis shift', () => {
+    for (const name of ['idle', 'swordIdle', 'rebuke', 'cast', ...CUT_CLIPS.flatMap(c => [c.clip, c.rec])]) {
       const c = clips[name]; expect(c, name).toBeDefined();
       expect(c.rotations.every(Boolean)).toBe(true); expect(c.pelvis).not.toBeNull(); expect(c.duration).toBeGreaterThan(.3);
     }
@@ -38,11 +39,16 @@ describe('the library clips on the angel', () => {
     }
     rest.rig.dispose(); idle.rig.dispose();
   });
-  it('raises the sword hand above the head at the top of the cut and brings it below the chest after it', () => {
-    const top = posed('slash', SLASH.raised), after = posed('slash', .6);
-    expect(top.at('hand_r').y).toBeGreaterThan(top.at('head').y);
-    expect(after.at('hand_r').y).toBeLessThan(after.at('chest').y);
-    top.rig.dispose(); after.rig.dispose();
+  it('swings the sword hand out in front of the chest at each cut\'s impact, and each recovery brings it back to the guard', () => {
+    const guard = posed(CUT_CLIPS[0].clip, 0);
+    for (const c of CUT_CLIPS) {
+      const hit = posed(c.clip, c.impact), back = posed(c.rec, clips[c.rec].duration);
+      expect(hit.at('hand_r').z, c.clip).toBeLessThan(hit.at('chest').z - .15); // the character faces -Z
+      expect(back.at('hand_r').distanceTo(guard.at('hand_r')), c.rec).toBeLessThan(.1);
+      expect(back.at('hand_r').y).toBeLessThan(back.at('chest').y);
+      hit.rig.dispose(); back.rig.dispose();
+    }
+    guard.rig.dispose();
   });
 });
 
@@ -52,9 +58,9 @@ describe('the angel motion layer', () => {
     stepAngelMotion(m, clips, rig.joints, flight());
     beginStrike(0, { x: 0, y: 0, z: -40 }, 40);
     for (let i = 0; i < 40; i++) stepAngelMotion(m, clips, rig.joints, flight());
-    expect(m.act).toBe('slash'); expect(m.actT).toBeCloseTo(SLASH.raised, 6); expect(m.weight).toBe(1);
+    expect(m.act).toBe('slash'); expect(m.actT).toBeCloseTo(cutClip(0).raised, 6); expect(m.weight).toBe(1);
     landStrike(true); emit(FX.sword); emit(FX.bind);
-    stepAngelMotion(m, clips, rig.joints, flight()); expect(m.act).toBe('slash'); expect(m.actT).toBeGreaterThan(SLASH.raised);
+    stepAngelMotion(m, clips, rig.joints, flight()); expect(m.act).toBe('slash'); expect(m.actT).toBeGreaterThan(cutClip(0).raised);
     emit(FX.cast); stepAngelMotion(m, clips, rig.joints, flight()); expect(m.act).toBe('slash');
     for (let i = 0; i < 120; i++) stepAngelMotion(m, clips, rig.joints, flight());
     expect(m.act).toBe(''); expect(m.weight).toBe(0); rig.dispose();
@@ -70,7 +76,9 @@ describe('the angel motion layer', () => {
       }
       const done = m.spinT; rig.dispose(); return { peak, drift, done };
     };
-    const flown = run(flight());
+    // At this speed the flight lean (-1.35, full power) already lays the body prone, so the root adds no prone pitch (A2) and only
+    // the cut's lean turns the model.
+    const flown = run(flight({ lean: -1.35 }));
     expect(flown.peak).toBeGreaterThan(.2); expect(flown.peak).toBeLessThan(Math.PI / 4); // a lean, not a spin (Garo, 2026-11-16: dizzying)
     expect(flown.drift).toBeLessThan(1e-6); // a lean about the spine keeps the chest in place
     expect(flown.done).toBe(-1); // out and back, then it is over
@@ -90,7 +98,7 @@ describe('the angel motion layer', () => {
   });
   it('leaves the legs and pelvis to the flight pose while a move plays in the air', () => {
     const { rig } = posed(), m = createAngelMotion();
-    stepAngelMotion(m, clips, rig.joints, flight());
+    for (let i = 0; i < 90; i++) stepAngelMotion(m, clips, rig.joints, flight()); // the prone legs (A2) settle first
     const legs = ['pelvis', 'thigh_l', 'thigh_r', 'shin_l', 'shin_r', 'foot_l', 'foot_r'].map(n => rig.joints[bone(n)].quaternion.clone());
     emit(FX.cast);
     for (let i = 0; i < 20; i++) stepAngelMotion(m, clips, rig.joints, flight());

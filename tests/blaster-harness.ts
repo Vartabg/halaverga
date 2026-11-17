@@ -15,7 +15,7 @@ import { createBlasterFrame, stepSuitBlaster, type BlasterFrame } from '../src/w
 import { cruising, flightPose, frame, settledMix } from './flight-harness';
 import { loadCannon } from './load-cannon';
 import { loadSuit } from './load-suit';
-/** The blaster pipeline Suit, Shooter and ArmCannon run each frame, on the real suit.glb and arm-cannon.glb, in node. */
+/** The blaster pipeline Suit, Shooter and ArmCannon run each frame, on the shipped archangel.glb and arm-cannon.glb, in node. */
 export type Stance = 'ground' | 'hover' | 'cruise';
 export type Harness = {
   rig: { root: Group; joints: Object3D[] }; cannon: ArmCannon; f: BlasterFrame; s: ShooterState; calls: string[];
@@ -32,7 +32,7 @@ function camera(s: ShooterState, viewYaw: number, viewPitch: number, f: BlasterF
   f.camera.x = o.x; f.camera.y = o.y; f.camera.z = o.z;
 }
 export async function loadAssets() {
-  return { suit: (await loadSuit()).scene, cannon: (await loadCannon()).scene };
+  return { suit: (await loadSuit('archangel')).scene, cannon: (await loadCannon()).scene };
 }
 export function createHarness(assets: Awaited<ReturnType<typeof loadAssets>>, stance: Stance = 'ground', hz = 60, on = true): Harness {
   clearShooterFault(); resetBurst(); restCannonDrive();

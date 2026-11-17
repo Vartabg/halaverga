@@ -23,7 +23,7 @@ export function stepWardenSweep(w: Wardens, s: ShooterState, i: number, player: 
     if (shielded(s, w.dir[i])) {
       battle.quenched++; w.hit[i] = 2;
       if (w.shieldAge <= WARDEN.parry) { w.hit[i] = 0; exposeWarden(w, i, true); return; }
-    } else { w.hit[i] = 1; wardenDamage(s); w.last = i; w.result = 'hit'; w.serial++; }
+    } else { w.hit[i] = 1; wardenDamage(s, s.drones.pos[i], player); w.last = i; w.result = 'hit'; w.serial++; }
   }
   if (w.phase[i] === WA.sweep && w.time[i] >= CLEAVE.duration) {
     if (w.hit[i] === 2) w.hit[i] = 0;

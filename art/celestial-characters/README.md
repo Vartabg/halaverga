@@ -38,3 +38,7 @@ skeletal attack library. Cloth has modeled pleats and subtle shader movement, wi
 simulation or cloth collision. These are current limits, not claims of finished AAA art.
 
 Wing anatomy, motion states and current evidence: `docs/art/war-in-heaven/wing-refinement.md`.
+
+Retired 2026-11-17 (docs/plans/2026-11-16-real-fight.md B9): the game now loads `public/models/archangel.glb` and
+`public/models/watcher.glb` (scripts/real_bodies, art/real-bodies). The files this note describes were removed from the tree;
+they remain in git history at 86482c2.

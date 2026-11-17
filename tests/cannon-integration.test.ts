@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { BufferAttribute, BufferGeometry, DoubleSide, Mesh, MeshBasicMaterial, Raycaster, SkinnedMesh, Vector3, type Object3D } from 'three';
 import { shooterFaulted } from '../src/game/shooterFault';
-import { AXIS_ORIGIN, BARREL_AXIS, HAND_SCALE, MUZZLE, NODES, cannonLink } from '../src/world/cannonContract';
+import { AXIS_ORIGIN, BARREL_AXIS, HAND_SCALE, MUZZLE, NODES, cannonLink, fitPoint } from '../src/world/cannonContract';
 import { buildSkinnedSuit } from '../src/world/skinnedSuit';
 import { createHarness, loadAssets, poseRig, settle, type Harness } from './blaster-harness';
 import { cannonImage } from './load-cannon';
@@ -69,7 +69,7 @@ describe('arm cannon on the suit', () => {
       expect(h.s.muzzle.valid).toBe(true);
       expect(node.distanceTo(v(h.s.muzzle))).toBeLessThan(1e-3); expect(node.distanceTo(v(cannonLink.fxMuzzle))).toBeLessThan(1e-9);
       // The contract muzzle and the node agree (the asset's muzzle residual is 0).
-      expect(h.rig.joints[7].localToWorld(v(MUZZLE)).distanceTo(node)).toBeLessThan(1e-4);
+      expect(h.rig.joints[7].localToWorld(v(fitPoint(MUZZLE))).distanceTo(node)).toBeLessThan(1e-4); // on the body's forearm (FIT)
       // Aiming adds only the post-solve idle sway (.1 deg) and clavicle breathing (.3 deg): visual, a few mm at the muzzle.
       h.s.input.aim = true; for (let i = 0; i < 40; i++) h.step(false);
       expect(h.s.aim.blend).toBe(1); expect(h.s.muzzle.weight).toBe(1);

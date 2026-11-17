@@ -4,7 +4,8 @@
 // arm braces instead of swinging with the blade.
 // Visual only: it writes joint rotations after the library clips and before the springs, and publishes `brace` for them.
 import { Euler, Quaternion, type Object3D } from 'three';
-import { SLASH, type AngelMotion } from './angelMotion';
+import { fromWeight, type AngelMotion } from './angelMotion';
+import { cutClip } from './cutClips';
 import { banish } from '../game/banishState';
 import { strike } from '../game/strike';
 import { BONE_NAMES } from './suitSkeleton';
@@ -39,6 +40,16 @@ const clamp = (v: number) => Math.min(1, Math.max(0, v));
 const ease = (v: number) => v * v * (3 - 2 * v);
 const e = new Euler(), q = new Quaternion(), offset = new Float32Array(32);
 const lerp = (m: Move, v: number) => m[0] + (m[1] - m[0]) * v;
+/** Adds cut `cut`'s drive at clip time `t`, by `w`, to `offset`; returns `w` (0 for no cut). The coil builds to the cut's raised
+ * blade and swings through after it; the recovery tail holds the swing as it fades. */
+function drive(cut: number, tail: boolean, t: number, w: number) {
+  const d = DRIVE[cut];
+  if (!d || w <= 0) return 0;
+  const raised = cutClip(cut).raised, at = tail ? raised + 1 : t, u = ease(clamp(at / raised)), v = ease(clamp((at - raised) / .28)), g = w * u;
+  offset[TL] += g * lerp(d.tl, v); offset[TR] += g * lerp(d.tr, v); offset[SL] += g * lerp(d.sl, v); offset[SR] += g * lerp(d.sr, v);
+  offset[UA] += g * lerp(d.ux, v); offset[UA + 16] += g * lerp(d.uz, v); offset[FA] += g * lerp(d.fx, v);
+  return w;
+}
 
 export function stepStrikeStance(s: StrikeStance, joints: readonly Object3D[], m: AngelMotion, input: StanceInput) {
   const dt = input.paused ? 0 : input.dt;
@@ -50,13 +61,9 @@ export function stepStrikeStance(s: StrikeStance, joints: readonly Object3D[], m
   s.brace = 0;
   if (s.stance < .001) return;
   offset.fill(0);
-  const cutting = m.act === 'slash' && m.weight > 0 && DRIVE[m.cut];
-  if (cutting) {
-    const d = DRIVE[m.cut], u = ease(clamp(m.actT / SLASH.raised)), v = ease(clamp((m.actT - SLASH.raised) / .28)), g = m.weight * u;
-    offset[TL] = g * lerp(d.tl, v); offset[TR] = g * lerp(d.tr, v); offset[SL] = g * lerp(d.sl, v); offset[SR] = g * lerp(d.sr, v);
-    offset[UA] = g * lerp(d.ux, v); offset[UA + 16] = g * lerp(d.uz, v); offset[FA] = g * lerp(d.fx, v);
-    s.brace = input.flying ? m.weight * s.stance : 0;
-  }
+  // The cut playing, and the one it interrupted while that crossfades out (angelMotion begin), so a new cut never snaps the stance.
+  const w = drive(m.act === 'slash' ? m.cut : -1, m.tail, m.actT, m.weight) + drive(m.fromCut, m.fromTail, m.fromT, fromWeight(m));
+  if (w > 0) s.brace = input.flying ? Math.min(1, w) * s.stance : 0;
   for (const [b, x, y, z] of STANCE) {
     e.set(x + offset[b], y, z + offset[b + 16]); q.setFromEuler(e);
     joints[b].quaternion.slerp(q, s.stance);

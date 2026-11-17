@@ -1,10 +1,13 @@
 import { AdditiveBlending, Color, DataTexture, DoubleSide, LinearFilter, LinearMipmapLinearFilter, MeshBasicMaterial,
-  MeshStandardMaterial, RGBAFormat, type WebGLProgramParametersWithUniforms } from 'three';
+  MeshStandardMaterial, RGBAFormat, Vector2, type WebGLProgramParametersWithUniforms } from 'three';
 import { createMembraneRig, membraneSkinGLSL } from './membraneRig';
-import { makeDemonGeometry } from './demonGeometry';
-export const DRONE_COLORS = { body: '#6c3025', plate: '#7e6845', eyeIdle: '#ff5f19', eyeAlert: '#ff541a', telegraph: '#fff7de', rim: '#8c391e', flash: '#ffffff' } as const;
-/** Public engine name retained for the combat pool; the rendered adversaries are original demon designs. */
-export const buildDroneGeometry = makeDemonGeometry;
+import { makeWatcherGeometry } from './watcherGeometry';
+import { WATCHER_JOINTS } from './watcherWings';
+import { featherAtlas } from './featherAtlas';
+/** feather: the dark tint over the feather atlas; blade: the Watchers' bronze, near the cuirass (watcher.glb `watcher bronze`). */
+export const DRONE_COLORS = { feather: '#3a3036', blade: '#b08a52', eyeIdle: '#ff5f19', eyeAlert: '#ff541a', telegraph: '#fff7de', rim: '#8c391e', flash: '#ffffff' } as const;
+/** Public engine name retained for the combat pool: the pooled pieces of the Watchers (watcherGeometry.ts). */
+export const buildDroneGeometry = makeWatcherGeometry;
 /** World size that covers `px` CSS pixels at distance `dist` for a vertical FOV in degrees. */
 export const minWorldSize = (px: number, dist: number, fovDeg: number, heightPx: number) =>
   px * dist * 2 * Math.tan(fovDeg * Math.PI / 360) / heightPx;
@@ -25,33 +28,24 @@ export const haloAlpha = (r: number) => { const k = Math.max(0, 1 - r); return k
 /** Thin ring: rises over .78..(.78+.07), falls over (1-.12)..1, so it peaks near r .85 and ends at the quad's inscribed edge. */
 export const ringAlpha = (r: number) => smooth(.78, .85, r) * (1 - smooth(1 - .12, 1, r));
 
-const CACHE_KEY = 'halaverga-host-anatomical-wings-v3';
-/** The exposed core glows this colour (linear) through the open top once the plate is gone; aDamage scales it (Drones.tsx). */
+const CACHE_KEY = 'halaverga-watcher-feather-wings-v1';
+/** A damaged Watcher's wings glow this colour (linear) from within; aDamage scales it (Drones.tsx). */
 export const EMBER_GLOW = new Color('#ff5a18');
 /**
- * Per-instance flash (the gated white hit flash, aFlash) and damage (aDamage: 0 whole, about .45 broken, .75-1 failing). Damage lights
- * the shell from inside: an ember glow fading in over the open top (local y above .18, where the plate sat) and leaking through the
- * seams of the lower hull, so a damaged drone reads as a hull with a fire in it from any side, at range.
+ * The wings' shader hooks, kept from the drone shader: the per-instance flash (the gated white hit flash, aFlash) and damage
+ * (aDamage: 0 whole, about .45 broken, .75-1 failing) lighting the plumage from inside with an ember glow, a rim light, and the
+ * instanced membrane skin (each instance's shoulder, elbow and wrist from the rig's pose texture).
  */
-function flashRim(material: MeshStandardMaterial, rim: number, clock: { value: number }, wings: ReturnType<typeof createMembraneRig>) {
+function flashRim(material: MeshStandardMaterial, rim: number, wings: ReturnType<typeof createMembraneRig>) {
   const uRim = { value: new Color(DRONE_COLORS.rim).multiplyScalar(rim) }, uEmber = { value: EMBER_GLOW };
   material.onBeforeCompile = (shader: WebGLProgramParametersWithUniforms) => {
-    shader.uniforms.uRim = uRim; shader.uniforms.uEmber = uEmber;
-    shader.uniforms.uHostClock = clock; shader.uniforms.uWingPose = { value: wings.texture };
-    shader.vertexShader = 'attribute float aFlash;\nvarying float vFlash;\nattribute float aDamage;\nvarying float vDamage;\nvarying vec3 vLocal;\nattribute float aPhase;\nuniform float uHostClock;\n'
+    shader.uniforms.uRim = uRim; shader.uniforms.uEmber = uEmber; shader.uniforms.uWingPose = { value: wings.texture };
+    shader.vertexShader = 'attribute float aFlash;\nvarying float vFlash;\nattribute float aDamage;\nvarying float vDamage;\nvarying vec3 vLocal;\n'
       + membraneSkinGLSL + shader.vertexShader.replace('#include <beginnormal_vertex>', `#include <beginnormal_vertex>
-if (aWingSide != 0.0) objectNormal = mat3(hostWingSkin()) * objectNormal;
+objectNormal = mat3(hostWingSkin()) * objectNormal;
 `).replace('#include <begin_vertex>', `#include <begin_vertex>
 vFlash = aFlash; vDamage = aDamage; vLocal = position;
-if (aWingSide != 0.0) { transformed = (hostWingSkin() * vec4(transformed, 1.0)).xyz; } else {
-float beat = uHostClock * 2.2 + aPhase;
-float limb = smoothstep(.26, .48, abs(position.x)) * (1. - smoothstep(.72, .86, abs(position.x)))
-  * (1. - smoothstep(.30, .45, position.y)) * smoothstep(-.34, -.15, position.y) * (1. - smoothstep(.10, .22, position.z));
-transformed.z += sin(beat + sign(position.x) * .7) * limb * .07;
-float knee = 1. - smoothstep(-.65, -.36, position.y);
-transformed.z += sin(beat * .65 + sign(position.x)) * knee * .055;
-transformed.z += sin(beat) * .009 * (1. - smoothstep(.18, .30, abs(position.x))) * smoothstep(-.2, .1, position.y) * (1. - smoothstep(.40, .55, position.y));
-}
+transformed = (hostWingSkin() * vec4(transformed, 1.0)).xyz;
 `);
     shader.fragmentShader = 'varying float vFlash;\nuniform vec3 uRim;\nvarying float vDamage;\nvarying vec3 vLocal;\nuniform vec3 uEmber;\n'
       + shader.fragmentShader.replace('#include <emissivemap_fragment>', `
@@ -65,17 +59,20 @@ transformed.z += sin(beat) * .009 * (1. - smoothstep(.18, .30, abs(position.x)))
   return material;
 }
 export function createDroneMaterials() {
-  const clock = { value: 0 }, wings = createMembraneRig();
+  const wings = createMembraneRig(WATCHER_JOINTS), atlas = featherAtlas();
   const haloTexture = radialTexture(haloAlpha), ringTexture = radialTexture(ringAlpha);
   const glow = (map: DataTexture) => new MeshBasicMaterial({ map, transparent: true, depthWrite: false, blending: AdditiveBlending, toneMapped: false, fog: false });
+  // Alpha-tested with alpha-to-coverage like the archangel's plumage (featherMaterial.ts): opaque cost, no sorting.
+  const feather = flashRim(new MeshStandardMaterial({ color: DRONE_COLORS.feather, vertexColors: true, map: atlas.colour, normalMap: atlas.normal,
+    normalScale: new Vector2(.55, .55), alphaTest: .42, alphaToCoverage: true, metalness: .05, roughness: .72, side: DoubleSide }), .35, wings);
   const m = {
-    body: flashRim(new MeshStandardMaterial({ vertexColors: true, side: DoubleSide, color: '#ffffff', metalness: .13, roughness: .73 }), .35, clock, wings),
-    plate: flashRim(new MeshStandardMaterial({ vertexColors: true, color: '#ffffff', metalness: .38, roughness: .47 }), .25, clock, wings), clock, wings,
+    feather, wings, atlas,
+    blade: new MeshStandardMaterial({ color: DRONE_COLORS.blade, metalness: .82, roughness: .34, flatShading: true }),
     eye: new MeshBasicMaterial({ toneMapped: false }),
     halo: glow(haloTexture), ring: glow(ringTexture), haloTexture, ringTexture,
     dispose() {
-      wings.dispose(); m.body.dispose(); m.plate.dispose(); m.eye.dispose(); m.halo.dispose(); m.ring.dispose();
-      haloTexture.dispose(); ringTexture.dispose();
+      wings.dispose(); m.feather.dispose(); atlas.colour.dispose(); atlas.normal.dispose(); m.blade.dispose(); m.eye.dispose();
+      m.halo.dispose(); m.ring.dispose(); haloTexture.dispose(); ringTexture.dispose();
     },
   };
   return m;

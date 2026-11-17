@@ -11,7 +11,8 @@ import { VIEWS, aimMetrics, cameraRay, type Shot } from './aim-metrics';
 const DEG = Math.PI / 180, ARM = [14, 3, 7, 16], TORSO = [10, 11, 12, 1], HZ = 1 / 60, PRESS_MAX = 25, CARRY_MAX = 40, CARRY_SCREEN = 12;
 // Measured 2026-09-23 with the bold carry (upper arm .45 / -.2 / .4, elbow 1.4; AIM_RATE 18, snap gated at 18-40 deg): press frame worst
 // 23.0 deg (plain rig, view pitch -40, crosshair 5 m, inside NEAR_IK); carry worst 33.0 deg in 3D (glb, pitch -.4, grounded: the
-// barrel lies across the view so its length reads) and 3.8 deg on screen.
+// barrel lies across the view so its length reads) and 3.8 deg on screen. 2026-11-17, the cannon fitted to archangel.glb's forearm
+// (cannonContract.ts FIT) and the elbow at 1.6: press frame 23.8 deg, carry 27.3 deg in 3D and 2.6 deg on screen. 'glb' is archangel.glb.
 const e = new Euler();
 type Case = { speed: number; viewYaw: number; viewPitch: number; offset: number; clock?: number };
 /** One Suit.tsx frame with the body facing the view (yaw offset for the facing lag), flying along the body heading. */
@@ -51,7 +52,7 @@ const GRID: Case[] = [];
 for (const speed of [0, 13, 34]) for (const viewYaw of [0, 2.2]) for (const offset of [-.25, 0, .25]) for (const viewPitch of [-40, -20, 0, 20, 40])
   GRID.push({ speed, viewYaw, viewPitch: viewPitch * DEG, offset });
 let glb: Rig;
-beforeAll(async () => { glb = buildSkinnedSuit((await loadSuit()).scene) as unknown as Rig; });
+beforeAll(async () => { glb = buildSkinnedSuit((await loadSuit('archangel')).scene) as unknown as Rig; });
 const RIGS = [['plain', rig], ['glb', () => glb]] as const;
 describe('suit aim (arm cannon)', () => {
   it('writes no joint at carry 0 and weight 0', () => {

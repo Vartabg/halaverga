@@ -25,7 +25,7 @@ export function stepWardenRush(w: Wardens, s: ShooterState, i: number, player: V
   relativeA.x = old.x - w.previous.x; relativeA.y = old.y - w.previous.y; relativeA.z = old.z - w.previous.z;
   relativeB.x = p.x - player.x; relativeB.y = p.y - player.y; relativeB.z = p.z - player.z;
   if (!w.hit[i] && dt > 0 && segmentDistance(relativeA, relativeB, zero) < WARDEN.radius) {
-    w.hit[i] = 1; wardenDamage(s); w.last = i; w.result = 'hit'; w.serial++;
+    w.hit[i] = 1; wardenDamage(s, p, player); w.last = i; w.result = 'hit'; w.serial++;
   }
   if (u === 1) exposeWarden(w, i);
 }

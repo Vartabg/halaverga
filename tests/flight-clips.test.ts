@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { Euler, Quaternion } from 'three';
+import { Euler, Object3D, Quaternion } from 'three';
 import { createPose, pitchOf, preRotateX, rotateZ, sampleClip, type Clip, type PoseBuffer } from '../src/world/clipSampler';
 import { FLIGHT, HOVER_LOOP } from '../src/world/flightClips';
 import { ACCENTS } from '../src/world/flightAccents';
 import { BLEND_REF, BONE_COUNT, BONE_NAMES, HINGE, MIRROR } from '../src/world/suitSkeleton';
+import { FLINCH, createAngelMotion, proneSpeed, stepAngelMotion } from '../src/world/angelMotion';
+import type { AngelClips } from '../src/world/angelClips';
+import { shoveAngel } from '../src/game/hurtShove';
 const at = (name: string) => BONE_NAMES.indexOf(name as never);
 const REF = BLEND_REF.map(e => new Quaternion().setFromEuler(new Euler(e[0], e[1], e[2])));
 const CLIPS: Clip[] = [FLIGHT.hover, FLIGHT.cruise, ...FLIGHT.power, FLIGHT.fist, ...FLIGHT.brake, FLIGHT.climb, FLIGHT.dive, ...Object.values(ACCENTS)];
@@ -71,6 +74,18 @@ describe('authored flight clips', () => {
     for (const c of [FLIGHT.climb, ACCENTS.sink, ACCENTS.launch, ACCENTS.flare]) for (const t of times(c, 8)) for (const b of torso)
       expect(Math.abs(pitchOf(sample(c, t), b)), `${c.name} ${BONE_NAMES[b]}`).toBeLessThan(1e-6);
     for (const c of [...FLIGHT.brake, FLIGHT.dive]) for (const t of times(c, 32)) for (const b of torso) expect(pitchOf(sample(c, t), b)).toBeLessThanOrEqual(1e-6);
+    // The hit flinch (angelMotion FLINCH) too: a hunch at hover and in a climb; the back is thrown only while the body lies prone.
+    const travel = { hover: { x: 0, y: 0, z: 0 }, climb: { x: 0, y: 25, z: -2 }, cruise: { x: 0, y: 0, z: -22 } };
+    for (const [name, v] of Object.entries(travel)) {
+      const joints = Array.from({ length: BONE_COUNT }, () => new Object3D()), m = createAngelMotion(), none = {} as AngelClips;
+      const input = { dt: 1 / 60, paused: false, flying: true, ground: 0, speed: Math.hypot(v.x, v.z), sword: true, travel: proneSpeed(v, 0) };
+      const step = () => { for (const j of joints) j.quaternion.identity(); stepAngelMotion(m, none, joints, input); };
+      for (let n = 0; n < 90; n++) step();
+      shoveAngel(0, 0, 1); let back = -Infinity, flinched = 0;
+      for (let n = 0; n < 30; n++) { step(); flinched = Math.max(flinched, m.flinch); for (const b of torso) back = Math.max(back, new Euler().setFromQuaternion(joints[b].quaternion).x); }
+      expect(flinched, name).toBeGreaterThan(.95);
+      if (name === 'cruise') expect(back, name).toBeGreaterThan(FLINCH.arch * .9); else expect(back, name).toBeLessThanOrEqual(1e-6);
+    }
   });
   it('mirror the right bank from the left, land the flare feet flat, and are all original', () => {
     const left = sample(ACCENTS.bankLeft, 0), right = sample(ACCENTS.bankRight, 0);

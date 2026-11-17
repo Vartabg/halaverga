@@ -7,6 +7,7 @@ import { banish, resetBanish, stepBanish } from '../src/game/banish';
 import { MODE } from '../src/game/banishState';
 import { flowPaths } from '../src/game/combatFlow';
 import { beginStrike, cancelStrike, strike } from '../src/game/strike';
+import { BLADE } from '../src/game/bladeReach';
 import { counterState } from '../src/game/counterState';
 import { resetCounter, settleCounter, tryCounter, updateCounterWindow } from '../src/game/counter';
 import { resetSlowMotion, stepSlowMotion } from '../src/game/slowMotion';
@@ -18,7 +19,7 @@ const player = { x: 0, y: 30, z: 0 };
 function setup(close = false) {
   const s = createShooter(); createDroneSim(s); s.drones.count = 2;
   for (let i = 0; i < 2; i++) { Object.assign(s.drones.pos[i], { x: i ? 15 : -15, y: 30, z: -30 }); s.drones.phase[i] = PHASE.patrol; }
-  if (close) Object.assign(s.drones.pos[1], { x: 0, y: 30, z: -2 }); // inside STRIKE.contact: the dive lands the step it launches
+  if (close) Object.assign(s.drones.pos[1], { x: 0, y: 30, z: -BLADE.reach }); // inside contactAt: the dive lands the step it launches
   buildTargets(s); for (const t of s.targets) t.los = true;
   flowPaths.fill(1); resetBattle(0); resetBanish(banish, s); resetSlowMotion(); resetCounter(); cancelStrike();
   counterState.serial = 0; counterState.deflects = 0;

@@ -3,7 +3,7 @@ import { Euler, PerspectiveCamera, Vector3, type Object3D } from 'three';
 import type { ShotEvent } from '../src/game/combat';
 import { shooterFaulted } from '../src/game/shooterFault';
 import { tracerOrigin, type TracerOrigin } from '../src/world/fxPools';
-import { MUZZLE, NODES, cannonDrive, cannonLink } from '../src/world/cannonContract';
+import { MUZZLE, NODES, cannonDrive, cannonLink, fitPoint } from '../src/world/cannonContract';
 import { CH } from '../src/world/shotSprings';
 import { createHarness, loadAssets, settle } from './blaster-harness';
 
@@ -12,7 +12,7 @@ const solved = { x: NaN, y: NaN, z: NaN, calls: 0 };
 vi.mock('../src/world/shotBodyPose', async importOriginal => {
   const real = await importOriginal<typeof import('../src/world/shotBodyPose')>();
   return { ...real, applyShotBodyPost: (joints: Object3D[], b: Parameters<typeof real.applyShotBodyPost>[1]) => {
-    const p = joints[7].localToWorld(new Vector3(MUZZLE.x, MUZZLE.y, MUZZLE.z)); solved.x = p.x; solved.y = p.y; solved.z = p.z; solved.calls++;
+    const p = joints[7].localToWorld(new Vector3().copy(fitPoint(MUZZLE))); solved.x = p.x; solved.y = p.y; solved.z = p.z; solved.calls++;
     real.applyShotBodyPost(joints, b);
   } };
 });
@@ -48,13 +48,14 @@ describe('one shot clock: every channel starts on the press frame', () => {
       const node = h.cannon.root.getObjectByName(NODES.muzzle)!.getWorldPosition(new Vector3());
       expect(cannonLink.fxMuzzle.valid).toBe(true);
       expect(v(org.from).distanceTo(v(cannonLink.fxMuzzle))).toBe(0); expect(node.distanceTo(v(cannonLink.fxMuzzle))).toBeLessThan(1e-9);
-      // The press frame is part-way through the punch-out (weight .26 at 60 Hz; the bold carry rests about 33 deg off the line, so the
-      // press snap does most of the swing): the barrel is within 20 deg of the line to the crosshair in 3D, and the muzzle never dips
+      // The press frame is part-way through the punch-out (weight .26 at 60 Hz, .14 at 120 Hz; on archangel.glb the bold carry rests
+      // about 27 deg off the line, so the press snap does most of the swing): the barrel is within 21 deg of the line to the crosshair in
+      // 3D (measured 8.0 / 15.9 / 20.3 deg at 30 / 60 / 120 Hz, 2026-11-17; 20 on the old body), and the muzzle never dips
       // more than 12 CSS px at chase portrait on the press frame (the bold carry rests the cannon a little above the line; measured
       // 2-8 px at 30-120 Hz).
       const a = h.s.aim, target = v(a.origin).addScaledVector(v(a.dir), b.aim.dist);
       expect(b.aim.swing).toBe(b.aim.weight);
-      expect(v(b.barrel).angleTo(target.sub(v(h.s.muzzle))) / DEG).toBeLessThanOrEqual(20);
+      expect(v(b.barrel).angleTo(target.sub(v(h.s.muzzle))) / DEG).toBeLessThanOrEqual(21);
       const dip = muzzleY(h) - carryY; dips.push(+dip.toFixed(1)); expect(dip).toBeLessThanOrEqual(12);
       // The body and the cannon answer on the same frame.
       expect(b.body.springs.x[CH.elbow]).toBeGreaterThanOrEqual(elbowMin);

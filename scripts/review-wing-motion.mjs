@@ -12,8 +12,8 @@ import * as T from 'three';import{GLTFLoader}from'three/addons/loaders/GLTFLoade
 import{buildSuitRig}from'/source/world/suitRig';import{applySuitPose,orientSuit}from'/source/world/suitPose';
 import{createArchangelWings,stepArchangelWings,alignArchangelWings}from'/source/world/archangelWings';import{angelRegalia}from'/source/world/angelRegalia';
 import{advanceFlightMix,createFlightMix}from'/source/world/flightMix';import{applyFlightClips}from'/source/world/flightPose';import{createSuitAnimation}from'/source/world/suitAnimation';
-import{buildDroneGeometry,createDroneMaterials}from'/source/world/droneMesh';
-const loader=new GLTFLoader(),hero=await loader.loadAsync('/models/angel.glb'),demon=await loader.loadAsync('/models/abyssal.glb');
+import{buildDroneGeometry,createDroneMaterials}from'/source/world/droneMesh';import{createDemonActors}from'/source/world/demonActors';
+const loader=new GLTFLoader(),hero=await loader.loadAsync('/models/archangel.glb'),demon=await loader.loadAsync('/models/watcher.glb');
 const views=[];
 for(const [title,patch,cameraAt]of[
  ['GROUNDED / FOLDED JOINTS',{flying:false},[2.9,1.3,4.3]],
@@ -21,7 +21,7 @@ for(const [title,patch,cameraAt]of[
  ['CLIMB / INCREASED EFFORT',{speed:12,vy:7,lean:-.65,pitch:.4},[2.5,3.1,6.4]],
  ['CRUISE / STEADY GLIDE',{speed:26,lean:-1.35},[1.2,2.9,6.3]],
  ['BRAKING / FLARE & FAN',{speed:12,brake:1,lean:-.35},[1.6,2.8,6.3]],
- ['MEMBRANE / ANCHORED SKIN',{demon:true},[2.2,2.2,5.9]]]){
+ ['WATCHER / FEATHER WINGS',{demon:true},[2.2,2.2,5.9]]]){
  const el=document.createElement('section');el.innerHTML='<span>'+title+'</span>';document.querySelector('main').append(el);
  const r=new T.WebGLRenderer({antialias:true});r.setPixelRatio(1.5);r.setSize(480,520);r.setClearColor('#111923');r.toneMapping=T.ACESFilmicToneMapping;el.prepend(r.domElement);
  const scene=new T.Scene();scene.add(new T.HemisphereLight('#d6e4f6','#514b44',1.2));
@@ -30,12 +30,12 @@ for(const [title,patch,cameraAt]of[
  const pose={viewYaw:0,viewPitch:0,yaw:0,pitch:0,bank:0,speed:0,flight:1,power:0,brake:0,lean:0,...patch};
  let tick;
  if(patch.demon){
-  const geo=buildDroneGeometry(demon.scene),mat=createDroneMaterials();mat.eye.color.set('#ff671c');
-  for(const name of ['body','plate','wingL','wingR','eye']){
-   const g=geo[name];if(name!=='eye')for(const a of ['aFlash','aDamage','aPhase'])g.setAttribute(a,new T.InstancedBufferAttribute(new Float32Array([0]),1));
-   const m=new T.InstancedMesh(g,name==='plate'?mat.plate:name==='eye'?mat.eye:mat.body,1);m.setMatrixAt(0,new T.Matrix4());if(name==='eye')m.position.set(0,.737,-.24);m.frustumCulled=false;scene.add(m);
-  }
-  tick=(t,dt)=>{mat.clock.value=t;mat.wings.step(0,t,2,false)};
+  // The Watcher as Drones.tsx draws it: the watcher.glb actor, the pooled feather wings from its chest, the blade and the eye marker.
+  const geo=buildDroneGeometry(),mat=createDroneMaterials(),pool=createDemonActors(demon.scene,demon.animations),a=pool.actors[0];mat.eye.color.set('#ff671c');
+  for(const g of [geo.wingL,geo.wingR])for(const n of ['aFlash','aDamage'])g.setAttribute(n,new T.InstancedBufferAttribute(new Float32Array([0]),1));
+  const parts=[[geo.wingL,mat.feather,'wingMatrix'],[geo.wingR,mat.feather,'wingMatrix'],[geo.blade,mat.blade,'bladeMatrix'],[geo.eye,mat.eye,'eyeMatrix']].map(([g,m,k])=>{const x=new T.InstancedMesh(g,m,1);x.frustumCulled=false;scene.add(x);return[x,k]});
+  scene.add(pool.group);const at=new T.Vector3(0,.1,0),q=new T.Quaternion();
+  tick=(t,dt)=>{mat.wings.step(0,t,2,false);pool.step(0,at,q,true,{time:t,charging:false,hit:0,down:false,reduced:false,damage:0});for(const[x,k]of parts){x.setMatrixAt(0,a[k]);x.instanceMatrix.needsUpdate=true}};
  }else{
   const rig=buildSuitRig(hero.scene),w=createArchangelWings(),mix=createFlightMix(),life=createSuitAnimation();Object.assign(life,{epoch:0,flying:patch.flying!==false,ground:patch.flying===false?1:0,takeoff:Infinity});rig.joints[11].add(w.root);const cloth=angelRegalia(rig.root,rig.joints);scene.add(rig.root);
   if(patch.flying!==false)Object.assign(w.motion,{unfold:1,flying:true,launch:0,glide:patch.speed>18?1:0});

@@ -1,4 +1,4 @@
-import { AXIS_ORIGIN, BARREL_AXIS, STATION, type V3 } from './cannonContract';
+import { AXIS_ORIGIN, BARREL_AXIS, STATION, fitDir, fitPoint, type V3 } from './cannonContract';
 /**
  * Pure skin-weight rules for the blaster-on suit (no three import). All positions are bind world space (metres, three.js axes);
  * skin arrays are flat, 4 slots per vertex, written in place so each vertex keeps its original slots and influence set.
@@ -20,10 +20,11 @@ export const RING_DEPTH = 1;
 const slotFree = (sw: Num, v: number) => sw[v * 4] === 0 || sw[v * 4 + 1] === 0 || sw[v * 4 + 2] === 0 || sw[v * 4 + 3] === 0;
 export type Kind = 'anatomy' | 'undersuit' | 'other';
 type Num = { [i: number]: number; readonly length: number };
+/** The barrel axis as the cannon sits on the body's forearm (cannonContract.ts FIT), in the forearm_r frame. */
+const ORIGIN = fitPoint(AXIS_ORIGIN), AXIS = fitDir(BARREL_AXIS);
 /** Station along the barrel axis of a bind world point, given the forearm_r bind head. */
 export function station(x: number, y: number, z: number, forearm: V3) {
-  return (x - forearm.x - AXIS_ORIGIN.x) * BARREL_AXIS.x + (y - forearm.y - AXIS_ORIGIN.y) * BARREL_AXIS.y
-    + (z - forearm.z - AXIS_ORIGIN.z) * BARREL_AXIS.z;
+  return (x - forearm.x - ORIGIN.x) * AXIS.x + (y - forearm.y - ORIGIN.y) * AXIS.y + (z - forearm.z - ORIGIN.z) * AXIS.z;
 }
 /** Weight of joint group `g` on vertex `v`. */
 export function share(si: Num, sw: Num, v: number, g: readonly number[]) {

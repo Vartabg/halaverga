@@ -1,5 +1,6 @@
 import { PHASE, type ShooterState, type Vec3 } from './combat';
 import { isElite } from './encounter';
+import { clearShove, shoveAngel } from './hurtShove';
 
 export const BATTLE = { goal: 8, ward: 3, bolts: 12, speed: 19, windup: .9, cadence: 4.8, range: 65, grace: 2.5 } as const;
 /** src: the demon that threw it (a counter dives back at it). */
@@ -16,7 +17,8 @@ export function createBattle(kills = 0): BattleState {
     bolts: Array.from({ length: BATTLE.bolts }, () => ({ live: false, age: 0, p: v(), v: v(), src: -1 })) };
 }
 export const battle = createBattle();
-export function resetBattle(kills = 0) { Object.assign(battle, createBattle(kills)); }
+/** Regroup and retry: a fresh battle, and a hit shove still under way is dropped. */
+export function resetBattle(kills = 0) { Object.assign(battle, createBattle(kills)); clearShove(); }
 const old = v(), toPlayer = v();
 /** Swept sphere test: a long frame cannot let a bolt skip through the player. */
 export function segmentDistance(a: Vec3, b: Vec3, p: Vec3) {
@@ -46,7 +48,7 @@ export function stepBattle(b: BattleState, s: ShooterState, player: Vec3, dt: nu
     if (segmentDistance(old, bolt.p, player) < 1.35) {
       bolt.live = false;
       if (shielded(s, bolt.v)) { b.quenched++; continue; }
-      if (b.invulnerable <= 0) { b.ward--; b.invulnerable = BATTLE.grace; b.hurt = .65; }
+      if (b.invulnerable <= 0) { b.ward--; b.invulnerable = BATTLE.grace; b.hurt = .65; shoveAngel(bolt.v.x, bolt.v.y, bolt.v.z); }
       if (b.ward <= 0) { b.status = 'fallen'; b.charging = -1; return; }
     }
   }

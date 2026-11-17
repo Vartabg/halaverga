@@ -82,7 +82,7 @@ function strikeBystander(b: BanishState, s: ShooterState, i: number): Impact | n
     if (d > THROWN.reach) continue;
     b.struck[i] |= 1 << j;
     const k = f.knockV[j]; k.x += v.x * THROWN.share; k.y += v.y * THROWN.share; k.z += v.z * THROWN.share;
-    f.wobbleV[j] += 6; f.tint[j] = .35; f.lastHit[j] = s.clock;
+    f.wobbleV[j] += 6; f.tint[j] = .35; f.lastHit[j] = s.clock; b.twist[j] = 0;
     v.x *= THROWN.keep; v.y *= THROWN.keep; v.z *= THROWN.keep;
     impact.speed = speed; impact.x = (p.x + q.x) / 2; impact.y = (p.y + q.y) / 2; impact.z = (p.z + q.z) / 2;
     impact.nx = d > .01 ? x / d : 0; impact.ny = d > .01 ? y / d : 1; impact.nz = d > .01 ? z / d : 0; impact.other = j;

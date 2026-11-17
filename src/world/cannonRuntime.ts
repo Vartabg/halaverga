@@ -6,7 +6,7 @@ import {
   NearestFilter, NoColorSpace, Quaternion, SRGBColorSpace, Vector3,
   type Group, type Material, type Mesh, type MeshStandardMaterial, type Object3D, type Texture,
 } from 'three';
-import { BARREL_AXIS, COLORS, NODES, SLIDE_MAX, VENT_DIR, VENT_MAX, type CannonDrive, type CannonLink } from './cannonContract';
+import { BARREL_AXIS, COLORS, FIT, NODES, SLIDE_MAX, VENT_DIR, VENT_MAX, type CannonDrive, type CannonLink } from './cannonContract';
 import { installEmissiveMask } from './cannonMaterial';
 
 export type ArmCannon = {
@@ -99,7 +99,7 @@ export function attachArmCannon(c: ArmCannon, link: CannonLink): boolean {
   let attached = false;
   if (c.root.parent !== forearm) {
     forearm.add(c.root);
-    c.root.position.set(0, 0, 0); c.root.quaternion.identity(); c.root.scale.set(1, 1, 1);
+    c.root.position.set(FIT.t.x, FIT.t.y, FIT.t.z); c.root.quaternion.set(FIT.q.x, FIT.q.y, FIT.q.z, FIT.q.w).normalize(); c.root.scale.set(1, 1, 1);
     c.root.updateMatrixWorld(true);
     attached = c.root.parent === forearm;
   }

@@ -20,7 +20,10 @@ export const BOUNDARY_GROUPS = 0x0002ffff, SHOT_GROUPS = 0x00040001;
 export const FRAME_GROUPS = 0x0009ffff;
 /** Rapier QueryFilterFlags.ONLY_FIXED (verified in rapier3d-compat 0.19.2): excludes the kinematic player capsule. */
 export const ONLY_FIXED = 6;
-export const DRONE_RADIUS = .9, EYE_RADIUS = .32, EYE_FORWARD = .24, EYE_UP = .737, DRONE_HP = 6;
+/** EYE_UP / EYE_FORWARD: the weak point, at a hovering Watcher's eyes: watcher.glb's eye centre carried by its head in the hover
+ * pose (idle under the flight clip, the head forward and down from the bind pose), measured 2026-11-17 and re-measured by
+ * tests/demon-actors.test.ts. The eye marker rides the head there (watcherGeometry.ts, demonActors.ts headBind). */
+export const DRONE_RADIUS = .9, EYE_RADIUS = .32, EYE_FORWARD = .32, EYE_UP = .664, DRONE_HP = 6;
 export const HEAT = { max: 100, lock: 1.6, ventAt: .8, ventHalf: .11 } as const;
 /** Seconds after the last shot that still count as combat (arm and HUD pose) and as engaged (magnet, perception). Neither has any
  *  movement or look effect: firing never caps speed or stiffens the view (Garo 2026-09-26). */

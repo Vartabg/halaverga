@@ -4,9 +4,9 @@ import { FEATHER, RACHIS, atlasU } from './featherAtlas';
 /** The bed samples an opaque mid-vane covert texel, so the alpha test never cuts it and it reads as plumage where it shows. */
 const SOLID = [atlasU(FEATHER.covert, RACHIS[FEATHER.covert] * .55), .55] as const;
 /** A continuous, cambered feather bed closes the elbow/wrist seams beneath the overlapping plumage. */
-export function wingAirfoil(side: number) {
+export function wingAirfoil(side: number, coarse = false) {
   const p: number[] = [], uv: number[] = [], thin: number[] = [], c: number[] = [], joints: number[] = [], weights: number[] = [], indices: number[] = [];
-  const rows = 22, cols = 16;
+  const rows = coarse ? 8 : 22, cols = coarse ? 8 : 16;
   for (let j = 0; j <= rows; j++) for (let i = 0; i <= cols; i++) {
     const x = j / rows * 1.44, a = i / cols * Math.PI * 2, v = .5 + .5 * Math.cos(a);
     const lead = x < .48 ? x / .48 * .16 - .045 : .16 - smooth(.48, 1.04, x) * .21;

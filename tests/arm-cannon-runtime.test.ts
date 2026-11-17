@@ -5,7 +5,7 @@ import {
   SRGBColorSpace, Vector3,
 } from 'three';
 import { attachArmCannon, buildArmCannon, detachArmCannon, disposeArmCannon, driveArmCannon, stepArmCannon } from '../src/world/cannonRuntime';
-import { BARREL_AXIS, COLORS, NODES, SLIDE_MAX, VENT_MAX, restCannonDrive, type CannonDrive, type CannonLink } from '../src/world/cannonContract';
+import { BARREL_AXIS, COLORS, FIT, NODES, SLIDE_MAX, VENT_MAX, restCannonDrive, type CannonDrive, type CannonLink } from '../src/world/cannonContract';
 
 const tex = () => new DataTexture(new Uint8Array(8 * 8 * 4), 8, 8);
 function fixture(skip?: string) {
@@ -122,7 +122,9 @@ describe('arm cannon handshake', () => {
     expect(attachArmCannon(c, l)).toBe(false); expect(l.ready).toBe(false); expect(c.root.parent).toBeNull();
     const bone = posed(); l.forearm = bone;
     expect(attachArmCannon(c, l)).toBe(true); expect(c.root.parent).toBe(bone); expect(l.ready).toBe(true);
-    expect(c.root.position.lengthSq()).toBe(0); expect(c.root.quaternion.equals(new Quaternion())).toBe(true);
+    // Seated by FIT on the body's forearm (cannonContract.ts), not at the bone head.
+    expect(c.root.position.toArray()).toEqual([FIT.t.x, FIT.t.y, FIT.t.z]);
+    expect(c.root.quaternion.angleTo(new Quaternion(FIT.q.x, FIT.q.y, FIT.q.z, FIT.q.w).normalize())).toBeLessThan(1e-9);
     expect(attachArmCannon(c, l)).toBe(false); expect(l.ready).toBe(true);
   });
   it('shows only once the hand is hidden and publishes the node world positions', () => {

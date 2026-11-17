@@ -11,14 +11,14 @@ test('the continuous massif and the flaming sword load together and commands wor
   // No arm cannon: each C is one command on the reticle (docs/research/combat-texts.md).
   for (let k = 0; k < 3; k++) { await page.keyboard.press('KeyC'); await page.waitForTimeout(650); }
   await expect.poll(async () => Number(await hud.getAttribute('data-shots'))).toBeGreaterThan(2);
-  expect(loaded.has('/models/angel.glb')).toBe(true);
-  expect(loaded.has('/models/abyssal.glb')).toBe(true);
+  expect(loaded.has('/models/archangel.glb')).toBe(true);
+  expect(loaded.has('/models/watcher.glb')).toBe(true);
   expect(loaded.has('/models/arm-cannon.glb')).toBe(false);
   expect(loaded.has('/models/environment/meridian-district.glb')).toBe(false);
 });
 
 // Each world model, blocked once: the scene fails, Reload scene fetches it again (not the cached error) and flight works.
-for (const model of ['/models/angel.glb', '/models/abyssal.glb']) {
+for (const model of ['/models/archangel.glb', '/models/watcher.glb']) {
   test(`${model} download failure recovers through Reload scene`, async ({ page }) => {
     let fail = true, requests = 0;
     await page.route(`**${model}`, route => { requests++; return fail ? route.abort() : route.continue(); });

@@ -1,7 +1,11 @@
-"""Build public/models/angel.glb from the Quaternius CC0 packs (see packs.py and docs/art/angel-asset/PROVENANCE.md).
+"""Build the angel GLB from the Quaternius CC0 packs (see packs.py and docs/art/angel-asset/PROVENANCE.md).
+
+Retired 2026-11-17 (docs/plans/2026-11-16-real-fight.md B9): the game loads public/models/archangel.glb and watcher.glb
+(scripts/real_bodies) and no longer reads angel.glb. This build writes only where --out says, with its report beside it
+(<out>.json). scripts/real_bodies imports the modules next to it (packs, rest, assemble, retarget, glbclips), not this file.
 
 Run from the repository root:
-  Blender --background --factory-startup --python scripts/angel_asset/build.py -- --packs <folder of extracted packs>
+  Blender --background --factory-startup --python scripts/angel_asset/build.py -- --packs <folder of extracted packs> --out <file.glb>
 """
 import argparse
 import hashlib
@@ -12,7 +16,6 @@ from pathlib import Path
 import bpy
 from mathutils import Matrix
 
-ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(Path(__file__).parent))
 from packs import load  # noqa: E402
 from rest import bake, finger_pose, pose_rest  # noqa: E402
@@ -27,7 +30,7 @@ CLIPS = {'idle': ('ual1', 'Idle_Loop'), 'swordIdle': ('ual1', 'Sword_Idle'), 'sl
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--packs', required=True)
-parser.add_argument('--out', default=str(ROOT/'public/models/angel.glb'))
+parser.add_argument('--out', required=True, help='the GLB to write (the game no longer loads public/models/angel.glb)')
 args = parser.parse_args(sys.argv[sys.argv.index('--')+1:] if '--' in sys.argv else [])
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -94,6 +97,5 @@ report = {'bytes': out.stat().st_size, 'sha256': hashlib.sha256(out.read_bytes()
           'materials': [m.name for m in angel.data.materials], 'textures': texture_report, 'scale': round(scale, 4),
           'clips': {n: {'source': f'{CLIPS[n][0]}/{CLIPS[n][1]}', 'seconds': round(c['times'][-1], 3), 'frames': len(c['times'])}
                     for n, c in clips.items()}}
-(ROOT/'art/angel-asset').mkdir(parents=True, exist_ok=True)
-(ROOT/'art/angel-asset/asset.json').write_text(json.dumps(report, indent=2)+'\n')
+out.with_suffix('.json').write_text(json.dumps(report, indent=2)+'\n')
 print('ANGEL_ASSET', json.dumps(report))
