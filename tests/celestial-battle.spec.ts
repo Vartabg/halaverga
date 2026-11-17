@@ -5,7 +5,7 @@ test('the Hermon entry, accessible source distinction and battle objective agree
   const models = new Set<string>(); page.on('response', r => { if (r.ok() && r.url().endsWith('.glb')) models.add(new URL(r.url()).pathname); });
   await page.goto('/');
   await expect(page).toHaveTitle('Halaverga — The Watchers of Hermon');
-  await expect(page.getByRole('heading', { name: 'Watchers, cast down.' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Mount Hermon' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Ascend Mount Hermon' })).toBeEnabled();
   await test.info().attach('hermon-entry', { body: await page.screenshot(), contentType: 'image/png' });
   await page.getByRole('button', { name: 'Field guide', exact: true }).click();

@@ -257,7 +257,7 @@ describe('DemoNote', () => {
   it('shows the exact copy as passive text on the first visit: no button to tap, nothing to dismiss', async () => {
     vi.stubGlobal('localStorage', memoryStorage());
     const m = await render();
-    expect(m).toContain('A demo of new ways to fly. After you begin, try each in the Controls menu, then vote.');
+    expect(m).toContain('Try the flight styles in Controls, then vote for your favorite.');
     expect(m).toContain('role="note"'); expect(m).not.toContain('<button'); expect(m).not.toContain('Got it');
   });
   it('C2 it counts as seen only for the store change that is Begin, and only with a box on screen (display:none has none)', async () => {

@@ -259,7 +259,7 @@ test('the demo note is passive text that shows until the first Begin that showed
       await expect(page.getByTestId('demo-note')).toBeVisible();
     } else {
       await expect(note).toBeVisible();
-      await expect(note).toContainText('A demo of new ways to fly. After you begin, try each in the Controls menu, then vote.');
+      await expect(note).toContainText('Try the flight styles in Controls, then vote for your favorite.');
       const n = await box(note);
       expect(inside(n, v), `note inside ${v.width}x${v.height}`).toBe(true);
       expect(overlaps(n, b), 'note over Begin').toBe(false);

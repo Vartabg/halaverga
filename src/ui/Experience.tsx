@@ -148,7 +148,7 @@ export default function Experience() {
           of its own); data-band is the invisible marker touchInsets.headerBand measures (the pre-cleanup band, see --band). */}
       {bar && <><span id="field-guide" className="sr-only" tabIndex={-1} /><Boundary fallback={<SheetLost />} onError={skip}><ControlsEntry part="sheet" /></Boundary></>}
       {state.started && <div className={styles.bandProbe} data-band="" aria-hidden="true" />}
-      {/* The title, the start card (with the first-visit demo note) and the footer, or the failed world's card (Landing.tsx). */}
+      {/* The briefing and first-visit note, or the scene recovery panel (Landing.tsx). */}
       <Landing started={state.started} failed={failed} ready={ready} zoomNote={state.zoomNote} note={guide.note} onEnter={enter} onRetry={retry}><Optional><ControlsEntry part="note" /></Optional></Landing>
       {state.started && <>
         {state.shooter && <Optional><BattleHud /></Optional>}

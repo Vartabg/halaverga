@@ -1,4 +1,5 @@
 import { BufferGeometry, Color, Float32BufferAttribute } from 'three';
+import { FOOT, START } from '../game/motion';
 import { INK } from './paintInk';
 
 /** The court's rings: muted bronze, not saturated gold. */
@@ -7,22 +8,23 @@ type Point = [number, number];
 type Patch = { points: Point[]; y: number; color: string };
 const polar = (rx: number, rz: number, a: number, cx = 0, cz = 65): Point => [cx + Math.cos(a) * rx, cz + Math.sin(a) * rz];
 function patches(): Patch[] {
+  // Thin finish layers above the walkable plateau. Keep enough separation for
+  // overlapping faces without raising the visible floor above the sandals.
+  const floor = START.y - FOOT;
   const out: Patch[] = [], sides = 12;
   const outer = Array.from({ length: sides }, (_, i) => {
     const a = i / sides * Math.PI * 2 + .12, chip = 1 + Math.sin(i * 4.7) * .055;
     return polar(11.4 * chip, 9.2 * chip, a);
   });
-  out.push({ points: outer, y: 20.06, color: INK.plinth });
+  out.push({ points: outer, y: floor + .003, color: INK.plinth });
   for (let i = 0; i < sides; i++) {
     const a = i / sides * Math.PI * 2 + .12, b = (i + 1) / sides * Math.PI * 2 + .12;
-    out.push({ points: [polar(8.6, 7.0, a), outer[i], outer[(i + 1) % sides], polar(8.6, 7.0, b)], y: 20.08,
+    out.push({ points: [polar(8.6, 7.0, a), outer[i], outer[(i + 1) % sides], polar(8.6, 7.0, b)], y: floor + .006,
       color: i % 3 === 0 ? INK.lit : i % 2 ? INK.shaft : INK.rock });
   }
-  out.push({ points: Array.from({ length: 10 }, (_, i) => polar(6.2, 5.4, i / 10 * Math.PI * 2 + Math.PI / 10)), y: 20.11, color: BRONZE });
-  out.push({ points: Array.from({ length: 10 }, (_, i) => polar(5.65, 4.9, i / 10 * Math.PI * 2 + Math.PI / 10)), y: 20.13, color: INK.plinth });
-  out.push({ points: Array.from({ length: 8 }, (_, i) => polar(3.8, 3.4, i / 8 * Math.PI * 2 + Math.PI / 8)), y: 20.15, color: INK.rock });
-  out.push({ points: [[0, 61.6], [1.85, 65], [0, 68.4], [-1.85, 65]], y: 20.17, color: BRONZE });
-  out.push({ points: [[0, 62.2], [1.35, 65], [0, 67.8], [-1.35, 65]], y: 20.19, color: INK.cap });
+  out.push({ points: Array.from({ length: 10 }, (_, i) => polar(6.2, 5.4, i / 10 * Math.PI * 2 + Math.PI / 10)), y: floor + .009, color: BRONZE });
+  out.push({ points: Array.from({ length: 10 }, (_, i) => polar(5.65, 4.9, i / 10 * Math.PI * 2 + Math.PI / 10)), y: floor + .012, color: INK.plinth });
+  out.push({ points: Array.from({ length: 8 }, (_, i) => polar(3.8, 3.4, i / 8 * Math.PI * 2 + Math.PI / 8)), y: floor + .015, color: INK.rock });
   return out;
 }
 

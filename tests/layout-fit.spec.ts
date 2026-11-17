@@ -132,10 +132,7 @@ for (const v of [...VIEWS, ...NARROW]) {
   });
 }
 
-// The start screen's words (not only its controls): no two of the title, eyebrow, copy, Begin, hint, first-visit demo note, brand, Field guide and footer
-// lines touch (12 px of air), nothing is under 11 px, and the sentences a player acts on are 13 px at least. First visit (the demo note shows, the card is
-// at its tallest) and return visit, at the six test viewports, the two narrow phones and the sizes a Safari tab gives a current iPhone and an SE
-// (393x659 and 390x664 with the toolbars up, 375x553 an SE). The title and the card are one bottom-anchored column, so this holds by construction.
+// Check opening text on first and return visits, including smaller Safari viewports.
 const TABS: View[] = [{ name: '393x659 touch', width: 393, height: 659, touch: true }, { name: '390x664 touch', width: 390, height: 664, touch: true },
   { name: '375x553 touch', width: 375, height: 553, touch: true }, { name: '360x640 touch', width: 360, height: 640, touch: true },
   { name: '393x734 touch', width: 393, height: 734, touch: true }, { name: '430x740 touch', width: 430, height: 740, touch: true }];

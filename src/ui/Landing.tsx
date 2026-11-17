@@ -7,22 +7,22 @@ type Props = { started: boolean; failed: boolean; ready: boolean; zoomNote: bool
 
 /** The brand mark and wordmark in the top row (landing and the failed world only). */
 export function Brand() {
-  return <div className={styles.brand}><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M5 26V6h5v8h12V6h5v20h-5v-8H10v8Z" fill="currentColor" /></svg><span>HALAVERGA<small>BOOK OF ENOCH</small></span></div>;
+  return <div className={styles.brand}><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M5 26V6h5v8h12V6h5v20h-5v-8H10v8Z" fill="currentColor" /></svg><span>Halaverga</span></div>;
 }
 
 export default function Landing({ started, failed, ready, zoomNote, note, onEnter, onRetry, children }: Props) {
   const off = started || failed;
   return <>
-    {/* The title and the start card are one bottom-anchored column (Experience.module.css .hero): a taller card pushes the title up, never into it. */}
-    <div className={off ? styles.heroOff : styles.hero}><h1 className={off ? 'sr-only' : styles.heroTitle}>Watchers,<br /><em>cast down.</em></h1>
+    <div className={off ? styles.heroOff : styles.hero}>
+      {off && <h1 className="sr-only">Mount Hermon</h1>}
       {failed && <div className={styles.recovery} role="alert"><h2>The world needs a moment.</h2><p>Your field guide remains available. Reload the scene to continue from your saved landing.</p>{note && <p>{note}</p>}<button className={styles.primary} onClick={onRetry}>Reload scene</button></div>}
       {!off && <section className={styles.intro} aria-label="Ascend Mount Hermon">
-        <p className={styles.eyebrow}><span className={styles.statusDot} /> BOOK OF ENOCH <span>/</span> MOUNT HERMON</p>
-        <p className={styles.introCopy}>Two hundred Watchers descended on Mount Hermon.<br />Take wing, strike, and cast down eight of their host.</p>
-        <button className={styles.primary} disabled={!ready} onClick={onEnter}>{ready ? 'Ascend Mount Hermon' : 'Calling your angel…'}<span aria-hidden="true">↗</span></button>
-        <p className={styles.introHint} role="status">{note || (zoomNote ? 'Pinch out to normal size, then tap Ascend.' : ready ? <><span className={styles.fineHint}>Space to take wing · C to strike.</span><span className={styles.coarseHint}>Hold Fly to move · release to hover.</span></> : 'Shaping the peaks and sanctuaries of Hermon.')}</p>
+        <h1 className={styles.heroTitle}>Mount Hermon</h1>
+        <p className={styles.introSource} data-testid="entry-source">The Watchers descend in 1 Enoch 6.</p>
+        <p className={styles.introCopy} data-testid="entry-objective">Fly into the valley and defeat eight Watchers.</p>
+        <button className={styles.primary} disabled={!ready} onClick={onEnter}>{ready ? 'Ascend Mount Hermon' : 'Loading scene…'}</button>
+        <p className={styles.introHint} role="status">{note || (zoomNote ? 'Pinch out to normal size, then tap Ascend.' : ready ? <><span className={styles.fineHint}>Space to take off · C to strike.</span><span className={styles.coarseHint}>Hold Fly to move · release to hover.</span></> : 'Preparing the flight area.')}</p>
         {children}
       </section>}</div>
-    {!started && <footer className={styles.introFooter}><span>1 ENOCH VI <small>THE WATCHERS</small><b>—</b> HERMON <small>AT DAWN</small></span><span>ARCHANGEL <small>OF THE COVENANT</small></span></footer>}
   </>;
 }

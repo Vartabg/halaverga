@@ -4,7 +4,7 @@ import { useGame } from '@/game/store';
 import { demoSeen, markDemoSeen } from './demoSeen';
 import styles from './ControlsPicker.module.css';
 
-export const DEMO_COPY = 'A demo of new ways to fly. After you begin, try each in the Controls menu, then vote.';
+export const DEMO_COPY = 'Try the flight styles in Controls, then vote for your favorite.';
 
 /** True for the store change that is Begin, when the note has a box on screen (`display:none` leaves it none). */
 export const seenAtBegin = (now: { started: boolean }, was: { started: boolean }, note: { getClientRects(): ArrayLike<unknown> } | null) =>
