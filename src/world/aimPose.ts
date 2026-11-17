@@ -1,6 +1,6 @@
 import { Euler, Quaternion, Vector3, type Object3D } from 'three';
 import { SNAP, type Vec3 } from '../game/combat';
-import { BARREL_AXIS, MUZZLE } from './cannonContract';
+import { BARREL_AXIS, MUZZLE, fitDir, fitPoint } from './cannonContract';
 import { BONE_COUNT, LIMITS } from './suitSkeleton';
 import { createPose, mixPose } from './clipSampler';
 /**
@@ -10,16 +10,18 @@ import { createPose, mixPose } from './clipSampler';
  */
 export const AIM_BASE = { clavicle_r: [0, .1, -.1], upperarm_r: [1.571, 0, -.124], forearm_r: [0, 0, 0], hand_r: [-.2, 0, 0] } as const;
 /**
- * The carry pose while the blaster is on (third person): the cannon held out beside the right hip-to-chest line, elbow bent 80 deg.
+ * The carry pose while the blaster is on (third person): the cannon held out beside the right hip-to-chest line, elbow bent 92 deg.
  * upperarm_r x also takes clamp(view pitch, +-CARRY_PITCH). The upper arm is abducted (+z, .4 rad) so the chase camera, which sees
  * the body from behind, sees the cannon beside the torso, and turned out (y -.2) so the barrel lies across the view instead of along it:
  * at least 42 deg to the view ray (33 with the old .9 elbow and no turn-out), so the whole .40 m outline reads as a weapon (owner
  * feedback 2026-09-23, "too small on my phone"; a measured sweep of 60 carry poses at 393 x 852 put every best silhouette turned out
  * with the elbow at 1.4). Upper-arm pitch .45, not the sweep's best .7: at .7 the cannon rests so high that the press frame drops the
  * muzzle 34 px at chase portrait (the raise must never dip before the kick; limit 12 px). Turn-out .2, not .3: at .3 the barrel drew
- * up to 15.6 deg off the crosshair line on screen, at .2 3.8 deg (tests/suit-aim.test.ts).
+ * up to 15.6 deg off the crosshair line on screen, at .2 3.8 deg (tests/suit-aim.test.ts). Elbow 1.6 (92 deg), not 1.4: on
+ * archangel.glb the cannon sits 15 deg nearer the forearm bone (cannonContract.ts FIT), and the extra bend keeps the barrel 2.6 deg
+ * off the crosshair line on screen (press frame 23.8 deg, carry 27.3 deg in 3D; 1.4 drew 20.4 deg on screen, 2026-11-17).
  */
-export const CARRY = { clavicle_r: [0, .05, 0], upperarm_r: [.45, -.2, .4], forearm_r: [1.4, 0, 0], hand_r: [0, 0, 0] } as const;
+export const CARRY = { clavicle_r: [0, .05, 0], upperarm_r: [.45, -.2, .4], forearm_r: [1.6, 0, 0], hand_r: [0, 0, 0] } as const;
 export const CARRY_PITCH = .4;
 /** The arm converges on a point at least this far along the camera ray (m); nearer, it would have to reach behind the shoulder. */
 export const NEAR_IK = 8;
@@ -45,7 +47,8 @@ const ARM = [CLAV, UPPER, FORE, HAND] as const, TORSO = [SPINE, CHEST, NECK, HEA
 const AIM = createPose(), CARRIED = createPose(), MASK = new Float32Array(BONE_COUNT), buf = createPose();
 const qa = new Quaternion(), qb = new Quaternion(), pq = new Quaternion(), pqi = new Quaternion(), euler = new Euler();
 const target = new Vector3(), point = new Vector3(), shoulder = new Vector3(), va = new Vector3(), vb = new Vector3(), base = new Quaternion();
-const AXIS = new Vector3(BARREL_AXIS.x, BARREL_AXIS.y, BARREL_AXIS.z).normalize(), TIP = new Vector3(MUZZLE.x, MUZZLE.y, MUZZLE.z);
+// The barrel as the cannon sits on the body's forearm (cannonContract.ts FIT).
+const AXIS = new Vector3().copy(fitDir(BARREL_AXIS)).normalize(), TIP = new Vector3().copy(fitPoint(MUZZLE));
 const NAMES = [['clavicle_r', CLAV], ['upperarm_r', UPPER], ['forearm_r', FORE], ['hand_r', HAND]] as const;
 NAMES.forEach(([name, b]) => {
   const e = AIM_BASE[name], c = CARRY[name];

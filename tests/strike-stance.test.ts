@@ -3,14 +3,15 @@ import { Box3, Vector3 } from 'three';
 import { loadSuit } from './load-suit';
 import { buildSuitRig } from '../src/world/suitRig';
 import { BONE_NAMES } from '../src/world/suitSkeleton';
-import { createAngelMotion, SLASH } from '../src/world/angelMotion';
+import { createAngelMotion } from '../src/world/angelMotion';
+import { cutClip } from '../src/world/cutClips';
 import { bulkSuit } from '../src/world/suitBulk';
 import { createStrikeStance, stepStrikeStance, DRIVE } from '../src/world/strikeStance';
 import { beginStrike, cancelStrike } from '../src/game/strike';
 import { SkinnedMesh } from 'three';
 
 let asset: Awaited<ReturnType<typeof loadSuit>>;
-beforeAll(async () => { asset = await loadSuit('angel'); });
+beforeAll(async () => { asset = await loadSuit('archangel'); });
 beforeEach(() => cancelStrike());
 const bone = (n: string) => BONE_NAMES.indexOf(n as never);
 const input = (over = {}) => ({ dt: 1 / 60, paused: false, flying: true, ...over });
@@ -37,7 +38,7 @@ describe('the fighting stance', () => {
       expect(s.stance).toBeLessThan(.001); expect(angle(rig, 'shin_l')).toBe(0); cancelStrike(); rig.dispose();
     }
     const rig = buildSuitRig(asset.scene), s = createStrikeStance(), m = createAngelMotion();
-    s.stance = 1; s.linger = 1; Object.assign(m, { act: 'slash', cut: 2, actT: SLASH.raised + .1, weight: 1 });
+    s.stance = 1; s.linger = 1; Object.assign(m, { act: 'slash', cut: 2, actT: cutClip(2).raised + .1, weight: 1 });
     stepStrikeStance(s, rig.joints, m, input({ flying: false, dt: 0 })); // landed mid-cut: the stance fades, the springs are not braced
     expect(s.brace).toBe(0); rig.dispose();
   });
@@ -48,7 +49,7 @@ describe('the fighting stance', () => {
       stepStrikeStance(s, rig.joints, m, input({ dt: 0 }));
       const r = [angle(rig, 'thigh_l'), angle(rig, 'thigh_r'), angle(rig, 'shin_l')]; rig.dispose(); return { r, brace: s.brace };
     };
-    const wind = [0, 1, 2].map(c => shape(c, SLASH.raised)), through = [0, 1, 2].map(c => shape(c, SLASH.raised + .4));
+    const wind = [0, 1, 2].map(c => shape(c, cutClip(c).raised)), through = [0, 1, 2].map(c => shape(c, cutClip(c).raised + .4));
     expect(DRIVE).toHaveLength(3);
     for (let c = 0; c < 3; c++) { expect(through[c].brace).toBe(1); expect(through[c].r).not.toEqual(wind[c].r); }
     expect(through[0].r[0]).toBeGreaterThan(through[0].r[1]); // cross cut: left forward, right back
@@ -61,7 +62,8 @@ describe('the load-time build', () => {
     const size = (rig: ReturnType<typeof buildSuitRig>, part: string) => { const b = new Box3(); rig.root.traverse(o => { if (o instanceof SkinnedMesh) { o.geometry.computeBoundingBox(); b.union(o.geometry.boundingBox!); } }); return part === 'w' ? b.max.x - b.min.x : b.max.y - b.min.y; };
     const plain = buildSuitRig(asset.scene), built = bulkSuit(buildSuitRig(asset.scene));
     const widen = size(built, 'w') - size(plain, 'w');
-    expect(widen).toBeGreaterThan(.02); expect(widen).toBeLessThan(.08);
+    // archangel.glb's rig widens by about 1.5 cm across its widest rest points (measured 2026-11-17).
+    expect(widen).toBeGreaterThan(.01); expect(widen).toBeLessThan(.08);
     expect(Math.abs(size(built, 'h') - size(plain, 'h'))).toBeLessThan(.01);
     const before = built.root.children.filter(c => c instanceof SkinnedMesh).map(c => (c as SkinnedMesh).geometry.getAttribute('position').array.slice(0, 300));
     bulkSuit(built); // a second pass on the same geometry changes nothing
@@ -71,7 +73,7 @@ describe('the load-time build', () => {
   it('builds every rig from one cached asset just as broad: the first build does not mark the asset as done', () => {
     const width = (rig: ReturnType<typeof buildSuitRig>) => { const b = new Box3(); rig.root.traverse(o => { if (o instanceof SkinnedMesh) { o.geometry.computeBoundingBox(); b.union(o.geometry.boundingBox!); } }); return b.max.x - b.min.x; };
     const plain = buildSuitRig(asset.scene), first = bulkSuit(buildSuitRig(asset.scene)), second = bulkSuit(buildSuitRig(asset.scene));
-    expect(width(first) - width(plain)).toBeGreaterThan(.02); expect(Math.abs(width(second) - width(first))).toBeLessThan(1e-6);
+    expect(width(first) - width(plain)).toBeGreaterThan(.01); expect(Math.abs(width(second) - width(first))).toBeLessThan(1e-6);
     plain.dispose(); first.dispose(); second.dispose();
   });
   it('moves no vertex weighted only to the head, hands or feet', () => {

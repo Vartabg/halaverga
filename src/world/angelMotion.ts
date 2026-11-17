@@ -1,20 +1,24 @@
 // Which library clip plays over the angel and how strongly (angelClips.ts). Visual only: it writes joints and the pelvis offset,
 // never the camera, physics or presentation pose. Standing still on the ground the body takes the library idle (the sword idle
 // while the sword is out). A sword dive raises the blade and holds it until contact, then the cut plays through; rebuke, bind and
-// cast play their own gestures. In flight a move takes the body from the waist up, so the legs keep the flight clips.
+// cast play their own gestures. In flight a move takes the body from the waist up, so the legs keep the flight clips. Each cut plays
+// its own motion-capture stroke and then its recovery (cutClips.ts).
 import { Euler, Quaternion, Vector3, type Object3D } from 'three';
 import { banish, FX } from '../game/banishState';
 import { strike } from '../game/strike';
 import { hurtShove } from '../game/hurtShove';
 import { blendAngelClip, clipTime, FULL, UPPER_BODY, type AngelClips } from './angelClips';
 import { CUTS, cutFor } from '../game/swordString';
+import { CUT_CLIPS, cutClip } from './cutClips';
 import { BONE_NAMES } from './suitSkeleton';
 
-/** Sword_Attack: the blade is high over the head at .36 s and through the cut by .55 s; the cut plays faster than authored. A string
- * cut (swordString.ts) starts `lead` before the raised blade, so it rises during the step-in, and plays at that cut's own rate. */
-export const SLASH = { raised: .36, rate: 1.5, fadeIn: .08, fadeOut: .25, lead: .14 } as const;
+/** A string cut (swordString.ts) starts `lead` before its raised blade (cutClips.ts), or at the clip's start when the windup is
+ * shorter, so the blade rises during the step-in; it then plays at that cut's own rate. */
+export const SLASH = { fadeIn: .08, fadeOut: .25, lead: .14 } as const;
+/** How far before its raised blade a step-in starts cut `cut` (never before the clip's start). */
+export const cutLead = (cut: number) => Math.min(SLASH.lead, cutClip(cut).raised);
 const at = (name: string) => BONE_NAMES.indexOf(name as never);
-const CHEST = at('chest'), HEAD = at('head'), UA_L = at('upperarm_l'), UA_R = at('upperarm_r'), FA_L = at('forearm_l'), FA_R = at('forearm_r');
+const HEAD = at('head'), CHEST = at('chest'), UA_L = at('upperarm_l'), UA_R = at('upperarm_r'), FA_L = at('forearm_l'), FA_R = at('forearm_r');
 /**
  * Prone flight (docs/plans/2026-11-16-real-fight.md A2): the body's forward pitch by horizontal speed, 0 at or below hover speed
  * (so hover and a climb stay upright), 65 deg at cruise and 75 deg at dive speed, eased over `ease` seconds. The flight lean
@@ -48,7 +52,7 @@ const legQ = PRONE_LEGS.map(([, x, y, z]) => new Quaternion().setFromEuler(new E
 const GESTURES: Readonly<Record<number, string>> = { [FX.sword]: 'slash', [FX.rebuke]: 'rebuke', [FX.bind]: 'rebuke', [FX.cast]: 'cast' };
 
 export function createAngelMotion() {
-  return { idle: 0, idleT: 0, act: '', actT: 0, since: 0, weight: 0, serial: -1, phase: 0, cut: 0, spinT: -1, spinCut: 0, spinNext: -1, twirl: 0, flip: 0, hip: new Vector3(), rest: new Vector3(),
+  return { idle: 0, idleT: 0, act: '', actT: 0, since: 0, weight: 0, tail: false, serial: -1, phase: 0, cut: 0, spinT: -1, spinCut: 0, spinNext: -1, twirl: 0, flip: 0, hip: new Vector3(), rest: new Vector3(),
     /** prone: the eased forward pitch flight asks for (rad, >= 0); pitch: what the model root adds to the lean (rad, <= 0 tips forward). */
     prone: 0, pitch: 0, hurt: -1, flinchT: -1, flinch: 0, epoch: -1 };
 }
@@ -58,7 +62,9 @@ export type AngelMotion = ReturnType<typeof createAngelMotion>;
 export type AngelMotionInput = { dt: number; paused: boolean; flying: boolean; ground: number; speed: number; sword: boolean; reduced?: boolean;
   lean?: number; travel?: number; epoch?: number };
 
-function begin(m: AngelMotion, name: string, at = 0) { m.act = name; m.actT = at; m.since = 0; }
+function begin(m: AngelMotion, name: string, at = 0) { m.act = name; m.actT = at; m.since = 0; m.tail = false; }
+/** The clip the act plays now: a gesture's own, or the cut's stroke, then (tail) its recovery. */
+export const actClip = (m: AngelMotion) => m.act !== 'slash' ? m.act : m.tail ? cutClip(m.cut).rec : cutClip(m.cut).clip;
 /** Starts this cut's whole-body move, or queues it behind the one still turning: a fast second press never snaps the model back. */
 function turn(m: AngelMotion, cut: number) {
   if (m.spinT < 0) { m.spinT = 0; m.spinCut = cut; m.spinNext = -1; } else if (m.spinCut !== cut) m.spinNext = cut;
@@ -66,9 +72,9 @@ function turn(m: AngelMotion, cut: number) {
 
 /** Starts gestures from new strikes and combat effects. Effects already in the ring when the angel mounted are skipped. */
 function trigger(m: AngelMotion, clips: AngelClips) {
-  if (strike.phase === 1 && m.phase !== 1 && clips.slash) {
+  if (strike.phase === 1 && m.phase !== 1 && clips[CUT_CLIPS[0].clip]) {
     const i = strike.target; m.cut = i >= 0 ? cutFor(banish, i, banish.armor[i] > 0, banish.armor[i]) : 0;
-    begin(m, 'slash', strike.lunge ? SLASH.raised - SLASH.lead : 0);
+    begin(m, 'slash', strike.lunge ? cutClip(m.cut).raised - cutLead(m.cut) : 0);
     if (strike.lunge) turn(m, m.cut); // a step-in turns as it closes; the opener turns on contact
   }
   m.phase = strike.phase;
@@ -77,11 +83,15 @@ function trigger(m: AngelMotion, clips: AngelClips) {
     if (e.serial <= m.serial) continue;
     newest = Math.max(newest, e.serial);
     const name = GESTURES[e.kind];
-    if (!name || !clips[name]) continue;
-    if (name !== 'slash' && (strike.phase !== 0 || m.act === 'slash')) continue; // automatic chains cannot replace the contact cut with a ritual pose.
-    // Contact during the dive releases the raised sword into the cut; a stroke out of nowhere starts at the raised blade.
+    if (!name || !clips[name === 'slash' ? CUT_CLIPS[0].clip : name]) continue;
+    // Automatic chains cannot replace the contact cut with a ritual pose (its recovery tail they may).
+    if (name !== 'slash' && (strike.phase !== 0 || m.act === 'slash' && !m.tail)) continue;
+    // Contact during the dive releases the raised sword into the cut; a stroke out of nowhere starts at the raised blade. Contact
+    // that names another cut than the one begun switches to that cut's clip at its raised blade (both are held raised in the dive).
     if (name === 'slash') {
-      m.cut = e.n; if (m.act === 'slash') m.actT = Math.max(m.actT, SLASH.raised); else begin(m, 'slash', SLASH.raised);
+      const same = m.act === 'slash' && !m.tail && m.cut === e.n, raised = cutClip(e.n).raised;
+      if (same) m.actT = Math.max(m.actT, raised); else if (m.act === 'slash' && !m.tail) { m.cut = e.n; m.actT = raised; }
+      else { m.cut = e.n; begin(m, 'slash', raised); }
       if (m.spinCut !== e.n || m.spinT < 0 && !strike.lunge) turn(m, e.n);
     }
     else begin(m, name);
@@ -95,10 +105,12 @@ export function stepAngelMotion(m: AngelMotion, clips: AngelClips, joints: reado
   if (!input.paused) trigger(m, clips);
   m.weight = 0;
   if (m.act) {
-    const clip = clips[m.act], cutting = m.act !== 'slash' || m.actT >= SLASH.raised;
-    m.actT += dt * (m.act === 'slash' && cutting ? CUTS[m.cut]?.rate ?? SLASH.rate : 1); m.since += dt;
-    if (m.act === 'slash' && strike.phase === 1 && !strike.landed) m.actT = Math.min(m.actT, SLASH.raised);
-    const left = clip.duration - m.actT;
+    const slash = m.act === 'slash', raised = cutClip(m.cut).raised, cutting = !slash || m.tail || m.actT >= raised;
+    m.actT += dt * (slash && cutting ? CUTS[m.cut]?.rate ?? 1 : 1); m.since += dt;
+    if (slash && !m.tail && strike.phase === 1 && !strike.landed) m.actT = Math.min(m.actT, raised);
+    let clip = clips[actClip(m)], left = clip ? clip.duration - m.actT : 0;
+    // The stroke's recovery plays on as the act's tail at full weight (no fade from zero); a new strike replaces it.
+    if (left <= 0 && slash && !m.tail && clips[cutClip(m.cut).rec]) { m.tail = true; m.actT = -left; clip = clips[actClip(m)]; left = clip.duration - m.actT; }
     if (left <= 0) m.act = '';
     else m.weight = Math.min(1, m.since / SLASH.fadeIn, left / SLASH.fadeOut);
   }
@@ -111,10 +123,8 @@ export function stepAngelMotion(m: AngelMotion, clips: AngelClips, joints: reado
     const grounded = !input.flying && input.ground > .5;
     // On the ground the move's weight shift takes over from the idle's; in flight the pelvis is the flight pose's.
     if (grounded) m.hip.multiplyScalar(1 - m.weight);
-    blendAngelClip(joints, clips[m.act], clipTime(clips[m.act], m.actT, false), m.weight, grounded ? FULL : UPPER_BODY, m.hip);
-    // One library cut, three strokes: the chest winds up one way and swings through the other, by this cut's amount.
-    const twist = m.act === 'slash' ? CUTS[m.cut]?.roll ?? 0 : 0;
-    if (twist && CHEST >= 0) joints[CHEST].rotateY(twist * m.weight * (1 - 2 * Math.min(1, Math.max(0, (m.actT - SLASH.raised) / .3))));
+    const clip = clips[actClip(m)];
+    blendAngelClip(joints, clip, clipTime(clip, m.actT, false), m.weight, grounded ? FULL : UPPER_BODY, m.hip);
   }
   joints[0].position.copy(m.rest).add(m.hip);
   proneBody(m, joints, input, dt); flinchBody(m, joints, input, dt);

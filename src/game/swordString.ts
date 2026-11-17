@@ -9,18 +9,19 @@ import { isElite } from './encounter';
 /**
  * windup: seconds the step-in takes before the blade lands (the opener is the dive itself). freeze: the hit-stop. along / lift: how
  * fast the cut throws the demon along the blow and upward (m/s; thrown.ts takes it from there). back / rise: the angel's own drift after the cut, so it
- * ends where the next cut starts (above the demon for the last one). arc: the slash's angle and size on screen. rate: cut speed.
+ * ends where the next cut starts (above the demon for the last one). arc: the slash's angle and size on screen. rate: how fast the
+ * cut's motion-capture stroke plays after its raised blade (1 = as captured; angelMotion.ts, cutClips.ts).
  */
 export type Cut = { name: string; windup: number; freeze: number; along: number; lift: number; back: number; rise: number;
-  trauma: number; fov: number; kick: number; arc: number; arcScale: number; rate: number; roll: number;
+  trauma: number; fov: number; kick: number; arc: number; arcScale: number; rate: number;
   /** The whole body's move, seen from behind where the arms are hidden by the wings: turns about the spine (twirl) or across it
    * (flip), over `spin` seconds. A lean (less than a full turn) goes out and comes back. Every cut is a lean: full turns read as
    * dizzying (Garo, 2026-11-16). */
   twirl: number; flip: number; spin: number };
 export const CUTS: readonly Cut[] = [
-  { name: 'Cross cut', windup: 0, freeze: .055, along: 12, lift: 3.5, back: 3, rise: 0, trauma: .12, fov: 0, kick: 0, arc: .18, arcScale: 1, rate: 1.7, roll: .35, twirl: .05, flip: 0, spin: .34 },
-  { name: 'Rising cut', windup: .17, freeze: .08, along: 2.5, lift: 17, back: 1, rise: 34, trauma: .18, fov: 0, kick: 0, arc: -1.02, arcScale: 1.25, rate: 2, roll: -.5, twirl: 0, flip: -.04, spin: .36 },
-  { name: 'Casting blow', windup: .24, freeze: .14, along: 58, lift: -32, back: 0, rise: 0, trauma: .5, fov: 3, kick: 1.5, arc: Math.PI / 2, arcScale: 1.55, rate: 1.3, roll: 0, twirl: 0, flip: .06, spin: .4 },
+  { name: 'Cross cut', windup: 0, freeze: .055, along: 12, lift: 3.5, back: 3, rise: 0, trauma: .12, fov: 0, kick: 0, arc: .18, arcScale: 1, rate: 1, twirl: .05, flip: 0, spin: .34 },
+  { name: 'Rising cut', windup: .17, freeze: .08, along: 2.5, lift: 17, back: 1, rise: 34, trauma: .18, fov: 0, kick: 0, arc: -1.02, arcScale: 1.25, rate: 1, twirl: 0, flip: -.04, spin: .36 },
+  { name: 'Casting blow', windup: .24, freeze: .14, along: 58, lift: -32, back: 0, rise: 0, trauma: .5, fov: 3, kick: 1.5, arc: Math.PI / 2, arcScale: 1.55, rate: 1, twirl: 0, flip: .06, spin: .4 },
 ];
 /** cuts: how many a lesser demon takes. window: seconds the next cut stays open. recover: a demon left alone shakes its wounds off. */
 /** finish: after the last cut the angel hangs over the blow this long before it is released. */

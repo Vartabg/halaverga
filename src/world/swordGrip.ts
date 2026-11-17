@@ -1,10 +1,11 @@
 // Where the sword sits in the angel's right fist. Frame: the hand_r bone's bind frame (identity rotation, three.js axes, origin at
-// the wrist, the character faces -Z). The fist is baked from the library's sword grip (scripts/angel_asset/rest.py), so the
-// blade leaves the thumb side of the fist, pointing forward when the arm hangs at rest.
+// the wrist, the character faces -Z). archangel.glb's fist is baked from the library's Sword_Idle grip (scripts/real_bodies,
+// docs/art/real-bodies/PROVENANCE.md), so the blade leaves the thumb side of the fist, pointing forward when the arm hangs at rest.
 import { Quaternion, Vector3 } from 'three';
 
-/** The middle of the grip, inside the closed fingers. */
-export const SWORD_GRIP: Readonly<{ x: number; y: number; z: number }> = { x: -.015, y: -.085, z: -.01 };
+/** The middle of the grip, inside the closed fingers: the centre of archangel.glb's fist (its hand_r-weighted vertices between
+ * 7 and 11 cm from the wrist), measured 2026-11-17 and pinned by tests/sword-grip.test.ts. */
+export const SWORD_GRIP: Readonly<{ x: number; y: number; z: number }> = { x: -.015, y: -.09, z: -.003 };
 /** Blade direction, grip to tip. */
 export const SWORD_BLADE: Readonly<{ x: number; y: number; z: number }> = { x: 0, y: 0, z: -1 };
 /** Rotation taking a sword modelled along -Y (FlamingSword's blade) onto SWORD_BLADE. */

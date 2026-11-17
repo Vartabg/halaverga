@@ -4,7 +4,6 @@ import { Quaternion, SkinnedMesh, Vector3, type Object3D } from 'three';
 import { loadSuit } from './load-suit';
 import { buildSuitRig } from '../src/world/suitRig';
 import { bindAngelClips, blendAngelClip, clipTime, FULL } from '../src/world/angelClips';
-import { SLASH } from '../src/world/angelMotion';
 import { SWORD_GRIP, swordGripRotation } from '../src/world/swordGrip';
 import { BLADE as SWORD_LENGTH, GUARD } from '../src/world/swordBlade';
 import { BLADE, BODY, axisGap, bladeReaches, contactAt } from '../src/game/bladeReach';
@@ -45,7 +44,8 @@ describe('blade contact: measured bodies and blade', () => {
     const rig = buildSuitRig(angel.scene), clips = bindAngelClips(angel.animations);
     rig.root.updateMatrixWorld(true);
     expect(rig.joints[11].getWorldPosition(new Vector3()).y).toBeCloseTo(BLADE.chest, 1.7); // the chest bone over the centre
-    blendAngelClip(rig.joints, clips.slash, clipTime(clips.slash, SLASH.raised, false), 1, FULL); rig.root.updateMatrixWorld(true);
+    // angel.glb's single library cut at its raised blade (.36 s); Stage B re-measures this per cut on archangel.glb.
+    blendAngelClip(rig.joints, clips.slash, clipTime(clips.slash, .36, false), 1, FULL); rig.root.updateMatrixWorld(true);
     const tip = new Vector3(0, -GUARD - SWORD_LENGTH, 0).applyQuaternion(swordGripRotation(new Quaternion()))
       .add(new Vector3(SWORD_GRIP.x, SWORD_GRIP.y, SWORD_GRIP.z)).applyMatrix4(rig.joints[16].matrixWorld);
     expect(tip.distanceTo(rig.joints[11].getWorldPosition(new Vector3()))).toBeCloseTo(BLADE.reach, 1.7);

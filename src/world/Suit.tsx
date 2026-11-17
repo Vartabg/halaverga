@@ -26,7 +26,7 @@ import { bulkSuit } from './suitBulk';
 import { gameDt } from '@/game/slowMotion';
 import { cannonLink } from './cannonContract';
 import { beginSuitSprings, createSuitSprings, followBody, followWings, stepClothSway } from './suitSprings';
-export const SUIT_URL = '/models/angel.glb';
+export const SUIT_URL = '/models/archangel.glb';
 export const ADVERSARY_URL = '/models/abyssal.glb';
 /** Reload scene: forget every model the world loads, so a failed download is fetched again instead of replaying the cached error.
  * One call per file: useLoader.clear with an array clears only the cache entry for that whole array, which nothing loads. */

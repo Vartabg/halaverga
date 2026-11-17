@@ -4,7 +4,8 @@
 // arm braces instead of swinging with the blade.
 // Visual only: it writes joint rotations after the library clips and before the springs, and publishes `brace` for them.
 import { Euler, Quaternion, type Object3D } from 'three';
-import { SLASH, type AngelMotion } from './angelMotion';
+import type { AngelMotion } from './angelMotion';
+import { cutClip } from './cutClips';
 import { banish } from '../game/banishState';
 import { strike } from '../game/strike';
 import { BONE_NAMES } from './suitSkeleton';
@@ -52,7 +53,9 @@ export function stepStrikeStance(s: StrikeStance, joints: readonly Object3D[], m
   offset.fill(0);
   const cutting = m.act === 'slash' && m.weight > 0 && DRIVE[m.cut];
   if (cutting) {
-    const d = DRIVE[m.cut], u = ease(clamp(m.actT / SLASH.raised)), v = ease(clamp((m.actT - SLASH.raised) / .28)), g = m.weight * u;
+    // The coil builds to the cut's raised blade and swings through after it; the recovery tail holds the swing as it fades.
+    const raised = cutClip(m.cut).raised, t = m.tail ? raised + 1 : m.actT;
+    const d = DRIVE[m.cut], u = ease(clamp(t / raised)), v = ease(clamp((t - raised) / .28)), g = m.weight * u;
     offset[TL] = g * lerp(d.tl, v); offset[TR] = g * lerp(d.tr, v); offset[SL] = g * lerp(d.sl, v); offset[SR] = g * lerp(d.sr, v);
     offset[UA] = g * lerp(d.ux, v); offset[UA + 16] = g * lerp(d.uz, v); offset[FA] = g * lerp(d.fx, v);
     s.brace = input.flying ? m.weight * s.stance : 0;

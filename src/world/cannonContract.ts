@@ -34,6 +34,25 @@ export const VENT_MAX = 105 * Math.PI / 180;
  * elbow parts cancelling on screen for the chase camera in the muzzle-up vent pose, so the puffs leave the hatch sideways instead of
  * trailing up the barrel past the muzzle (review r2). */
 export const VENT_DIR: Readonly<V3> = { x: .634, y: .763, z: -.129 };
+/**
+ * The cannon on archangel.glb's forearm (docs/plans/2026-11-16-real-fight.md B6). The contract frame above was measured on suit.glb,
+ * whose bone heads sit on the back of the elbow and wrist; the realistic forearm's centre line runs close to its bone, 15.6 deg from
+ * the suit's. FIT is the rigid move taking suit.glb's forearm centre line onto archangel.glb's (cross-section centroids at s .08-.26,
+ * re-measured from both GLBs by tests/arm-cannon-asset.test.ts): the cannon root sits at `t`, turned by `q`, in the forearm_r frame,
+ * so a contract point p is at fitPoint(p) on the forearm. Every forearm rigid point then clears the shell by 7 mm or more.
+ */
+export const FIT = { q: { x: -.12930, y: -.01446, z: -.03941, w: .99072 }, t: { x: .0218, y: .0027, z: -.0166 } } as const;
+/** A contract-frame direction in the forearm_r frame (rotated by FIT.q). */
+export function fitDir(d: V3, out: V3 = { x: 0, y: 0, z: 0 }): V3 {
+  const { x: qx, y: qy, z: qz, w: qw } = FIT.q, n = Math.hypot(qx, qy, qz, qw), x = qx / n, y = qy / n, z = qz / n, w = qw / n;
+  const tx = 2 * (y * d.z - z * d.y), ty = 2 * (z * d.x - x * d.z), tz = 2 * (x * d.y - y * d.x);
+  out.x = d.x + w * tx + y * tz - z * ty; out.y = d.y + w * ty + z * tx - x * tz; out.z = d.z + w * tz + x * ty - y * tx;
+  return out;
+}
+/** A contract-frame point in the forearm_r frame. */
+export function fitPoint(p: V3, out: V3 = { x: 0, y: 0, z: 0 }): V3 {
+  fitDir(p, out); out.x += FIT.t.x; out.y += FIT.t.y; out.z += FIT.t.z; return out;
+}
 export const NODES = { root: 'arm_cannon', shell: 'cannon_shell', slide: 'cannon_slide', vent: 'cannon_vent', muzzle: 'cannon_muzzle', core: 'cannon_core', ventMouth: 'cannon_vent_mouth' } as const;
 export const BUDGET = { triangles: 4000, target: 3600, meshes: 3, bytes: 150000, drawCalls: 3 } as const;
 /** Forearm-frame unit directions from the cannon (s .28) toward the camera in the solved aim pose, measured 2026-09-23:
