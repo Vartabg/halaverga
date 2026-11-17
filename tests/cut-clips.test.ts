@@ -4,7 +4,7 @@ import { Vector3 } from 'three';
 import { loadSuit } from './load-suit';
 import { buildSuitRig } from '../src/world/suitRig';
 import { BONE_NAMES } from '../src/world/suitSkeleton';
-import { bindAngelClips, blendAngelClip, FULL, type AngelClips } from '../src/world/angelClips';
+import { bindAngelClips, blendAngelClip, blendUnder, FULL, UPPER_BODY, type AngelClips } from '../src/world/angelClips';
 import { CUT_CLIPS, cutClip } from '../src/world/cutClips';
 import { actClip, createAngelMotion, cutLead, SLASH, stepAngelMotion, type AngelMotionInput } from '../src/world/angelMotion';
 import { CUTS } from '../src/game/swordString';
@@ -77,18 +77,20 @@ describe('the cuts on the angel (angelMotion)', () => {
     CUT_CLIPS.forEach((c, i) => expect(cutLead(i)).toBeCloseTo(Math.min(SLASH.lead, c.raised), 9));
     expect('raised' in SLASH).toBe(false);
   });
-  it('holds each cut at its own raised blade through the dive and switches clip at the raised blade when contact names another cut', () => {
+  it('holds each cut at its own raised blade through the dive and crossfades from it to the cut contact names, at that cut\'s raised blade', () => {
     const rig = buildSuitRig(assets.archangel.scene), m = createAngelMotion();
     stepAngelMotion(m, clips, rig.joints, flight());
     beginStrike(0, { x: 0, y: 0, z: -40 }, 40);
     for (let i = 0; i < 40; i++) stepAngelMotion(m, clips, rig.joints, flight());
     expect(m.act).toBe('slash'); expect(actClip(m)).toBe('cut0'); expect(m.actT).toBeCloseTo(cutClip(0).raised, 6);
     landStrike(true); emit(FX.sword, 2); stepAngelMotion(m, clips, rig.joints, flight());
-    expect(m.cut).toBe(2); expect(actClip(m)).toBe('cut2'); expect(m.weight).toBe(1);
+    expect(m.cut).toBe(2); expect(actClip(m)).toBe('cut2'); expect(m.from).toBe('cut0'); expect(m.fromW).toBe(1); expect(m.weight).toBeLessThan(.2);
     expect(m.actT).toBeGreaterThan(cutClip(2).raised); expect(m.actT).toBeLessThan(cutClip(2).raised + .05);
+    for (let i = 0; i < Math.ceil(SLASH.cross * 60); i++) stepAngelMotion(m, clips, rig.joints, flight());
+    expect(m.from).toBe(''); expect(m.weight).toBe(1);
     rig.dispose();
   });
-  it('plays the recovery as the act\'s tail at full weight, and a new strike replaces it', () => {
+  it('plays the recovery as the act\'s tail at full weight, and a new strike crossfades from it', () => {
     const rig = buildSuitRig(assets.archangel.scene), m = createAngelMotion();
     stepAngelMotion(m, clips, rig.joints, flight()); emit(FX.sword, 1);
     let tailAt = -1, weightAtTail = 0;
@@ -98,7 +100,7 @@ describe('the cuts on the angel (angelMotion)', () => {
     for (let i = 0; i < 10; i++) stepAngelMotion(m, clips, rig.joints, flight());
     expect(m.act).toBe('slash'); expect(m.weight).toBe(1);
     beginStrike(0, { x: 0, y: 0, z: -4 }, 4, .2); stepAngelMotion(m, clips, rig.joints, flight());
-    expect(m.tail).toBe(false); expect(actClip(m)).toBe('cut0'); expect(m.actT).toBeLessThan(cutClip(0).raised + 1e-9);
+    expect(m.tail).toBe(false); expect(actClip(m)).toBe('cut0'); expect(m.actT).toBeLessThan(cutClip(0).raised + 1e-9); expect(m.from).toBe('cut1Rec');
     cancelStrike();
     for (let i = 0; i < Math.ceil((left + 1) * 60) && m.act; i++) stepAngelMotion(m, clips, rig.joints, flight());
     expect(m.act).toBe(''); rig.dispose();
@@ -109,6 +111,67 @@ describe('the cuts on the angel (angelMotion)', () => {
     emit(FX.cast); stepAngelMotion(m, clips, rig.joints, flight()); expect(m.act).toBe('slash');
     for (let i = 0; i < 60 && !m.tail; i++) stepAngelMotion(m, clips, rig.joints, flight());
     expect(m.tail).toBe(true); emit(FX.cast); stepAngelMotion(m, clips, rig.joints, flight()); expect(m.act).toBe('cast');
+    rig.dispose();
+  });
+});
+
+// Review of Stage B: the stroke faded out over its own last .25 s (on cut0 from before its impact), so the hand jumped 34 to 115 cm
+// in one frame where the recovery began at full weight; and a cut begun in a recovery faded in from the pose beneath (25 to 132 cm).
+describe('hand continuity across the cut seam and a cut begun in a recovery (60 fps)', () => {
+  const ground = (): AngelMotionInput => flight({ flying: false, ground: 1, speed: 0 });
+  /** Steps the angel as the game does (the joints back at rest first, as applySuitPose writes them) and returns hand_r's move. */
+  function track(input: AngelMotionInput) {
+    const rig = buildSuitRig(assets.archangel.scene), rest = rig.joints.map(j => j.quaternion.clone()), pelvis = rig.joints[0].position.clone();
+    const m = createAngelMotion(), hand = new Vector3(), last = new Vector3();
+    const step = () => {
+      rig.joints.forEach((j, k) => j.quaternion.copy(rest[k])); rig.joints[0].position.copy(pelvis);
+      stepAngelMotion(m, clips, rig.joints, input); rig.root.updateMatrixWorld(true);
+      rig.joints[HAND].getWorldPosition(hand); const d = hand.distanceTo(last); last.copy(hand); return d;
+    };
+    for (let i = 0; i < 120; i++) step(); // the idle settles on the ground
+    return { m, step, dispose: () => rig.dispose() };
+  }
+  for (const [label, input] of [['on the ground', ground], ['in flight', flight]] as const) {
+    it(`holds each stroke's weight from its impact into its recovery, with no hand jump at the seam, ${label}`, () => {
+      CUT_CLIPS.forEach((c, n) => {
+        const t = track(input()), moves: number[] = []; let seam = -1, low = 1;
+        emit(FX.sword, n);
+        for (let i = 0; seam < 0 ? i < 90 : i <= seam + 3; i++) {
+          moves.push(t.step());
+          if (t.m.tail && seam < 0) seam = i;
+          if (t.m.actT >= c.impact && !t.m.tail || i === seam) low = Math.min(low, t.m.weight);
+        }
+        expect(seam, c.clip).toBeGreaterThan(0); expect(low, c.clip).toBeGreaterThanOrEqual(.9);
+        // The recovery's own start moves the hand up to 6 cm a frame on the ground.
+        expect(Math.max(...moves.slice(seam - 3, seam + 4)), c.clip).toBeLessThan(.07);
+        t.dispose();
+      });
+    });
+    it(`crossfades a cut begun in a recovery from it, with no hand jump, ${label}`, () => {
+      CUT_CLIPS.forEach((c, n) => {
+        const t = track(input()), next = (n + 1) % CUT_CLIPS.length;
+        emit(FX.sword, n);
+        for (let i = 0; i < 90 && !t.m.tail; i++) t.step();
+        for (let i = 0; i < 4; i++) t.step();
+        emit(FX.sword, next); const first = t.step();
+        expect(t.m.from).toBe(c.rec); expect(t.m.fromW).toBe(1); expect(actClip(t.m)).toBe(cutClip(next).clip);
+        // The new stroke starts at its raised blade, already moving: the frame it begins moves the hand under 9 cm.
+        expect(first, `${c.rec} to ${cutClip(next).clip}`).toBeLessThan(.09);
+        t.dispose();
+      });
+    });
+  }
+  it('leaves nothing of the replaced clip once the new one is fully in, on a bone the mask takes in part (the flight spine)', () => {
+    const rig = buildSuitRig(assets.archangel.scene), rest = rig.joints.map(j => j.quaternion.clone()), spine = BONE_NAMES.indexOf('spine');
+    const pose = (under: number, plain = false) => {
+      rig.joints.forEach((j, k) => j.quaternion.copy(rest[k]));
+      if (plain) blendAngelClip(rig.joints, clips.cut1Rec, .3, 1, UPPER_BODY); else if (under >= 0) blendUnder(rig.joints, clips.cut1Rec, .3, 1, UPPER_BODY, under);
+      blendAngelClip(rig.joints, clips.cut2, .65, under < 0 ? 1 : under, UPPER_BODY); return rig.joints[spine].quaternion.clone();
+    };
+    const alone = pose(-1); // (angleTo reads about 3e-4 rad of float noise near zero)
+    expect(pose(1).angleTo(alone)).toBeLessThan(1e-3); expect(pose(1, true).angleTo(alone)).toBeGreaterThan(.02); // a plain layer stays
+    rig.joints.forEach((j, k) => j.quaternion.copy(rest[k])); blendAngelClip(rig.joints, clips.cut1Rec, .3, 1, UPPER_BODY);
+    expect(pose(0).angleTo(rig.joints[spine].quaternion)).toBeLessThan(1e-3);
     rig.dispose();
   });
 });

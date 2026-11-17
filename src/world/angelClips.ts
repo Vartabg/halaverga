@@ -61,3 +61,14 @@ const UPPER = new Set(['spine', 'chest', 'neck', 'head', 'clavicle_l', 'clavicle
 export const FULL: BoneMask = BONE_NAMES.map(() => 1);
 /** Waist up, for moves made in flight: the legs keep the flight pose. The spine takes half so the trunk still follows the wings. */
 export const UPPER_BODY: BoneMask = BONE_NAMES.map(n => n === 'spine' ? .5 : UPPER.has(n) ? 1 : 0);
+const under: number[] = BONE_NAMES.map(() => 0);
+/**
+ * Blends `clip` as the layer a new move is replacing, before that move goes on at weight `incoming` (0..1). Bones the mask takes
+ * whole keep it at `weight`, for the new move overwrites them as it comes in; bones it takes in part (UPPER_BODY's spine) lose it as
+ * the new move comes in. So the crossfade starts on the old pose, never passes through the pose beneath, and ends on the new move
+ * with nothing of the old left.
+ */
+export function blendUnder(joints: readonly Object3D[], clip: AngelClip, time: number, weight: number, mask: BoneMask, incoming: number, hip?: Vector3) {
+  for (let i = 0; i < BONE_COUNT; i++) under[i] = mask[i] >= 1 ? mask[i] : mask[i] * (1 - incoming);
+  blendAngelClip(joints, clip, time, weight, under, hip);
+}
