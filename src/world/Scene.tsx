@@ -4,8 +4,8 @@ import { Canvas, useFrame, useLoader, useThree } from '@react-three/fiber';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { Physics } from '@react-three/rapier';
 import { ACESFilmicToneMapping, type DirectionalLight } from 'three';
-import City from './HermonCity';
-import RuinField from './RuinField';
+import NearMassif from './NearMassif';
+import OuterRanges from './OuterRanges';
 import DistrictBoundary from './DistrictBoundary';
 import { Water } from './Atmosphere';
 import Backdrop from './Backdrop';
@@ -99,7 +99,7 @@ export default function Scene({ onLoss }: { onLoss: () => void }) {
     <Backdrop /><TerrainLayer /><Water /><EdgeRing /><Drift /><SealedGround /><FlightRush />
     <Suspense fallback={null}>
       <Physics paused={paused} timeStep={1 / 60} updatePriority={-50} gravity={[0, -22, 0]}>
-        <City /><RuinField /><DistrictBoundary /><Player /><FlightPresentation /><Suit /><CameraRig />
+        <NearMassif /><OuterRanges /><DistrictBoundary /><Player /><FlightPresentation /><Suit /><CameraRig />
         <ShooterLayer /><LabLayer />
       </Physics>
     </Suspense>

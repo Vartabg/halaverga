@@ -1,5 +1,7 @@
 # Meridian Blender district
 
+Historical art study of the retired Meridian setting. The source, build scripts and original gallery can be examined together at the [archived revision](https://github.com/Vartabg/halaverga/tree/8c9b26808d3ccf863cc67c1dd9ec729ac2bfd5f8/). The current setting is described in the [Hermon flight brief](../../plans/first-flight.md).
+
 The environment pass replaces the repeated procedural building envelopes and distant blocks with an original, Blender-authored modern ruin. The setting remains the fictional district destroyed in 2033 and visited in 2113.
 
 ## What changed
@@ -36,7 +38,7 @@ The authoring modules use game coordinates (Y up); the mesh helper converts them
 
 ## Review and limits
 
-The [original before/after viewer](../../../../public/docs/art/blender-district/index.html) preserves the first geometry pass with its earlier daylight. The [storm viewer](../../../../public/docs/art/storm-front/index.html) compares that daylight with the current sky and atmosphere, including the viaduct approach and a portrait viewport. A desktop phone viewport is not a physical iPhone validation.
+The [original before/after viewer](https://github.com/Vartabg/halaverga/tree/8c9b26808d3ccf863cc67c1dd9ec729ac2bfd5f8/public/docs/art/blender-district) preserves the first geometry pass with its earlier daylight. The [storm viewer](https://github.com/Vartabg/halaverga/tree/8c9b26808d3ccf863cc67c1dd9ec729ac2bfd5f8/public/docs/art/storm-front) compares that daylight with the current sky and atmosphere, including the viaduct approach and a portrait viewport. A desktop phone viewport is not a physical iPhone validation.
 
 Rendering guidance followed the reviewed [Research Vault guidance](/Users/vartny/Research-Vault/domains/04-product-3d-web/guidance/CURRENT_GUIDANCE.md): composition/material consistency first, bounded effects, shared resources and measured device claims. The trust audit passed.
 

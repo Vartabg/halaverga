@@ -8,6 +8,7 @@ const fx = async (page: Page) => Number(await hud(page).getAttribute('data-banis
 test('rebuke, sword, bind and cast banish a demon while the shield holds', async ({ page }) => {
   test.setTimeout(120000);
   const errors: string[] = []; page.on('pageerror', e => errors.push(e.message));
+  await page.addInitScript(() => localStorage.setItem('halaverga.controls.keys.v1', 'off'));
   await page.goto('/');
   await page.getByRole('button', { name: 'Ascend Mount Hermon' }).click();
   await page.keyboard.press('Space'); await page.waitForTimeout(600); await page.keyboard.press('Space');

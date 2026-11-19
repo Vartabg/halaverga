@@ -72,7 +72,7 @@ Not done on purpose: no `@vercel/analytics` package (budget); no per-control or 
 
 Garo asked for all of it, done the most logical way. Choices: a deploy doc that records what was actually read and rehearsed ([deploy.md](deploy.md)); the patched Next the registry offers, not the minimum; the dependency audit as its own CI job; and the first deploy described by what visitors would lose, found by diffing the live commit against this branch. Nothing was pushed, deployed, rolled back or changed on Vercel or GitHub.
 
-### What the first deploy replaces
+### Historical comparison of the September waterfront builds
 
 Production runs `261a101` (tip of `codex/world-atmosphere`, 2026-09-22; proven by the stamp `2026-09-22 · 261a101` in the live JavaScript, and by the Vercel deployment created 2026-09-22 20:27 UTC). It is in no branch heading to production, so the first deploy of this one replaces it silently. `git diff 261a101...HEAD` (what this branch added since the common ancestor, merge 7945430) is 536 files, +48,322 / -528; against production itself, `git diff 261a101 HEAD` is 547 files, +48,335 / -889. Almost all of it is new (the blaster and drones, the controls demo and Gesture Lab, the vote, `/results`, `/privacy`, the arm cannon, the new hero), plus the security headers the live site does not send. What matters here is what is **taken away or changed**. Of the 18 files in `261a101`, 11 do not exist on this branch and 7 were rewritten by the sky and water work.
 
@@ -86,15 +86,7 @@ Production runs `261a101` (tip of `codex/world-atmosphere`, 2026-09-22; proven b
 | Authored route, arrival terrace, roof pad, hero ruins, hills, trees | Unchanged geometry | Kept. |
 | Everything else in `261a101` (docs, five capture images, a performance JSON, `scripts/review-world-atmosphere.mjs`) | Not on this branch | History only. They stay readable with `git show 261a101:<path>`. |
 
-**Cherry-pick, not applied.** The whole commit is not the command: a merge simulation (`git merge-tree`, nothing touched) conflicts in 7 files, the exact ones the sky and water work rewrote (`Atmosphere.tsx`, `EnvironmentLight.tsx`, `Scene.tsx`, `atmospherePalette.ts`, `cityData.ts`, `skyShader.ts`, `waterShader.ts`). Only the two new files are wanted. To take the waterfront:
-
-```sh
-git restore --source=261a101 -- src/world/waterfrontDetails.ts
-# then in src/world/cityData.ts add   import { waterfrontDetails } from './waterfrontDetails';
-# and, just before `return k.finish();`,   waterfrontDetails(k);
-```
-
-For the ridge and terraces the same with `src/world/distantTerrain.ts` and `distantTerrain(k);` (it uses `colors.edge` and `k.add`, both present). I tried the waterfront on a scratch copy of this branch (not applied here): it typechecks, and **two pinned checks fail, so it is not a free pickup.** `tests/skyline.test.ts` pins 101 colliders and a hash of them (the waterfront makes 149), and its "draws the hills and the terrace parapets in the calm concrete group" check fails with it; `tests/limit-escape.test.ts` ("recorded pins: all 285 stalled states get out") finds 2 stalled states that no longer escape within 3.5 s after contact (pin 245 at `-27,3,-18` and pin 262 at `42,3,-25`, both at 34 m/s; which new box they now run into was not traced). So it needs the pins re-recorded and a flight-safety look at those two states, and the ridge needs a visual check against the new skyline layers. The blaster-era route and drone tests passed with it. None of that is worth doing before the iPhone pass unless Garo wants the waterfront in the launch build; the first deploy is correct without it.
+Garo retired these waterfront and skyline directions on October 21. The comparison above records the earlier builds. [Current first-flight brief](plans/first-flight.md)
 
 ### Next 16.3.8, and the dependency audit in CI
 

@@ -11,11 +11,13 @@ test('a flight without steering lets the Watcher through and offers a fresh atte
     return game.getAttribute('data-phase');
   }, { intervals: [160], timeout: 35000 }).toBe('late');
   await expect(page.getByRole('heading', { name: 'The travelers turn back.' })).toBeVisible();
+  await expect(game).toHaveAttribute('data-story-beat', 'hidden');
   const retry = page.getByRole('button', { name: 'Fly again' });
   await expect(retry).toBeFocused();
   await retry.press('Enter');
   await expect(game).toHaveAttribute('data-phase', 'flight');
   await expect(game).toHaveAttribute('data-in-reach', 'false');
+  await expect(game).toHaveAttribute('data-story-beat', 'pursuit');
 });
 
 test('opening, pause and context-loss recovery are accessible by keyboard', async ({ page }) => {

@@ -1,12 +1,12 @@
 import { readFileSync } from 'node:fs';
 import { afterAll, describe, expect, it } from 'vitest';
 import { WORLD } from '@/game/motion';
-import { makeCity } from '@/world/cityData';
+import { makeNearMassif } from '@/world/nearMassifData';
 import { makeField } from '@/world/fieldData';
 import { heightAt, MASSIF } from '@/world/massifData';
 import type { TerrainChunk } from '@/world/massifGeometry';
 
-const near = makeCity();
+const near = makeNearMassif();
 const field = makeField();
 const all = [...near.terrains, ...field.terrains];
 const key = (x: number, y: number, z: number) => `${x.toFixed(3)},${y.toFixed(3)},${z.toFixed(3)}`;
@@ -102,7 +102,7 @@ describe('continuous Hermon massif', () => {
     }
   });
   it('retires grid ruins and box towers from all active terrain generators', () => {
-    for (const path of ['src/world/cityData.ts', 'src/world/fieldData.ts']) {
+    for (const path of ['src/world/nearMassifData.ts', 'src/world/fieldData.ts']) {
       const source = readFileSync(path, 'utf8');
       for (const gone of ['ruinBuilding', 'fieldSpecs', 'anchorSpecs', 'bakeTower', 'stoneSpecs', 'street:', 'cell:']) {
         expect(source, `${path} must not contain ${gone}`).not.toContain(gone);

@@ -3,10 +3,10 @@ import { Mesh, MeshBasicMaterial, Raycaster } from 'three';
 import { BLADE, BODY, axisGap } from '../src/game/bladeReach';
 import type { Vec } from '../src/game/motion';
 import { ARCH, archSection } from '../src/world/archData';
-import { heightAt } from '../src/world/massifData';
-import { makeMassifChunk } from '../src/world/massifGeometry';
 import { ARRIVAL, clearApproach } from '../src/crossing/course';
 import { createCrossing, launchCrossing, stepCrossing, type Crossing, type CrossingInput } from '../src/crossing/flight';
+import { makePassGround } from '../src/crossing/passGeometry';
+import { passGroundAt } from '../src/crossing/passGround';
 
 const neutral = { horizontal: 0, vertical: 0, strike: false };
 const leftDive = { horizontal: -1, vertical: -1, strike: false };
@@ -152,14 +152,14 @@ it('uses both the arch opening and the mountain relief for sight', () => {
   expect(across(14, 41, 89)).toBe(false);
 });
 
-it('keeps a held dive out of the water, the promontory and the cloven rock', () => {
+it('keeps a held dive above the dry ground, the promontory and the cloven rock', () => {
   for (const horizontal of [-.75, 0, .75]) {
     const s = launched();
     let floorGap = Infinity, archGap = Infinity;
     for (let frame = 0; frame < ARRIVAL * 120; frame++) {
       stepCrossing(s, { horizontal: frame < 144 ? horizontal : 0, vertical: -1, strike: false }, 1 / 120);
       const { x, y, z } = s.player;
-      floorGap = Math.min(floorGap, y - Math.max(.1, heightAt(x, z)));
+      floorGap = Math.min(floorGap, y - passGroundAt(x, z));
       if (x < ARCH.x0 || x > ARCH.x1 || Math.abs(z - ARCH.z) > 8) continue;
       const rock = archSection((x - ARCH.x0) / (ARCH.x1 - ARCH.x0));
       archGap = Math.min(archGap, Math.hypot((y - rock.cy) / (rock.ry + 1.3), (z - rock.cz) / (rock.rz + 1.3)));
@@ -170,20 +170,19 @@ it('keeps a held dive out of the water, the promontory and the cloven rock', () 
   }
 });
 
-it('clears the drawn triangles where the eastern summit shoulder rises sharply out of the gorge', () => {
-  const shoulder = makeMassifChunk('shoulder', { minX: 0, maxX: 30, minZ: -50, maxZ: -10 }, 5);
-  const mesh = new Mesh(shoulder.geometry, new MeshBasicMaterial()), ray = new Raycaster(), s = launched();
+it('clears the visible triangles when diving off the shoulder', () => {
+  const mesh = new Mesh(makePassGround(), new MeshBasicMaterial()), ray = new Raycaster(), s = launched();
   ray.ray.direction.set(0, -1, 0);
   let nearest = Infinity, measured = 0;
   for (let frame = 0; frame < ARRIVAL * 120; frame++) {
     stepCrossing(s, { horizontal: frame < 144 ? .5 : 0, vertical: -1, strike: false }, 1 / 120);
     const { x, y, z } = s.player;
-    if (x < 5 || x > 25 || z > -15 || z < -45) continue;
+    if (x < 5 || x > 25 || z > 75 || z < -45 || frame % 5 !== 0) continue;
     ray.ray.origin.set(x, 150, z);
     const hit = ray.intersectObject(mesh, false)[0];
     if (hit) { measured++; nearest = Math.min(nearest, y - hit.point.y); }
   }
-  shoulder.geometry.dispose(); mesh.material.dispose();
+  mesh.geometry.dispose(); mesh.material.dispose();
   expect(measured).toBeGreaterThan(10);
   expect(nearest).toBeGreaterThan(1.5);
 });

@@ -1,6 +1,5 @@
 import { mulberry32 } from '@/game/combat';
 import { GROWTH, heightAt, slopeAt } from './massifData';
-import { trees } from './reclamationData';
 
 /** Cedars of Lebanon on the banks below the summit (days of Jared, pre-Flood: living trees, not snags). Pure data, Node-safe.
  * The crowns spread into tabular boughs with light frost on the upper branches.
@@ -24,6 +23,12 @@ const plant = (x: number, z: number, scale: number, yaw: number): Cedar =>
 export const canGrow = (x: number, z: number) =>
   Math.abs(x) > GROWTH.corridor && heightAt(x, z) <= GROWTH.treeline && slopeAt(x, z) <= GROWTH.cedarSlope;
 
+/** Lower-slope cedar sites, with their authored sizes before normalization to the procedural tree. */
+const bankSites = [
+  [-22, 34, 4.6], [22, 16, 5.6], [-25, -16, 5.1], [25, -13, 4.4],
+  [-50, 44, 2.3], [58, 49, 3], [-80, -10, 2], [86, -15, 2.4],
+];
+
 /** Small groups below the arrival terrace, rooted on the lower gorge shelves. */
 export const HERO_SITES = [
   { x: -24, z: 46, scale: 1.16, yaw: .7 },
@@ -37,10 +42,9 @@ export const HERO_CEDARS: Cedar[] = HERO_SITES.map(s => plant(s.x, s.z, s.scale,
  * accepts the ground under it, which is what keeps the grove off the summit snow and the east cliffs. */
 export function makeCedars(seed = CEDAR.seed): Cedar[] {
   const out: Cedar[] = [...HERO_CEDARS];
-  for (const t of trees) {
-    const [x, , z] = t.position;
-    if (canGrow(x, z)) out.push(plant(x, z, t.scale[1] / 4.5, t.yaw));
-  }
+  bankSites.forEach(([x, z, size], i) => {
+    if (canGrow(x, z)) out.push(plant(x, z, size / 4.5, i * 2.399));
+  });
   const rng = mulberry32(seed);
   // Each bank is filled on its own quota. The east flank climbs to the summit and rejects most draws, so a single
   // alternating loop would spend the whole scatter on the west side.

@@ -1,4 +1,4 @@
-import { HAZE, HORIZON_FADE, SKY, SKY_STOPS_H, SUN, SUN_DIRECTION, SUN_GLOW, VALLEY_FOG, glslRgb, glslVec3 } from './atmospherePalette';
+import { DAWN_BELT, HAZE, HORIZON_FADE, SKY, SKY_STOPS_H, SUN, SUN_DIRECTION, SUN_GLOW, VALLEY_FOG, glslRgb, glslVec3 } from './atmospherePalette';
 
 /** Read by the dome, water and terrain. Directions use the same daylight as the reflection map. */
 export const skyBaseGlsl = /* glsl */ `
@@ -9,6 +9,8 @@ vec3 skyBase(vec3 dir) {
   c = mix(c, ${glslVec3(SKY.mid)}, smoothstep(${SKY_STOPS_H.low}, ${SKY_STOPS_H.mid}, h));
   c = mix(c, ${glslVec3(SKY.zenith)}, smoothstep(${SKY_STOPS_H.mid}, 1., h));
   float sunward = dot(vec3(dir.x, h, dir.z), SUN_DIR);
+  float belt = smoothstep(.008, .066, h) * (1. - smoothstep(.11, .24, h)) * (.72 - .28 * sunward);
+  c = mix(c, ${glslVec3(DAWN_BELT.color)}, belt * ${DAWN_BELT.strength});
   return mix(c, ${glslVec3(SKY.warm)}, exp(-(1. - sunward) * ${SUN_GLOW.rate.toFixed(1)} - h * ${SUN_GLOW.vertical}) * ${SUN_GLOW.weight});
 }
 `;

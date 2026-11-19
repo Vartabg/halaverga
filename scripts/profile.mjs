@@ -4,7 +4,7 @@ import os from 'node:os';
 const duration = Number(process.env.PROFILE_SECONDS || 300);
 const surge = process.env.PROFILE_SURGE === '1';
 // PROFILE_SHOOTER=1: ?shooter=1, aim (Q) and fire (C) in bursts between route legs; reports peak draw calls and triangles.
-const shooter = process.env.PROFILE_SHOOTER === '1';
+const exerciseCombat = process.env.PROFILE_SHOOTER === '1';
 const output = process.env.PROFILE_OUTPUT || '/tmp/halaverga-profile';
 await mkdir(output, { recursive: true });
 const browser = await chromium.launch({ executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
@@ -14,14 +14,14 @@ const errors = [];
 page.on('pageerror', e => errors.push(e.message));
 page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
 const base = process.env.PLAYTEST_URL || 'http://127.0.0.1:3366';
-// PROFILE_SHOOTER=0 opens ?shooter=0: the pre-shooter baseline the draw-call budget is measured against.
-await page.goto(process.env.PROFILE_SHOOTER ? new URL(`/?shooter=${shooter ? 1 : 0}`, base).href : base);
-await page.getByRole('button', { name: 'Begin expedition' }).click();
+// Set PROFILE_SHOOTER=0 to measure free flight with the fight switched off.
+await page.goto(process.env.PROFILE_SHOOTER ? new URL(`/?shooter=${exerciseCombat ? 1 : 0}`, base).href : base);
+await page.getByRole('button', { name: 'Ascend Mount Hermon' }).click();
 await page.keyboard.press('Space');
 if (surge) await page.keyboard.press('Shift');
 const openSettings = async () => {
   await page.getByRole('button', { name: 'Pause expedition' }).click();
-  await page.getByRole('region', { name: 'Expedition paused' }).getByRole('button', { name: 'Flight settings', exact: true }).click();
+  await page.getByRole('region', { name: 'Ascent paused' }).getByRole('button', { name: 'Flight settings', exact: true }).click();
   await page.getByRole('dialog', { name: 'Flight settings' }).waitFor({ state: 'visible' });
 };
 const started = Date.now();
@@ -30,14 +30,14 @@ let i = 0;
 while (Date.now() - started < duration * 1000) {
   const [key, ms] = commands[i++ % commands.length];
   await page.keyboard.down(key); await page.waitForTimeout(ms); await page.keyboard.up(key); await page.waitForTimeout(500);
-  if (shooter) {
+  if (exerciseCombat) {
     await page.keyboard.down('KeyQ');
     for (let burst = 0; burst < 2; burst++) { await page.keyboard.down('KeyC'); await page.waitForTimeout(700); await page.keyboard.up('KeyC'); await page.waitForTimeout(300); }
     await page.keyboard.up('KeyQ'); await page.waitForTimeout(300);
   }
   if (i % commands.length === 0) {
     // Since the 2026-10-06 pause redesign Flight settings sits on the pause card: Pause, Flight settings, Return, then Resume.
-    await openSettings(); await page.getByRole('button', { name: 'Return to arrival terrace' }).click();
+    await openSettings(); await page.getByRole('button', { name: 'Return to summit altar' }).click();
     await page.getByRole('button', { name: 'Resume flight' }).click();
     await page.waitForTimeout(300); await page.locator('main').focus(); await page.keyboard.press('Space');
     if (surge) await page.keyboard.press('Shift');
@@ -54,11 +54,10 @@ await openSettings();
 await page.getByText('Playtest measurements', { exact: true }).click();
 const pending = page.waitForEvent('download'); await page.getByRole('button', { name: 'Download measurements' }).click();
 const download = await pending, measurement = JSON.parse(await readFile(await download.path(), 'utf8'));
-const report = { ...measurement, shooter, hardware: os.cpus()[0]?.model, gpu, os: `${os.platform()} ${os.release()}`, browserMode: 'Headless system Chrome; physical Mac, not iPhone', speedMode: surge ? 'Surge (34 m/s maximum; clearance may reduce speed)' : 'Cruise (13 m/s maximum)', workload: commands, route: 'Repeat launch/canal/sideways/descent; reset to terrace each cycle to remain inside dense district.', errors };
+const shooter = await page.getByRole('checkbox', { name: /The fight/ }).isChecked();
+const report = { ...measurement, shooter, exerciseCombat, hardware: os.cpus()[0]?.model, gpu, os: `${os.platform()} ${os.release()}`, browserMode: 'Headless system Chrome; physical Mac, not iPhone', speedMode: surge ? 'Surge requested' : 'Cruise', workload: commands, route: 'Climb from the summit altar, fly forward, turn, descend and return to the altar each cycle.', errors };
 await writeFile(output + '/measurements.json', JSON.stringify(report, null, 2));
 console.log(JSON.stringify(report));
 const peak = measurement.peakResources ?? {};
-// Shooter budget (docs/plans/2026-09-22-shooter.md): at most 15 draw calls and 14k triangles above a PROFILE_SHOOTER=0 run. Of that,
-// the arm cannon is 3 draw calls (shell, slide, vent; one material), 0 shadow draws (castShadow off) and at most 4k triangles (2,724).
-console.log(`Peak draw calls ${peak.drawCalls}, peak triangles ${peak.triangles}${shooter ? ' (shooter on; budget: at most 15 draw calls and 14k triangles above a PROFILE_SHOOTER=0 run, the arm cannon 3 of them, 0 shadow draws, <= 4k triangles)' : ''}`);
+console.log(`Peak draw calls ${peak.drawCalls}, peak triangles ${peak.triangles}`);
 await browser.close();

@@ -39,8 +39,8 @@ function terrace(y: number, x: number, z: number, p: Plateau) {
   return top + (y - top) * blend;
 }
 
-/** One world-space sampler drives the playable massif and the perimeter seam. */
-export function heightAt(x: number, z: number, seed: number = MASSIF.seed) {
+/** Limestone relief beneath the landing shelves and the chapter's foreground landforms. */
+export function reliefHeightAt(x: number, z: number, seed: number = MASSIF.seed) {
   const broad = noise(x * .025, z * .025, seed), detail = noise(x * .09, z * .09, seed + 19);
   const gorge = 3.8 * Math.sin(z * .027) + 1.7 * Math.sin(z * .061), distance = Math.abs(x - gorge);
   let y = -3.4 + (broad - .5) * 2.4 + (detail - .5) * .8;
@@ -63,12 +63,18 @@ export function heightAt(x: number, z: number, seed: number = MASSIF.seed) {
   const outside = Math.max(0, WORLD.minX - x, x - WORLD.maxX, WORLD.minZ - z, z - WORLD.maxZ);
   y += smooth(0, 155, outside) * (22 + broad * 32 + alpinePeak * 34);
   if (y > 78) y = 78 + 46 * Math.tanh((y - 78) / 52);
+  return y;
+}
+
+/** Free-flight sanctuaries and the measured perimeter join use the original authored shelves. */
+export function heightAt(x: number, z: number, seed: number = MASSIF.seed) {
+  let y = reliefHeightAt(x, z, seed);
   for (const plateau of PLATEAUS) y = terrace(y, x, z, plateau);
   return y;
 }
 
 /** Where the mountain supports growth: below the treeline, off the cliff faces and clear of the flight corridor. */
-export const GROWTH = { treeline: 26, cedarSlope: .8, ivySlope: 1.2, corridor: 12 };
+export const GROWTH = { treeline: 26, cedarSlope: .8, corridor: 12 };
 
 /** Gradient magnitude of the sampler: 0 is level ground, 1 is a forty-five degree face. Dressing uses it to stay off the cliffs. */
 export function slopeAt(x: number, z: number, seed: number = MASSIF.seed) {

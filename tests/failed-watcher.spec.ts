@@ -4,7 +4,7 @@ import { resolve } from 'node:path';
 
 // docs/plans/2026-11-16-real-fight.md B9 (review finding 12). A watcher.glb that arrives but holds no usable Watcher (here a valid
 // GLB with no rig or clips: the arm cannon) fails inside the fight's boundary: the fight turns off and flight continues. A download
-// that fails outright is a reloadable world failure instead (tests/blender-district.spec.ts).
+// that fails outright is a reloadable world failure instead (tests/hermon-assets.spec.ts).
 test('a watcher.glb that cannot be used turns the fight off and flight continues', async ({ page }) => {
   const wrong = await readFile(resolve('public/models/arm-cannon.glb'));
   let served = 0; const faults: string[] = [];

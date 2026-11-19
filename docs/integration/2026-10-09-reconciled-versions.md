@@ -1,5 +1,7 @@
 # Reconciled versions · October 9, 2026
 
+Historical integration record for the October 9 city build. The [first-flight brief](../plans/first-flight.md) describes the playable Hermon setting.
+
 The approved Blender district and cold storm atmosphere now share one build with the current shooting and flight systems. This is the version intended for main, so changing preview branches no longer drops gameplay or restores an earlier sunny scene.
 
 ## Branch reconciliation

@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { Euler, Quaternion, Vector3 } from 'three';
-import { makeCity } from '../src/world/cityData';
+import { makeNearMassif } from '../src/world/nearMassifData';
 import { makeField } from '../src/world/fieldData';
 import { START, WORLD } from '../src/game/motion';
 import { BUILDING_ROUTE } from '../src/game/navigation';
@@ -10,7 +10,7 @@ import { heightAt } from '../src/world/massifData';
 type Box = { c: Vector3; h: Vector3; inv: Quaternion };
 let boxes: Box[];
 beforeAll(() => {
-  const city = makeCity(), field = makeField();
+  const city = makeNearMassif(), field = makeField();
   city.geometry.dispose(); city.terrains.forEach(t => t.geometry.dispose()); field.geometries.forEach(g => g.dispose());
   boxes = [...city.solids, ...field.solids].map(s => ({ c: new Vector3(...s.position), h: new Vector3(...s.size),
     inv: new Quaternion().setFromEuler(new Euler(...s.rotation)).invert() }));

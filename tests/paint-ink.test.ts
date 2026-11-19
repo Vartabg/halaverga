@@ -1,18 +1,15 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { makeCity } from '../src/world/cityData';
-import { surfaces } from '../src/world/kit';
-import { INK, INK_GROUP, INK_SKY, paintInkMaterial } from '../src/world/paintInk';
+import { makeNearMassif } from '../src/world/nearMassifData';
+import { INK, INK_SKY, paintInkMaterial } from '../src/world/paintInk';
 import { STONE_SAT, sharedTerrain, srgbSaturation } from '../src/world/terrainArt';
 import { BRONZE } from '../src/world/villageCourt';
 
-function inkVertices(city: ReturnType<typeof makeCity>, pred: (x: number, y: number, z: number) => boolean) {
+function inkVertices(city: ReturnType<typeof makeNearMassif>, pred: (x: number, y: number, z: number) => boolean) {
   const geometry = city.geometry, position = geometry.attributes.position;
-  const slots = geometry.groups.filter(g => g.materialIndex === INK_GROUP);
   if (!geometry.index) return 0;
   let count = 0;
-  for (const slot of slots) for (let i = slot.start; i < slot.start + slot.count; i++) {
-    const vertex = geometry.index.array[i];
+  for (const vertex of geometry.index.array) {
     if (pred(position.getX(vertex), position.getY(vertex), position.getZ(vertex))) count++;
   }
   return count;
@@ -20,7 +17,6 @@ function inkVertices(city: ReturnType<typeof makeCity>, pred: (x: number, y: num
 
 describe('painted Hermon rock and steles', () => {
   it('paints with a toon ramp and chromatic sky fill, and takes the rock and snow maps through uniforms, not a map slot', () => {
-    expect(surfaces[INK_GROUP]).toBe('ink');
     const ink = paintInkMaterial(sharedTerrain);
     expect(ink.map).toBeNull(); expect(ink.normalMap).toBeNull(); expect(ink.gradientMap).toBeTruthy(); expect(ink.toneMapped).toBe(false);
     const source = readFileSync('src/world/paintInk.ts', 'utf8');
@@ -32,7 +28,7 @@ describe('painted Hermon rock and steles', () => {
     ink.dispose();
   });
   it('uses continuous terrain under the hero, with authored ink only on sanctuaries and steles', () => {
-    const city = makeCity(), terrain = city.terrains.find(t => t.id === 'hermon-near')!;
+    const city = makeNearMassif(), terrain = city.terrains.find(t => t.id === 'hermon-near')!;
     let arrival = false;
     for (let i = 0; i < terrain.vertices.length; i += 3) {
       if (Math.abs(terrain.vertices[i]) < 1 && Math.abs(terrain.vertices[i + 1] - 20) < .01 && Math.abs(terrain.vertices[i + 2] - 65) < 1) arrival = true;

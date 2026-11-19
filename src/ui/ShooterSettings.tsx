@@ -10,7 +10,7 @@ const save = (patch: Patch) => { useGame.setState(patch); persistGame(); };
 // Two thumbs shows Fire; one thumb (the default) taps a demon to strike it.
 const COARSE_NOTE = { twin: 'Fire strikes the demon under the crosshair.',
   classic: 'Hold Fly to move. Tap a demon to strike it.' };
-const FINE_NOTE = 'Click or C dives at a visible demon ahead with the sword. Press again for each next cut: three cuts cast a demon down, and binding follows the last one automatically. On touch screens, tap or swipe successive demons. Key 1 rebukes; hold V or a second finger for the shield. Reduced camera motion removes zoom, shake and flashes.';
+const FINE_NOTE = 'Click or C dives at a visible demon ahead with the sword. Press again for each next cut: three cuts cast a demon down, and binding follows the last one automatically. On touch screens, tap or swipe successive demons. To rebuke with 1, turn off “Number keys 1-8 switch controls” in Controls. Hold V or a second finger for the shield. Reduced camera motion removes zoom, shake and flashes.';
 export default function ShooterSettings({ coarse }: { coarse: boolean }) {
   const shooter = useGame(s => s.shooter), autoFire = useGame(s => s.autoFire), scheme = useGame(s => s.touchScheme);
   return <fieldset><legend>The fight</legend>

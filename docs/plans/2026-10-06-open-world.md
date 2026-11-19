@@ -1,5 +1,7 @@
 # Open world · 2026-10-06
 
+Historical plan for the retired city setting. Garo approved Mount Hermon at dawn on October 21. See the [current first-flight brief](first-flight.md).
+
 Garo, before launch: "I want to ship this game but before doing that the open world environment needs to be built out properly." Shown
 that the whole flyable box fits in one frame at the sky limit and the city around it is a backdrop behind an invisible wall, he chose
 **open it up**: the backdrop city becomes a real one to fly through. Blender is allowed where it helps.

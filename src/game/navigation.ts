@@ -14,9 +14,9 @@ export const BUILDING_ROUTE = [
   { id: 'arrival', label: 'Threshold of Hermon', x: 0, y: 20 + FOOT, z: 65 },
   { id: 'lift', label: 'Summit liftoff', x: 0, y: 26, z: 65 },
   { id: 'launch', label: 'Oath sanctuary departure', x: 0, y: 26, z: 47 },
-  { id: 'boulevard', label: 'Dawn chasm descent', x: 0, y: 3.2, z: 22 },
+  { id: 'boulevard', label: 'Lower Gorge', x: 0, y: 3.2, z: 22 },
   { id: 'viaduct', label: 'Cloven Arch', x: -3, y: 3.2, z: -1 },
-  { id: 'north', label: 'Watcher gorge', x: 0, y: 8, z: -27 },
+  { id: 'north', label: 'Watcher Gorge', x: 0, y: 8, z: -27 },
   { id: 'ascent', label: 'High Sanctuary ascent', x: 9, y: 69, z: -38 },
   { id: 'roof', label: 'Sanctuary of the Throne', x: 30, y: 69, z: -38 },
 ] as const;
@@ -24,20 +24,20 @@ export const BUILDING_ROUTE = [
 // player recovers there. Adding a terminal is a content change — Player.tsx
 // reads this table without flight-loop edits.
 export interface Terminal { id: string; position: Vec; radius: number; location: string; record: typeof arrival }
-// Records cite their own literary source: Revelation at launch; 1 Enoch at the outlying tablets.
-const sourceNote = "Quoted word for word from R. H. Charles, The Book of Enoch (1917), public domain; his editorial marks are left out. This is a separate literary source from Revelation. The tablet, its title and place names are game fiction.";
+// Each tablet cites its own passage. Its position identifies where a pilot may read it on Hermon.
+const sourceNote = "Quoted word for word from R. H. Charles, The Book of Enoch (1917), public domain; his editorial marks are left out. The tablet, its title and its placement on Hermon are game fiction.";
 export const TERMINALS: Terminal[] = [
   { id: 'hermon-oath-01', position: { x: -7, y: 21, z: 58 }, radius: 5, location: 'Tablet of Semjaza', record: arrival },
   { id: 'north-core-12', position: { x: 0, y: 12, z: -260 }, radius: 8, location: 'Tablet of the Seven Stars', record: {
     id: 'north-core-12', locationId: 'halaverga-north-core-12', title: 'The Prison of the Burning Stars', kind: 'Quoted source · 1 Enoch 21:3, 6',
-    place: 'Northern Abyss · Northern Vigil', date: '1 Enoch 21:3, 6',
+    place: 'Northern Ridge · Northern Vigil', date: '1 Enoch 21:3, 6',
     body: "And there I saw seven stars of the heaven bound together in it, like great mountains and burning with fire. … ‘These are of the number of the stars of heaven, which have transgressed the commandment of the Lord, and are bound here till ten thousand years, the time entailed by their sins, are consummated.’",
     note: sourceNote } },
   { id: 'west-flats-09', position: { x: -230, y: 18, z: -40 }, radius: 8, location: 'Tablet of Azazel', record: {
     id: 'west-flats-09', locationId: 'halaverga-west-flats-09', title: 'The Binding in Dudael', kind: 'Quoted source · 1 Enoch 10:4–5',
     place: 'Western Cleft · Western Vigil', date: '1 Enoch 10:4–5',
     body: "And again the Lord said to Raphael: ‘Bind Azâzêl hand and foot, and cast him into the darkness: and make an opening in the desert, which is in Dûdâêl, and cast him therein. And place upon him rough and jagged rocks, and cover him with darkness, and let him abide there for ever, and cover his face that he may not see light.’",
-    note: sourceNote } },
+    note: sourceNote + " This passage describes Dudael. The western tablet marks where the pilot reads it on Hermon." } },
   { id: 'east-flats-14', position: { x: 230, y: 18, z: -30 }, radius: 8, location: 'Tablet of Kokabiel', record: {
     id: 'east-flats-14', locationId: 'halaverga-east-flats-14', title: 'Secrets of the Firmament', kind: 'Quoted source · 1 Enoch 8:3',
     place: 'Eastern Monoliths · Eastern Vigil', date: '1 Enoch 8:3',
@@ -45,7 +45,7 @@ export const TERMINALS: Terminal[] = [
     note: sourceNote } },
   { id: 'south-breach-03', position: { x: 0, y: 10, z: 165 }, radius: 8, location: 'Tablet of Michael', record: {
     id: 'south-breach-03', locationId: 'halaverga-south-breach-03', title: 'The Four Looked Down', kind: 'Quoted source · 1 Enoch 9:1',
-    place: 'Southern Abyss · Outer Sanctuary', date: '1 Enoch 9:1',
+    place: 'Southern Saddle · Outer Sanctuary', date: '1 Enoch 9:1',
     body: "And then Michael, Uriel, Raphael, and Gabriel looked down from heaven and saw much blood being shed upon the earth, and all lawlessness being wrought upon the earth.",
     note: sourceNote } },
 ];
@@ -58,11 +58,11 @@ export function nearestTerminal(position: Vec): Terminal | null {
 }
 export function locationName(p: Vec, terminal = nearestTerminal(p)): string {
   if (terminal) return terminal.location;
-  if (p.z < -208) return 'Prison of the Seven Stars';
-  if (p.z > 128) return 'Gate of Gehenna';
+  if (p.z < -208) return 'Northern Ridge';
+  if (p.z > 128) return 'Southern Saddle';
   if (p.x < -225) return 'Western Cleft';
-  if (p.x > 225) return 'Mount of Simeon';
-  return p.y > 50 ? 'Sanctuary of the Throne' : p.y < 6 ? 'Dawn Waters' : p.z < 15 ? 'Bridge of the Abyss' : 'Threshold of Hermon';
+  if (p.x > 225) return 'Eastern Ridge';
+  return p.y > 50 ? 'Sanctuary of the Throne' : p.y < 6 ? 'Lower Gorge' : p.z < 15 ? 'Cloven Arch' : 'Threshold of Hermon';
 }
 export function boundaryDistance(p: Vec) {
   return Math.min(p.x - WORLD.minX, WORLD.maxX - p.x, p.z - WORLD.minZ, WORLD.maxZ - p.z, WORLD.ceiling - p.y);

@@ -1,6 +1,6 @@
 import RAPIER from '@dimforge/rapier3d-compat';
 import { Euler, Quaternion } from 'three';
-import { makeCity } from '@/world/cityData';
+import { makeNearMassif } from '@/world/nearMassifData';
 import { makeField } from '@/world/fieldData';
 import type { Solid } from '@/world/kit';
 import type { TerrainChunk } from '@/world/massifGeometry';
@@ -13,7 +13,7 @@ let nearCache: PhysicsGeometry | null = null, outerCache: PhysicsGeometry | null
 export function physicsGeometry(includeOuter = true): PhysicsGeometry {
   if (includeOuter && outerCache) return outerCache;
   if (!includeOuter && nearCache) return nearCache;
-  const city = makeCity();
+  const city = makeNearMassif();
   const field = includeOuter ? makeField() : null;
   const geometry = {
     solids: [...city.solids, ...(field?.solids ?? [])],

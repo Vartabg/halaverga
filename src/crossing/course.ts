@@ -1,10 +1,10 @@
 import { type Vec } from '@/game/motion';
-import { restingHeight } from '@/game/wardenElevation';
 import { ARCH, archSection } from '@/world/archData';
-import { heightAt } from '@/world/massifData';
+import { passGroundAt } from './passGround';
+import { passFootprint } from './passTalus';
 
 const eastFoot = archSection((24 - ARCH.x0) / (ARCH.x1 - ARCH.x0));
-const arrivalY = Math.max(eastFoot.cy + eastFoot.ry, heightAt(24, eastFoot.cz)) + 3.2;
+const arrivalY = Math.max(eastFoot.cy + eastFoot.ry, passGroundAt(24, eastFoot.cz)) + 3.2;
 export const ARRIVAL = 8.1;
 const path = [
   { t: 0, x: -31, y: 24, z: 111 },
@@ -41,8 +41,8 @@ const GROUND_CLEARANCE = 2.3, ARCH_CLEARANCE = 1.8;
 /** Damp an approach to the ground, then slide along the inflated ellipse if the pilot clips the rock span. */
 export function clearRock(p: Vec, v: Vec, folded: boolean) {
   const wing = folded ? FOLDED : SPREAD;
-  const floor = restingHeight(p.x, p.z, wing) + GROUND_CLEARANCE;
-  const ahead = restingHeight(p.x + v.x * .3, p.z + v.z * .3, wing) + GROUND_CLEARANCE;
+  const floor = passFootprint(p.x, p.z, wing) + GROUND_CLEARANCE;
+  const ahead = passFootprint(p.x + v.x * .3, p.z + v.z * .3, wing) + GROUND_CLEARANCE;
   v.y = Math.max(v.y, Math.min(20, (ahead - p.y) / .3));
   if (p.y < floor) { p.y = floor; v.y = Math.max(0, v.y); }
   if (!nearArch(p.x, p.z)) return;
@@ -51,10 +51,10 @@ export function clearRock(p: Vec, v: Vec, folded: boolean) {
   if (length >= 1) return;
   const uy = length > .0001 ? dy / length : 1, uz = length > .0001 ? dz / length : 0;
   // Near a foot the hillside can close off the underside. Stay on the approach side until there is room above or below.
-  if (s.cy + uy * ry < restingHeight(p.x, s.cz + uz * rz, wing) + GROUND_CLEARANCE) {
+  if (s.cy + uy * ry < passFootprint(p.x, s.cz + uz * rz, wing) + GROUND_CLEARANCE) {
     const side = Math.sign(uz) || 1;
     p.z = s.cz + side * rz;
-    p.y = Math.max(p.y, restingHeight(p.x, p.z, wing) + GROUND_CLEARANCE);
+    p.y = Math.max(p.y, passFootprint(p.x, p.z, wing) + GROUND_CLEARANCE);
     if (v.z * side < 0) v.z = 0;
     return;
   }
@@ -70,7 +70,7 @@ export function clearApproach(a: Vec, b: Vec, distance: number) {
   const steps = Math.ceil(distance / .8);
   for (let i = 1; i < steps; i++) {
     const t = i / steps, x = a.x + (b.x - a.x) * t, y = a.y + (b.y - a.y) * t, z = a.z + (b.z - a.z) * t;
-    if (y < restingHeight(x, z, FOLDED) + GROUND_CLEARANCE) return false;
+    if (y < passFootprint(x, z, FOLDED) + GROUND_CLEARANCE) return false;
     if (nearArch(x, z)) {
       const s = section(x);
       if (((y - s.cy) / (s.ry + ARCH_CLEARANCE)) ** 2 + ((z - s.cz) / (s.rz + ARCH_CLEARANCE)) ** 2 < 1) return false;

@@ -20,6 +20,7 @@ try {
     hasTouch: false,
   });
   const page = await context.newPage();
+  await page.addInitScript(() => localStorage.setItem('halaverga.controls.keys.v1', 'off'));
   page.on('pageerror', err => report.errors.push(err.message));
 
   console.log('Navigating to', base);
@@ -46,7 +47,7 @@ try {
   await page.screenshot({ path: `${out}/03-archangel-wings-flight.png` });
   report.captures.push('03-archangel-wings-flight.png');
 
-  // Draw flaming sword / context action (Space / Key 2)
+  // Strike with the sword (2 in combat).
   await page.keyboard.press('Digit2'); // Sword command
   await page.waitForTimeout(150);
   await page.screenshot({ path: `${out}/04-flaming-sword-strike.png` });

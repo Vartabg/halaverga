@@ -11,6 +11,7 @@ import CombatTarget from './CombatTarget';
 import EliteHud from './EliteHud';
 import { COMMAND, requestCommand } from '@/game/commands';
 import { unlockBlasterAudio } from './audioUnlock';
+import { useKeysPref } from './controls/keysPref';
 import styles from './BattleHud.module.css';
 
 const CUES: Record<Cue, string> = { '': '', far: 'Too far · fly closer', notDown: 'Strike it down before you bind it', notBound: 'This demon is already being cast down', noTarget: '', guarded: 'Warden guarded · defend, then strike the opening' };
@@ -28,6 +29,7 @@ const sample = () => ({ ward: battle.ward, kills: battle.banished, status: battl
   combo: banish.combo, next: nextStep(), teaching: battle.clock < 5, rebuke: banish.clock - banish.rebukeT < REBUKE_LINE, fx: banish.fxSerial, modes: banish.mode.join(''), counter: counterState.attacker >= 0, slow: Math.min(1, Math.round((1 - counterState.scale) * 6.25) / 5), counters: counterState.serial, cue: (banish.clock - banish.cueT < 1.4 ? banish.cue : '') as Cue });
 export default function BattleHud() {
   const [readout, setReadout] = useState(sample), paused = useGame(s => s.paused);
+  const [styleDigits] = useKeysPref();
   useEffect(() => {
     const tick = () => { const s = sample(); setReadout(old => Object.keys(s).every(k => s[k as keyof typeof s] === old[k as keyof typeof s]) ? old : s);
       if (s.status === 'fallen' && !useGame.getState().paused) pause(); };
@@ -60,7 +62,7 @@ export default function BattleHud() {
       <span className={styles.coarse}>{NEXT[readout.next][0]}</span><span className={styles.fine}>{NEXT[readout.next][1]}</span></p>}
     {readout.status === 'battle' && readout.fx === 0 && <p className={styles.legend} aria-label="Combat strokes">
       <span className={styles.coarse}>Tap a demon: strike · Chain: next demon · hold a 2nd finger: shield</span>
-      <span className={styles.fine}>Click or C: strike / chain · 1: rebuke · hold V: shield</span></p>}
+      <span className={styles.fine}>Click or C: strike / chain{!styleDigits && ' · 1: rebuke'} · hold V: shield</span></p>}
     {readout.hurt && <div className={styles.hurt} aria-hidden="true" />}
     <div className="sr-only" aria-live="polite">{readout.status === 'victory' ? 'Victory. The host is cast down.' : `Protective ward ${readout.ward} of three. ${readout.kills} demons cast down.`}</div>
   </>;

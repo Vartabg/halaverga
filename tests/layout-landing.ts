@@ -20,7 +20,8 @@ export async function landingProblems(page: Page, v: View): Promise<string[]> {
     const ps = [...document.querySelectorAll('p')], bs = [...document.querySelectorAll('button')];
     const things: Record<string, Element | null | undefined> = {
       title: document.querySelector('h1:not(.sr-only)'), eyebrow: ps.find(x => /BOOK OF ENOCH|COVENANT 001|EXPEDITION 001/.test(x.textContent ?? '')), copy: ps.find(x => /Two hundred Watchers|Eighty years/.test(x.textContent ?? '')),
-      begin: bs.find(x => /Ascend Mount Hermon|Calling your angel|Ascend Mount Hermon|Preparing/.test(x.textContent ?? '')), hint: document.querySelector('section p[role=status]'), note: document.querySelector('[data-testid=demo-note]'),
+      chapter: document.querySelector('section a[href="/crossing"]'), begin: bs.find(x => /Ascend Mount Hermon|Calling your angel|Preparing/.test(x.textContent ?? '')),
+      hint: document.querySelector('section p[role=status]'), note: document.querySelector('[data-testid=demo-note]'),
       brand: document.querySelector('header [class*=brand]'), guide: bs.find(x => /Field guide/.test(x.textContent ?? '')),
       footerLeft: document.querySelector('footer > span:first-child'), footerRight: document.querySelector('footer > span:last-child'),
     };
@@ -36,7 +37,7 @@ export async function landingProblems(page: Page, v: View): Promise<string[]> {
     return { rects, hint: sentence('hint'), note: sentence('note'), small };
   });
   const problems: string[] = [], R = read.rects, keys = Object.keys(R);
-  for (const k of ['title', 'eyebrow', 'copy', 'begin', 'hint', 'brand', 'guide', 'footerLeft']) if (!R[k]) problems.push(`landing: ${k} is not on the screen`);
+  for (const k of ['title', 'eyebrow', 'copy', 'chapter', 'begin', 'hint', 'brand', 'guide', 'footerLeft']) if (!R[k]) problems.push(`landing: ${k} is not on the screen`);
   keys.forEach((a, i) => keys.slice(i + 1).forEach(b => {
     if (a.startsWith('footer') && b.startsWith('footer')) return; // the two footer lines sit 12 px apart by their own rule
     const x = Math.max(R[a].left, R[b].left) - Math.min(R[a].right, R[b].right), y = Math.max(R[a].top, R[b].top) - Math.min(R[a].bottom, R[b].bottom);

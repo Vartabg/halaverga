@@ -1,6 +1,6 @@
 # Meridian environment · September 22, 2026
 
-This historical record describes the earlier waterfront branch. The current scene and branch reconciliation are documented in [the reconciled version](integration/2026-10-09-reconciled-versions.md) and [the storm integration](art/storm-front/SHOOTING-INTEGRATION.md).
+This historical record describes the earlier waterfront branch. The [October 9 build](integration/2026-10-09-reconciled-versions.md) followed this study. The [first-flight brief](plans/first-flight.md) describes the playable Hermon setting.
 
 The flooded 2113 district now uses a violet-grey storm ceiling, a muted amber sun and dark teal floodwater. The water samples the same procedural sky as the dome, with quieter irregular ripples, silt along the retaining walls and a restrained skimming wake. Fog, building reflections and directional lighting share the atmosphere palette. Reduced motion stills the sky and water; pausing stops their clocks.
 

@@ -99,7 +99,7 @@ export function lobeDir(n: Vec3, u1: number, u2: number, out: Vec3) {
 // Timed sprite puffs: born, life, x, y, z, rise, size0, size1, stretch, rgb0, rgb1, alpha0, alpha curve, drift xyz, wind xyz per slot.
 // Curves: 0 = alpha (1 - u^2) (default), 1 = alpha (1 - u)^1.5 (holds, then drops: fireballs), 2 = flat (a single pop).
 // Drift: an initial velocity that decays with time constant DRIFT_TAU, so a puff jets out and then hangs (travel |v| * DRIFT_TAU).
-// Wind: a steady velocity for the whole life (the ash wind carrying smoke).
+// Steady wind carries a puff for its full lifetime.
 export const PUFF = 23, CURVE_HOLD = 1, CURVE_FLAT = 2, DRIFT_TAU = .1;
 export type Puffs = Ring & { d: Float64Array; shown: Uint8Array };
 export function makePuffs(size: number): Puffs {

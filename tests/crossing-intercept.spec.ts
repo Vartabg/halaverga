@@ -6,6 +6,7 @@ const won = (page: Page) => page.getByRole('heading', { name: 'The travelers cro
 test('a low dive and a fresh sword press turn the Watcher away', async ({ page }, info) => {
   const errors: string[] = [];
   page.on('pageerror', e => errors.push(e.message));
+  page.on('console', message => { if (message.type() === 'error' && /WebGLProgram|shader error/i.test(message.text())) errors.push(message.text()); });
   await page.goto('/crossing');
   const start = page.getByRole('button', { name: 'Take wing' });
   await expect(start).toBeEnabled();
@@ -21,8 +22,14 @@ test('a low dive and a fresh sword press turn the Watcher away', async ({ page }
   await expect(won(page)).toBeVisible();
   await page.waitForTimeout(1700);
   await page.screenshot({ path: info.outputPath('crossing.png') });
+  await expect(page.locator('main')).toHaveAttribute('data-story-beat', 'lit');
+  await page.screenshot({ path: info.outputPath('first-fire.png') });
+  await expect(page.locator('main')).toHaveAttribute('data-story-beat', 'answered', { timeout: 9000 });
+  await expect(page.getByText('A second fire answers from the tents.', { exact: false }).first()).toBeVisible();
+  await page.screenshot({ path: info.outputPath('valley-reply.png') });
   await page.getByRole('button', { name: 'Fly again' }).click();
   await expect(page.locator('main')).toHaveAttribute('data-phase', 'flight');
+  await expect(page.locator('main')).toHaveAttribute('data-story-beat', 'pursuit');
   expect(errors).toEqual([]);
 });
 

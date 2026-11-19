@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { STELE, placeStele, seatY, plinth } from '../src/world/steleData';
 import { createKit } from '../src/world/kit';
-import { makeCity } from '../src/world/cityData';
+import { makeNearMassif } from '../src/world/nearMassifData';
 
 /** Slices invariants for the colossal Watcher stele joined into the merged city mesh (steleData.ts): nothing traps a hands-off
  * pilot, nothing reaches the ceiling, the authored route keeps its tube clear, and the granite maths stay deterministic. */
@@ -28,7 +28,7 @@ describe('the colossal Watcher stele', () => {
     expect(STELE.filter(s => !s.solid)).toHaveLength(6);
   });
   it('the merged city rebuilds identically — the stele are deterministic seed maths, never Math.random', () => {
-    const a = makeCity(), b = makeCity();
+    const a = makeNearMassif(), b = makeNearMassif();
     const pa = a.geometry.attributes.position.array as Float32Array, pb = b.geometry.attributes.position.array as Float32Array;
     expect(pa.length, 'same vertex count').toBe(pb.length);
     let diffs = 0;

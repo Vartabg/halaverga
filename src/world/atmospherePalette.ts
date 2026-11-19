@@ -21,6 +21,7 @@ export const HAZE = '#c1d2dc';
 export const SKY = { low: '#a2c0d7', mid: '#7aa1c6', zenith: '#4876a6', warm: '#ffcf9d' };
 export const SKY_STOPS_H = { low: .18, mid: .52 };
 export const SUN_GLOW = { rate: 12, weight: .61, vertical: 3.7 };
+export const DAWN_BELT = { color: '#f3bea8', strength: .41 };
 export const HEMISPHERE = { sky: '#d1dbe5', ground: '#b5ab94', intensity: 1.6 };
 export const EXPOSURE = 1.04;
 export const FAR_PLANE = 56_000;
@@ -36,7 +37,8 @@ export const WATER_CREST = '#c4d4dc';
 const clamp01 = (x: number) => Math.min(1, Math.max(0, x));
 const smooth = (a: number, b: number, x: number) => { const t = clamp01((x - a) / (b - a)); return t * t * (3 - 2 * t); };
 const mix = (a: Rgb, b: Rgb, t: number): Rgb => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
-const lin = { haze: hexToLinear(HAZE), low: hexToLinear(SKY.low), mid: hexToLinear(SKY.mid), zenith: hexToLinear(SKY.zenith), warm: hexToLinear(SKY.warm) };
+const lin = { haze: hexToLinear(HAZE), low: hexToLinear(SKY.low), mid: hexToLinear(SKY.mid), zenith: hexToLinear(SKY.zenith),
+  warm: hexToLinear(SKY.warm), belt: hexToLinear(DAWN_BELT.color) };
 /** Linear display color, sampled in the dome, the water and the environment light. */
 export function skyBase(dir: Rgb): Rgb {
   const h = Math.max(dir[1], 0);
@@ -44,6 +46,8 @@ export function skyBase(dir: Rgb): Rgb {
   c = mix(c, lin.mid, smooth(SKY_STOPS_H.low, SKY_STOPS_H.mid, h));
   c = mix(c, lin.zenith, smooth(SKY_STOPS_H.mid, 1, h));
   const sunward = dir[0] * SUN_DIRECTION[0] + h * SUN_DIRECTION[1] + dir[2] * SUN_DIRECTION[2];
+  const belt = smooth(.008, .066, h) * (1 - smooth(.11, .24, h)) * (.72 - .28 * sunward);
+  c = mix(c, lin.belt, belt * DAWN_BELT.strength);
   return mix(c, lin.warm, Math.exp(-(1 - sunward) * SUN_GLOW.rate - h * SUN_GLOW.vertical) * SUN_GLOW.weight);
 }
 /** Average density of an exponential valley layer along a sloping sightline. */

@@ -1,0 +1,7 @@
+.choices { display: flex; flex-wrap: wrap; align-items: center; gap: .2rem .9rem; }
+.chapter, .free { display: inline-flex; min-height: 44px; align-items: center; font: inherit; }
+.chapter { border-radius: var(--r-md); background: var(--accent); color: var(--accent-ink); padding: .55rem .85rem; text-decoration: none; font-size: .94rem; font-weight: 650; }
+.chapter:hover { background: var(--accent-hover); }
+.free { border: 0; background: transparent; color: var(--ink); padding: .25rem; text-decoration: underline; text-underline-offset: .2em; font-size: .86rem; }
+.free:disabled { color: var(--muted); }
+@media (forced-colors: active) { .chapter { border: 1px solid LinkText; } }

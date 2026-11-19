@@ -1,7 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { CEDAR_HEIGHT, CEDAR_TIERS, HERO_CEDARS, makeCedars } from '../src/world/cedarData';
-import { makeUnderstory } from '../src/world/reclamationData';
 import { GROWTH, MASSIF, heightAt, slopeAt } from '../src/world/massifData';
 
 describe('cedars of Lebanon (pre-Flood dressing)', () => {
@@ -38,21 +37,8 @@ describe('cedars of Lebanon (pre-Flood dressing)', () => {
   });
 });
 
-describe('bank understory', () => {
-  it('roots every clump on the terrain and drops the ones on the cliffs', () => {
-    const plants = makeUnderstory();
-    expect(plants.length).toBeGreaterThan(20);
-    for (const p of plants) {
-      const [x, y, z] = p.position;
-      expect(y).toBeCloseTo(heightAt(x, z), 6);
-      expect(y).toBeLessThanOrEqual(GROWTH.treeline);
-      expect(slopeAt(x, z)).toBeLessThanOrEqual(GROWTH.ivySlope);
-    }
-  });
-});
-
-describe('Reclamation', () => {
+describe('Lower-slope cedars', () => {
   it('is mounted in the scene', () => {
-    expect(readFileSync('src/world/HermonCity.tsx', 'utf8')).toContain('<Reclamation />');
+    expect(readFileSync('src/world/NearMassif.tsx', 'utf8')).toContain('<Cedars />');
   });
 });

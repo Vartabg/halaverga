@@ -6,8 +6,6 @@ export const INK = {
   rock: '#81786a', lit: '#f1e4cc', shaft: '#968876', plinth: '#5c5549', crown: '#ffbe42', cap: '#fbf4e8', broken: '#e26444',
   ember: '#f05a38', jade: '#2d7a6e', obsidian: '#181322',
 } as const;
-/** Material group on the merged city mesh. Appended so the six older groups keep their indexes. */
-export const INK_GROUP = 6;
 /** How much of the sky fill survives on the paint. The sun still draws the stepped cel bands. */
 export const INK_SKY = 0.28;
 

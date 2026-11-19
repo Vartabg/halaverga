@@ -2,7 +2,7 @@ import { useEffect, useMemo } from 'react';
 import { BufferAttribute, type BufferGeometry, Color, CylinderGeometry, IcosahedronGeometry, InstancedMesh,
   Matrix4, MeshStandardMaterial, Quaternion, Euler, Vector3 } from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { CEDAR, CEDAR_HEIGHT, CEDAR_TIERS, makeCedars } from './cedarData';
+import { CEDAR, CEDAR_HEIGHT, CEDAR_TIERS, makeCedars, type Cedar } from './cedarData';
 
 const needles = new Color('#536048'), inner = new Color('#333d30'), frost = new Color('#d5dbd7');
 function bough(rx: number, rz: number, h: number, centre: Vector3, angle: number, snowy: boolean, detail: number) {
@@ -56,9 +56,9 @@ function cedarGeometry() {
   return merged;
 }
 
-export default function Cedars() {
+export default function Cedars({ sites }: { sites?: Cedar[] }) {
   const mesh = useMemo(() => {
-    const cedars = makeCedars(), mat = new MeshStandardMaterial({ vertexColors: true, roughness: .98 });
+    const cedars = sites ?? makeCedars(), mat = new MeshStandardMaterial({ vertexColors: true, roughness: .98 });
     const m = new InstancedMesh(cedarGeometry(), mat, cedars.length);
     const matrix = new Matrix4(), q = new Quaternion(), e = new Euler();
     cedars.forEach((c, i) => {
@@ -68,7 +68,7 @@ export default function Cedars() {
     m.instanceMatrix.needsUpdate = true;
     m.castShadow = true; m.receiveShadow = true;
     return m;
-  }, []);
+  }, [sites]);
   useEffect(() => () => { mesh.geometry.dispose(); (mesh.material as MeshStandardMaterial).dispose(); mesh.dispose(); }, [mesh]);
   return <primitive object={mesh} />;
 }

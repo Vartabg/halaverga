@@ -1,0 +1,9 @@
+.page { min-height: 100dvh; background: #242722; color: #f2eee1; overflow: auto; height: 100dvh; }
+.page article { max-width: 40rem; margin: auto; padding: clamp(1.25rem, 7vw, 4rem) 1.5rem 3rem; }
+.page h1, .page h2 { font-family: Georgia, serif; font-weight: 400; line-height: 1.1; }
+.page h1 { font-size: clamp(2.3rem, 6vw, 3.5rem); margin-block: .65em; }
+.page h2 { font-size: 1.5rem; margin: 1.2em 0 .35em; }
+.page p { line-height: 1.6; margin: .4rem 0 1rem; }
+.page a, .page summary { color: #f1d49c; }
+.page details { border-bottom: 1px solid #77776a; }
+.page summary { cursor: pointer; padding: .9rem .15rem; }

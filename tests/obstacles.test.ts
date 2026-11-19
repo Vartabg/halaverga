@@ -7,13 +7,13 @@ import { resetBattle } from '../src/game/celestialBattle';
 import { SOLID, obstacleCount, setObstacles, strikeObstacle, type Stone } from '../src/game/obstacles';
 import { THROWN, floorAt, stepBody } from '../src/game/thrown';
 import { ARCH, archSection } from '../src/world/archData';
-import { makeCity } from '../src/world/cityData';
+import { makeNearMassif } from '../src/world/nearMassifData';
 import { STONE_FIT } from '../src/world/kit';
 import { megalithGeometry } from '../src/world/megalithGeometry';
 import { slamSurface } from '../src/world/fxSlam';
 
-let city: ReturnType<typeof makeCity>, stones: Stone[];
-beforeAll(() => { city = makeCity(); stones = city.stones; });
+let city: ReturnType<typeof makeNearMassif>, stones: Stone[];
+beforeAll(() => { city = makeNearMassif(); stones = city.stones; });
 afterEach(() => setObstacles([], false));
 const R = THROWN.radius;
 const fly = (p: { x: number; y: number; z: number }, v: { x: number; y: number; z: number }, seconds: number, gravity = 0) => {
@@ -66,10 +66,10 @@ describe('the stones a thrown body can strike are the stones that are drawn', ()
     g.dispose();
   });
   it('is handed to the game by the mountain when it mounts, and taken away when it unmounts', () => {
-    const src = readFileSync(new URL('../src/world/HermonCity.tsx', import.meta.url), 'utf8');
-    expect(src).toContain('useEffect(() => { setObstacles(city.stones, true); return () => setObstacles([], false); }, [city]);');
+    const src = readFileSync(new URL('../src/world/NearMassif.tsx', import.meta.url), 'utf8');
+    expect(src).toContain('useEffect(() => { setObstacles(massif.stones, true); return () => setObstacles([], false); }, [massif]);');
     expect(readFileSync(new URL('../src/world/kit.ts', import.meta.url), 'utf8')).toContain('stones.push({ x, y, z, h, top: rTop * STONE_FIT, bottom: rBot * STONE_FIT });');
-    expect(readFileSync(new URL('../src/world/Scene.tsx', import.meta.url), 'utf8')).toContain("import City from './HermonCity';");
+    expect(readFileSync(new URL('../src/world/Scene.tsx', import.meta.url), 'utf8')).toContain("import NearMassif from './NearMassif';");
     expect(obstacleCount()).toBe(0); setObstacles(stones, true); expect(obstacleCount()).toBe(stones.length + 1);
   });
   it('draws the arch from the same section the collider uses', () => {

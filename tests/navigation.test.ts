@@ -13,7 +13,7 @@ const worlds: RAPIER.World[] = [];
 const routeResults: { from: string; to: string; clear: boolean }[] = [];
 let stressSteps = 0, stressApproaches = 0;
 const identity = { x: 0, y: 0, z: 0, w: 1 };
-// The district plus the flyable ruins around it (fieldData.ts, 2026-10-06): the stress approaches sample the whole box.
+// The approach cases sample the entire flyable massif.
 beforeAll(async () => { await RAPIER.init(); geometry = physicsGeometry(); });
 afterEach(() => { worlds.splice(0).forEach(w => w.free()); });
 function setup(position: Vec) {
@@ -35,7 +35,7 @@ function move(fixture: ReturnType<typeof setup>, velocity: Vec) {
   expect(safety.isClear(body.translation())).toBe(true);
   return corrected;
 }
-describe('authored city navigation', () => {
+describe('Hermon navigation', () => {
   it('blocks vertical sweeps through the massif while both principal landings remain valid', () => {
     const f = setup(START);
     expect(f.safety.pathClear({ x: -41, y: heightAt(-41, -28) + 5, z: -28 }, { x: -41, y: heightAt(-41, -28) - 5, z: -28 })).toBe(false);
@@ -115,11 +115,15 @@ describe('authored city navigation', () => {
 afterAll(() => {
   const output = process.env.NAV_REPORT_DIR; if (!output) return;
   const width = WORLD.maxX - WORLD.minX, depth = WORLD.maxZ - WORLD.minZ;
-  const rectangles = geometry.solids.filter(s => s.kind === 'building').map(s => `<rect x="${s.position[0] - s.size[0]}" y="${s.position[2] - s.size[2]}" width="${s.size[0] * 2}" height="${s.size[2] * 2}" fill="#564769" fill-opacity=".7" stroke="#e8cfa6" stroke-width=".6"/>`).join('');
   const stops = ['arrival', 'boulevard', 'viaduct', 'roof'].map(id => BUILDING_ROUTE.find(p => p.id === id)!);
-  const pins = stops.map((p, i) => `<circle cx="${p.x}" cy="${p.z}" r="6" fill="#f2b84b"/><text x="${p.x}" y="${p.z + 3}" text-anchor="middle" fill="#140f1d" font-size="9">${i + 1}</text>`).join('');
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-225 -208 450 336" role="img"><title>Mount Hermon exterior flight route</title><desc>Sanctuary footprints, summit perimeter and flight route from the Threshold of Hermon through the Dawn Waters and Bridge of the Abyss to the High Watchtower.</desc><rect x="-225" y="-208" width="450" height="336" rx="8" fill="#14111d"/><rect x="${WORLD.minX}" y="${WORLD.minZ}" width="${width}" height="${depth}" fill="#211c30" stroke="#f2b84b" stroke-dasharray="4 3"/><path d="M0 108V-188" stroke="#245d6d" stroke-width="28"/>${rectangles}<polyline points="${BUILDING_ROUTE.map(p => `${p.x},${p.z}`).join(' ')}" fill="none" stroke="#f2b84b" stroke-width="2"/>${pins}<text x="-205" y="-197" fill="#f5efe2" font-family="sans-serif" font-size="8">MOUNT HERMON · SUMMIT SURVEY · NORTH ↑</text></svg>`;
-  const sources = ['src/game/FlightSafety.ts','src/game/navigation.ts','src/game/motion.ts','src/world/kit.ts','src/world/cityData.ts','src/game/Player.tsx','src/world/DistrictBoundary.tsx'];
-  const report = { engine: 'Rapier ' + RAPIER.version(), generatedAt: new Date().toISOString(), maximumSpeed: 34, physicsStepSeconds: 1 / 60, bounds: WORLD, cityColliderCount: geometry.solids.length + geometry.terrains.length, exteriorBuildingVolumes: geometry.solids.filter(s => s.kind === 'building').length, flightProbeRadius: 1.05, routeAuditRadius: 1.15, route: BUILDING_ROUTE, routeResults, stressApproaches, stressSteps, sourceHashes: Object.fromEntries(sources.map(p => [p, createHash('sha256').update(readFileSync(p)).digest('hex')])), scope: 'Finite seeded swept-body regression and declared route tubes in the actual city geometry. Not an exhaustive proof of every trajectory or physical-device validation.' };
+  const pins = stops.map((p, i) => `<circle cx="${p.x}" cy="${p.z}" r="6" fill="#ffca69"/><text x="${p.x}" y="${p.z + 3}" text-anchor="middle" fill="#233138" font-size="9">${i + 1}</text>`).join('');
+  const route = BUILDING_ROUTE.map(p => `${p.x},${p.z}`).join(' ');
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${WORLD.minX - 5} ${WORLD.minZ - 5} ${width + 10} ${depth + 10}" role="img">
+    <title>Mount Hermon exterior flight route</title>
+    <desc>Flight boundary and tested route from the Threshold of Hermon through the lower gorge and Cloven Arch to the Sanctuary of the Throne.</desc>
+    <rect x="${WORLD.minX}" y="${WORLD.minZ}" width="${width}" height="${depth}" fill="#273841" stroke="#ffca69" stroke-dasharray="4 3"/>
+    <polyline points="${route}" fill="none" stroke="#ffca69" stroke-width="2"/>${pins}</svg>`;
+  const sources = ['src/game/FlightSafety.ts','src/game/navigation.ts','src/game/motion.ts','src/world/kit.ts','src/world/nearMassifData.ts','src/game/Player.tsx','src/world/DistrictBoundary.tsx'];
+  const report = { engine: 'Rapier ' + RAPIER.version(), generatedAt: new Date().toISOString(), maximumSpeed: 34, physicsStepSeconds: 1 / 60, bounds: WORLD, cityColliderCount: geometry.solids.length + geometry.terrains.length, exteriorBuildingVolumes: geometry.solids.filter(s => s.kind === 'building').length, flightProbeRadius: 1.05, routeAuditRadius: 1.15, route: BUILDING_ROUTE, routeResults, stressApproaches, stressSteps, sourceHashes: Object.fromEntries(sources.map(p => [p, createHash('sha256').update(readFileSync(p)).digest('hex')])), scope: 'Finite seeded swept-body regression and declared route tubes in the playable massif. Not an exhaustive proof of every trajectory or physical-device validation.' };
   mkdirSync(output, { recursive: true }); writeFileSync(join(output, 'district-map.svg'), svg); writeFileSync(join(output, 'navigation-audit.json'), JSON.stringify(report, null, 2) + '\n');
 });

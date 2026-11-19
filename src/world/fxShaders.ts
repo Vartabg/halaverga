@@ -56,7 +56,7 @@ gl_Position = projectionMatrix * mvPosition;`);
 /**
  * The alpha-blended (smoke, dust) billboard with a lit edge: the puff's own colour fills its middle and a lighter shade of it
  * (2.4x + .06) takes over toward the soft edge, where the disc texture's alpha (1 - r)^2 falls off. Dark smoke then keeps a dark
- * centre against the overcast and a lit rim against the dark ruins, so it reads on either. A dense puff (alpha above 1) keeps its
+ * centre against the sky and a lit rim against shadowed rock. A dense puff (alpha above 1) keeps its
  * own colour across the part that density fills in, so the lit shade stays at the soft edge and never becomes a bright band.
  */
 export function billboardLit(shader: WebGLProgramParametersWithUniforms) {

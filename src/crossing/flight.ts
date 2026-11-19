@@ -2,6 +2,7 @@ import { BLADE, BODY } from '@/game/bladeReach';
 import { momentumVelocity, FLIGHT } from '@/game/momentumFlight';
 import { setVec, type Vec } from '@/game/motion';
 import { ARRIVAL, clearApproach, clearRock, watcherAt } from './course';
+import { shoulderLift } from './shoulderWind';
 
 export type Phase = 'ready' | 'flight' | 'strike' | 'safe' | 'late';
 export type CrossingInput = { horizontal: number; vertical: number; strike: boolean };
@@ -48,8 +49,10 @@ function coast(s: Crossing) {
 }
 
 function fly(s: Crossing, horizontal: number, vertical: number) {
-  const v = momentumVelocity(s.velocity, { forward: 1, strafe: horizontal * .88, vertical: vertical * .67 }, 0, 0, true, false, STEP);
-  setVec(s.velocity, v.x, v.y, v.z);
+  const lift = shoulderLift(s.player.x, s.player.y, s.player.z);
+  const air = { x: s.velocity.x, y: s.velocity.y - lift, z: s.velocity.z };
+  const v = momentumVelocity(air, { forward: 1, strafe: horizontal * .88, vertical: vertical * .67 }, 0, 0, true, false, STEP);
+  setVec(s.velocity, v.x, v.y + lift, v.z);
   coast(s);
   s.inReach = withinReach(s);
   if (s.elapsed >= ARRIVAL) { s.phase = 'late'; s.inReach = false; }

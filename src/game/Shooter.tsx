@@ -64,8 +64,8 @@ export default function Shooter() {
   useFrame(frame, -25);
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
-      const g = useGame.getState(), tag = (e.target as HTMLElement | null)?.tagName ?? '';
-      if (commandKeyDown({ code: e.code, repeat: e.repeat, metaKey: e.metaKey, ctrlKey: e.ctrlKey, altKey: e.altKey, targetTag: tag }, g.started && !g.paused, runtime.shooter)) e.preventDefault();
+      const g = useGame.getState();
+      if (commandKeyDown(e, g.started && !g.paused, runtime.shooter)) e.preventDefault();
     };
     const up = (e: KeyboardEvent) => commandKeyUp(e.code, runtime.shooter);
     addEventListener('keydown', down); addEventListener('keyup', up);

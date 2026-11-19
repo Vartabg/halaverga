@@ -31,6 +31,6 @@ describe('village opening figure', () => {
   });
 
   it('keeps the blocky box villager retired from the active Hermon sanctuary scene', () => {
-    expect(readFileSync('src/world/HermonCity.tsx', 'utf8')).not.toContain('<Villager />');
+    expect(readFileSync('src/world/NearMassif.tsx', 'utf8')).not.toContain('<Villager />');
   });
 });

@@ -6,6 +6,7 @@ test('the archangel dives into a live demon and continues the banishment loop', 
   const errors: string[] = [], models = new Set<string>();
   page.on('pageerror', e => errors.push(e.message));
   page.on('response', r => { if (r.ok() && r.url().endsWith('.glb')) models.add(new URL(r.url()).pathname); });
+  await page.addInitScript(() => localStorage.setItem('halaverga.controls.keys.v1', 'off'));
   await page.goto('/'); await page.getByRole('button', { name: 'Ascend Mount Hermon' }).click();
   await page.keyboard.press('Space'); await page.waitForTimeout(600); await page.keyboard.press('Space');
   await page.keyboard.down('KeyV');

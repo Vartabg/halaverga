@@ -1,5 +1,7 @@
 # Meridian storm atmosphere
 
+Historical art study of the retired Meridian setting. The source, build scripts and original gallery can be examined together at the [archived revision](https://github.com/Vartabg/halaverga/tree/8c9b26808d3ccf863cc67c1dd9ec729ac2bfd5f8/). The current setting is described in the [Hermon flight brief](../../plans/first-flight.md).
+
 This records the sky-only pass `d2501a4`. The subsequent [shooting integration](SHOOTING-INTEGRATION.md) combines it with the current game; the timings and art comparison below preserve the earlier atmosphere study.
 
 The user requested a focused sky and atmosphere revision because the sunny setting contradicted the mood of the ruined district. This pass depicts severe weather at the 2113 arrival. It does not imply smoke or ash has remained from the 2033 catastrophe or add a new cause to the story.
@@ -12,7 +14,7 @@ The user requested a focused sky and atmosphere revision because the sunny setti
 
 The changes are limited to `productionSky.ts`, `Atmosphere.tsx`, `EnvironmentLight.tsx`, `CanalReflection.tsx`, `Scene.tsx` and a shared `weather.ts` color. The Blender geometry and its colliders, movement rules and camera controls are unchanged.
 
-The [comparison viewer](../../../../public/docs/art/storm-front/index.html) uses actual game captures. Its previous-daylight image is the first Blender pass, so the comparison isolates this atmospheric revision. The approach capture has small timing differences; it is not a pixel-aligned benchmark.
+The [comparison viewer](https://github.com/Vartabg/halaverga/tree/8c9b26808d3ccf863cc67c1dd9ec729ac2bfd5f8/public/docs/art/storm-front) uses actual game captures. Its previous-daylight image is the first Blender pass, so the comparison isolates this atmospheric revision. The approach capture has small timing differences; it is not a pixel-aligned benchmark.
 
 ## Verification
 

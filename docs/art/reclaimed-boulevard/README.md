@@ -1,5 +1,7 @@
 # Reclaimed boulevard · environment benchmark
 
+Historical art study of the retired Meridian setting. The source, build scripts and original gallery can be examined together at the [archived revision](https://github.com/Vartabg/halaverga/tree/8c9b26808d3ccf863cc67c1dd9ec729ac2bfd5f8/). The current setting is described in the [Hermon flight brief](../../plans/first-flight.md).
+
 Art direction agreed with Garo, 19 September 2026. Implement one convincing
 playable view before expanding the treatment to the whole district.
 
@@ -83,7 +85,7 @@ PLAYTEST_URL=http://127.0.0.1:3476 REVIEW_OUTPUT=/tmp/halaverga-environment-revi
 PLAYTEST_URL=http://127.0.0.1:3476 PROFILE_OUTPUT=/tmp/halaverga-environment-profile PROFILE_SECONDS=300 node scripts/profile.mjs
 ```
 
-The public review page is `/docs/art/reclaimed-boulevard/index.html`. Captures
+The [archived review gallery](https://github.com/Vartabg/halaverga/tree/8c9b26808d3ccf863cc67c1dd9ec729ac2bfd5f8/public/docs/art/reclaimed-boulevard) contains the original public page. Captures
 use the real controls and camera, starting from a fresh browser context. The
 before images are from c9ab444. Current runtime source and asset hashes are in
 verified-inputs.json; review findings and dispositions are in REVIEW.md.

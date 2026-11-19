@@ -51,16 +51,28 @@ test('desktop keys 1-8 each mount the right layer, are saved, and never pause', 
   expect(t.errors).toEqual([]); await t.context.close();
 });
 
-test('with the number-keys checkbox off the digits do nothing; inside the focused list they still work', async ({ browser }) => {
+test('the number-keys checkbox gives digits to flight styles or combat, and the focused list owns its digits', async ({ browser }) => {
   const t = await controlsPage(browser, 'standard', { viewport: DESKTOP }), { page } = t;
+  await expect(page.getByTestId('shooter-hud')).toHaveAttribute('data-shots', '0');
+  await page.keyboard.press('KeyC');
+  await expect.poll(() => shots(page)).toBe(1);
+  for (const n of [2, 3, 4, 1]) {
+    await page.keyboard.press(`Digit${n}`);
+    await expect.poll(() => controlId(page)).toBe(DESKTOP_IDS[n - 1]);
+  }
+  await page.waitForTimeout(250); // The combat HUD samples every 100 ms.
+  expect(await shots(page)).toBe(1);
   await openSheet(page);
   const keys = sheet(page).getByRole('checkbox', { name: 'Number keys 1-8 switch controls' });
   await expect(keys).toBeChecked();
   await keys.uncheck();
   expect(await page.evaluate(() => localStorage.getItem('halaverga.controls.keys.v1'))).toBe('off');
   await page.keyboard.press('Escape'); await expect(sheet(page)).toHaveCount(0);
-  await page.keyboard.press('Digit3'); await page.waitForTimeout(300);
-  expect(await controlId(page)).toBe('cursor');
+  for (const n of [1, 2, 3, 4]) {
+    await page.keyboard.press(`Digit${n}`);
+    await expect.poll(() => shots(page)).toBe(1 + n);
+    expect(await controlId(page)).toBe('cursor');
+  }
   // Focus is in the list when the sheet opens, so the digit is a focused-widget shortcut and works whatever the preference says.
   await openSheet(page);
   await expect(row(page, 'cursor').getByRole('radio')).toBeFocused();
@@ -68,6 +80,8 @@ test('with the number-keys checkbox off the digits do nothing; inside the focuse
   await expect.poll(() => controlId(page)).toBe('flow');
   await expect(row(page, 'flow').getByRole('radio')).toBeFocused();
   await expect(row(page, 'flow').getByRole('radio')).toBeChecked();
+  await page.waitForTimeout(250);
+  expect(await shots(page)).toBe(5);
   expect(t.errors).toEqual([]); await t.context.close();
 });
 

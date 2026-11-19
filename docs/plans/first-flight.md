@@ -1,24 +1,30 @@
 # Approved first flight
 
-Build one fictional flooded modern hillside district, catastrophe 2033 and arrival 2113. Connect a damaged terrace, water corridor, collapsed elevated roadway and tower roof. Render modern concrete, glass, exposed structural frames, rooftop equipment, damaged cars, road markings and restrained vegetation with violet shadows, teal water and warm architectural accents.
+Fly Mount Hermon at dawn in the days of Jared. First light catches the snow and limestone, stars fade above the summit, and mist lies over the plain. 1 Enoch 6 places the Watchers’ descent and oath here. The playable pass, sanctuaries, tablets and characters are fiction. [Source and design decisions](2026-11-19-hermon-oath-pass.md)
 
-Next.js, TypeScript, R3F/Three.js WebGL2, Rapier, CSS Modules and Zustand. Implement walking, lift, assisted flight, toggle surge, water skimming, hover and cancellable assisted landing. Shared desktop/touch intent; one stable first/third-person camera controller. Phone has move/look regions and two actions. Desktop WASD/mouse, Space lift/land, Shift surge, keyboard view controls, Escape pause.
+**The Cloven Arch** follows two shepherds carrying a warning from the summit. Fly down the pass, read the snow hollow or exposed shoulder and intercept the Watcher before it reaches the arch. The travelers’ actions and the distant camp show the outcome. Both endings are available through a text account. **Ascend Mount Hermon** opens free flight from the Threshold, through the lower gorge and Cloven Arch, to the high sanctuary. Five tablets quote individually cited passages. The western tablet recounts the binding in Dudael from 1 Enoch 10:4–5.
 
-One local, clearly fictional terminal record and location identifier. Persist settings and safe checkpoint. HTML instructions, textual route/discovery alternative, keyboard access, reduced motion, loading/error/context-loss recovery. Pause when hidden; preserve position and clear touches on orientation change.
+Free flight supports walking, lift, surge, hover and cancellable assisted landing. The free-cursor trackpad and one-thumb Fly control are the desktop and touch defaults. Keep the keyboard, alternative flight controls and player-controlled heading. Use one camera writer per scene. Preserve settings and the safe landing checkpoint across visits. Provide HTML instructions, a textual route, keyboard access, reduced motion and scene recovery. Pause when hidden and clear touches on rotation.
 
-Muse independently reviews movement; Gemini independently reviews rendering. Codex integrates, tests, commits and pushes through task-lifecycle. Dedicated Vercel playtest URL and QR, previous deployment URLs retained. Target 60 fps on iPhone 15-class Safari with stable 30 fps fallback; record actual device and p50/p95/stalls over five minutes. Validate collisions, landing cancellation, rotation, pause/resume, keyboard, VoiceOver, zoom, reduced motion and contrast. Physical iPhone performance and player enjoyment require the user's real-device playtest; never claim emulator results satisfy them.
+Use Next.js, TypeScript, R3F/Three.js WebGL2, Rapier, CSS Modules and Zustand. The flight surface and its collision geometry come from the same authored terrain. Surveyed regional elevations supply the distant ridges. [Terrain provenance](../art/hermon-sky/PROVENANCE.md)
 
-## User correction · 2026-09-11
+Target 60 fps on iPhone 15-class Safari with a stable 30 fps fallback. Record the device, five-minute workload, p50 and p95 frame times and stalls. Check landing cancellation, rotation, pause, keyboard, VoiceOver, zoom, reduced motion and contrast. Report physical iPhone and browser-emulation results separately.
+
+## Historical control decisions
+
+The following dated entries preserve the playtests and Garo’s decisions from September 2026. The current controls are described in the in-game Field guide and the [project README](../../README.md).
+
+### User correction · 2026-09-11
 
 The user uses Chrome on their phone. Chrome on iPhone is now the primary mobile review target. The original split controls and Surge button above are superseded by [the one-thumb control revision](thumb-controls.md).
 
 The user subsequently confirmed that the observed phone session was Safari. Safari is the current device-review target; Chrome remains supported.
 
-## Desktop controls · 2026-09-24
+### Desktop controls · 2026-09-24
 
 Garo reported the desktop controls broken after the suit blaster work and asked for the ones he had before the gun. The desktop default is the free-cursor trackpad from 7945430 again: click the open scene to lift and cruise, move the pointer to steer, hold near an edge to keep turning, two-finger scroll changes speed, click again to brake and hover, drag while hovering to look, aim at a flat surface and click Land; WASD/arrows/R/F/Space/Shift/Escape/E on the keyboard. The one change for shooting, blaster on: while hovering or on the ground a click fires and a drag looks, so W or Space starts flying (Space from the ground). Phone twin-stick controls stayed touch-only until 2026-09-26 (below). Details: [DECISIONS.md](../DECISIONS.md) and [the shooter plan](2026-09-22-shooter.md#controls).
 
-## Turning · 2026-09-25
+### Turning · 2026-09-25
 
 Garo: "a problem i'm having is doing a 360 deg turn with the character when flying. also there needs to be an easier way to switch between different methods in lab. also is there a way to get feedback from public by putting this out and having a poll or vote?" The 360 was hard in every mode: Phone Standard (one look swipe turned less than half a circle), Desktop Standard (the edge-hold turn faded and stopped), Lab Draw and Conduct (no way to wrap all the way round) and Lab Brush (each stroke carved only part of a turn).
 
@@ -33,7 +39,7 @@ Garo: "a problem i'm having is doing a 360 deg turn with the character when flyi
 - **Public feedback**: an anonymous in-game vote card after trying styles (favorite plus optional 1-5 ratings), with results at `/results`. See [voting.md](../voting.md).
 - Measured 360 times (node math on the real modules, `tests/turn-360.test.ts`): twin 0.75 s landscape and about 1.1 s portrait, one thumb 1.80 s (until 2026-09-26; main's 4.19 s from the rest since, 3.5 s after a slide to the edge), desktop 1.47 s, Conduct 1.62 s, Brush whirl 1.30 s and four stacked swipes 2.07 s, Draw 1.70 s once the hero reaches the circle (3.3-3.6 s from pen-down, because the first 150° of the line fly as before). None of this has been felt on the iPhone, a Mac trackpad or a windowed browser yet. Snap turns are not built; they are a follow-up that needs Garo on the device.
 
-## One-finger flight back · 2026-09-26
+### One-finger flight back · 2026-09-26
 
 Garo's post-mortem: the one-finger flight from the start was the part he liked; the shooting and the drones made it "go haywire" and he got "stuck and can't turn back around". His decision: "bring back one-finger flight as the phone default, with shooting as tap-a-drone on top, and remove the friction and speed cap from flight". One change for him to judge on his iPhone:
 
@@ -42,7 +48,7 @@ Garo's post-mortem: the one-finger flight from the start was the part he liked; 
 - **Shooting is out of the flight path on every device**: no look friction (only the ADS zoom gain), no hip-fire speed cap; ADS hover stays for a held Q.
 - Desktop is unchanged from the 2026-09-24 restore. Details: [DECISIONS.md](../DECISIONS.md), [touch-controls.md](../touch-controls.md).
 
-## Limits: easier to get away from an edge · 2026-09-28
+### Limits: easier to get away from an edge · 2026-09-28
 
 Garo: "moving around the map needs to be better and easier, especially when I reach certain limits and fail to reverse course." The desktop default is unchanged in what an input does in open air; near a limit:
 

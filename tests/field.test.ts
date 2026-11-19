@@ -42,9 +42,9 @@ describe('continuous outer Hermon ranges', () => {
     }
   });
   it('mounts matching trimesh collision in the shared physics world', () => {
-    const scene = readFileSync('src/world/Scene.tsx', 'utf8'), mesh = readFileSync('src/world/RuinField.tsx', 'utf8');
+    const scene = readFileSync('src/world/Scene.tsx', 'utf8'), mesh = readFileSync('src/world/OuterRanges.tsx', 'utf8');
     const terrain = readFileSync('src/world/MassifTerrain.tsx', 'utf8');
-    expect(scene).toMatch(/<Physics[\s\S]*<RuinField \/>[\s\S]*<\/Physics>/);
+    expect(scene).toMatch(/<Physics[\s\S]*<OuterRanges \/>[\s\S]*<\/Physics>/);
     expect(mesh).toContain('<RigidBody type="fixed"'); expect(mesh).toContain('<MassifTerrain chunks={field.terrains}');
     expect(terrain).toContain('TrimeshCollider'); expect(terrain).toContain('args={[chunk.vertices, chunk.indices]}');
     expect(mesh).not.toContain('concrete_floor_02_diff_1k.jpg');

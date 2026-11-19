@@ -30,7 +30,7 @@ The sheet lists only your device family: five controls on a touch screen, eight 
 
 On a desktop, keys **1 to 8** pick the controls in the order of the desktop table below (1 Cursor, 2 One finger + keys, 3 Flow, 4 Captured, 5 Mouse + keys, 6 Draw, 7 Conduct, 8 Brush). They work while paused too. They are ignored on a touch screen, with a modifier key held, on key repeat, while you type in a field, and while a panel, the Field guide or the vote card is open.
 
-Single-key shortcuts can get in the way, so the Controls sheet carries a checkbox, **Number keys 1-8 switch controls**. It is on by default. Untick it and the digits do nothing during play. That setting is stored on this device only (its own `localStorage` key), separate from the game preferences. The digits still work while keyboard focus is inside the list of controls, whatever the setting.
+The Controls sheet has a checkbox, **Number keys 1-8 switch controls**, which is on by default. Turn it off to use the top row during a fight. Press 1 to rebuke, 2 to strike, 3 to bind or 4 to cast. The flight style stays selected. This device saves the shortcut preference separately from the flight settings. While keyboard focus is inside the list of controls, the digits pick a flight style with either setting.
 
 ## Touch: five controls
 

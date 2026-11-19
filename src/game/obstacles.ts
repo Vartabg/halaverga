@@ -1,5 +1,5 @@
 // What a thrown body can strike besides the mountain itself (thrown.ts): the standing stones and the rock arch. The world hands
-// over the stones it draws (HermonCity.tsx, recorded by the same kit call that builds each one), so a collider is always a drawn
+// over the stones it draws (NearMassif.tsx, recorded by the same kit call that builds each one), so a collider is always a drawn
 // stone, and the arch shares its section with its mesh (world/archData.ts). For thrown bodies only: the flying angel still passes
 // through the shafts, because colliders on them change the flight-escape routes (see steleData.ts). Pure and allocation-free.
 import type { Vec3 } from './combat';

@@ -65,7 +65,7 @@ export function spawnKillBurst(p: BurstPools, addDebris: AddDebris, t: number, c
     v.x = Math.cos(a) * 3; v.y = 0; v.z = Math.sin(a) * 3;
     spawnPuff(p.alpha, t + .08 + .04 * k, at, reduced ? 0 : PLUME.rise * (.7 + .6 * rng()), PLUME.life, PLUME.s0 * g * (.7 + .6 * rng()), PLUME.s1 * g, 1, FX.plume, FX.plumeEnd, PLUME.alpha, CURVE_HOLD, reduced ? null : v);
   }
-  // Then the dark smoke that stays: darker than the overcast, lit from below by the glow while it lasts, drifting on the ash wind.
+  // Smoke from the strike lingers downwind, lit from below while the glow lasts.
   for (let k = 0, n = reduced ? 1 : LINGER.count; k < n; k++) {
     const a = 2 * Math.PI * (k + .5 * rng()) / n, r = .4 * g * rng();
     at.x = c.x + Math.cos(a) * r; at.y = c.y + .3 * rng(); at.z = c.z + Math.sin(a) * r;

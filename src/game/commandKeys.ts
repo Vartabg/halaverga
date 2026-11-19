@@ -1,15 +1,20 @@
-// Fight keys, kept in the scene chunk (the landing page carries only shooterKeys.ts): 1 rebuke, 2 sword, 3 bind, 4 cast on
-// the demon under the centre reticle; hold V for the shield of faith. C and a click take the next step (Shooter.tsx turns the old
-// trigger press into a context command).
+// Fight keys live in the scene chunk. Desktop flight-style shortcuts take priority over the four combat digits.
+import { currentFamily } from '@/ui/controls/family';
+import { keysEnabled } from '@/ui/controls/keysPref';
 import { type ShooterState } from './combat';
 import { COMMAND, SHIELD, requestCommand } from './commands';
 
 const KEYS: Record<string, number> = { Digit1: COMMAND.rebuke, Digit2: COMMAND.sword, Digit3: COMMAND.bind, Digit4: COMMAND.cast };
-type Key = { code: string; repeat: boolean; metaKey: boolean; ctrlKey: boolean; altKey: boolean; targetTag: string };
 /** Returns true when handled. live = started and not paused. */
-export function commandKeyDown(e: Key, live: boolean, s: ShooterState) {
-  if (!live || e.metaKey || e.ctrlKey || e.altKey || e.repeat || /^(INPUT|SELECT|TEXTAREA)$/.test(e.targetTag)) return false;
-  if (e.code in KEYS) { requestCommand(s, KEYS[e.code]); return true; }
+export function commandKeyDown(e: KeyboardEvent, live: boolean, s: ShooterState) {
+  const target = e.target as HTMLElement | null;
+  if (!live || e.metaKey || e.ctrlKey || e.altKey || e.repeat || /^(INPUT|SELECT|TEXTAREA)$/.test(target?.tagName ?? '')) return false;
+  if (e.code in KEYS) {
+    if (e.defaultPrevented || target?.isContentEditable || target?.closest?.('dialog,[role="dialog"]')) return false;
+    if (currentFamily() === 'desktop' && keysEnabled()) return false;
+    requestCommand(s, KEYS[e.code]);
+    return true;
+  }
   if (e.code === 'KeyV') { s.input.shield |= SHIELD.keys; return true; }
   return false;
 }

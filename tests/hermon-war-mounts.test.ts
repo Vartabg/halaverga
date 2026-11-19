@@ -6,13 +6,13 @@ import { expect, it } from 'vitest';
 const read = (path: string) => readFileSync(path, 'utf8');
 it('keeps the Hermon world and the whole fight mounted in the scene', () => {
   const scene = read('src/world/Scene.tsx');
-  for (const part of ["import City from './HermonCity'", '<City />', '<RuinField />', '<Backdrop />', '<TerrainLayer />', '<Water />', '<EdgeRing />', '<Drift />', '<SealedGround />',
+  for (const part of ["import NearMassif from './NearMassif'", '<NearMassif />', '<OuterRanges />', '<Backdrop />', '<TerrainLayer />', '<Water />', '<EdgeRing />', '<Drift />', '<SealedGround />',
     '<Shooter />', '<Drones />', '<Battle />', '<Banishment />', '<FlamingSword />', 'useLoader(GLTFLoader, ADVERSARY_URL)']) expect(scene, part).toContain(part);
   for (const gone of ['Sanctuary', 'Abyss', 'CelestialVault', 'ThroneWitness', 'BreachRoutes', 'ArmCannon']) expect(scene, gone).not.toContain(gone);
 });
 it('keeps the massif, the cedars and the village on the mountain', () => {
-  const city = read('src/world/HermonCity.tsx');
-  for (const part of ['<MassifTerrain chunks={city.terrains} />', '<Reclamation />', '<Village />']) expect(city, part).toContain(part);
+  const city = read('src/world/NearMassif.tsx');
+  for (const part of ['<MassifTerrain chunks={massif.terrains} />', '<Cedars />', '<Scree />', '<Village />']) expect(city, part).toContain(part);
 });
 it('keeps the demons, their wardens and the battle panels mounted', () => {
   const drones = read('src/world/Drones.tsx'), hud = read('src/ui/BattleHud.tsx'), experience = read('src/ui/Experience.tsx'), hint = read('src/ui/ControlsHint.tsx');

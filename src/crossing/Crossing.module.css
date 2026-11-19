@@ -1,8 +1,9 @@
 .stage {
   position: fixed;
-  inset: 0;
+  inset: 0 0 auto;
+  height: 100dvh;
   overflow: hidden;
-  background: #8d8799 url('/textures/sky/hermon-dawn.jpg') center 52% / cover;
+  background: #59616b;
   color: #fbf5e7;
   font-family: var(--font-sans), system-ui, sans-serif;
   isolation: isolate;
@@ -39,6 +40,9 @@
   bottom: max(5%, env(safe-area-inset-bottom));
   left: max(4%, calc(env(safe-area-inset-left) + 12px));
   width: min(28rem, 92%);
+  max-height: calc(100dvh - max(5dvh, env(safe-area-inset-bottom)) - max(.7rem, env(safe-area-inset-top)));
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 1.35rem 1.55rem 1.45rem;
   border-left: 2px solid #e4c487;
   background: rgba(29, 25, 32, .94);
@@ -52,6 +56,10 @@
 .panel .place, .panel .hint { font-size: .88rem; line-height: 1.4; }
 .panel .place { color: #e4cea3; margin: 0; }
 .panel .hint { color: #e1d8dc; margin-bottom: 1em; }
+.actions { display: flex; gap: 1.25rem; align-items: center; flex-wrap: wrap; }
+.actions a { min-height: 44px; display: inline-flex; align-items: center; color: #f2dab0; text-underline-offset: .18em; font-size: .9rem; }
+.voice { position: absolute; left: max(1rem, env(safe-area-inset-left)); bottom: max(1.1rem, env(safe-area-inset-bottom)); max-width: calc(100% - 10rem); margin: 0; padding: .4rem .62rem; color: #fff5df; background: #251f28eb; font: 1rem/1.25 Georgia, serif; pointer-events: none; }
+.panel .afterword { max-width: 32ch; font-size: .95rem; }
 .thumbControls { display: none; }
 .primary {
   padding: .72rem 1.55rem;
@@ -88,11 +96,18 @@
   .keyControls { display: none; }
 }
 @media (max-height: 475px) {
-  .panel { padding: .75rem 1.1rem; bottom: max(10px, env(safe-area-inset-bottom)); }
-  .panel h1 { font-size: 2.1rem; }
-  .panel p { margin-bottom: .45em; }
-  .panel .hint { margin-bottom: .6em; }
+  .panel { padding: .65rem 1rem; bottom: max(10px, env(safe-area-inset-bottom)); }
+  .panel h1 { margin: .12em 0 .19em; font-size: 1.9rem; }
+  .panel p, .panel .hint { max-width: none; margin-bottom: .45em; line-height: 1.28; }
 }
 @media (max-width: 520px) {
   .panel { padding: 1rem 1.15rem; }
+}
+@media (orientation: landscape) and (max-height: 475px) {
+  .panel { width: min(48vw, 29rem); }
+  .panel[data-opening="true"] { display: grid; width: min(69vw, 39rem); grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: .9rem; }
+  .panel[data-opening="true"] :is(.place, h1, p:not(.hint)) { grid-column: 1 / -1; }
+  .panel[data-opening="true"] .hint { margin: 0; }
+  .panel[data-ending="true"] { max-width: 40vw; }
+  .panel[data-ending="true"] h1 { font-size: 1.65rem; }
 }
