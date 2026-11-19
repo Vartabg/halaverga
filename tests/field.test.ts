@@ -7,7 +7,7 @@ import { makeField } from '@/world/fieldData';
 const field = makeField();
 const bytes = (f: ReturnType<typeof makeField>) => {
   const h = createHash('sha256');
-  for (const g of f.geometries) h.update(Buffer.from(g.attributes.position.array.buffer)).update(Buffer.from(g.attributes.color.array.buffer));
+  for (const g of f.geometries) h.update(Buffer.from(g.attributes.position.array.buffer)).update(Buffer.from(g.attributes.normal.array.buffer));
   for (const t of f.terrains) h.update(Buffer.from(t.indices.buffer));
   return h.digest('hex');
 };
@@ -24,9 +24,10 @@ describe('continuous outer Hermon ranges', () => {
     expect(field.solids).toHaveLength(0);
     for (const chunk of field.terrains) {
       expect(chunk.triangles).toBeGreaterThan(1000);
-      for (const name of ['position', 'normal', 'uv', 'color']) {
-        expect(chunk.geometry.attributes[name].count).toBe(chunk.geometry.attributes.position.count);
-      }
+      const { position, normal } = chunk.geometry.attributes;
+      expect(position.count).toBe(chunk.indices.length);
+      expect(normal.count).toBe(position.count);
+      expect(normal.array.every(Number.isFinite)).toBe(true);
     }
   });
   it('covers the exact outer bounds rather than old inset city blocks', () => {

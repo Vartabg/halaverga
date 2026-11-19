@@ -30,7 +30,7 @@ import ShotFx from './ShotFx';
 import ImpactFx from './ImpactFx';
 import { useGame } from '@/game/store';
 import { clearInput, runtime } from '@/game/runtime';
-import { EXPOSURE, FOG, HEMISPHERE, SUN_COLOR, SUN_INTENSITY, SUN_POSITION } from './atmospherePalette';
+import { EXPOSURE, FAR_PLANE, FOG, HEMISPHERE, SUN_COLOR, SUN_INTENSITY, SUN_POSITION } from './atmospherePalette';
 import { labFault } from '@/ui/labSwitch';
 import { useTouchCapable } from '@/ui/useTouchCapable';
 // The Gesture Lab's scene parts load only when a lab scheme is on (spec 10): the drone screen history (-9), Draw's world probe
@@ -87,7 +87,7 @@ export default function Scene({ onLoss }: { onLoss: () => void }) {
   const paused = useGame(s => s.paused), quality = useGame(s => s.quality), sun = useRef<DirectionalLight>(null);
   return <Canvas aria-label="Three-dimensional Mount Hermon at dawn. A winged angel fights the host of the fallen Watchers. Text description and keyboard controls are available in the field guide."
     role="img" frameloop="demand" dpr={quality === 'high' ? [1, 1.5] : 1} shadows={quality === 'high' ? 'percentage' : false}
-    camera={{ position: [0, 24, 72], fov: 65, near: .1, far: 650 }}
+    camera={{ position: [0, 24, 72], fov: 65, near: .1, far: FAR_PLANE }}
     gl={{ antialias: true, alpha: false, powerPreference: 'high-performance', stencil: false }}
     onCreated={({ gl }) => { gl.toneMapping = ACESFilmicToneMapping; gl.toneMappingExposure = EXPOSURE; }}>
     <GraphicsRecovery onLoss={onLoss} sun={sun} />

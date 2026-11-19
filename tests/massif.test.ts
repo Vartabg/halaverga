@@ -61,7 +61,7 @@ describe('continuous Hermon massif', () => {
         const source = chunk.indices[i] * 3;
         for (let axis = 0; axis < 3; axis++) expect(p.array[i * 3 + axis]).toBe(chunk.vertices[source + axis]);
       }
-      for (const name of ['position', 'normal', 'color', 'uv']) {
+      for (const name of ['position', 'normal']) {
         const values = chunk.geometry.attributes[name].array;
         expect(values.every(Number.isFinite)).toBe(true);
       }

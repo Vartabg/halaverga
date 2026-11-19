@@ -3,17 +3,17 @@ import { GROWTH, heightAt, slopeAt } from './massifData';
 import { trees } from './reclamationData';
 
 /** Cedars of Lebanon on the banks below the summit (days of Jared, pre-Flood: living trees, not snags). Pure data, Node-safe.
- * A cedar is a trunk plus flat tiers, wide at the bottom and narrow at the top, with snow lying on the highest tier.
+ * The crowns spread into tabular boughs with light frost on the upper branches.
  * Every trunk base is sampled off the massif, so the grove follows the terrain instead of one authored bank level. */
 export type Cedar = { position: [number, number, number]; scale: number; yaw: number };
 export const CEDAR_TIERS = [
-  { r: 1.35, y: .52, h: .13, dx: -.14, dz: .10 },
+  { r: 1.35, y: .48, h: .13, dx: -.14, dz: .10 },
   { r: 1.48, y: .64, h: .12, dx: .18, dz: -.12 },
   { r: 1.18, y: .76, h: .11, dx: -.12, dz: -.12 },
-  { r: .88, y: .87, h: .10, dx: .06, dz: .07 },
+  { r: .88, y: .91, h: .10, dx: .06, dz: .07 },
 ] as const;
-export const CEDAR = { trunkR: .22, trunkH: .78, snowY: .94, snowR: .78, seed: 611 };
-/** Metres from trunk base to snow cap at scale 1. Cedars.tsx builds the geometry to this height. */
+export const CEDAR = { trunkR: .22, trunkH: .78, seed: 611 };
+/** Nominal height in metres at scale 1. Cedars.tsx builds the geometry to this height. */
 export const CEDAR_HEIGHT = 9;
 
 /** Ground a cedar: the authored x and z choose the site, the sampler decides how high the ground is there. */
@@ -24,12 +24,12 @@ const plant = (x: number, z: number, scale: number, yaw: number): Cedar =>
 export const canGrow = (x: number, z: number) =>
   Math.abs(x) > GROWTH.corridor && heightAt(x, z) <= GROWTH.treeline && slopeAt(x, z) <= GROWTH.cedarSlope;
 
-/** Hero cedars flanking the arrival view: rooted on the lower gorge shelves, spreading horizontal tabular crowns above the lip. */
+/** Small groups below the arrival terrace, rooted on the lower gorge shelves. */
 export const HERO_SITES = [
-  { x: -24, z: 46, scale: 3.0, yaw: .7 },
-  { x: 24, z: 46, scale: 2.95, yaw: 2.4 },
-  { x: -24, z: 41, scale: 3.05, yaw: 1.5 },
-  { x: 24, z: 41, scale: 3.0, yaw: 0 },
+  { x: -24, z: 46, scale: 1.16, yaw: .7 },
+  { x: 24, z: 46, scale: 1.34, yaw: 2.4 },
+  { x: -24, z: 41, scale: .9, yaw: 1.5 },
+  { x: 24, z: 41, scale: 1.02, yaw: 0 },
 ] as const;
 export const HERO_CEDARS: Cedar[] = HERO_SITES.map(s => plant(s.x, s.z, s.scale, s.yaw));
 

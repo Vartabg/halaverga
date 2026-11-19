@@ -39,7 +39,7 @@ function terrace(y: number, x: number, z: number, p: Plateau) {
   return top + (y - top) * blend;
 }
 
-/** One world-space Hermon sampler drives every near, outer and distant triangle. */
+/** One world-space sampler drives the playable massif and the perimeter seam. */
 export function heightAt(x: number, z: number, seed: number = MASSIF.seed) {
   const broad = noise(x * .025, z * .025, seed), detail = noise(x * .09, z * .09, seed + 19);
   const gorge = 3.8 * Math.sin(z * .027) + 1.7 * Math.sin(z * .061), distance = Math.abs(x - gorge);
